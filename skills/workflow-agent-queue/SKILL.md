@@ -1,11 +1,19 @@
 ---
 name: workflow-agent-queue
 description: Use for Agent Queue, the short-loop agent that keeps the issue tracker implementation queue moving by selecting ready issues, launching or nudging Agent Implement, requesting Agent Review, updating issue tracker, and stopping when human input is needed.
+argument-hint: "[loop-budget-or-filter]"
+disable-model-invocation: true
 ---
 
 # Agent Queue
 
 Coordinate the queue. Do not become the default implementer or reviewer.
+
+## Inputs
+
+- Repo path and configured issue tracker location.
+- Optional loop budget, project, milestone, label, or issue filter.
+- Current tracker and PR state for the configured workflow.
 
 ## Context
 

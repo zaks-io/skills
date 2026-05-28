@@ -1,11 +1,19 @@
 ---
 name: workflow-create-pr
 description: Use when opening, refreshing, or shipping the current branch as a pull request with local checks, code review, Conventional Commits, PR creation, and issue tracking.
+argument-hint: "[issue-id|branch|pr-url]"
+disable-model-invocation: true
 ---
 
 # Create PR
 
 Take the current code to a ready PR. Do the whole workflow unless blocked.
+
+## Inputs
+
+- Current branch and all intended staged or unstaged repo changes.
+- Optional issue ID, branch name, or PR URL from the invocation.
+- Repo config for checks, branch naming, PR format, and tracker updates.
 
 ## Context
 

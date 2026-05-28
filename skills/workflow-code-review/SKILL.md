@@ -1,6 +1,10 @@
 ---
 name: workflow-code-review
-description: Use before opening a PR, before handing off a branch, or when reviewing committed changes, uncommitted changes, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit.
+description: Use for code review before opening a PR, before handing off a branch, or when reviewing committed changes, uncommitted changes, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit.
+when_to_use: Use automatically for code review requests, pre-PR review gates, PR branch review, main drift review, or when another workflow skill asks for workflow-code-review.
+argument-hint: "[branch|pr-url|range]"
+context: fork
+agent: general-purpose
 ---
 
 # Code Review
@@ -8,6 +12,16 @@ description: Use before opening a PR, before handing off a branch, or when revie
 Run a bug-focused review from local files or a clean worktree. This is the
 shared review gate for implementation self-checks, PR reviews, worker handoffs,
 and main-branch drift checks.
+
+For Claude, this skill runs in a forked context to avoid implementation-context
+bias. Reconstruct intent from explicit arguments, repo config, tracker state,
+PR bodies, commits, and docs.
+
+## Inputs
+
+- Branch, PR URL, commit range, or current working tree to review.
+- Base branch from config or Git, usually `origin/main`.
+- Issue, PR, spec, ADR, or user request that defines intent.
 
 ## Context
 

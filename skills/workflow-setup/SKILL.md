@@ -1,12 +1,20 @@
 ---
 name: workflow-setup
-description: Use when setting up or refreshing a repository for agent workflows by creating docs/agents/workflow/config.md with repo commands, issue tracking, runtime adapters, review gates, and environment safety rules.
+description: Use for workflow setup when setting up or refreshing a repository for agent workflows by creating docs/agents/workflow/config.md with repo commands, issue tracking, runtime adapters, review gates, and environment safety rules.
+argument-hint: "[repo-path]"
+disable-model-invocation: true
 ---
 
 # Setup
 
 Create or refresh the repo-local agent config used by the other skills.
 The output is tracked project knowledge, not secrets.
+
+## Inputs
+
+- Repo path to configure.
+- Existing repo rules, CI, package scripts, issue tracker, and deploy docs.
+- Any user-provided tracker, runtime, or environment constraints.
 
 ## Output File
 

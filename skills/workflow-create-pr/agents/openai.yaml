@@ -2,3 +2,5 @@ interface:
   display_name: "Create PR"
   short_description: "Create pull requests"
   default_prompt: "Use $workflow-create-pr to open a PR for my current branch."
+policy:
+  allow_implicit_invocation: false

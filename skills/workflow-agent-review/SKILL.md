@@ -1,12 +1,26 @@
 ---
 name: workflow-agent-review
 description: Use for Agent Review, the independent review agent that reviews PRs by launching workflow-code-review in a clean subagent or worktree, reviews main-branch drift since its checkpoint, and creates tracker issues for Agent Queue.
+argument-hint: "[pr-url-or-range]"
+disable-model-invocation: true
+context: fork
+agent: general-purpose
 ---
 
 # Agent Review
 
 Review PRs and merged state from clean context. File actionable tracker issues.
 Do not implement fixes.
+
+For Claude, this skill runs in a forked context. Reconstruct intent from repo
+artifacts, tracker state, PR bodies, commits, and docs rather than parent
+conversation history.
+
+## Inputs
+
+- PR URL, PR branch, or main-branch review range.
+- Repo path, default branch, and checkpoint path from config.
+- Linked issue, PR body, required checks, and relevant specs or ADRs.
 
 ## Context
 

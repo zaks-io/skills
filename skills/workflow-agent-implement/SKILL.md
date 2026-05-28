@@ -1,12 +1,20 @@
 ---
 name: workflow-agent-implement
 description: Use for Agent Implement when taking one tracker issue through the full implementation pipeline by claiming the issue, making scoped changes locally or remotely, verifying, running workflow-code-review, iterating until PR-ready, running workflow-create-pr, and updating issue tracking.
+argument-hint: "[issue-id-or-url]"
+disable-model-invocation: true
 ---
 
 # Agent Implement
 
 Implement exactly one issue as one scoped PR. Own the whole path from issue
 claim through PR creation unless blocked by missing credentials or permissions.
+
+## Inputs
+
+- One tracker issue ID or URL, or a worker assignment that names one issue.
+- Repo path, branch, and runtime constraints from `docs/agents/workflow/config.md`.
+- Required checks and acceptance criteria from the issue.
 
 ## Context
 

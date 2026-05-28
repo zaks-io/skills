@@ -158,6 +158,34 @@ The three long-running or delegated roles share the `workflow-agent-*` prefix:
 - `workflow-agent-review`: Agent Review, the independent reviewer for PRs and
   longer-loop main drift checks.
 
+## Claude And Codex
+
+These skills keep a portable `SKILL.md` core for Codex and other Agent Skills
+runtimes. Claude-specific frontmatter is limited to metadata that other
+runtimes can ignore:
+
+- Side-effecting workflows use `disable-model-invocation: true` so Claude only
+  runs them when explicitly invoked.
+- `workflow-code-review` and `workflow-agent-review` use `context: fork` so
+  review starts from a clean conversation.
+- Codex `agents/openai.yaml` mirrors this: side-effecting workflows set
+  `policy.allow_implicit_invocation: false`, while `workflow-code-review`
+  remains implicitly invocable.
+- The shared skills do not use `allowed-tools`, model pins, effort pins, or
+  dynamic shell injection. Configure local Claude permissions outside this repo
+  if a runtime needs more tool access.
+- Tool dependencies are not declared globally because code host and issue
+  tracker providers come from each repo's `docs/agents/workflow/config.md`.
+
+## Skill Quality Bar
+
+- Keep each skill focused on one job with one top-level heading.
+- Prefer imperative instructions and references over bundled scripts. Add skill
+  scripts only when deterministic behavior or external tooling justifies them.
+- Include explicit `Inputs` and `Done` or `Output` sections.
+- Treat each `agents/openai.yaml` default prompt as a trigger fixture for the
+  frontmatter description.
+
 ## Install
 
 List available skills:
@@ -201,5 +229,6 @@ pnpm ci:check
 ```
 
 The check verifies formatting, skill frontmatter names,
-`agents/openai.yaml` prompts, install metadata, dependency audit, and secret
-scanning.
+Claude compatibility guardrails, focused skill structure,
+`agents/openai.yaml` prompts and invocation policy, install metadata,
+dependency audit, and secret scanning.
