@@ -48,8 +48,9 @@ Record the skip in the final report.
 
 - Never push to the default branch.
 - If already on a feature branch, use it.
-- If on the default branch or detached HEAD, create a branch using config
-  prefix, defaulting to `codex/<issue-id>-<short-slug>` when an issue exists.
+- If on the default branch or detached HEAD, create a branch using the repo
+  config branch prefix, such as `<branch-prefix>/<issue-id>-<short-slug>` when
+  an issue exists.
 - If a PR already exists for this branch, update that PR instead of creating a
   duplicate.
 - Include all staged and unstaged repo changes by default, except secrets.
