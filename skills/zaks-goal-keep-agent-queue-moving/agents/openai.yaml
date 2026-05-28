@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zaks Queue Loop"
+  short_description: "Keep implementation moving"
+  default_prompt: "Use $zaks-goal-keep-agent-queue-moving to coordinate ready Linear issues, worker agents, and PR review."

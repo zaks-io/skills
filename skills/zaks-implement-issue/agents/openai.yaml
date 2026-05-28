@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zaks Implement Issue"
+  short_description: "Implement one ready project issue"
+  default_prompt: "Use $zaks-implement-issue to implement this Linear issue as one scoped PR."

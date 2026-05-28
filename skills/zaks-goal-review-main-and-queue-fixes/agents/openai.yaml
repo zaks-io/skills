@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zaks Main Review Loop"
+  short_description: "Review main and queue fixes"
+  default_prompt: "Use $zaks-goal-review-main-and-queue-fixes to review new main commits and queue actionable Linear fixes."

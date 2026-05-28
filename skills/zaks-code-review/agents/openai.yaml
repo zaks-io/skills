@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zaks Code Review"
+  short_description: "Pre-PR bug review workflow"
+  default_prompt: "Use $zaks-code-review to review my current diff before PR."
