@@ -26,8 +26,8 @@ const skillNames = readdirSync(skillsDir)
   .sort();
 
 for (const name of skillNames) {
-  if (!name.startsWith("zaks-")) {
-    fail(`skills/${name} must start with zaks-`);
+  if (!name.startsWith("workflow-")) {
+    fail(`skills/${name} must start with workflow-`);
   }
 
   const skillFile = path.join(skillsDir, name, "SKILL.md");

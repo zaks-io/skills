@@ -1,0 +1,88 @@
+# Issue Tracker Contract
+
+Use this when writing the issue tracker section of
+`docs/agents/workflow/config.md`. The configured tracker can be GitHub, Linear,
+or any provider the repo uses.
+
+## Default States
+
+- `Triage`
+- `Backlog`
+- `Todo`
+- `In Progress`
+- `Blocked`
+- `In Review`
+- `Changes Requested`
+- `Ready to Merge`
+- `Done`
+- `Canceled`
+- `Duplicate`
+
+## Default Labels
+
+Readiness:
+
+- `needs-triage`
+- `needs-info`
+- `ready-for-agent`
+- `ready-for-human`
+- `remote-worker`
+- `wontfix`
+
+Risk:
+
+- `risk-normal`
+- `risk-security-sensitive`
+- `risk-schema`
+- `risk-cross-cutting`
+
+Type:
+
+- `Bug`
+- `Feature`
+- `Improvement`
+- `Tech Debt`
+- `Spike`
+- `Hotfix`
+
+## Agent-Ready Issue Body
+
+An issue is ready for Agent Implement only when it is scoped to one PR and
+contains:
+
+- outcome
+- context docs
+- in scope
+- out of scope
+- acceptance criteria
+- required checks
+- security, privacy, data, or operational invariants
+- dependencies or blockers
+
+## Readiness Rules
+
+- Ready implementation work is `Todo`, unblocked, labeled `ready-for-agent`, and
+  has a complete agent-ready body.
+- Remote worker work also has `remote-worker`.
+- Blocked work is not labeled `ready-for-agent`.
+- Human setup, credentials, product judgment, provider approval, customer input,
+  and ADR decisions use `ready-for-human` or `needs-info`.
+- Dependency order should be encoded with tracker relationships when the
+  provider supports them.
+- Parent or workstream issues are containers unless explicitly marked
+  executable.
+
+## Creating Tracked Work From Docs
+
+When turning roadmaps, specs, ADRs, or plans into issues:
+
+- extract only explicit capabilities, decisions, constraints, deferred work, and
+  dependencies
+- create one-PR implementation slices
+- group by the configured tracker location, milestone, and parent or workstream
+  issue
+- apply repo routing, type, risk, area, and readiness labels from config
+- leave vague ideas un-ticketed until scope is clear
+
+Do not invent product scope, create new label taxonomies, or paste secrets,
+customer data, signed URLs, credentials, or private logs into the tracker.

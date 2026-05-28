@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zaks Next PR"
-  short_description: "Drive next work to PR"
-  default_prompt: "Use $zaks-next-pr to pick the next ready issue and drive it to PR."

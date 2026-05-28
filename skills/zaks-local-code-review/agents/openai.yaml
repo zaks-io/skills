@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zaks Local Review"
-  short_description: "Review local changes before PR"
-  default_prompt: "Use $zaks-local-code-review to review this branch before opening a PR."

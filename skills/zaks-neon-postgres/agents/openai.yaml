@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zaks Neon Postgres"
-  short_description: "Use Neon Postgres"
-  default_prompt: "Use $zaks-neon-postgres to help with this Neon Postgres task."

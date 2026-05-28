@@ -1,0 +1,97 @@
+---
+name: workflow-setup
+description: Use when setting up or refreshing a repository for agent workflows by creating docs/agents/workflow/config.md with repo commands, issue tracking, runtime adapters, review gates, and environment safety rules.
+---
+
+# Setup
+
+Create or refresh the repo-local agent config used by the other skills.
+The output is tracked project knowledge, not secrets.
+
+## Output File
+
+Write or update:
+
+- `docs/agents/workflow/config.md`
+
+Load these references when writing the config:
+
+- [references/project-config.md](references/project-config.md) for the template
+  and required sections
+- [references/agent-workflow.md](references/agent-workflow.md) for role
+  responsibilities and adapter minimums
+- [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
+  for tracker states, labels, readiness, and issue body shape
+
+## Gather
+
+Inspect files that exist:
+
+- `AGENTS.md`, `CLAUDE.md`, editor or runtime rules, and repo-local skills
+- `package.json`, lockfiles, Makefile, Justfile, turbo config, and CI workflows
+- project status, roadmap, specs, ADRs, runbooks, and existing `docs/agents/*`
+- code host branch, default branch, PR, preview, and deploy workflows
+- issue tracker provider, provider location, projects or boards, statuses,
+  labels, issue templates, and existing issue examples when tracker tools are
+  available
+- environment files, deployment config, and service inventories
+
+## Configure
+
+Record:
+
+- repo identity, default branch, branch prefix, and PR conventions
+- package manager and command table: install, full gate, focused checks, build,
+  lint, typecheck, tests, smoke, generated artifacts
+- issue tracker provider, provider location, project or board, routing label,
+  statuses, labels, dependency policy, and issue body contract
+- runtime rules for local Codex, remote worker agents, Claude, and
+  any repo-approved worker
+- automation roles: Agent Queue, Agent Review, and Agent Implement, including
+  clean-context review delegation and the implementation pipeline
+- review gates: code review, Agent Review, CodeRabbit escalation,
+  required CI, preview checks
+- environment safety: production deploy path, preview deploy path, credential
+  rules, allowed hosted checks, and explicit approval requirements
+- unknowns that still require human input
+
+## Issue Tracker Defaults
+
+Use [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
+unless the repo config documents a different exact mapping.
+
+Do not invent a provider location, status, or label if the issue tracker cannot confirm it.
+Write an unknown in the config instead.
+
+## Adapter Update
+
+After writing the config, update short runtime adapters when present:
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- editor or runtime rules
+- repo-local skill usage docs
+
+Adapters should say to read `docs/agents/workflow/config.md` before using the
+workflow skills. Keep them short and use
+[references/agent-workflow.md](references/agent-workflow.md) as the adapter
+contract.
+
+## Safety
+
+- Never include secrets, tokens, signed URLs, customer payloads, or private logs
+  in the config.
+- Never deploy or mutate production while setting up config.
+- Prefer exact discovered commands over guesses.
+- If a command is inferred but unverified, mark it as inferred.
+
+## Done
+
+Report:
+
+- config path written
+- commands discovered
+- tracker routing and labels found or missing
+- runtime adapters updated
+- unknowns left for the user
+- validation command run

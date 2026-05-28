@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zaks PR Review"
-  short_description: "Review a PR against Linear"
-  default_prompt: "Use $zaks-review-pr to review this PR against its Linear issue and repo invariants."

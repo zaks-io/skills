@@ -1,0 +1,4 @@
+interface:
+  display_name: "Setup"
+  short_description: "Create repo agent config"
+  default_prompt: "Use $workflow-setup to configure this repo for agent workflows."

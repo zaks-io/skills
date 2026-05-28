@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zaks Create PR"
-  short_description: "Create pull requests"
-  default_prompt: "Use $zaks-create-pr to open a PR for my current branch."
