@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: false
+  commands:
+    prettier:
+      glob: "*.{js,mjs,cjs,json,md,yml,yaml}"
+      run: pnpm prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+    check:
+      run: pnpm check
