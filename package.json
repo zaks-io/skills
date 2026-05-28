@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check-skills.mjs",
-    "ci:check": "pnpm format:check && pnpm check && pnpm validate:skills && pnpm security:audit && pnpm security:secrets",
+    "ci:check": "pnpm format:check && pnpm check && pnpm test && pnpm validate:skills && pnpm security:audit && pnpm security:secrets",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "hooks:install": "lefthook install",
     "security:audit": "pnpm audit --audit-level high",
     "security:secrets": "gitleaks detect --no-git --source . --redact --no-banner",
     "security:secrets:history": "gitleaks detect --source . --redact --no-banner",
+    "test": "node --test test/*.test.mjs",
     "validate:skills": "npx --yes skills add . --list"
   },
   "license": "MIT",

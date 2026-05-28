@@ -65,6 +65,7 @@ Use direct skills when you want one specific action:
 ```text
 $workflow-agent-implement <issue>
 $workflow-code-review <branch|pr|range>
+$workflow-secret-redaction <path|stdin>
 $workflow-create-pr
 $workflow-agent-review <pr|range>
 ```
@@ -100,6 +101,8 @@ committing and opening or updating the PR.
   checks, review, and PR creation.
 - `workflow-code-review`: bug-focused review for branches, PRs, working trees,
   and main drift.
+- `workflow-secret-redaction`: redact, diff, schema-check, and summarize `.env`,
+  credential, token, and secret command output.
 - `workflow-create-pr`: run checks, confirm review, commit, push, create or
   update the PR, and hand off tracker state to Queue.
 - `workflow-agent-review`: independent PR review and main-drift review from
