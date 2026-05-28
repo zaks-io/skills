@@ -1,8 +1,8 @@
 # Issue Tracker Contract
 
 Use this when writing the issue tracker section of
-`docs/agents/workflow/config.md`. The configured tracker can be GitHub, Linear,
-or any provider the repo uses.
+`docs/agents/workflow/config.md`. The configured tracker can be any provider the
+repo uses.
 
 ## Default States
 
@@ -71,6 +71,19 @@ contains:
   provider supports them.
 - Parent or workstream issues are containers unless explicitly marked
   executable.
+
+## Orphan Rules
+
+An orphan is a real issue that belongs in the workflow but is missing the project,
+team, parent, route label, status, body contract, or dependency links that let
+Agent Queue reason about it.
+
+- Route orphans when the correct project, team, parent, or label is directly
+  evidenced by the issue, linked docs, PR, branch, or configured repo route.
+- Leave ambiguous orphans in triage with `needs-info` or `ready-for-human`.
+- Do not mark an orphan `ready-for-agent` until routing, body contract, labels,
+  status, and blockers are all correct.
+- Do not cancel or close an orphan only because it is stale.
 
 ## Creating Tracked Work From Docs
 

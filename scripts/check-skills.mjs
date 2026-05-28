@@ -10,6 +10,7 @@ const manualOnlySkills = new Set([
   "workflow-agent-queue",
   "workflow-agent-review",
   "workflow-create-pr",
+  "workflow-issue-triage",
   "workflow-setup",
 ]);
 const implicitInvocationSkills = new Set(["workflow-code-review"]);
@@ -22,6 +23,7 @@ const triggerTerms = {
   "workflow-agent-review": ["review", "pr"],
   "workflow-code-review": ["review", "code"],
   "workflow-create-pr": ["pr", "pull request"],
+  "workflow-issue-triage": ["tracker", "triage", "project", "issue"],
   "workflow-setup": ["setup", "config"],
 };
 

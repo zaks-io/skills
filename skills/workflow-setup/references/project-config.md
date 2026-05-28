@@ -28,6 +28,8 @@ Last updated: YYYY-MM-DD
 - Provider location:
 - Project, board, repo, milestone, or roadmap:
 - Routing label:
+- Triage scope:
+- Orphan policy:
 - Issue key examples:
 - Ready state: Todo
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
@@ -35,6 +37,8 @@ Last updated: YYYY-MM-DD
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, remote-worker, wontfix
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
+- Area labels:
+- Priority policy:
 - Dependency policy:
 - Agent-ready issue body:
 

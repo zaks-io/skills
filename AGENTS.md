@@ -28,6 +28,9 @@ content.
 - Keep runtime-specific metadata minimal. Tool providers, commands, environments,
   issue tracker states, and deploy rules belong in each downstream repo's
   `docs/agents/workflow/config.md`.
+- Preserve support for both Claude and Codex skill types. When adding or
+  changing a skill, keep the portable `SKILL.md` contract, Claude-compatible
+  frontmatter, and Codex `agents/openai.yaml` metadata in sync.
 - Side-effecting workflow skills are manual-only in both Claude frontmatter and
   `agents/openai.yaml`.
 - `workflow-code-review` is the implicit review gate. `workflow-agent-review` and

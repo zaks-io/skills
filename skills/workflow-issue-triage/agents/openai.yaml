@@ -1,0 +1,6 @@
+interface:
+  display_name: "Issue Triage"
+  short_description: "Clean issue tracker tickets"
+  default_prompt: "Use $workflow-issue-triage to triage issue tracker projects, labels, dependencies, orphans, and ready-for-agent status."
+policy:
+  allow_implicit_invocation: false

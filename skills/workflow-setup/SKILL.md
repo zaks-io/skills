@@ -52,11 +52,13 @@ Record:
 - package manager and command table: install, full gate, focused checks, build,
   lint, typecheck, tests, smoke, generated artifacts
 - issue tracker provider, provider location, project or board, routing label,
-  statuses, labels, dependency policy, and issue body contract
+  triage scope, orphan policy, statuses, labels, priority policy, dependency
+  policy, and issue body contract
 - runtime rules for local Codex, remote worker agents, Claude, and
   any repo-approved worker
-- automation roles: Agent Queue, Agent Review, and Agent Implement, including
-  clean-context review delegation and the implementation pipeline
+- automation roles: Issue Triage, Agent Queue, Agent Review, and Agent
+  Implement, including clean-context review delegation and the implementation
+  pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation,
   required CI, preview checks
 - environment safety: production deploy path, preview deploy path, credential

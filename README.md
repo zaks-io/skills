@@ -26,6 +26,7 @@ flowchart TD
   Setup["workflow-setup\nCreate docs/agents/workflow/config.md"]
   Config["Repo config\ncommands, issue tracker, runtimes, environments"]
   Tracker["Issue tracker\nconfigured provider"]
+  IssueTriage["workflow-issue-triage\nproject cleanup"]
   Queue["workflow-agent-queue\nshort loop"]
   Worker["workflow-agent-implement\nlocal or remote worker"]
   CodeReview["workflow-code-review\nshared review gate"]
@@ -34,12 +35,14 @@ flowchart TD
 
   Setup --> Config
   Config --> Queue
+  Config --> IssueTriage
   Config --> Worker
   Config --> CodeReview
   Config --> CreatePR
   Config --> MainReview
 
   Config -->|issue tracker contract| Tracker
+  IssueTriage -->|labels, priorities, dependencies, orphans| Tracker
   Queue -->|select ready issue| Tracker
   Queue -->|delegate| Worker
   Worker --> CodeReview
@@ -62,36 +65,41 @@ flowchart TD
    issues whenever possible.
    Non-trivial untracked work should get a tracker issue before PR creation.
 
-3. Implement one issue at a time.
+3. Keep tracker projects clean.
+   Use `workflow-issue-triage` for periodic cleanup or first-run backfill of
+   issue tracker projects, labels, priorities, dependencies, orphans, and
+   agent-ready issue bodies.
+
+4. Implement one issue at a time.
    Use `workflow-agent-implement` for local work or remote worker tasks. It
    claims the issue, reads config, stays in scope, runs checks, runs code
    review, iterates on findings, and hands off to PR creation.
 
-4. Run the shared code review gate.
+5. Run the shared code review gate.
    Use `workflow-code-review` for pre-PR checks, clean PR worktree review,
    and main-drift review. It is optimized for bugs, security, data loss, scope
    drift, missing tests, and contract mismatches. Agent Implement runs this
    before PR creation. Agent Review runs it from a clean context. CodeRabbit is
    optional escalation, not the default gate.
 
-5. Create or update the PR.
+6. Create or update the PR.
    Use `workflow-create-pr` to gather context, find or create issue tracking,
    run configured checks, run code review, commit, push, open or update the PR,
    and update the issue tracker.
 
-6. Review PRs against issues.
+7. Review PRs against issues.
    Use `workflow-agent-review` for independent PR review. It launches
    `workflow-code-review` in a subagent or disposable worktree, checks
    issue fit, acceptance criteria, required checks, security invariants, and
    test quality, then reports whether the issue can move to the configured
    merge-ready state.
 
-7. Keep the queue moving.
+8. Keep the queue moving.
    `workflow-agent-queue` is the short-loop automation. It checks the
    issue tracker, unblocks active work, launches or nudges workers, requests PR
    reviews, updates statuses, and stops when human input is needed.
 
-8. Watch main for drift.
+9. Watch main for drift.
    `workflow-agent-review` also runs the longer-loop quality automation. It
    reviews new main-branch commits since its checkpoint and files actionable
    tracker issues for regressions, security gaps, missing tests, or product
@@ -102,11 +110,13 @@ flowchart TD
 ```mermaid
 sequenceDiagram
   participant Q as Agent Queue
+  participant I as Issue Triage
   participant T as Issue Tracker
   participant W as Agent Implement
   participant G as Code Host and PR
   participant M as Agent Review
 
+  I->>T: Clean labels, priorities, dependencies, and orphans
   Q->>T: Find ready and active issues
   Q->>W: Delegate ready issue with repo config and checks
   W->>T: Claim issue and post plan
@@ -123,9 +133,10 @@ sequenceDiagram
   Q->>T: Pick up new ready fixes
 ```
 
-The queue loop should run frequently while work is active. Agent Review should
-run PR reviews as needed, and its main-drift pass should run less often, such as
-hourly. Agent Review should never implement fixes itself.
+The queue loop should run frequently while work is active. Issue Triage should
+run before first queue use and periodically after intake changes. Agent Review
+should run PR reviews as needed, and its main-drift pass should run less often,
+such as hourly. Agent Review should never implement fixes itself.
 
 ## References
 
@@ -149,6 +160,8 @@ The three long-running or delegated roles share the `workflow-agent-*` prefix:
 - `workflow-setup`: create or refresh `docs/agents/workflow/config.md`.
 - `workflow-create-pr`: take the current branch to a ready PR with issue tracker
   tracking.
+- `workflow-issue-triage`: clean tracker projects, labels, priorities,
+  dependencies, orphans, and readiness for Agent Queue.
 - `workflow-code-review`: run the shared code review gate for local work,
   PRs, and main drift.
 - `workflow-agent-implement`: Agent Implement, the worker role for one tracker
@@ -217,6 +230,7 @@ A repo is ready to use these skills when:
 - `docs/agents/workflow/config.md` exists and has no critical unknowns
 - runtime adapters point agents to that config
 - issue tracker provider, routing, statuses, labels, and body contract are recorded
+- issue triage scope and orphan policy are recorded for the configured tracker
 - package manager and verification commands are recorded
 - production deploy and credential rules are explicit
 - `workflow-create-pr`, `workflow-code-review`, and
