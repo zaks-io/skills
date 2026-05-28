@@ -64,3 +64,11 @@ and name the core skills:
 - `workflow-create-pr` for PR creation
 
 Do not duplicate this whole workflow into adapter docs.
+
+For Claude Code, configure the target repo's Claude Code integration as the
+source of truth for Claude-facing agent, command, and skill registration. The
+integration should import the target repo's agent markdown, usually `AGENTS.md`
+through a one-line `CLAUDE.md` `@AGENTS.md` import when supported. If Claude
+Code requires exact paths, symlink repo-local Claude Code files into the
+integration location and record the verified links in
+`docs/agents/workflow/config.md`.

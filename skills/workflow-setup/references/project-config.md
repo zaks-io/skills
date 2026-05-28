@@ -26,6 +26,10 @@ Last updated: YYYY-MM-DD
 
 - Provider:
 - Provider location:
+- Metadata verified:
+- Verified IDs:
+- Label source of truth:
+- Label docs:
 - Project, board, repo, milestone, or roadmap:
 - Routing label:
 - Triage scope:
@@ -63,6 +67,10 @@ Last updated: YYYY-MM-DD
 - Local Codex:
 - Remote worker:
 - Claude:
+- Claude Code source of truth:
+- Claude Code imports:
+- Claude Code symlinks:
+- Claude Code verification:
 - Review model policy:
 - Agent Queue:
 - Agent Review:
@@ -97,9 +105,16 @@ Last updated: YYYY-MM-DD
 - [ ] Missing or unverified config item.
 ```
 
-Prefer explicit commands and exact issue tracker names. If the repo differs from
-the org-wide defaults, document the mapping in this file instead of changing the
-shared skills.
+Keep the generated config terse. Include fields only when they give agents
+values they will reference repeatedly. Prefer explicit commands, exact tracker
+names, and provider IDs where the tracker exposes them. If a value cannot be
+verified, put it in `Unknowns` with the source that should verify it. If the repo
+differs from the org-wide defaults, document the mapping in this file instead of
+changing the shared skills.
+
+If a repo keeps separate label docs such as `docs/agents/triage-labels.md`, make
+those docs mirror this config or point back here. Do not leave separate docs with
+only readiness labels while risk, type, area, or ownership labels live elsewhere.
 
 State authority should live in external systems:
 
