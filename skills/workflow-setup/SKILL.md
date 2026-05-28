@@ -18,6 +18,12 @@ Agents should query external systems to refresh live state, not to rediscover
 these values. If a value cannot be verified during setup, record it as an
 explicit unknown with the source that should verify it.
 
+Setup is a verification pass, not a best-effort note-taking pass. Every populated
+config value that can change agent behavior must have current evidence from the
+repo, tracker, code host, CI, agent integration, environment config, or explicit
+user instruction. If the value is not verified, mark it `inferred` or move it to
+`Unknowns`; do not present it as authoritative.
+
 ## Inputs
 
 - Repo path to configure.
@@ -51,9 +57,16 @@ anything else. Use it as the baseline for refresh:
 
 - preserve verified stable values that still match current repo and tracker
   state
+- re-verify every populated behavior-affecting field before leaving it
+  authoritative; do not preserve a stale value just because it is already in the
+  file
+- re-run at least one read-only query against configured tracker IDs and
+  query-safe names before trusting a project, team, board, or roadmap mapping
 - check unknowns, stale timestamps, changed commands, renamed labels, moved
   projects, changed CI, changed worker delegation paths, and changed environment
   rules
+- replace stale slugs or display names that return empty tracker results when a
+  verified provider ID or canonical name resolves the same scope
 - update only fields that are missing, stale, wrong, or newly verified
 - do not erase explicit human decisions unless current evidence or the user
   contradicts them
@@ -61,6 +74,38 @@ anything else. Use it as the baseline for refresh:
 
 Do not regenerate the config from scratch when refreshing. The job is to detect
 drift from the current config, then patch the lookup table.
+
+## Verification Standard
+
+Verify all populated workflow fields that setup writes or preserves:
+
+- repo identity, default branch, branch prefix, package manager, lockfile, and
+  command names from repo files and git metadata
+- install, check, build, test, lint, smoke, preview, and generated-artifact
+  commands from scripts, CI workflows, makefiles, justfiles, runbooks, or direct
+  safe command execution
+- issue tracker provider, location, team/project/board/roadmap, statuses,
+  labels, priorities, relationships, issue templates, and query contracts with
+  read-only tracker tool calls when tools are available
+- code host default branch, branch protections, PR conventions, linked checks,
+  and open PR query shape through git metadata, code host tools, or workflow
+  files
+- worker delegation paths, routing labels or fields, continuation paths, and
+  remote worker delegation mechanics through tracker metadata, verified config,
+  or explicit user instruction
+- Claude, Codex, editor, and repo-local adapter paths by resolving files,
+  symlinks, imports, and generated skill metadata from a clean path
+- environment safety, deployment paths, hosted checks, preview rules, credential
+  rules, and production approval rules from deployment config, CI, runbooks, or
+  explicit user instruction
+
+Do not run install, deploy, production mutation, expensive hosted actions, or
+credentialed provider actions just to verify setup unless the user explicitly
+approved that action. For those values, verify the command or path exists and
+record execution as unknown or requiring approval.
+
+Every unknown must name the missing value and the source or action that would
+verify it. The final report must say whether any critical unknowns remain.
 
 ## Gather
 
@@ -84,6 +129,8 @@ Record:
 
 - only verified stable values future workflow agents would otherwise have to
   find again
+- a compact verification summary: date, scope, evidence sources, safe commands or
+  read-only tool calls used, and unverified values
 - repo identity, default branch, branch prefix, and PR conventions
 - package manager and command table: install, full gate, focused checks, build,
   lint, typecheck, tests, smoke, generated artifacts
@@ -91,7 +138,12 @@ Record:
   triage scope, orphan policy, statuses, labels, worker routing/readiness labels
   when present, priority policy, dependency policy, issue body contract, and
   which workflow role owns status transitions
+- tracker tool query contract: exact provider IDs, query-safe names, status
+  field names, relationship or blocker fields, pagination shape if relevant, and
+  one read-only verification query or tool call that returned the expected scope
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
+- default worker path and parallelism policy when the user or repo has a stable
+  preference
 - label source of truth: the live tracker metadata, tracker workflow settings,
   existing repo docs, or explicit user instruction used to verify label names
 - label documentation policy: whether repo-local label docs exist, and whether
@@ -102,9 +154,9 @@ Record:
   when the tracker exposes them
 - agent access rules for local Codex, remote worker agents, Claude, and any
   repo-approved worker
-- issue-assigned agent notes when available: only project-specific routing
-  labels, fields, worker readiness labels, or continuation comment rules that
-  are annoying to rediscover
+- issue-assigned agent notes when available: project-specific routing labels,
+  fields, worker readiness labels, delegation tool or field, verified agent IDs,
+  continuation comment rules, and no-mutation probe policy
 - Claude Code compatibility: the target repo's Claude Code integration source
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified
@@ -165,11 +217,23 @@ setup and record exact names plus stable IDs in the config. Later skills should
 not have to rediscover routine IDs before moving issues, applying labels, or
 checking project state.
 
+Provider location must be query-safe. For Linear, record the team ID and exact
+team name or key that the tool accepts. Do not store only a repo slug such as
+`agent-paste` unless a read-only tool query proves that slug returns the intended
+issues. Record whether the tool uses `status`, `state`, `statusType`, or another
+field for workflow filtering.
+
 Do not copy every discoverable agent assignee or integration detail into config.
 The tracker remains the source of truth for which agents are currently
 assignable. Record only the supported worker delegation paths and repo-specific
 routing or continuation details that a future Orchestrator run would otherwise waste
 time rediscovering.
+
+Do not verify issue-assigned agents by mutating real implementation issues. Use
+read-only tracker metadata, existing verified config, provider documentation, or
+a user-approved test issue. If the tracker returns a stable delegate or agent ID
+from a real delegation event, record it during refresh so future Orchestrator
+runs can use it without probing.
 
 If `docs/agents/triage-labels.md` or a similar label doc exists, update it to
 match the config or replace its contents with a pointer to the config. Do not
@@ -216,6 +280,7 @@ Report:
 - whether this was first setup or refresh of an existing config
 - whether the config is complete enough to be the workflow lookup table
 - config fields changed, unchanged, and still unknown
+- verification evidence gathered and critical unknowns remaining
 - commands discovered
 - tracker routing and labels found or missing
 - agent adapters updated

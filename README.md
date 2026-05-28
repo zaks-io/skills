@@ -10,8 +10,10 @@ That gives agents the things they usually guess badly:
 
 - which package manager and checks to run
 - where tracked work lives
+- which tracker IDs, names, and query fields actually return that work
 - which labels and statuses mean work is ready
 - who can move tickets
+- how remote issue-assigned workers are delegated
 - what local, development, preview, and production mean for this repo
 - when a human has to approve something
 
@@ -143,9 +145,13 @@ For the deeper agent contract, state model, handoff shape, and diagrams, see
 A repo is ready when:
 
 - `docs/agents/workflow/config.md` exists and has no critical unknowns
+- every populated behavior-affecting config value has current evidence or is
+  marked inferred
 - issue tracker state, PR state, checks, previews, and deploy state all have
   named systems of record
+- issue tracker location has verified IDs or query-safe names, not stale slugs
 - Orchestrator mutation authority is explicit
+- issue-assigned worker routing and no-mutation delegation probe policy are explicit
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
 - `workflow-agent-orchestrator`, `workflow-agent-implement`, `workflow-code-review`,

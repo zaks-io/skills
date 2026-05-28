@@ -65,6 +65,9 @@ contains:
 - Issue-assigned agent work, when supported by the repo, uses the
   project-configured worker routing label, field, or metadata the tracker
   integration needs to select the environment.
+- When the user explicitly chooses an issue-assigned worker path, Orchestrator or
+  Issue Triage may add the configured worker routing label or field only after
+  verifying the issue is otherwise ready and unblocked.
 - If a repo uses an extra label such as `remote-worker`, record it in
   `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
@@ -77,6 +80,25 @@ contains:
   provider supports them.
 - Parent or workstream issues are containers unless explicitly marked
   executable.
+
+## Tracker Metadata Verification
+
+Setup must record query-safe tracker metadata for the configured scope:
+
+- exact provider IDs, keys, or display names accepted by the tracker tool
+- status field names used by the current tool, such as `status`, `state`, or
+  `statusType`
+- blocker and dependency relationship fields
+- routing and readiness labels
+- a read-only verification query that returns the expected issue set
+
+Do not treat an empty tracker response as proof that no work exists until the
+configured provider ID or query-safe name has been verified. Do not parse local
+tool-result cache files when the tracker tool can answer directly.
+
+Do not mutate a real implementation issue to test whether a delegation field,
+agent name, or integration exists. Use read-only metadata, existing verified
+config, provider docs, or a user-approved test issue.
 
 ## Orphan Rules
 

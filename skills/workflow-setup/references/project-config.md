@@ -7,6 +7,15 @@ Create `docs/agents/workflow/config.md` with this shape. Keep it metadata-only.
 
 Last updated: YYYY-MM-DD
 
+## Verification
+
+- Scope:
+- Evidence sources:
+- Safe commands run:
+- Read-only tool calls:
+- Inferred values:
+- Critical unknowns:
+
 ## Repo
 
 - Name:
@@ -28,6 +37,11 @@ Last updated: YYYY-MM-DD
 - Provider location:
 - Metadata verified:
 - Verified IDs:
+- Query-safe names:
+- Read-only verification query:
+- Tracker tool query contract:
+- Status field names:
+- Dependency and blocker fields:
 - Label source of truth:
 - Label docs:
 - Project, board, repo, milestone, or roadmap:
@@ -52,6 +66,8 @@ Last updated: YYYY-MM-DD
 ## Work Coordination
 
 - Worker delegation paths: local-worktree, issue-assigned, or both
+- Default worker path:
+- Parallelism policy:
 - Authoritative issue state:
 - Authoritative PR state:
 - Authoritative check state:
@@ -68,6 +84,8 @@ Last updated: YYYY-MM-DD
 
 - Local Codex:
 - Issue-assigned agents: none, or project-specific routing/continuation notes
+- Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
+- Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:
 - Claude Code imports:
@@ -114,6 +132,16 @@ verified, put it in `Unknowns` with the source that should verify it. If the rep
 differs from the org-wide defaults, document the mapping in this file instead of
 changing the shared skills.
 
+Every populated value that can affect workflow behavior must be verified during
+setup or explicitly marked inferred. If it cannot be verified, move it to
+`Unknowns` instead of leaving it in the main config as authoritative. Keep
+verification evidence compact and grouped by source, not as a long transcript.
+
+Provider locations must be query-safe. Store the exact ID, key, or display name
+accepted by the tracker tool, plus the read-only query that verified it. Do not
+store only a repo slug when the provider requires a different team, project, or
+board name.
+
 If a repo keeps separate label docs such as `docs/agents/triage-labels.md`, make
 those docs mirror this config or point back here. Do not leave separate docs with
 only readiness labels while risk, type, area, or ownership labels live elsewhere.
@@ -127,3 +155,10 @@ State authority should live in external systems:
 - check and preview state lives in CI, preview, or hosted check providers
 - deployment state lives in the deployment provider
 - Orchestrator local state is non-authoritative scratch or checkpoints only
+
+Issue-assigned worker config should be stable enough for Orchestrator to act
+without probing real work. Record the configured worker path, routing labels or
+fields, delegation tool or field, known agent names or IDs when verified, and the
+parallelism policy. If the tool cannot expose assignable agents through a
+read-only query, record that unknown instead of forcing Orchestrator to discover
+it by assignment.

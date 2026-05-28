@@ -43,6 +43,26 @@ Orchestrator may keep local scratch state only for polling, checkpoints, or
 duplicate suppression. The next action must be valid against the refreshed
 external state.
 
+## Tracker Tooling
+
+Use the configured tracker tool or MCP directly when it is available. Do not
+inspect local tool-result caches, CLI transcript files, or generated logs to
+understand tracker state while the tracker tool can answer the question.
+
+Before broad queries or mutations, confirm the exact configured tracker
+location from `docs/agents/workflow/config.md`:
+
+- provider IDs for team, project, board, repo, milestone, or roadmap
+- query-safe names when the provider requires names instead of IDs
+- status field names and relationship fields used by the current tool
+- configured routing and readiness labels
+- read-only query shape that verified the metadata
+
+If config uses a slug or display name that returns empty results but a verified
+ID is available, use the ID and patch the config after the orchestration repair.
+If neither the configured name nor an ID resolves, stop for `workflow-setup`
+refresh instead of guessing.
+
 ## Orchestration
 
 Orchestrator chooses the next action needed to get tickets handled safely.
@@ -57,9 +77,9 @@ Use the worker delegation paths supported by `docs/agents/workflow/config.md`:
 - `local-worktree`: Orchestrator starts local subagents, gives each
   implementation worker an isolated worktree or branch, and manages issue state,
   PR state, and review handoff through the tracker.
-- `issue-assigned`: Orchestrator assigns a tracker-exposed coding agent to the
-  ticket. In Linear this means assigning the agent account to the issue when
-  that integration is available. The assigned agent works in its configured
+- `issue-assigned`: Orchestrator delegates the ticket to a tracker-exposed
+  coding agent. In Linear this means using the verified delegation field or agent
+  account exposed by the integration. The assigned agent works in its configured
   environment and returns a PR.
 
 Orchestrator may use both paths when config allows it, choosing the safest path
@@ -69,9 +89,12 @@ for the issue. Orchestrator does not become the implementer or reviewer.
 
 On each pass:
 
-1. Refresh code host and issue tracker state for the configured locations.
+1. Refresh code host and issue tracker state for the configured locations using
+   the configured tracker tool/MCP and verified IDs.
 2. Find ready work: `Todo` plus `ready-for-agent`, unblocked, with a complete
-   agent-ready body. Treat labels as signals and statuses as the workflow state.
+   agent-ready body. Check provider blocker relationships and explicit body
+   blockers before treating an issue as ready. Treat labels as signals and
+   statuses as the workflow state.
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`.
 4. Check open PRs, failed checks, stale branches, unresolved review comments,
@@ -103,11 +126,30 @@ configured worker. This is issue-tracker assignment, not a local CLI invocation.
 Use config only for project-specific routing or continuation comment details
 that are not obvious from the tracker.
 
+Before starting issue-assigned work, run a read-only preflight:
+
+- resolve the issue by configured tracker ID, not only by a human-friendly team
+  or project name
+- verify status, readiness labels, routing labels, priority, and issue body
+- verify blockers and dependencies from provider relationships and body text
+- verify the requested agent is exposed by the tracker or the config has a
+  previously verified delegation tool, field, or agent ID
+- verify the issue is not already claimed, delegated, linked to an open PR, or
+  waiting on review feedback
+
+Do not mutate a real issue to discover whether an agent name or delegation field
+works. Use read-only metadata, a documented config value, or stop with the exact
+missing config item. If the user explicitly approves a probe, use only a
+dedicated test issue and restore it afterward.
+
 To start issue-assigned work:
 
 - verify the issue is ready, unblocked, and has the configured repo routing
   label, worker routing/readiness label, field, or metadata the integration
   needs, when config names one
+- if the user explicitly requested issue-assigned agents and an otherwise-ready
+  issue is missing only the configured worker routing label or field, repair
+  that routing metadata and continue; do not ask again
 - assign the selected agent to the issue through the configured issue tracker
 - record the delegation in the issue tracker, including expected PR and check
   requirements
@@ -117,6 +159,11 @@ return path. If Orchestrator needs to reach that same session, reply on the
 original issue comments unless config names a different continuation comment
 location. Do not start a new assignment for PR fixes while the original session
 can continue.
+
+For Linear issue-assigned agents, use the Linear tool/MCP delegation mechanism
+when it exists, such as a `delegate` field or verified agent ID. Do not confuse a
+human assignee with an issue-assigned coding agent. Record the returned
+delegation metadata when the tool provides it.
 
 ## PR Review Loop
 
@@ -152,6 +199,7 @@ Stop and report when:
 ## Guardrails
 
 - Never assign blocked work to a worker.
+- Never use a real implementation issue as a capability probe.
 - Never add `ready-for-agent` unless the issue satisfies the body contract.
 - Mark issues `ready-for-human`, `needs-info`, `Blocked`, or the configured
   equivalent when human review, approval, credentials, product input, or security

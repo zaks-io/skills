@@ -19,6 +19,16 @@ stale or missing values. Other workflow skills read that file before guessing
 repo-specific details such as package manager, issue tracker location, branch
 prefix, review gate, preview checks, deploy rules, and environment safety.
 
+Config should store query-safe tracker metadata, not just human-friendly repo
+slugs: provider IDs, exact names or keys accepted by the tracker tool, status
+field names, blocker relationship fields, routing labels, and a read-only query
+that proved the mapping returns the intended issue set.
+
+Setup must verify every populated value that can affect agent behavior. That
+includes repo commands, code host state, CI checks, tracker metadata, worker
+delegation, adapter paths, and environment safety rules. Values that cannot be
+verified stay marked as inferred or unknown; they are not authoritative config.
+
 ## Systems Of Record
 
 Workflow state must not live only in local agent files.
@@ -60,10 +70,11 @@ Downstream config should say which worker delegation paths the project supports:
 - `local-worktree`: Agent Orchestrator starts local subagents, gives each worker
   an isolated worktree or branch, and coordinates issue state, PR state, checks,
   and review through the tracker.
-- `issue-assigned`: Agent Orchestrator assigns a tracker-exposed coding agent to
-  the ticket. In Linear, that means assigning the agent account to the issue when
-  the integration is available. The tracker integration chooses the configured
-  environment, the agent executes the ticket, and the agent submits the PR.
+- `issue-assigned`: Agent Orchestrator delegates the ticket to a
+  tracker-exposed coding agent. In Linear, that means using the verified
+  delegation field or agent account exposed by the integration. The tracker
+  integration chooses the configured environment, the agent executes the ticket,
+  and the agent submits the PR.
 
 Issue-assigned agents can be Cursor, Codex, or any other agent the tracker can
 assign. The skills do not infer this from local CLI availability.
@@ -72,6 +83,14 @@ Repo config should record only project-specific details that are annoying to
 rediscover, such as supported worker delegation paths, routing labels, routing
 fields, worker readiness labels, or non-default continuation comment rules. The
 tracker remains the source of truth for which agents are currently assignable.
+
+Before assigning issue-assigned work, Orchestrator must verify the issue is
+ready and unblocked using tracker status, labels, provider blocker
+relationships, body blockers, existing claims, and open PR state. It must not
+mutate a real issue to discover whether a delegation field or agent name works.
+If the user explicitly chooses issue-assigned agents and an otherwise-ready issue
+is missing only the configured worker routing metadata, Orchestrator can repair
+that metadata and continue.
 
 If Agent Orchestrator needs to send fixes, review feedback, failed-check
 details, or PR process instructions back to that agent, it should reply on the
