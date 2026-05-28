@@ -17,7 +17,7 @@ concurrency:
 jobs:
   validate:
     name: Validate skills
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -45,12 +45,48 @@ jobs:
       - name: Validate skill discovery
         run: pnpm validate:skills
 
+      - name: Test secret redaction
+        run: pnpm test
+
       - name: Audit dependencies
         run: pnpm security:audit
 
+  static-security:
+    name: Static security checks
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Semgrep
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src \
+            semgrep/semgrep:1.157.0 \
+            semgrep --config=p/javascript --include='*.mjs' scripts skills/workflow-secret-redaction/scripts test
+
+      - name: Check GitHub Actions security
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            -w /repo \
+            bridgecrew/checkov:3.2.510 \
+            -d . --framework github_actions --quiet
+
+      - name: Scan lockfile vulnerabilities
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            -w /repo \
+            aquasec/trivy:0.69.3 \
+            fs --scanners vuln --include-dev-deps --skip-dirs node_modules --skip-dirs .git .
+
   secret-scan:
     name: Secret scan
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
