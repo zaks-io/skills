@@ -35,13 +35,14 @@ Install one skill:
 npx skills add zaks-io/skills --skill workflow-setup --agent '*' -g -y
 ```
 
-For private cloud environments, grant the runtime access to this repository
+For private cloud environments, grant the agent system access to this repository
 through the provider's GitHub integration, or inject a read-only deploy key or
 fine-grained token before running `skills add`.
 
 ## Quick Start
 
-Set up a repo:
+Set up a repo once, or rerun setup when you want to confirm the workflow config
+is still current:
 
 ```text
 $workflow-setup
@@ -53,11 +54,15 @@ That creates or refreshes:
 docs/agents/workflow/config.md
 ```
 
+On refresh, setup reads the existing config first, checks what changed in the
+repo, issue tracker, CI, worker delegation paths, and environment rules, then
+patches stale or missing values.
+
 Then run the normal loop:
 
 ```text
 $workflow-issue-triage
-$workflow-agent-queue
+$workflow-agent-orchestrator
 ```
 
 Use direct skills when you want one specific action:
@@ -75,9 +80,18 @@ $workflow-agent-review <pr|range>
 The issue tracker is the source of truth for issue state. In most repos that is
 Linear. Labels are signals. Status is state.
 
-Agent Queue is the only default role that moves workflow state. It reads the
-issue tracker, checks PR and CI state, starts workers, asks for review, and moves
-tickets when the external state says that is safe.
+Agent Orchestrator is the only default role that moves workflow state. It reads
+the issue tracker, checks PR and CI state, starts workers, asks for review, and
+moves tickets when the external state says that is safe.
+
+Agent Orchestrator does whatever needs to happen to get tickets handled safely.
+It can start local subagents in isolated branches or worktrees, assign a
+tracker-exposed coding agent to a ticket, request another code review, rerun
+checks, nudge the original worker, route feedback, mark tickets for human review
+or missing information, or stop on a real blocker. The repo config records
+supported worker delegation paths such as
+`local-worktree`, `issue-assigned`, or both, plus only the project-specific
+routing or continuation comment details that are annoying to rediscover.
 
 Agent Review is a background safety loop. It reviews PRs from clean context,
 checks main for drift, and reports bugs or review verdicts. It should not fix
@@ -92,11 +106,13 @@ committing and opening or updating the PR.
 
 ## The Skills
 
-- `workflow-setup`: create or refresh repo workflow config.
-- `workflow-issue-triage`: clean tracker labels, readiness, orphans, body shape,
-  and dependencies.
-- `workflow-agent-queue`: keep tracked work moving without becoming the coder or
-  reviewer.
+- `workflow-setup`: create repo workflow config or refresh it against current
+  repo and tracker state.
+- `workflow-issue-triage`: update tracker labels, readiness, orphans, body shape,
+  and dependencies so tickets are clean; ask or list exact human next actions
+  when something is unclear.
+- `workflow-agent-orchestrator`: orchestrate tracked work without becoming the
+  coder or reviewer.
 - `workflow-agent-implement`: take one ready issue through implementation,
   checks, review, and PR creation.
 - `workflow-code-review`: bug-focused review for branches, PRs, working trees,
@@ -104,17 +120,18 @@ committing and opening or updating the PR.
 - `workflow-secret-redaction`: redact, diff, schema-check, and summarize `.env`,
   credential, token, and secret command output.
 - `workflow-create-pr`: run checks, confirm review, commit, push, create or
-  update the PR, and hand off tracker state to Queue.
+  update the PR, and hand off tracker state to Orchestrator.
 - `workflow-agent-review`: independent PR review and main-drift review from
   clean context.
 
 ## Recommended Flow
 
-1. Run `workflow-setup` once per repo.
-2. Run `workflow-issue-triage` before the first queue run and after big intake
-   changes.
-3. Run `workflow-agent-queue` to keep active work moving.
-4. Let Queue delegate implementation and review.
+1. Run `workflow-setup` once per repo, and rerun it when the workflow config may
+   be stale.
+2. Run `workflow-issue-triage` before the first orchestration run and after big
+   intake changes.
+3. Run `workflow-agent-orchestrator` to keep active work moving.
+4. Let Agent Orchestrator delegate implementation and review.
 5. Use `workflow-create-pr` directly only when you are already on a branch and
    want to ship it.
 
@@ -128,10 +145,10 @@ A repo is ready when:
 - `docs/agents/workflow/config.md` exists and has no critical unknowns
 - issue tracker state, PR state, checks, previews, and deploy state all have
   named systems of record
-- Queue mutation authority is explicit
+- Orchestrator mutation authority is explicit
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
-- `workflow-agent-queue`, `workflow-agent-implement`, `workflow-code-review`,
+- `workflow-agent-orchestrator`, `workflow-agent-implement`, `workflow-code-review`,
   and `workflow-create-pr` can run without guessing repo conventions
 
 ## Validate This Repo

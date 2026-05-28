@@ -26,7 +26,6 @@ Readiness:
 - `needs-info`
 - `ready-for-agent`
 - `ready-for-human`
-- `remote-worker`
 - `wontfix`
 
 Risk:
@@ -63,9 +62,13 @@ contains:
 
 - Ready implementation work is `Todo`, unblocked, labeled `ready-for-agent`, and
   has a complete agent-ready body.
-- Remote worker work also has `remote-worker`.
+- Issue-assigned agent work, when supported by the repo, uses the
+  project-configured worker routing label, field, or metadata the tracker
+  integration needs to select the environment.
+- If a repo uses an extra label such as `remote-worker`, record it in
+  `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
-  workflow state. Agent Queue owns the authority to mutate workflow state unless
+  workflow state. Agent Orchestrator owns the authority to mutate workflow state unless
   the user explicitly says otherwise.
 - Blocked work is not labeled `ready-for-agent`.
 - Human setup, credentials, product judgment, provider approval, customer input,
@@ -79,7 +82,7 @@ contains:
 
 An orphan is a real issue that belongs in the workflow but is missing the project,
 team, parent, route label, status, body contract, or dependency links that let
-Agent Queue reason about it.
+Agent Orchestrator reason about it.
 
 - Route orphans when the correct project, team, parent, or label is directly
   evidenced by the issue, linked docs, PR, branch, or configured repo route.

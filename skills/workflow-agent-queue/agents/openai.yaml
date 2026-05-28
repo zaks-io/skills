@@ -1,6 +1,0 @@
-interface:
-  display_name: "Agent Queue"
-  short_description: "Keep tracked work moving"
-  default_prompt: "Use $workflow-agent-queue to coordinate ready tracker issues, Agent Implement, Agent Review, and PR state."
-policy:
-  allow_implicit_invocation: false

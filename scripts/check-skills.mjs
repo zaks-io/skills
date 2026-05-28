@@ -7,7 +7,7 @@ const skillsDir = path.join(root, "skills");
 const errors = [];
 const manualOnlySkills = new Set([
   "workflow-agent-implement",
-  "workflow-agent-queue",
+  "workflow-agent-orchestrator",
   "workflow-agent-review",
   "workflow-create-pr",
   "workflow-issue-triage",
@@ -19,7 +19,7 @@ const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set(["workflow-secret-redaction"]);
 const triggerTerms = {
   "workflow-agent-implement": ["implement", "issue", "pr"],
-  "workflow-agent-queue": ["queue", "issue", "tracker"],
+  "workflow-agent-orchestrator": ["orchestrate", "issue", "tracker"],
   "workflow-agent-review": ["review", "pr"],
   "workflow-code-review": ["review", "code"],
   "workflow-create-pr": ["pr", "pull request"],

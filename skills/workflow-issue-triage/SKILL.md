@@ -7,9 +7,14 @@ disable-model-invocation: true
 
 # Issue Triage
 
-Maintain issue tracker projects and issues so Agent Queue can delegate
+Maintain issue tracker projects and issues so Agent Orchestrator can delegate
 implementation work without re-triaging every ticket. This is tracker metadata
 cleanup, not implementation or active-work state management.
+
+The point of this skill is to get tickets into shape. Apply safe tracker updates
+directly. When something is unclear, ask the user if they are available;
+otherwise mark the issue with the configured human-input state or label and
+return the exact questions or next actions needed.
 
 ## Inputs
 
@@ -66,14 +71,14 @@ Classify each issue as one of:
 Apply obvious mechanical updates in batches:
 
 - route orphan issues into the configured project, team, or parent when evidence
-  is direct; recommend intake state changes for Agent Queue
+  is direct; recommend intake state changes for Agent Orchestrator
 - add missing routing, type, risk, area, and readiness labels from config
 - remove conflicting workflow labels only after the correct replacement is clear
-- mark ready, unblocked implementation slices for Agent Queue with the configured
+- mark ready, unblocked implementation slices for Agent Orchestrator with the configured
   readiness labels and body contract
 - remove `ready-for-agent` from blocked, vague, duplicate, parent, or human-owned
   issues
-- encode blockers and recommend the configured blocked state for Agent Queue
+- encode blockers and recommend the configured blocked state for Agent Orchestrator
 - recommend the configured review state for issues with active open PRs
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
@@ -81,6 +86,11 @@ Apply obvious mechanical updates in batches:
 Do not close, cancel, reprioritize across projects, or rewrite scope because an
 issue looks stale. Leave a concise comment and use `needs-info` or
 `ready-for-human` when judgment is required.
+
+Do not stop at a vague recommendation. For each issue that cannot be made ready,
+either ask the user a specific question or leave a concrete next action such as
+"confirm acceptance criteria", "choose canonical duplicate", "approve security
+scope", or "provide credential owner".
 
 ## Issue Body
 
@@ -107,8 +117,22 @@ Required body content:
 - security, privacy, data, and operational invariants
 - dependencies or blockers
 
-If any required field is unknowable, add the missing heading, label the issue
-`needs-info` or `ready-for-human`, and do not mark it ready.
+If any required field is unknowable, add the missing heading, ask the specific
+question when the user is available, label the issue `needs-info` or
+`ready-for-human`, and do not mark it ready.
+
+## Human Clarification
+
+Ask the user when direct tracker evidence is not enough to safely update scope,
+priority, blockers, security posture, ownership, or acceptance criteria. Keep
+questions short and tied to a concrete issue.
+
+If the user is not available or the run is non-interactive:
+
+- mark the issue with the configured human-input label or state
+- add one concise tracker comment only when it helps the human answer
+- include the exact question or next action in the final report
+- leave the issue out of `ready-for-agent`
 
 ## Dependencies
 
@@ -172,6 +196,8 @@ Report:
 - orphans routed or left with reasons
 - labels, priorities, body contracts, dependencies, and status recommendations
   updated
-- issues newly ready for Agent Queue and issues removed from readiness
+- issues newly ready for Agent Orchestrator and issues removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
+- user questions asked or exact human next actions left
+- actual next items to do before the remaining issues can become ready
 - whether the run was dry-run, partial, or applied

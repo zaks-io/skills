@@ -101,9 +101,9 @@ Verdict: READY FOR PR | APPROVE | NEEDS REVISION | DO NOT MERGE
 ## Guardrails
 
 - Do not edit code unless the user explicitly asks for fixes.
-- Do not move the issue to `In Review`; Agent Queue handles that after PR
+- Do not move the issue to `In Review`; Agent Orchestrator handles that after PR
   creation.
-- Do not move an issue to merge-ready state unless Agent Queue or the user asked
+- Do not move an issue to merge-ready state unless Agent Orchestrator or the user asked
   you to manage tracker state.
 - Do not broaden scope or decide product/security questions during review.
 - Create or recommend follow-up tracker issues for adjacent work.

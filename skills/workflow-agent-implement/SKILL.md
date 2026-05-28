@@ -13,7 +13,8 @@ work through PR creation unless blocked by missing credentials or permissions.
 ## Inputs
 
 - One tracker issue ID or URL, or a worker assignment that names one issue.
-- Repo path, branch, and runtime constraints from `docs/agents/workflow/config.md`.
+- Repo path, branch, and agent access constraints from
+  `docs/agents/workflow/config.md`.
 - Required checks and acceptance criteria from the issue.
 
 ## Context
@@ -37,19 +38,24 @@ Start only when the issue:
 - is unblocked
 - is scoped to one PR
 - has `ready-for-agent`
-- has `remote-worker` when this is a remote worker agent
+- has any project-configured worker routing or readiness label required for the
+  selected delegation path
 - has enough acceptance criteria and required checks to verify
+
+For issue-assigned agents, the claim should come from the configured issue
+tracker assignment. Do not treat a local CLI with the same brand name as the
+issue-tracker integration.
 
 When starting:
 
-- confirm Agent Queue moved or delegated the issue to `In Progress`
+- confirm Agent Orchestrator moved or delegated the issue to `In Progress`
 - assign yourself or record the delegate when supported
 - comment with the short plan
 - use or create a branch containing the issue ID
 
-If invoked directly outside Agent Queue, do not move workflow state unless the
+If invoked directly outside Agent Orchestrator, do not move workflow state unless the
 repo config or user explicitly delegates that authority. Otherwise report the
-needed claim transition for Agent Queue.
+needed claim transition for Agent Orchestrator.
 
 Stop on missing product, security, credential, provider, ADR, customer, or
 production approval decisions.
@@ -101,6 +107,10 @@ feedback is handled while the implementation context is fresh.
 Remote workers should not create another worktree. Continue on the assigned
 branch and PR for review fixes.
 
+Issue-assigned agents should receive fixes and PR process feedback where the
+tracker integration continues the same session, usually the same issue comments
+unless config says otherwise.
+
 ## Changes Requested
 
 When resuming:
@@ -109,7 +119,7 @@ When resuming:
 - address only requested changes and directly required tests/docs
 - push fixes to the same PR
 - comment with what changed and checks rerun
-- report that the issue is ready to return to `In Review` for Agent Queue
+- report that the issue is ready to return to `In Review` for Agent Orchestrator
 
 ## Done
 

@@ -130,7 +130,7 @@ When an issue exists:
 
 - attach the PR URL
 - report the configured review-state transition, usually `In Review`, for
-  Agent Queue
+  Agent Orchestrator
 - comment with checks run, code review verdict, CodeRabbit decision,
   acceptance criteria status, and differences from original intent
 - never move to `Done`; merge is not complete

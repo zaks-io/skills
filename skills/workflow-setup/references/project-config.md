@@ -38,8 +38,9 @@ Last updated: YYYY-MM-DD
 - Ready state: Todo
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
-- Status transition owner: Agent Queue
-- Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, remote-worker, wontfix
+- Status transition owner: Agent Orchestrator
+- Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
+- Worker routing/readiness labels:
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
@@ -50,29 +51,30 @@ Last updated: YYYY-MM-DD
 
 ## Work Coordination
 
+- Worker delegation paths: local-worktree, issue-assigned, or both
 - Authoritative issue state:
 - Authoritative PR state:
 - Authoritative check state:
 - Authoritative deploy state:
-- Queue mutation authority:
+- Orchestrator mutation authority:
 - Implement authority:
 - Review authority:
 - Merge authority:
 - Claim record:
-- Queue local state:
+- Orchestrator local state:
 - Handoff format:
 
-## Agent Runtimes
+## Agent Access
 
 - Local Codex:
-- Remote worker:
+- Issue-assigned agents: none, or project-specific routing/continuation notes
 - Claude:
 - Claude Code source of truth:
 - Claude Code imports:
 - Claude Code symlinks:
 - Claude Code verification:
 - Review model policy:
-- Agent Queue:
+- Agent Orchestrator:
 - Agent Review:
 - Agent Implement:
 
@@ -124,4 +126,4 @@ State authority should live in external systems:
 - branch and PR state lives in the code host
 - check and preview state lives in CI, preview, or hosted check providers
 - deployment state lives in the deployment provider
-- Queue local state is non-authoritative scratch or checkpoints only
+- Orchestrator local state is non-authoritative scratch or checkpoints only

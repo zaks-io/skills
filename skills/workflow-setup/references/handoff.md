@@ -10,7 +10,7 @@ or a future run. Keep it short and factual.
 - Branch:
 - PR:
 - Owner:
-- Runtime:
+- Agent path:
 - Environment:
 - Current state:
 - Next owner:
@@ -29,5 +29,5 @@ Rules:
 - Say whether code review covers the current diff.
 - Say whether hosted checks used local, development, preview, or production
   resources.
-- Leave tracker status changes to Agent Queue unless the user explicitly says
+- Leave tracker status changes to Agent Orchestrator unless the user explicitly says
   otherwise.

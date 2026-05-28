@@ -1,6 +1,6 @@
 ---
 name: workflow-agent-review
-description: Use for Agent Review, the independent review agent that reviews PRs by launching workflow-code-review in a clean subagent or worktree, reviews main-branch drift since its checkpoint, and creates tracker issues for Agent Queue.
+description: Use for Agent Review, the independent review agent that reviews PRs by launching workflow-code-review in a clean subagent or worktree, reviews main-branch drift since its checkpoint, and creates tracker issues for Agent Orchestrator.
 argument-hint: "[pr-url-or-range]"
 disable-model-invocation: true
 context: fork
@@ -10,7 +10,7 @@ agent: general-purpose
 # Agent Review
 
 Review PRs and merged state from clean context. Report active-work verdicts to
-Agent Queue and file actionable tracker issues for new drift. Do not implement
+Agent Orchestrator and file actionable tracker issues for new drift. Do not implement
 fixes or move active work between workflow states.
 
 For Claude, this skill runs in a forked context. Reconstruct intent from repo
@@ -88,7 +88,7 @@ For each PR:
 3. Post or return findings without fixing the PR locally.
 4. Report `Changes Requested` for blocking findings.
 5. Report `Ready to Merge` only when review is clean and required checks pass.
-6. Send feedback to Agent Queue so it can move tracker state and nudge the
+6. Send feedback to Agent Orchestrator so it can move tracker state and nudge the
    original implementer.
 
 ## Review Focus
@@ -119,7 +119,7 @@ New issue rules:
 - set risk label from config
 - add readiness labels only when config allows Agent Review to create findings
   directly
-- otherwise report labels for Agent Queue to apply
+- otherwise report labels for Agent Orchestrator to apply
 - include reviewed range and file evidence
 - keep issue text metadata-only
 
@@ -155,7 +155,7 @@ Fix the reviewed-main finding in one concrete PR.
 ## Done
 
 Report PRs reviewed, reviewed main range, issues created or recommended, checks
-run, checkpoint result, handoff to Agent Queue, and residual risk.
+run, checkpoint result, handoff to Agent Orchestrator, and residual risk.
 
 ## Guardrails
 
