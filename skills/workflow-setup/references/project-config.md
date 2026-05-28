@@ -34,6 +34,7 @@ Last updated: YYYY-MM-DD
 - Ready state: Todo
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
+- Status transition owner: Agent Queue
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, remote-worker, wontfix
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
@@ -41,6 +42,21 @@ Last updated: YYYY-MM-DD
 - Priority policy:
 - Dependency policy:
 - Agent-ready issue body:
+- Labels are signals, not authority:
+
+## Work Coordination
+
+- Authoritative issue state:
+- Authoritative PR state:
+- Authoritative check state:
+- Authoritative deploy state:
+- Queue mutation authority:
+- Implement authority:
+- Review authority:
+- Merge authority:
+- Claim record:
+- Queue local state:
+- Handoff format:
 
 ## Agent Runtimes
 
@@ -64,10 +80,15 @@ Last updated: YYYY-MM-DD
 
 ## Environments
 
-- Local:
-- Preview:
-- Development:
-- Production:
+- Local: self-contained unless this repo says otherwise
+- Local commands:
+- Local services:
+- Development: may use cloud backing services while the app runs locally
+- Development backing services:
+- Preview: PR-scoped unless this repo says otherwise
+- Preview purpose:
+- Production: explicit approval required
+- Production forbidden without approval:
 - Hosted checks allowed without approval:
 - Hosted checks requiring approval:
 
@@ -79,3 +100,13 @@ Last updated: YYYY-MM-DD
 Prefer explicit commands and exact issue tracker names. If the repo differs from
 the org-wide defaults, document the mapping in this file instead of changing the
 shared skills.
+
+State authority should live in external systems:
+
+- issue workflow state lives in the configured issue tracker
+- claim records live in the configured issue tracker as supported fields,
+  assignments, labels, and comments
+- branch and PR state lives in the code host
+- check and preview state lives in CI, preview, or hosted check providers
+- deployment state lives in the deployment provider
+- Queue local state is non-authoritative scratch or checkpoints only

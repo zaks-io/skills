@@ -19,8 +19,10 @@ content.
 - `skills/workflow-setup/references/`: templates and contracts used to create
   downstream `docs/agents/workflow/config.md`.
 - `skills/workflow-code-review/references/`: review support material.
+- `docs/agent-workflow.md`: technical workflow contract, state model, and role
+  split.
 - `scripts/check-skills.mjs`: structural validation and repo invariants.
-- `README.md`: user-facing overview, workflow map, and install commands.
+- `README.md`: user-facing overview, quick start, and install commands.
 
 ## Repo Rules
 

@@ -7,8 +7,8 @@ disable-model-invocation: true
 
 # Agent Implement
 
-Implement exactly one issue as one scoped PR. Own the whole path from issue
-claim through PR creation unless blocked by missing credentials or permissions.
+Implement exactly one issue as one scoped PR. Own the whole path from assigned
+work through PR creation unless blocked by missing credentials or permissions.
 
 ## Inputs
 
@@ -31,7 +31,7 @@ If config is missing, infer minimally and report that `workflow-setup` is needed
 
 ## Claim
 
-Claim only when the issue:
+Start only when the issue:
 
 - belongs to the configured tracker location
 - is unblocked
@@ -40,12 +40,16 @@ Claim only when the issue:
 - has `remote-worker` when this is a remote worker agent
 - has enough acceptance criteria and required checks to verify
 
-When claiming:
+When starting:
 
-- move the issue to `In Progress`
+- confirm Agent Queue moved or delegated the issue to `In Progress`
 - assign yourself or record the delegate when supported
 - comment with the short plan
 - use or create a branch containing the issue ID
+
+If invoked directly outside Agent Queue, do not move workflow state unless the
+repo config or user explicitly delegates that authority. Otherwise report the
+needed claim transition for Agent Queue.
 
 Stop on missing product, security, credential, provider, ADR, customer, or
 production approval decisions.
@@ -73,7 +77,8 @@ Treat implementation, code review, and PR creation as one pipeline:
 6. Repeat code review until the verdict is `READY FOR PR`, or stop on a
    blocker that needs human input.
 7. Run `workflow-create-pr` to commit, push, create or update the PR, and update
-   the issue tracker.
+   the issue tracker. Tell Create PR whether the latest code review covers the
+   current diff.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.
@@ -104,7 +109,7 @@ When resuming:
 - address only requested changes and directly required tests/docs
 - push fixes to the same PR
 - comment with what changed and checks rerun
-- move the issue back to `In Review` when ready
+- report that the issue is ready to return to `In Review` for Agent Queue
 
 ## Done
 
@@ -115,5 +120,6 @@ Report:
 - files changed
 - checks run and result
 - code review verdict
-- tracker status/comment updates
+- whether code review covers the current diff
+- tracker comments and status handoff
 - blockers or follow-up issues

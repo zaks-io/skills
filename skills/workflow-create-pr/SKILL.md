@@ -65,9 +65,11 @@ rerun. Never use `--no-verify`.
 
 ## Code Review
 
-Run `workflow-code-review` before committing. Fix P0/P1 findings and
-obvious mechanical P2 findings. Ask before broad architecture, product,
-security, or data-behavior changes.
+Before committing, check whether a fresh `workflow-code-review` artifact already
+covers the current diff. If no review has run, or the diff changed since the
+review, run `workflow-code-review`. Fix P0/P1 findings and obvious mechanical
+P2 findings. Ask before broad architecture, product, security, or data-behavior
+changes.
 
 Use CodeRabbit only when code review recommends it, the change is high-risk, or
 the user asks. Missing auth, rate limits, or credits are a skip, not a blocker.
@@ -126,10 +128,14 @@ tests, copy, or isolated UI.
 When an issue exists:
 
 - attach the PR URL
-- move to configured review state, usually `In Review`
+- report the configured review-state transition, usually `In Review`, for
+  Agent Queue
 - comment with checks run, code review verdict, CodeRabbit decision,
   acceptance criteria status, and differences from original intent
 - never move to `Done`; merge is not complete
+
+Do not move workflow state unless the repo config or user explicitly delegates
+that authority to Create PR.
 
 ## Done
 
@@ -141,7 +147,7 @@ Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
 Review: local <verdict>; CodeRabbit <skipped|CLI|PR review>
-Issue:  <issue @ status, created, or skipped>
+Issue:  <issue, handoff status, created, or skipped>
 ```
 
 ## Guardrails

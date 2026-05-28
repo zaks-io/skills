@@ -30,6 +30,7 @@ Load these references when writing the config:
   responsibilities and adapter minimums
 - [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
   for tracker states, labels, readiness, and issue body shape
+- [references/handoff.md](references/handoff.md) for cross-agent handoff shape
 
 ## Gather
 
@@ -53,16 +54,18 @@ Record:
   lint, typecheck, tests, smoke, generated artifacts
 - issue tracker provider, provider location, project or board, routing label,
   triage scope, orphan policy, statuses, labels, priority policy, dependency
-  policy, and issue body contract
+  policy, issue body contract, and which workflow role owns status transitions
 - runtime rules for local Codex, remote worker agents, Claude, and
   any repo-approved worker
-- automation roles: Issue Triage, Agent Queue, Agent Review, and Agent
-  Implement, including clean-context review delegation and the implementation
-  pipeline
+- automation roles: Issue Triage, Agent Queue, Agent Review, Create PR, and
+  Agent Implement, including Queue-owned tracker transitions, clean-context
+  review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation,
   required CI, preview checks
-- environment safety: production deploy path, preview deploy path, credential
-  rules, allowed hosted checks, and explicit approval requirements
+- environment safety: local, development, preview, and production capabilities;
+  production deploy path; preview deploy path; credential rules; allowed hosted
+  checks; and explicit approval requirements
+- handoff shape for implementation, review, queue, and PR creation
 - unknowns that still require human input
 
 ## Issue Tracker Defaults

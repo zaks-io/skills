@@ -7,9 +7,9 @@ disable-model-invocation: true
 
 # Issue Triage
 
-Maintain issue tracker projects and issues so Agent Queue can delegate implementation
-work without re-triaging every ticket. This is tracker metadata cleanup, not
-implementation.
+Maintain issue tracker projects and issues so Agent Queue can delegate
+implementation work without re-triaging every ticket. This is tracker metadata
+cleanup, not implementation or active-work state management.
 
 ## Inputs
 
@@ -32,6 +32,7 @@ Confirm these config values before mutating the issue tracker:
 - readiness, risk, type, area, and ownership labels
 - priority policy, dependency policy, and orphan policy
 - agent-ready issue body contract
+- workflow status transition owner
 
 If tracker metadata disagrees with config, update only exact label gaps that are
 safe to create. Do not create or rename workflows, statuses, teams, projects,
@@ -64,16 +65,16 @@ Classify each issue as one of:
 
 Apply obvious mechanical updates in batches:
 
-- route orphan issues into the configured project, team, parent, or intake state
-  when evidence is direct
+- route orphan issues into the configured project, team, or parent when evidence
+  is direct; recommend intake state changes for Agent Queue
 - add missing routing, type, risk, area, and readiness labels from config
 - remove conflicting workflow labels only after the correct replacement is clear
-- move ready, unblocked implementation slices to the configured ready state
+- mark ready, unblocked implementation slices for Agent Queue with the configured
+  readiness labels and body contract
 - remove `ready-for-agent` from blocked, vague, duplicate, parent, or human-owned
   issues
-- move blocked issues to the configured blocked state and encode blockers
-- move issues with open PRs to the configured review state when the PR is still
-  active
+- encode blockers and recommend the configured blocked state for Agent Queue
+- recommend the configured review state for issues with active open PRs
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
 
@@ -153,6 +154,8 @@ For first-run backfill:
 - Keep comments metadata-only. Do not paste secrets, customer data, logs,
   signed URLs, or credentials into the tracker.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
+- Do not move active issues between workflow states unless config or the user
+  explicitly delegates that authority to Issue Triage.
 - Do not create noisy comments for every small label edit. Prefer one summary
   comment when an issue needs explanation.
 - Do not create new label taxonomies unless config or the user explicitly names
@@ -167,7 +170,8 @@ Report:
 - issue tracker scope reviewed
 - issues changed, unchanged, and needing human decision
 - orphans routed or left with reasons
-- labels, statuses, priorities, body contracts, and dependencies updated
+- labels, priorities, body contracts, dependencies, and status recommendations
+  updated
 - issues newly ready for Agent Queue and issues removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
 - whether the run was dry-run, partial, or applied

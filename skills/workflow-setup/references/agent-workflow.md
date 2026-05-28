@@ -5,13 +5,15 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 ## Roles
 
 - Agent Queue: keeps tracked work moving, delegates ready implementation work,
-  requests independent review, updates tracker state, and stops on human
-  blockers.
-- Agent Implement: owns one ready issue from claim through implementation, code
-  review, iteration, PR creation, and tracker update.
+  requests independent review, owns the authority to mutate workflow status in
+  the configured issue tracker, performs only configured merge actions, and
+  stops on human blockers.
+- Agent Implement: owns one delegated issue through implementation, code review,
+  iteration, PR creation, and handoff.
 - Agent Review: reviews PRs from a clean subagent or disposable worktree using
-  `workflow-code-review`; also reviews main-branch drift from its checkpoint and
-  files actionable tracker issues.
+  `workflow-code-review`; also reviews main-branch drift from its checkpoint,
+  reports verdicts to Agent Queue, and files actionable tracker issues without
+  moving active work between workflow states.
 - Issue Triage: periodically cleans configured tracker projects, labels,
   priorities, dependencies, orphans, and agent-ready issue bodies before Agent
   Queue selects work.
@@ -20,17 +22,33 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 
 1. Issue Triage periodically normalizes tracker metadata and readiness.
 2. Agent Queue selects ready, unblocked work from the configured tracker.
-3. Agent Queue delegates implementation to Agent Implement.
-4. Agent Implement claims the issue, implements the scoped change, runs checks,
+3. Agent Queue claims the issue and delegates implementation to Agent Implement.
+4. Agent Implement accepts the issue, implements the scoped change, runs checks,
    runs `workflow-code-review`, fixes blocking findings, and creates or updates
    the PR with `workflow-create-pr`.
 5. Agent Queue requests Agent Review for PR review.
 6. Agent Review runs `workflow-code-review` in a clean context and reports
-   findings without modifying product code.
+   findings without modifying product code or moving issue state.
 7. Agent Queue routes findings back to Agent Implement or moves the issue to the
    configured merge-ready state when review and checks are clean.
 8. Agent Review periodically reviews main drift and creates tracker issues for
    real regressions or contract gaps.
+
+## State Authority
+
+Agent Queue does not store authoritative workflow state locally. It reads and
+writes the systems of record:
+
+- issue workflow state: configured issue tracker
+- claim records: configured issue tracker fields, assignments, labels, and
+  comments
+- branch and PR state: configured code host
+- check and preview state: CI, preview, or hosted check provider
+- deployment state: deployment provider
+
+Queue-local files, run logs, and checkpoints are only scratch state. They can
+speed up polling or avoid duplicate work, but agents must refresh the systems of
+record before acting.
 
 ## Adapter Minimum
 

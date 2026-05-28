@@ -9,8 +9,9 @@ agent: general-purpose
 
 # Agent Review
 
-Review PRs and merged state from clean context. File actionable tracker issues.
-Do not implement fixes.
+Review PRs and merged state from clean context. Report active-work verdicts to
+Agent Queue and file actionable tracker issues for new drift. Do not implement
+fixes or move active work between workflow states.
 
 For Claude, this skill runs in a forked context. Reconstruct intent from repo
 artifacts, tracker state, PR bodies, commits, and docs rather than parent
@@ -85,10 +86,10 @@ For each PR:
 1. Confirm Agent Implement or `workflow-create-pr` ran code review when feasible.
 2. Start the clean-context review with `workflow-code-review`.
 3. Post or return findings without fixing the PR locally.
-4. Move the issue to `Changes Requested` for blocking findings.
-5. Move the issue to `Ready to Merge` only when review is clean and required
-   checks pass.
-6. Send feedback to Agent Queue so it can nudge the original implementer.
+4. Report `Changes Requested` for blocking findings.
+5. Report `Ready to Merge` only when review is clean and required checks pass.
+6. Send feedback to Agent Queue so it can move tracker state and nudge the
+   original implementer.
 
 ## Review Focus
 
@@ -116,8 +117,9 @@ New issue rules:
 - use configured provider location and routing label
 - use `Bug` or `Tech Debt` unless the finding is clearly another type
 - set risk label from config
-- add `ready-for-agent` only when unblocked and the body is complete
-- otherwise use `needs-info` or `ready-for-human`
+- add readiness labels only when config allows Agent Review to create findings
+  directly
+- otherwise report labels for Agent Queue to apply
 - include reviewed range and file evidence
 - keep issue text metadata-only
 
@@ -152,14 +154,15 @@ Fix the reviewed-main finding in one concrete PR.
 
 ## Done
 
-Report PRs reviewed, reviewed main range, issues created or updated, checks run,
-checkpoint result, and residual risk.
+Report PRs reviewed, reviewed main range, issues created or recommended, checks
+run, checkpoint result, handoff to Agent Queue, and residual risk.
 
 ## Guardrails
 
 - Do not modify product code.
 - Do not push fixes to PR branches.
 - Do not merge, revert, force-push, deploy, or mutate production.
+- Do not move active implementation issues between workflow states.
 - Do not create low-confidence, duplicate, or style-only issues.
 - Escalate instead of ticketing when a finding needs product, security,
   customer, credential, provider, or ADR judgment.

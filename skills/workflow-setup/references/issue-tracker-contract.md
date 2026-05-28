@@ -64,6 +64,9 @@ contains:
 - Ready implementation work is `Todo`, unblocked, labeled `ready-for-agent`, and
   has a complete agent-ready body.
 - Remote worker work also has `remote-worker`.
+- Labels are coordination signals. The issue tracker is the source of truth for
+  workflow state. Agent Queue owns the authority to mutate workflow state unless
+  the user explicitly says otherwise.
 - Blocked work is not labeled `ready-for-agent`.
 - Human setup, credentials, product judgment, provider approval, customer input,
   and ADR decisions use `ready-for-human` or `needs-info`.

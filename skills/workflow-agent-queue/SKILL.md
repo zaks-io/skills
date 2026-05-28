@@ -7,7 +7,8 @@ disable-model-invocation: true
 
 # Agent Queue
 
-Coordinate the queue. Do not become the default implementer or reviewer.
+Coordinate the queue. Own the authority to mutate workflow status in the
+configured issue tracker. Do not become the default implementer or reviewer.
 
 ## Inputs
 
@@ -26,13 +27,28 @@ Read first:
 
 If config is missing, run or request `workflow-setup` before starting new work.
 
+## State Authority
+
+Do not treat local queue files, logs, or checkpoints as authoritative. Refresh
+the systems of record before acting:
+
+- issue workflow state from the configured issue tracker
+- claim records from configured issue tracker fields, assignments, labels, and
+  comments
+- branch and PR state from the configured code host
+- check and preview state from CI, preview, or hosted check providers
+- deploy state from the deployment provider
+
+Queue may keep local scratch state only for polling, checkpoints, or duplicate
+suppression. The next action must be valid against the refreshed external state.
+
 ## Loop
 
 On each pass:
 
 1. Refresh code host and issue tracker state for the configured locations.
 2. Find ready work: `Todo` plus `ready-for-agent`, unblocked, with a complete
-   agent-ready body.
+   agent-ready body. Treat labels as signals and statuses as the workflow state.
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`.
 4. Check open PRs, failed checks, stale branches, unresolved review comments,
@@ -57,7 +73,7 @@ For Agent Implement PRs:
 1. Confirm code review happened when feasible.
 2. Ask Agent Review to run `workflow-code-review` in a subagent or
    disposable worktree.
-3. Post actionable findings as PR review comments.
+3. Post actionable findings as PR review comments when configured.
 4. Move the issue to `Changes Requested` when author fixes are needed.
 5. Send feedback to Agent Implement or the original worker thread when
    available.
@@ -65,6 +81,8 @@ For Agent Implement PRs:
 7. After fixes, ask Agent Review to rerun review and required checks.
 8. Move to `Ready to Merge` only when Agent Review is clean and required checks
    pass.
+9. Merge only when config grants Agent Queue merge authority and all approval
+   rules are satisfied. Otherwise stop with the PR ready for human merge.
 
 ## Stop Conditions
 
@@ -87,6 +105,8 @@ Stop and report when:
 - Never inline implementation or PR review when an Agent Implement or Agent
   Review handoff is available.
 - Never merge or deploy production without explicit approval.
+- Never treat a label alone as permission to change state, merge, deploy, or use
+  hosted resources.
 - Keep tracker comments metadata-only. Do not paste secrets or private logs.
 
 ## Done
