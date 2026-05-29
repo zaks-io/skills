@@ -38,7 +38,7 @@ Start only when the issue:
 - is unblocked
 - is scoped to one PR
 - has `ready-for-agent`
-- has any project-configured worker routing or readiness label required for the
+- has any project-configured worker environment label or field required for the
   selected delegation path
 - has enough acceptance criteria and required checks to verify
 

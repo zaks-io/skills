@@ -90,7 +90,7 @@ Verify all populated workflow fields that setup writes or preserves:
 - code host default branch, branch protections, PR conventions, linked checks,
   and open PR query shape through git metadata, code host tools, or workflow
   files
-- worker delegation paths, routing labels or fields, continuation paths, and
+- worker delegation paths, environment labels or fields, continuation paths, and
   remote worker delegation mechanics through tracker metadata, verified config,
   or explicit user instruction
 - Claude, Codex, editor, and repo-local adapter paths by resolving files,
@@ -135,9 +135,10 @@ Record:
 - package manager and command table: install, full gate, focused checks, build,
   lint, typecheck, tests, smoke, generated artifacts
 - issue tracker provider, provider location, project or board, routing label,
-  triage scope, orphan policy, statuses, labels, worker routing/readiness labels
-  when present, priority policy, dependency policy, issue body contract, and
-  which workflow role owns status transitions
+  triage scope, orphan policy, statuses, labels, readiness label policy, worker
+  environment label policy when present, startable work criteria, priority
+  policy, dependency policy, issue body contract, and which workflow role owns
+  status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
   one read-only verification query or tool call that returned the expected scope
@@ -154,9 +155,9 @@ Record:
   when the tracker exposes them
 - agent access rules for local Codex, remote worker agents, Claude, and any
   repo-approved worker
-- issue-assigned agent notes when available: project-specific routing labels,
-  fields, worker readiness labels, delegation tool or field, verified agent IDs,
-  continuation comment rules, and no-mutation probe policy
+- issue-assigned agent notes when available: project-specific environment labels
+  or fields, worker environment approval labels, delegation tool or field,
+  verified agent IDs, continuation comment rules, and no-mutation probe policy
 - Claude Code compatibility: the target repo's Claude Code integration source
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified
@@ -189,9 +190,16 @@ Readiness:
 - `ready-for-human`
 - `wontfix`
 
-Worker routing or readiness labels, such as `remote-worker`, are project config
-values only. Record them when the repo's tracker uses them; do not add them as
-shared defaults.
+Readiness label policy belongs in repo config. By default, `ready-for-agent`
+means the ticket needs no further human refinement before handoff to an
+implementation agent. It does not mean unblocked, startable, or assigned to a
+specific worker environment.
+
+Worker environment labels, such as `remote-worker` or `remote-cursor`, are
+project config values only. Record them when the repo's tracker uses them; do not
+add them as shared defaults. By default, a worker environment label means the
+issue is approved to run in that configured environment. It does not mean
+unblocked, startable, or implementation-ready.
 
 Risk:
 

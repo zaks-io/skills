@@ -11,7 +11,7 @@ That gives agents the things they usually guess badly:
 - which package manager and checks to run
 - where tracked work lives
 - which tracker IDs, names, and query fields actually return that work
-- which labels and statuses mean work is ready
+- which labels mean implementation-ready and which statuses mean startable
 - who can move tickets
 - how remote issue-assigned workers are delegated
 - what local, development, preview, and production mean for this repo
@@ -80,7 +80,13 @@ $workflow-agent-review <pr|range>
 ## The Operating Model
 
 The issue tracker is the source of truth for issue state. In most repos that is
-Linear. Labels are signals. Status is state.
+Linear. Labels are signals. Status is state. Repo config defines how labels are
+treated.
+
+By default, `ready-for-agent` means the ticket needs no further human refinement
+before handoff to an implementation agent. Worker environment labels such as
+`remote-cursor` mean the issue is approved for that configured environment. Those
+labels are not dependency or scheduling gates.
 
 Agent Orchestrator is the only default role that moves workflow state. It reads
 the issue tracker, checks PR and CI state, starts workers, asks for review, and
@@ -111,11 +117,12 @@ committing and opening or updating the PR.
 - `workflow-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
 - `workflow-issue-triage`: update tracker labels, readiness, orphans, body shape,
-  and dependencies so tickets are clean; ask or list exact human next actions
-  when something is unclear.
+  and dependencies so tickets are clean. It follows the repo-configured label
+  treatment policy; ask or list exact human next actions when something is
+  unclear.
 - `workflow-agent-orchestrator`: orchestrate tracked work without becoming the
   coder or reviewer.
-- `workflow-agent-implement`: take one ready issue through implementation,
+- `workflow-agent-implement`: take one startable issue through implementation,
   checks, review, and PR creation.
 - `workflow-code-review`: bug-focused review for branches, PRs, working trees,
   and main drift.
@@ -151,7 +158,8 @@ A repo is ready when:
   named systems of record
 - issue tracker location has verified IDs or query-safe names, not stale slugs
 - Orchestrator mutation authority is explicit
-- issue-assigned worker routing and no-mutation delegation probe policy are explicit
+- issue-assigned worker environment labels and no-mutation delegation probe
+  policy are explicit
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
 - `workflow-agent-orchestrator`, `workflow-agent-implement`, `workflow-code-review`,

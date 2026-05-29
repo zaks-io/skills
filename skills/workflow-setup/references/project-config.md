@@ -54,7 +54,14 @@ Last updated: YYYY-MM-DD
 - Done state: Done
 - Status transition owner: Agent Orchestrator
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
-- Worker routing/readiness labels:
+- Readiness label policy:
+  - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable
+  - needs-info:
+  - ready-for-human:
+- Worker environment labels:
+- Worker environment label policy:
+  - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
+- Startable work criteria: ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
@@ -156,9 +163,16 @@ State authority should live in external systems:
 - deployment state lives in the deployment provider
 - Orchestrator local state is non-authoritative scratch or checkpoints only
 
+Every configured readiness or worker environment label needs a short treatment
+policy in this file. `ready-for-agent` should answer "does a human need to refine
+this ticket before I hand it to an implementation agent?" It must not be used as
+a dependency, status, or scheduling signal. Worker environment labels such as
+`remote-cursor` should answer "is this issue allowed to run in that configured
+environment?" They must not be used as dependency, status, or scheduling signals.
+
 Issue-assigned worker config should be stable enough for Orchestrator to act
-without probing real work. Record the configured worker path, routing labels or
-fields, delegation tool or field, known agent names or IDs when verified, and the
-parallelism policy. If the tool cannot expose assignable agents through a
-read-only query, record that unknown instead of forcing Orchestrator to discover
-it by assignment.
+without probing real work. Record the configured worker path, environment labels
+or fields, environment approval labels, delegation tool or field, known agent
+names or IDs when verified, and the parallelism policy. If the tool cannot
+expose assignable agents through a read-only query, record that unknown instead
+of forcing Orchestrator to discover it by assignment.

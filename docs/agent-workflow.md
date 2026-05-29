@@ -81,16 +81,26 @@ assign. The skills do not infer this from local CLI availability.
 
 Repo config should record only project-specific details that are annoying to
 rediscover, such as supported worker delegation paths, routing labels, routing
-fields, worker readiness labels, or non-default continuation comment rules. The
-tracker remains the source of truth for which agents are currently assignable.
+fields, readiness label policy, worker environment label policy, startable work
+criteria, or non-default continuation comment rules. The tracker remains the
+source of truth for which agents are currently assignable.
+
+Readiness and worker environment labels describe separate things. By default,
+`ready-for-agent` means the ticket needs no further human refinement before
+handoff to an implementation agent. A label such as `remote-worker` or
+`remote-cursor` means the issue is approved to run in that configured worker
+environment. These labels can be applied before dependencies are clear.
+Dependencies, blocker relationships, and blocked states gate whether
+Orchestrator may start or delegate the work.
 
 Before assigning issue-assigned work, Orchestrator must verify the issue is
-ready and unblocked using tracker status, labels, provider blocker
+implementation-ready and unblocked using tracker status, labels, provider blocker
 relationships, body blockers, existing claims, and open PR state. It must not
 mutate a real issue to discover whether a delegation field or agent name works.
-If the user explicitly chooses issue-assigned agents and an otherwise-ready issue
-is missing only the configured worker routing metadata, Orchestrator can repair
-that metadata and continue.
+If the user explicitly chooses issue-assigned agents and an implementation-ready
+issue is missing only the configured worker environment metadata, Orchestrator
+can repair that metadata without treating dependencies as a label blocker. It
+still must not start blocked work.
 
 If Agent Orchestrator needs to send fixes, review feedback, failed-check
 details, or PR process instructions back to that agent, it should reply on the
@@ -142,7 +152,7 @@ sequenceDiagram
   participant R as Agent Review
 
   I->>T: Clean labels, readiness, dependencies, and orphans
-  Q->>T: Refresh ready and active issues
+  Q->>T: Refresh startable and active issues
   Q->>G: Refresh PR, branch, check, and preview state
   Q->>T: Claim issue and move to In Progress
   Q->>W: Delegate issue through supported worker path

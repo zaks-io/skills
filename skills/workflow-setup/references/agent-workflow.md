@@ -4,10 +4,10 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 
 ## Roles
 
-- Agent Orchestrator: keeps tracked work moving, delegates ready implementation
-  work, requests independent review, owns the authority to mutate workflow
-  status in the configured issue tracker, performs only configured merge
-  actions, and stops on human blockers.
+- Agent Orchestrator: keeps tracked work moving, delegates startable
+  implementation work, requests independent review, owns the authority to mutate
+  workflow status in the configured issue tracker, performs only configured
+  merge actions, and stops on human blockers.
 - Agent Implement: owns one delegated issue through implementation, code review,
   iteration, PR creation, and handoff.
 - Agent Review: reviews PRs from a clean subagent or disposable worktree using
@@ -22,7 +22,8 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 ## Flow
 
 1. Issue Triage periodically normalizes tracker metadata and readiness.
-2. Agent Orchestrator selects ready, unblocked work from the configured tracker.
+2. Agent Orchestrator selects startable work from the configured tracker:
+   `ready-for-agent`, complete body, and no active blockers.
 3. Agent Orchestrator claims the issue and delegates implementation using a
    supported worker path.
 4. The implementation worker accepts the issue, implements the scoped change,
@@ -64,7 +65,12 @@ For issue-assigned delegation:
   tracker's live assignee list into config.
 - The config should record only project-specific details that are annoying to
   rediscover, such as supported worker delegation paths, routing labels, routing
-  fields, worker readiness labels, or non-default continuation comment rules.
+  fields, readiness label policy, worker environment label policy, startable work
+  criteria, or non-default continuation comment rules.
+- Worker environment labels, such as `remote-worker` or `remote-cursor`, are
+  approval metadata. Apply or preserve them when the issue route and environment
+  approval criteria are verified. Do not require dependencies to be clear just to
+  set the environment label.
 - The issue needs the repo routing label or metadata the integration uses to
   choose the preconfigured environment, when the repo requires one.
 - Agent Orchestrator starts work by assigning the selected tracker-exposed agent.
@@ -98,7 +104,7 @@ should stay short. They should point agents to `docs/agents/workflow/config.md`
 and name the core skills:
 
 - `workflow-agent-orchestrator` for orchestration
-- `workflow-agent-implement` for one ready issue through PR creation
+- `workflow-agent-implement` for one startable issue through PR creation
 - `workflow-agent-review` for independent PR and main drift review
 - `workflow-issue-triage` for tracker project cleanup and readiness backfill
 - `workflow-code-review` as the shared review gate

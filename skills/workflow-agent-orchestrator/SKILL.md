@@ -1,6 +1,6 @@
 ---
 name: workflow-agent-orchestrator
-description: Use for Agent Orchestrator, the short-loop agent that orchestrates issue-tracked implementation work by selecting ready issues, launching or nudging workers, requesting Agent Review, updating the tracker, and stopping when human input is needed.
+description: Use for Agent Orchestrator, the short-loop agent that orchestrates issue-tracked implementation work by selecting startable issues, launching or nudging workers, requesting Agent Review, updating the tracker, and stopping when human input is needed.
 argument-hint: "[loop-budget-or-filter]"
 disable-model-invocation: true
 ---
@@ -55,7 +55,9 @@ location from `docs/agents/workflow/config.md`:
 - provider IDs for team, project, board, repo, milestone, or roadmap
 - query-safe names when the provider requires names instead of IDs
 - status field names and relationship fields used by the current tool
-- configured routing and readiness labels
+- configured routing, readiness, and worker environment labels
+- readiness label policy, worker environment label policy, and startable work
+  criteria
 - read-only query shape that verified the metadata
 
 If config uses a slug or display name that returns empty results but a verified
@@ -91,10 +93,12 @@ On each pass:
 
 1. Refresh code host and issue tracker state for the configured locations using
    the configured tracker tool/MCP and verified IDs.
-2. Find ready work: `Todo` plus `ready-for-agent`, unblocked, with a complete
-   agent-ready body. Check provider blocker relationships and explicit body
-   blockers before treating an issue as ready. Treat labels as signals and
-   statuses as the workflow state.
+2. Find startable work: `Todo` plus `ready-for-agent`, unblocked, with a
+   complete agent-ready body. `ready-for-agent` means no further human
+   refinement is needed before agent handoff; it can be present on blocked
+   issues. Check provider blocker relationships and explicit body blockers
+   before starting or delegating work. Treat labels as signals and statuses as
+   the workflow state.
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`.
 4. Check open PRs, failed checks, stale branches, unresolved review comments,
@@ -137,6 +141,11 @@ Before starting issue-assigned work, run a read-only preflight:
 - verify the issue is not already claimed, delegated, linked to an open PR, or
   waiting on review feedback
 
+Configured worker environment labels or fields, such as `remote-cursor`, are
+environment approval metadata. Apply or preserve them when the issue identity,
+repo route, and repo-configured environment approval criteria are verified. Do
+not require dependencies to be clear just to apply the environment label.
+
 Do not mutate a real issue to discover whether an agent name or delegation field
 works. Use read-only metadata, a documented config value, or stop with the exact
 missing config item. If the user explicitly approves a probe, use only a
@@ -144,12 +153,12 @@ dedicated test issue and restore it afterward.
 
 To start issue-assigned work:
 
-- verify the issue is ready, unblocked, and has the configured repo routing
-  label, worker routing/readiness label, field, or metadata the integration
-  needs, when config names one
-- if the user explicitly requested issue-assigned agents and an otherwise-ready
-  issue is missing only the configured worker routing label or field, repair
-  that routing metadata and continue; do not ask again
+- verify the issue is implementation-ready, unblocked, and has the configured
+  repo routing label, worker environment label, field, or metadata the
+  integration needs, when config names one
+- if the user explicitly requested issue-assigned agents and an
+  implementation-ready issue is missing only the configured worker environment
+  label or field, repair that environment metadata and continue; do not ask again
 - assign the selected agent to the issue through the configured issue tracker
 - record the delegation in the issue tracker, including expected PR and check
   requirements
@@ -188,7 +197,7 @@ For Agent Implement PRs:
 
 Stop and report when:
 
-- no ready unblocked work exists
+- no startable work exists
 - all active work is waiting on humans, credentials, providers, production
   access, customer input, or merge authority
 - the next action needs a product, security, ADR, or scope decision
@@ -201,6 +210,8 @@ Stop and report when:
 - Never assign blocked work to a worker.
 - Never use a real implementation issue as a capability probe.
 - Never add `ready-for-agent` unless the issue satisfies the body contract.
+- Never withhold or remove `ready-for-agent` or configured worker environment
+  metadata only because dependency blockers remain.
 - Mark issues `ready-for-human`, `needs-info`, `Blocked`, or the configured
   equivalent when human review, approval, credentials, product input, or security
   judgment is the next owner.

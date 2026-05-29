@@ -34,7 +34,9 @@ Confirm these config values before mutating the issue tracker:
 
 - provider location, project, team, roadmap, and routing label
 - status names and mappings
-- readiness, risk, type, area, and ownership labels
+- readiness, risk, type, area, ownership, and worker environment labels
+- readiness label policy, worker environment label policy, and startable work
+  criteria
 - priority policy, dependency policy, and orphan policy
 - agent-ready issue body contract
 - workflow status transition owner
@@ -58,7 +60,7 @@ Build a triage set before making changes:
 
 Classify each issue as one of:
 
-- ready implementation slice
+- implementation-ready slice
 - blocked implementation slice
 - needs human product, security, credential, customer, or ADR decision
 - duplicate or likely duplicate
@@ -74,10 +76,14 @@ Apply obvious mechanical updates in batches:
   is direct; recommend intake state changes for Agent Orchestrator
 - add missing routing, type, risk, area, and readiness labels from config
 - remove conflicting workflow labels only after the correct replacement is clear
-- mark ready, unblocked implementation slices for Agent Orchestrator with the configured
-  readiness labels and body contract
-- remove `ready-for-agent` from blocked, vague, duplicate, parent, or human-owned
-  issues
+- mark implementation-ready slices with `ready-for-agent` when the repo-configured
+  readiness policy says no further human refinement is needed, even if dependency
+  blockers remain
+- apply configured worker environment labels or fields when the repo-configured
+  environment policy says that issue may run there; dependency state is not a
+  reason to refuse the environment label
+- remove `ready-for-agent` from vague, duplicate, parent, human-owned, or
+  body-incomplete issues
 - encode blockers and recommend the configured blocked state for Agent Orchestrator
 - recommend the configured review state for issues with active open PRs
 - mark duplicates only when the duplicate relationship is clear and preserve the
@@ -87,10 +93,10 @@ Do not close, cancel, reprioritize across projects, or rewrite scope because an
 issue looks stale. Leave a concise comment and use `needs-info` or
 `ready-for-human` when judgment is required.
 
-Do not stop at a vague recommendation. For each issue that cannot be made ready,
-either ask the user a specific question or leave a concrete next action such as
-"confirm acceptance criteria", "choose canonical duplicate", "approve security
-scope", or "provide credential owner".
+Do not stop at a vague recommendation. For each issue that cannot be made
+implementation-ready, either ask the user a specific question or leave a
+concrete next action such as "confirm acceptance criteria", "choose canonical
+duplicate", "approve security scope", or "provide credential owner".
 
 ## Issue Body
 
@@ -100,11 +106,14 @@ useful existing text and add missing headings without inventing facts.
 An issue can receive `ready-for-agent` only when it is:
 
 - scoped to one PR
-- unblocked
 - assigned to the configured project or route
 - labeled with one clear type and risk
-- ordered after its blockers
 - complete enough for Agent Implement to verify
+
+By default, `ready-for-agent` means the ticket needs no further human refinement
+before handoff to an implementation agent. Use the repo config if it defines a
+different readiness policy. `ready-for-agent` does not mean dependencies are
+clear, and it is not removed only because the issue is blocked by another issue.
 
 Required body content:
 
@@ -148,6 +157,11 @@ Detect cycles, blockers that are done or canceled, parent issues marked ready,
 and issues blocked by vague placeholder work. Fix obvious completed blockers.
 Escalate ambiguous ordering instead of guessing.
 
+Do not use dependencies as a reason to withhold or remove `ready-for-agent` or a
+configured worker environment label. Encode dependency order with tracker
+relationships, blocker fields, body text, or workflow state so Agent
+Orchestrator can avoid starting blocked work.
+
 ## Priority
 
 Use the configured priority policy. Good signals are:
@@ -169,8 +183,9 @@ For first-run backfill:
    and readiness.
 2. Create missing workflow labels only when names are exact and config-approved.
 3. Normalize orphan routing and body headings before setting priorities.
-4. Make readiness the final step, after labels, blockers, and body contracts are
-   correct.
+4. Make readiness the final step after labels and body contracts are correct.
+   Encode blockers separately; blocker state does not decide whether
+   `ready-for-agent` applies.
 5. Report the before and after counts.
 
 ## Guardrails
@@ -196,8 +211,9 @@ Report:
 - orphans routed or left with reasons
 - labels, priorities, body contracts, dependencies, and status recommendations
   updated
-- issues newly ready for Agent Orchestrator and issues removed from readiness
+- issues newly implementation-ready, newly startable, and removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
 - user questions asked or exact human next actions left
-- actual next items to do before the remaining issues can become ready
+- actual next items to do before the remaining issues can become
+  implementation-ready or startable
 - whether the run was dry-run, partial, or applied

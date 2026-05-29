@@ -1,6 +1,6 @@
 interface:
   display_name: "Agent Orchestrator"
   short_description: "Orchestrate tracked work"
-  default_prompt: "Use $workflow-agent-orchestrator to orchestrate ready tracker issues, implementation workers, Agent Review, and PR state."
+  default_prompt: "Use $workflow-agent-orchestrator to orchestrate startable tracker issues, implementation workers, Agent Review, and PR state."
 policy:
   allow_implicit_invocation: false

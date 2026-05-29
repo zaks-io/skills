@@ -58,22 +58,34 @@ contains:
 - security, privacy, data, or operational invariants
 - dependencies or blockers
 
-## Readiness Rules
+## Label Treatment Rules
 
-- Ready implementation work is `Todo`, unblocked, labeled `ready-for-agent`, and
-  has a complete agent-ready body.
-- Issue-assigned agent work, when supported by the repo, uses the
-  project-configured worker routing label, field, or metadata the tracker
-  integration needs to select the environment.
+- Repo config owns the treatment policy for every readiness and worker
+  environment label. The defaults below apply only when the repo has no
+  different verified mapping.
+- `ready-for-agent` means no further human refinement is needed before handing
+  the issue to an implementation agent. The issue should be scoped to one PR and
+  backed by a complete agent-ready body. It can be present while dependency
+  blockers remain.
+- Startable implementation work is `Todo`, unblocked, labeled `ready-for-agent`,
+  and has a complete agent-ready body.
+- Issue-assigned agent work, when supported by the repo, uses the repo-configured
+  worker environment label, routing field, or metadata the tracker integration
+  needs to select the environment.
 - When the user explicitly chooses an issue-assigned worker path, Orchestrator or
-  Issue Triage may add the configured worker routing label or field only after
-  verifying the issue is otherwise ready and unblocked.
-- If a repo uses an extra label such as `remote-worker`, record it in
-  `docs/agents/workflow/config.md`; it is not a shared default.
+  Issue Triage may add the configured worker environment label or field after
+  verifying the issue identity, repo route, and environment approval criteria. Do
+  not require dependencies to be clear just to apply the environment label.
+- If a repo uses an extra label such as `remote-worker` or `remote-cursor`,
+  record it in `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
   workflow state. Agent Orchestrator owns the authority to mutate workflow state unless
   the user explicitly says otherwise.
-- Blocked work is not labeled `ready-for-agent`.
+- Blocked work can keep `ready-for-agent`. Blocker relationships, body blockers,
+  or workflow state stop scheduling; they do not redefine readiness metadata.
+- Worker environment labels are approval and routing metadata. They do not say
+  whether the issue needs human refinement, whether dependencies are done, or
+  whether Orchestrator may start it now.
 - Human setup, credentials, product judgment, provider approval, customer input,
   and ADR decisions use `ready-for-human` or `needs-info`.
 - Dependency order should be encoded with tracker relationships when the
@@ -109,8 +121,8 @@ Agent Orchestrator reason about it.
 - Route orphans when the correct project, team, parent, or label is directly
   evidenced by the issue, linked docs, PR, branch, or configured repo route.
 - Leave ambiguous orphans in triage with `needs-info` or `ready-for-human`.
-- Do not mark an orphan `ready-for-agent` until routing, body contract, labels,
-  status, and blockers are all correct.
+- Do not mark an orphan `ready-for-agent` until routing, body contract, and
+  labels are correct. Encode blockers separately.
 - Do not cancel or close an orphan only because it is stale.
 
 ## Creating Tracked Work From Docs
