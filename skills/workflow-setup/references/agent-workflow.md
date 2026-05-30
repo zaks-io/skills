@@ -6,8 +6,8 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 
 - Agent Orchestrator: keeps tracked work moving, delegates startable
   implementation work, requests independent review, owns the authority to mutate
-  workflow status in the configured issue tracker, performs only configured
-  merge actions, and stops on human blockers.
+  active workflow status in the configured issue tracker, performs only
+  configured merge actions, and stops on human blockers.
 - Agent Implement: owns one delegated issue through implementation, code review,
   iteration, PR creation, and handoff.
 - Agent Review: reviews PRs from a clean subagent or disposable worktree using
@@ -15,13 +15,15 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   reports verdicts to Agent Orchestrator, and files actionable tracker issues
   without moving active work between workflow states.
 - Issue Triage: periodically updates configured tracker projects, labels,
-  priorities, dependencies, orphans, and agent-ready issue bodies before Agent
-  Orchestrator selects work; when something is unclear, it asks the user or
-  leaves exact human next actions.
+  priorities, dependencies, orphans, intake state, and agent-ready issue bodies
+  before Agent Orchestrator selects work; its goal is to make as many tickets as
+  possible ready for agents. When something is unclear, it asks the user or leaves
+  exact human next actions.
 
 ## Flow
 
-1. Issue Triage periodically normalizes tracker metadata and readiness.
+1. Issue Triage periodically normalizes tracker metadata, readiness, and intake
+   status.
 2. Agent Orchestrator selects startable work from the configured tracker:
    `ready-for-agent`, complete body, and no active blockers.
 3. Agent Orchestrator claims the issue and delegates implementation using a
@@ -44,7 +46,7 @@ Agent Orchestrator owns orchestration, not implementation. It chooses the next
 action needed to get tickets handled safely: delegate implementation work, nudge
 an existing worker, request another code review, rerun checks, route review
 feedback, repair tracker metadata, mark tickets for human review or missing
-information, move workflow state, or stop on a real blocker.
+information, move active workflow state, or stop on a real blocker.
 
 Config should name the worker delegation paths this repo supports:
 
@@ -70,7 +72,8 @@ For issue-assigned delegation:
 - Worker environment labels, such as `remote-worker` or `remote-cursor`, are
   approval metadata. Apply or preserve them when the issue route and environment
   approval criteria are verified. Do not require dependencies to be clear just to
-  set the environment label.
+  set the environment label or promote a complete intake ticket to the ready
+  state.
 - The issue needs the repo routing label or metadata the integration uses to
   choose the preconfigured environment, when the repo requires one.
 - Agent Orchestrator starts work by assigning the selected tracker-exposed agent.
@@ -83,8 +86,9 @@ For issue-assigned delegation:
 
 ## State Authority
 
-Agent Orchestrator does not store authoritative workflow state locally. It reads
-and writes the systems of record:
+Issue Triage may move complete issues from configured intake states to the
+configured ready state. Agent Orchestrator does not store authoritative workflow
+state locally. It reads and writes the systems of record:
 
 - issue workflow state: configured issue tracker
 - claim records: configured issue tracker fields, assignments, labels, and

@@ -7,14 +7,17 @@ disable-model-invocation: true
 
 # Issue Triage
 
-Maintain issue tracker projects and issues so Agent Orchestrator can delegate
-implementation work without re-triaging every ticket. This is tracker metadata
-cleanup, not implementation or active-work state management.
+Maintain issue tracker projects and issues so as many tickets as possible are
+ready for agents and Agent Orchestrator can delegate implementation work without
+re-triaging every ticket. This is tracker metadata cleanup and intake promotion,
+not implementation or active-work state management.
 
-The point of this skill is to get tickets into shape. Apply safe tracker updates
-directly. When something is unclear, ask the user if they are available;
-otherwise mark the issue with the configured human-input state or label and
-return the exact questions or next actions needed.
+The point of this skill is to convert messy tracker work into agent-ready
+implementation tickets. Apply safe tracker updates directly, including moving
+complete intake-state issues to the configured ready state. When something is
+unclear, ask the user if they are available; otherwise mark the issue with the
+configured human-input state or label and return the exact questions or next
+actions needed.
 
 ## Inputs
 
@@ -39,7 +42,8 @@ Confirm these config values before mutating the issue tracker:
   criteria
 - priority policy, dependency policy, and orphan policy
 - agent-ready issue body contract
-- workflow status transition owner
+- active workflow status transition owner
+- Issue Triage intake-state transition authority
 
 If tracker metadata disagrees with config, update only exact label gaps that are
 safe to create. Do not create or rename workflows, statuses, teams, projects,
@@ -73,7 +77,10 @@ Classify each issue as one of:
 Apply obvious mechanical updates in batches:
 
 - route orphan issues into the configured project, team, or parent when evidence
-  is direct; recommend intake state changes for Agent Orchestrator
+  is direct
+- move issues from configured intake states such as `Triage`, `Backlog`, or
+  equivalent to the configured ready state, usually `Todo`, when routing, labels,
+  and the agent-ready body contract are complete
 - add missing routing, type, risk, area, and readiness labels from config
 - remove conflicting workflow labels only after the correct replacement is clear
 - mark implementation-ready slices with `ready-for-agent` when the repo-configured
@@ -84,7 +91,8 @@ Apply obvious mechanical updates in batches:
   reason to refuse the environment label
 - remove `ready-for-agent` from vague, duplicate, parent, human-owned, or
   body-incomplete issues
-- encode blockers and recommend the configured blocked state for Agent Orchestrator
+- encode blockers before ready-state promotion; recommend the configured blocked
+  state for Agent Orchestrator when an active issue should stop
 - recommend the configured review state for issues with active open PRs
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
@@ -183,9 +191,10 @@ For first-run backfill:
    and readiness.
 2. Create missing workflow labels only when names are exact and config-approved.
 3. Normalize orphan routing and body headings before setting priorities.
-4. Make readiness the final step after labels and body contracts are correct.
-   Encode blockers separately; blocker state does not decide whether
-   `ready-for-agent` applies.
+4. Make readiness and intake-to-ready status promotion the final step after
+   labels and body contracts are correct. Encode blockers separately; blocker
+   state does not decide whether `ready-for-agent` or ready-state promotion
+   applies.
 5. Report the before and after counts.
 
 ## Guardrails
@@ -194,7 +203,8 @@ For first-run backfill:
   signed URLs, or credentials into the tracker.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
 - Do not move active issues between workflow states unless config or the user
-  explicitly delegates that authority to Issue Triage.
+  explicitly delegates that authority to Issue Triage. Moving complete issues
+  from configured intake states to the configured ready state is allowed.
 - Do not create noisy comments for every small label edit. Prefer one summary
   comment when an issue needs explanation.
 - Do not create new label taxonomies unless config or the user explicitly names
@@ -211,6 +221,7 @@ Report:
 - orphans routed or left with reasons
 - labels, priorities, body contracts, dependencies, and status recommendations
   updated
+- intake-state issues promoted to the configured ready state
 - issues newly implementation-ready, newly startable, and removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
 - user questions asked or exact human next actions left

@@ -29,5 +29,6 @@ Rules:
 - Say whether code review covers the current diff.
 - Say whether hosted checks used local, development, preview, or production
   resources.
-- Leave tracker status changes to Agent Orchestrator unless the user explicitly says
-  otherwise.
+- Leave active tracker status changes to Agent Orchestrator unless the user
+  explicitly says otherwise. Issue Triage may promote complete intake issues to
+  the configured ready state.

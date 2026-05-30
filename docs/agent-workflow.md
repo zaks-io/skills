@@ -46,14 +46,16 @@ Agents must refresh the relevant systems of record before mutating anything.
 ## Roles
 
 - Agent Orchestrator: reads external state, starts or nudges workers, asks for
-  review, and owns the authority to mutate workflow status in the issue tracker.
+  review, and owns the authority to mutate active workflow status in the issue
+  tracker.
 - Agent Implement: owns one delegated issue through implementation, checks,
   code review, PR creation, and handoff.
 - Agent Review: reviews PRs and main drift from clean context, reports verdicts
   to Orchestrator, and files or recommends follow-up issues.
-- Issue Triage: updates tracker metadata, readiness, dependencies, and issue
-  body shape so tickets are clean and ready; when something is unclear, it asks
-  the user or leaves exact human next actions.
+- Issue Triage: updates tracker metadata, readiness, dependencies, intake status,
+  and issue body shape so as many tickets as possible are clean and ready for
+  agents; when something is unclear, it asks the user or leaves exact human next
+  actions.
 - Create PR: turns the current branch into a PR after checks and code review.
 - Code Review: shared bug-focused review gate.
 
@@ -63,7 +65,7 @@ Agent Orchestrator owns orchestration, not implementation. It chooses the next
 action needed to get tickets handled safely: delegate implementation work, nudge
 an existing worker, request another code review, rerun checks, route review
 feedback, repair tracker metadata, mark tickets for human review or missing
-information, move workflow state, or stop on a real blocker.
+information, move active workflow state, or stop on a real blocker.
 
 Downstream config should say which worker delegation paths the project supports:
 
@@ -90,7 +92,8 @@ Readiness and worker environment labels describe separate things. By default,
 handoff to an implementation agent. A label such as `remote-worker` or
 `remote-cursor` means the issue is approved to run in that configured worker
 environment. These labels can be applied before dependencies are clear.
-Dependencies, blocker relationships, and blocked states gate whether
+Complete intake tickets can move to the ready state before dependencies are
+clear. Dependencies, blocker relationships, and blocked states gate whether
 Orchestrator may start or delegate the work.
 
 Before assigning issue-assigned work, Orchestrator must verify the issue is
@@ -115,7 +118,7 @@ flowchart TD
   Setup["workflow-setup\nCreate repo config"]
   Config["Repo config\ncommands, tracker, agents, environments"]
   Tracker["Issue tracker\nsource of truth for issue state"]
-  IssueTriage["workflow-issue-triage\nmetadata and readiness"]
+  IssueTriage["workflow-issue-triage\nmetadata, readiness, intake state"]
   Orchestrator["workflow-agent-orchestrator\nstate mutation authority"]
   Worker["Implementation worker\nlocal or issue-assigned"]
   CodeReview["workflow-code-review\nreview gate"]
@@ -130,7 +133,7 @@ flowchart TD
   Config --> CreatePR
   Config --> AgentReview
 
-  IssueTriage -->|labels and readiness| Tracker
+  IssueTriage -->|labels, readiness, intake ready state| Tracker
   Orchestrator -->|select, claim, move states| Tracker
   Orchestrator -->|delegate| Worker
   Worker --> CodeReview
@@ -151,7 +154,7 @@ sequenceDiagram
   participant G as Code Host and PR
   participant R as Agent Review
 
-  I->>T: Clean labels, readiness, dependencies, and orphans
+  I->>T: Clean labels, readiness, dependencies, orphans, and intake state
   Q->>T: Refresh startable and active issues
   Q->>G: Refresh PR, branch, check, and preview state
   Q->>T: Claim issue and move to In Progress
@@ -170,19 +173,20 @@ sequenceDiagram
 
 ## Status Ownership
 
-The issue tracker stores the current issue state. Agent Orchestrator is the
-default writer for workflow status transitions. Other roles can recommend state
-changes, but they should not move active work unless the repo config or user
-explicitly delegates that authority.
+The issue tracker stores the current issue state. Issue Triage may move complete
+issues from configured intake states to the configured ready state. Agent
+Orchestrator is the default writer for active workflow status transitions. Other
+roles can recommend state changes, but they should not move active work unless
+the repo config or user explicitly delegates that authority.
 
 Default rule:
 
-- Issue Triage can edit labels, readiness, body shape, dependencies, and
-  metadata.
+- Issue Triage can edit labels, readiness, body shape, dependencies, metadata,
+  and intake-to-ready status.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
 - Create PR can attach the PR and report the review-state handoff.
 - Agent Review can post findings and verdicts.
-- Agent Orchestrator moves `Todo`, `In Progress`, `In Review`,
+- Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, and `Ready to Merge`.
 
 ## Handoff

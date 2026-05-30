@@ -50,9 +50,10 @@ Last updated: YYYY-MM-DD
 - Orphan policy:
 - Issue key examples:
 - Ready state: Todo
+- Intake states: Triage, Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
-- Status transition owner: Agent Orchestrator
+- Status transition owner: Issue Triage may move intake states to ready state; Agent Orchestrator owns active workflow transitions
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
   - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable
@@ -80,6 +81,7 @@ Last updated: YYYY-MM-DD
 - Authoritative check state:
 - Authoritative deploy state:
 - Orchestrator mutation authority:
+- Issue Triage mutation authority:
 - Implement authority:
 - Review authority:
 - Merge authority:
