@@ -3,7 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import process from "node:process";
-import { analyzeSecret, createFingerprint } from "./lib/analyze.mjs";
+import { createFingerprint } from "./lib/analyze.mjs";
 import {
   checkExpectations,
   diffSources,
@@ -20,6 +20,7 @@ import {
   renderTextSource,
   toPublicSource,
 } from "./lib/render.mjs";
+import { analyzeText } from "./lib/text.mjs";
 
 const usage = `Usage:
   node redact-secrets.mjs [options] <file...>
@@ -117,7 +118,7 @@ const fingerprintKeyFor = (options) => {
 
 const buildSource = ({ fingerprint, hideKeys, label, mode, text }) => {
   if (mode === "text") {
-    return { analysis: analyzeSecret(text, { fingerprint }), kind: "text", label };
+    return { kind: "text", label, text: analyzeText(text, { fingerprint }) };
   }
 
   return { env: parseEnv(text, { fingerprint, hideKeys }), kind: "env", label };

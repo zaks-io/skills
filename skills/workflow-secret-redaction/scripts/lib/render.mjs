@@ -13,6 +13,20 @@ export const renderToken = (analysis) => {
   return `<redacted bytes=${analysis.bytes} chars=${analysis.chars} lines=${analysis.lines}${format}${hint}${fp}>`;
 };
 
+const safeTextAttribute = (value) =>
+  value.replace(/[^A-Za-z0-9./_-]+/g, "_").replace(/^_+|_+$/g, "");
+
+const renderTextToken = (analysis) => {
+  if (analysis.empty) return "<empty>";
+
+  const format = analysis.format
+    ? ` format=${safeTextAttribute(analysis.format)} note=valid_key`
+    : ` class=${analysis.class} format=unrecognized`;
+  const hint = analysis.hint ? ` hint=${safeTextAttribute(analysis.hint)}` : "";
+  const fp = analysis.fingerprint ? ` fp=${analysis.fingerprint}` : "";
+  return `<redacted bytes=${analysis.bytes} chars=${analysis.chars} lines=${analysis.lines}${format}${hint}${fp}>`;
+};
+
 export const renderEnvSource = (source, showLabel = false) => {
   const body = source.env.lines
     .map((line) => {
@@ -28,7 +42,15 @@ export const renderEnvSource = (source, showLabel = false) => {
   return showLabel ? `# source: ${source.label}\n${body}` : body;
 };
 
-export const renderTextSource = (source) => renderToken(source.analysis);
+export const renderTextSource = (source) => {
+  if (source.text.kind === "whole") return renderTextToken(source.text.analysis);
+
+  return source.text.segments
+    .map((segment) =>
+      segment.kind === "redaction" ? renderTextToken(segment.analysis) : segment.text,
+    )
+    .join("");
+};
 
 export const renderChecks = (checks) => {
   if (checks.length === 0) return "";
@@ -76,7 +98,19 @@ const publicAnalysis = (analysis) =>
 
 export const toPublicSource = (source) => {
   if (source.kind === "text") {
-    return { analysis: publicAnalysis(source.analysis), kind: "text", label: source.label };
+    if (source.text.kind === "whole") {
+      return { analysis: publicAnalysis(source.text.analysis), kind: "text", label: source.label };
+    }
+
+    return {
+      kind: "text",
+      label: source.label,
+      redacted: renderTextSource(source),
+      redactions: source.text.segments
+        .filter((segment) => segment.kind === "redaction")
+        .map((segment) => publicAnalysis(segment.analysis)),
+      stats: source.text.stats,
+    };
   }
 
   return {
