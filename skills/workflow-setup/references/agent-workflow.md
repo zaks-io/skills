@@ -14,16 +14,17 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   `workflow-code-review`; also reviews main-branch drift from its checkpoint,
   reports verdicts to Agent Orchestrator, and files actionable tracker issues
   without moving active work between workflow states.
-- Issue Triage: periodically updates configured tracker projects, labels,
-  priorities, dependencies, orphans, intake state, and agent-ready issue bodies
-  before Agent Orchestrator selects work; its goal is to make as many tickets as
-  possible ready for agents. When something is unclear, it asks the user or leaves
-  exact human next actions.
+- Issue Triage: periodically updates configured current tracker issues, labels,
+  priorities, dependencies, orphans, stale verified states, and agent-ready issue
+  bodies before Agent Orchestrator selects work; its default goal is to make all
+  Todo tickets ready for agents and keep tracker state truthful. It does not
+  review backlog unless asked. When something is unclear, it asks the user or
+  leaves exact human next actions.
 
 ## Flow
 
-1. Issue Triage periodically normalizes tracker metadata, readiness, and intake
-   status.
+1. Issue Triage periodically normalizes current tracker metadata, readiness, and
+   verified stale status.
 2. Agent Orchestrator selects startable work from the configured tracker:
    `ready-for-agent`, complete body, and no active blockers.
 3. Agent Orchestrator claims the issue and delegates implementation using a
@@ -73,7 +74,7 @@ For issue-assigned delegation:
   approval metadata. Apply or preserve them when the issue route and environment
   approval criteria are verified. Do not require dependencies to be clear just to
   set the environment label or promote a complete intake ticket to the ready
-  state.
+  state during requested intake cleanup.
 - The issue needs the repo routing label or metadata the integration uses to
   choose the preconfigured environment, when the repo requires one.
 - Agent Orchestrator starts work by assigning the selected tracker-exposed agent.
@@ -87,8 +88,10 @@ For issue-assigned delegation:
 ## State Authority
 
 Issue Triage may move complete issues from configured intake states to the
-configured ready state. Agent Orchestrator does not store authoritative workflow
-state locally. It reads and writes the systems of record:
+configured ready state during requested intake cleanup, and may reconcile
+verified stale states such as moving tickets with merged linked PRs to `Done`.
+Agent Orchestrator does not store authoritative workflow state locally. It reads
+and writes the systems of record:
 
 - issue workflow state: configured issue tracker
 - claim records: configured issue tracker fields, assignments, labels, and
@@ -110,7 +113,8 @@ and name the core skills:
 - `workflow-agent-orchestrator` for orchestration
 - `workflow-agent-implement` for one startable issue through PR creation
 - `workflow-agent-review` for independent PR and main drift review
-- `workflow-issue-triage` for tracker project cleanup and readiness backfill
+- `workflow-issue-triage` for current tracker cleanup, readiness repair, and
+  optional backlog or intake backfill when explicitly requested
 - `workflow-code-review` as the shared review gate
 - `workflow-create-pr` for PR creation
 

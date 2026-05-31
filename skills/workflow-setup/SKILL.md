@@ -137,8 +137,9 @@ Record:
 - issue tracker provider, provider location, project or board, routing label,
   triage scope, orphan policy, statuses, labels, readiness label policy, worker
   environment label policy when present, startable work criteria, priority
-  policy, dependency policy, issue body contract, Issue Triage intake-to-ready
-  authority, and which workflow role owns active status transitions
+  policy, dependency policy, issue body contract, Issue Triage verified-state
+  reconciliation authority, requested intake-to-ready authority, and which
+  workflow role owns active status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
   one read-only verification query or tool call that returned the expected scope
@@ -162,9 +163,10 @@ Record:
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified
 - automation roles: Issue Triage, Agent Orchestrator, Agent Review, Create PR,
-  and Agent Implement, including Issue Triage intake promotion,
-  Orchestrator-owned active tracker transitions, clean-context review delegation,
-  and the implementation pipeline
+  and Agent Implement, including Issue Triage current-ticket readiness repair,
+  verified-state reconciliation, requested intake promotion, Orchestrator-owned
+  active tracker transitions, clean-context review delegation, and the
+  implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation,
   required CI, preview checks
 - environment safety: local, development, preview, and production capabilities;

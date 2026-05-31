@@ -88,12 +88,14 @@ before handoff to an implementation agent. Worker environment labels such as
 `remote-cursor` mean the issue is approved for that configured environment. Those
 labels are not dependency or scheduling gates.
 
-Issue Triage moves complete intake tickets from `Triage` or `Backlog` to the
-configured ready state, usually `Todo`, so as many tickets as possible are ready
-for agents. Dependency blockers should be encoded separately, not used to leave a
-complete ticket in intake. Agent Orchestrator owns active-work state moves. It
-reads the issue tracker, checks PR and CI state, starts workers, asks for review,
-and moves tickets when the external state says that is safe.
+Issue Triage defaults to current work: `Todo` tickets plus active or PR-linked
+tickets whose tracker state may be stale. It makes Todo tickets ready for
+agents, fixes metadata, and marks verified merged work done. It does not review
+`Backlog` unless asked. Dependency blockers should be encoded separately, not
+used to remove readiness. Agent Orchestrator owns active-work state moves except
+for these narrow verified-state repairs. It reads the issue tracker, checks PR
+and CI state, starts workers, asks for review, and moves tickets when the
+external state says that is safe.
 
 Agent Orchestrator does whatever needs to happen to get tickets handled safely.
 It can start local subagents in isolated branches or worktrees, assign a
@@ -119,10 +121,11 @@ committing and opening or updating the PR.
 
 - `workflow-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
-- `workflow-issue-triage`: update tracker labels, readiness, intake status,
-  orphans, body shape, and dependencies so tickets are clean and agent-ready. It
-  follows the repo-configured label treatment policy; ask or list exact human
-  next actions when something is unclear.
+- `workflow-issue-triage`: update current tracker labels, readiness, stale
+  verified states, orphans, body shape, and dependencies so Todo tickets are
+  clean and agent-ready. It follows the repo-configured label treatment policy,
+  skips backlog unless asked, and asks or lists exact human next actions when
+  something is unclear.
 - `workflow-agent-orchestrator`: orchestrate tracked work without becoming the
   coder or reviewer.
 - `workflow-agent-implement`: take one startable issue through implementation,
@@ -140,8 +143,9 @@ committing and opening or updating the PR.
 
 1. Run `workflow-setup` once per repo, and rerun it when the workflow config may
    be stale.
-2. Run `workflow-issue-triage` before the first orchestration run and after big
-   intake changes.
+2. Run `workflow-issue-triage` before the first orchestration run and whenever
+   Todo or active tracker state needs repair. Ask explicitly when you want
+   backlog review or intake backfill.
 3. Run `workflow-agent-orchestrator` to keep active work moving.
 4. Let Agent Orchestrator delegate implementation and review.
 5. Use `workflow-create-pr` directly only when you are already on a branch and

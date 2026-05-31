@@ -30,5 +30,6 @@ Rules:
 - Say whether hosted checks used local, development, preview, or production
   resources.
 - Leave active tracker status changes to Agent Orchestrator unless the user
-  explicitly says otherwise. Issue Triage may promote complete intake issues to
-  the configured ready state.
+  explicitly says otherwise. Issue Triage may reconcile verified stale states
+  such as merged work marked done, and may promote complete intake issues to the
+  configured ready state only during requested intake cleanup.

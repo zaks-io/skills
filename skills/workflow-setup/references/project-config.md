@@ -46,14 +46,14 @@ Last updated: YYYY-MM-DD
 - Label docs:
 - Project, board, repo, milestone, or roadmap:
 - Routing label:
-- Triage scope:
+- Triage scope: Todo and active or PR-linked current issues by default; backlog only when explicitly requested
 - Orphan policy:
 - Issue key examples:
 - Ready state: Todo
 - Intake states: Triage, Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
-- Status transition owner: Issue Triage may move intake states to ready state; Agent Orchestrator owns active workflow transitions
+- Status transition owner: Issue Triage may reconcile verified stale states and move requested intake cleanup to ready state; Agent Orchestrator owns active workflow transitions
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
   - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable
@@ -150,6 +150,12 @@ Provider locations must be query-safe. Store the exact ID, key, or display name
 accepted by the tracker tool, plus the read-only query that verified it. Do not
 store only a repo slug when the provider requires a different team, project, or
 board name.
+
+Triage scope should describe current work, not the whole backlog. By default,
+Issue Triage reviews Todo and active or PR-linked issues, verifies their labels,
+body contracts, blockers, and external state, and marks proven merged work done.
+Backlog, roadmap, someday, or future-work states are reviewed only when the user
+explicitly asks for backlog review or first-run backlog backfill.
 
 If a repo keeps separate label docs such as `docs/agents/triage-labels.md`, make
 those docs mirror this config or point back here. Do not leave separate docs with

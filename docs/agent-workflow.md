@@ -52,10 +52,10 @@ Agents must refresh the relevant systems of record before mutating anything.
   code review, PR creation, and handoff.
 - Agent Review: reviews PRs and main drift from clean context, reports verdicts
   to Orchestrator, and files or recommends follow-up issues.
-- Issue Triage: updates tracker metadata, readiness, dependencies, intake status,
-  and issue body shape so as many tickets as possible are clean and ready for
-  agents; when something is unclear, it asks the user or leaves exact human next
-  actions.
+- Issue Triage: updates tracker metadata, readiness, dependencies, current
+  status, and issue body shape so Todo tickets are clean, ready for agents, and
+  the tracker reflects external reality. It does not review backlog by default;
+  when something is unclear, it asks the user or leaves exact human next actions.
 - Create PR: turns the current branch into a PR after checks and code review.
 - Code Review: shared bug-focused review gate.
 
@@ -92,9 +92,9 @@ Readiness and worker environment labels describe separate things. By default,
 handoff to an implementation agent. A label such as `remote-worker` or
 `remote-cursor` means the issue is approved to run in that configured worker
 environment. These labels can be applied before dependencies are clear.
-Complete intake tickets can move to the ready state before dependencies are
-clear. Dependencies, blocker relationships, and blocked states gate whether
-Orchestrator may start or delegate the work.
+During requested intake cleanup, complete intake tickets can move to the ready
+state before dependencies are clear. Dependencies, blocker relationships, and
+blocked states gate whether Orchestrator may start or delegate the work.
 
 Before assigning issue-assigned work, Orchestrator must verify the issue is
 implementation-ready and unblocked using tracker status, labels, provider blocker
@@ -118,7 +118,7 @@ flowchart TD
   Setup["workflow-setup\nCreate repo config"]
   Config["Repo config\ncommands, tracker, agents, environments"]
   Tracker["Issue tracker\nsource of truth for issue state"]
-  IssueTriage["workflow-issue-triage\nmetadata, readiness, intake state"]
+  IssueTriage["workflow-issue-triage\nmetadata, readiness, verified state repair"]
   Orchestrator["workflow-agent-orchestrator\nstate mutation authority"]
   Worker["Implementation worker\nlocal or issue-assigned"]
   CodeReview["workflow-code-review\nreview gate"]
@@ -133,7 +133,7 @@ flowchart TD
   Config --> CreatePR
   Config --> AgentReview
 
-  IssueTriage -->|labels, readiness, intake ready state| Tracker
+  IssueTriage -->|labels, readiness, verified state repair| Tracker
   Orchestrator -->|select, claim, move states| Tracker
   Orchestrator -->|delegate| Worker
   Worker --> CodeReview
@@ -154,7 +154,7 @@ sequenceDiagram
   participant G as Code Host and PR
   participant R as Agent Review
 
-  I->>T: Clean labels, readiness, dependencies, orphans, and intake state
+  I->>T: Clean labels, readiness, dependencies, orphans, and verified stale state
   Q->>T: Refresh startable and active issues
   Q->>G: Refresh PR, branch, check, and preview state
   Q->>T: Claim issue and move to In Progress
@@ -174,15 +174,17 @@ sequenceDiagram
 ## Status Ownership
 
 The issue tracker stores the current issue state. Issue Triage may move complete
-issues from configured intake states to the configured ready state. Agent
-Orchestrator is the default writer for active workflow status transitions. Other
-roles can recommend state changes, but they should not move active work unless
-the repo config or user explicitly delegates that authority.
+issues from configured intake states to the configured ready state only when
+intake cleanup is requested, and it may reconcile verified stale states such as
+marking a ticket `Done` when the linked PR is already merged. Agent Orchestrator
+is the default writer for active workflow status transitions. Other roles can
+recommend state changes, but they should not move active work unless the repo
+config or user explicitly delegates that authority.
 
 Default rule:
 
 - Issue Triage can edit labels, readiness, body shape, dependencies, metadata,
-  and intake-to-ready status.
+  and verified stale states. It does not review backlog unless asked.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
 - Create PR can attach the PR and report the review-state handoff.
 - Agent Review can post findings and verdicts.

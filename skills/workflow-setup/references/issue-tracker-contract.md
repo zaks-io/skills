@@ -67,10 +67,15 @@ contains:
   the issue to an implementation agent. The issue should be scoped to one PR and
   backed by a complete agent-ready body. It can be present while dependency
   blockers remain.
-- Issue Triage should make as many tickets agent-ready as possible. It may move
-  complete issues from configured intake states such as `Triage` or `Backlog` to
-  the configured ready state, usually `Todo`. Encode blockers separately;
-  dependency blockers do not prevent intake-to-ready promotion.
+- Issue Triage should make current tickets agent-ready and keep tracker state
+  aligned with external reality. Its default scope is the configured ready state,
+  usually `Todo`, plus active or PR-linked issues that need repair. It should
+  not review `Backlog` or equivalent future-work states unless the user
+  explicitly asks for backlog review.
+- During requested intake cleanup, Issue Triage may move complete issues from
+  configured intake states such as `Triage` to the configured ready state,
+  usually `Todo`. Encode blockers separately; dependency blockers do not prevent
+  intake-to-ready promotion. Do not promote `Backlog` by default.
 - Startable implementation work is `Todo`, unblocked, labeled `ready-for-agent`,
   and has a complete agent-ready body.
 - Issue-assigned agent work, when supported by the repo, uses the repo-configured
@@ -83,8 +88,10 @@ contains:
 - If a repo uses an extra label such as `remote-worker` or `remote-cursor`,
   record it in `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
-  workflow state. Issue Triage owns intake-to-ready promotion. Agent Orchestrator
-  owns active workflow state unless the user explicitly says otherwise.
+  workflow state. Issue Triage owns requested intake-to-ready promotion and
+  verified stale-state reconciliation, such as marking linked merged PR work
+  `Done`. Agent Orchestrator owns active workflow state unless the user
+  explicitly says otherwise.
 - Blocked work can keep `ready-for-agent`. Blocker relationships, body blockers,
   or workflow state stop scheduling; they do not redefine readiness metadata.
 - Worker environment labels are approval and routing metadata. They do not say
@@ -96,6 +103,8 @@ contains:
   provider supports them.
 - Parent or workstream issues are containers unless explicitly marked
   executable.
+- Backlog review is opt-in. Do not scan, rewrite, promote, or reprioritize
+  backlog issues during default issue triage.
 
 ## Tracker Metadata Verification
 

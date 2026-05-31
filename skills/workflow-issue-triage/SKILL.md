@@ -1,32 +1,36 @@
 ---
 name: workflow-issue-triage
-description: Use for issue tracker triage when cleaning up tracker projects and issues by finding orphans, applying workflow labels, prioritizing, setting dependencies, normalizing issue bodies, and preparing agent-ready implementation tickets.
+description: Use for issue tracker triage when reconciling current project issues with reality, making Todo tickets agent-ready, applying workflow labels, setting dependencies, normalizing issue bodies, and updating verified stale states.
 argument-hint: "[project-url|team|repo|filter]"
 disable-model-invocation: true
 ---
 
 # Issue Triage
 
-Maintain issue tracker projects and issues so as many tickets as possible are
-ready for agents and Agent Orchestrator can delegate implementation work without
-re-triaging every ticket. This is tracker metadata cleanup and intake promotion,
-not implementation or active-work state management.
+Maintain current issue tracker work so Todo tickets are ready for agents and
+tracker state reflects reality. This is tracker metadata cleanup, readiness
+repair, and verified state reconciliation, not implementation.
 
-The point of this skill is to convert messy tracker work into agent-ready
-implementation tickets. Apply safe tracker updates directly, including moving
-complete intake-state issues to the configured ready state. When something is
-unclear, ask the user if they are available; otherwise mark the issue with the
-configured human-input state or label and return the exact questions or next
-actions needed.
+By default, focus on the configured ready state, usually `Todo`, and active or
+PR-linked issues that need tracker repair. Do not review `Backlog` or equivalent
+future-work states unless the user explicitly asks for backlog review, first-run
+backfill, or intake cleanup.
+
+Apply safe tracker updates directly. When external state proves the tracker is
+stale, such as a linked PR already merged, update the issue to the configured
+truthful state such as `Done`. When something is unclear, ask the user if they
+are available; otherwise mark the issue with the configured human-input state or
+label and return the exact questions or next actions needed.
 
 ## Inputs
 
-- Issue tracker project, team, repo, board, roadmap, query, or backlog scope.
+- Issue tracker project, team, repo, board, roadmap, query, or explicit backlog
+  scope.
 - Repo path and `docs/agents/workflow/config.md`.
 - Existing tracker teams, projects, statuses, labels, priorities, dependencies,
   parent or child relationships, PR links, and issue comments.
 - Optional user instructions for first-run backfill, dry run, priority policy,
-  or orphan routing.
+  backlog review, intake cleanup, or orphan routing.
 
 ## Context
 
@@ -44,23 +48,43 @@ Confirm these config values before mutating the issue tracker:
 - agent-ready issue body contract
 - active workflow status transition owner
 - Issue Triage intake-state transition authority
+- Issue Triage verified-state reconciliation authority
 
 If tracker metadata disagrees with config, update only exact label gaps that are
 safe to create. Do not create or rename workflows, statuses, teams, projects,
 boards, or roadmaps without explicit approval.
 
+## Default Scope
+
+Unless the user asks for backlog review, first-run backfill, or intake cleanup,
+do not scan the whole backlog. Build the default triage set from:
+
+1. Issues in the configured ready state, usually `Todo`.
+2. Active issues with linked PRs, branches, blockers, review state, done state,
+   or comments that can prove the tracker is stale.
+3. Issues with the repo routing label that are already in ready or active
+   states but are missing the configured project, parent, or metadata.
+4. Recently updated issues only when they are already in ready or active states
+   or have direct links to current PRs or branches.
+
+Treat `Backlog`, icebox, roadmap, someday, or equivalent future-work states as
+out of scope unless explicitly requested. `Triage` or other intake states are
+also out of scope by default unless config names them as current work or the
+user asks for intake cleanup.
+
 ## Inventory
 
 Build a triage set before making changes:
 
-1. Issues in the requested project, board, repo, team, or filter.
-2. Issues with the repo routing label but no project.
-3. Issues in `Triage`, `Backlog`, or equivalent intake states for the relevant
-   teams.
-4. Active issues linked to PRs, branches, docs, parent issues, blockers, or
+1. Issues in the requested project, board, repo, team, or filter that are in the
+   configured ready or active states.
+2. Issues with the repo routing label but missing current-work metadata.
+3. Active issues linked to PRs, branches, docs, parent issues, blockers, or
    project milestones.
-5. Recently created or updated issues that match repo, package, feature, or
-   customer terms from the project.
+4. Recently created or updated ready or active issues that match repo, package,
+   feature, or customer terms from the project.
+5. `Triage`, `Backlog`, or equivalent intake and future-work states only when
+   explicitly requested.
 
 Classify each issue as one of:
 
@@ -71,6 +95,7 @@ Classify each issue as one of:
 - parent, epic, project note, or workstream container
 - orphan needing project, parent, routing label, owner, or status
 - stale active work needing review
+- stale tracker state with verified external evidence
 
 ## Cleanup
 
@@ -78,9 +103,17 @@ Apply obvious mechanical updates in batches:
 
 - route orphan issues into the configured project, team, or parent when evidence
   is direct
-- move issues from configured intake states such as `Triage`, `Backlog`, or
-  equivalent to the configured ready state, usually `Todo`, when routing, labels,
-  and the agent-ready body contract are complete
+- make configured ready-state issues, usually `Todo`, match the agent-ready body
+  contract, labels, blockers, and route
+- move issues from configured intake states such as `Triage` or equivalent to
+  the configured ready state only when the user asked for intake cleanup or
+  backfill and routing, labels, and the agent-ready body contract are complete
+- leave `Backlog` or equivalent future-work states alone unless the user
+  explicitly asks for backlog review
+- move issues to the configured done state when linked PR, branch, release, or
+  code-host evidence proves the work is merged or otherwise complete
+- recommend moving issues out of done or merge-ready states when current external
+  state proves the status is wrong, such as a closed-unmerged PR or reverted work
 - add missing routing, type, risk, area, and readiness labels from config
 - remove conflicting workflow labels only after the correct replacement is clear
 - mark implementation-ready slices with `ready-for-agent` when the repo-configured
@@ -93,13 +126,15 @@ Apply obvious mechanical updates in batches:
   body-incomplete issues
 - encode blockers before ready-state promotion; recommend the configured blocked
   state for Agent Orchestrator when an active issue should stop
-- recommend the configured review state for issues with active open PRs
+- apply configured review, merge-ready, or blocked states only when the repo
+  config gives Issue Triage that authority and current external evidence is
+  direct
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
 
-Do not close, cancel, reprioritize across projects, or rewrite scope because an
-issue looks stale. Leave a concise comment and use `needs-info` or
-`ready-for-human` when judgment is required.
+Do not close, cancel, reprioritize across projects, review backlog, or rewrite
+scope because an issue looks stale. Leave a concise comment and use `needs-info`
+or `ready-for-human` when judgment is required.
 
 Do not stop at a vague recommendation. For each issue that cannot be made
 implementation-ready, either ask the user a specific question or leave a
@@ -191,20 +226,26 @@ For first-run backfill:
    and readiness.
 2. Create missing workflow labels only when names are exact and config-approved.
 3. Normalize orphan routing and body headings before setting priorities.
-4. Make readiness and intake-to-ready status promotion the final step after
+4. Include `Backlog` or equivalent future-work states only if the user explicitly
+   asked for backlog review.
+5. Make readiness and intake-to-ready status promotion the final step after
    labels and body contracts are correct. Encode blockers separately; blocker
    state does not decide whether `ready-for-agent` or ready-state promotion
    applies.
-5. Report the before and after counts.
+6. Report the before and after counts.
 
 ## Guardrails
 
 - Keep comments metadata-only. Do not paste secrets, customer data, logs,
   signed URLs, or credentials into the tracker.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
+- Do not review `Backlog` or equivalent future-work states unless the user
+  explicitly asks for backlog review.
 - Do not move active issues between workflow states unless config or the user
-  explicitly delegates that authority to Issue Triage. Moving complete issues
-  from configured intake states to the configured ready state is allowed.
+  explicitly delegates that authority to Issue Triage, or direct external
+  evidence proves a terminal state such as merged equals `Done`. Moving complete
+  issues from configured intake states to the configured ready state is allowed
+  only for requested intake cleanup or backfill.
 - Do not create noisy comments for every small label edit. Prefer one summary
   comment when an issue needs explanation.
 - Do not create new label taxonomies unless config or the user explicitly names
@@ -217,11 +258,14 @@ For first-run backfill:
 Report:
 
 - issue tracker scope reviewed
+- whether backlog or intake states were skipped or explicitly included
 - issues changed, unchanged, and needing human decision
 - orphans routed or left with reasons
 - labels, priorities, body contracts, dependencies, and status recommendations
   updated
-- intake-state issues promoted to the configured ready state
+- ready-state issues made agent-ready or left with exact blockers
+- verified stale states reconciled, including merged work marked done
+- intake-state issues promoted to the configured ready state, if requested
 - issues newly implementation-ready, newly startable, and removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
 - user questions asked or exact human next actions left
