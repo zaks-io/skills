@@ -198,14 +198,24 @@ instead of duplicating them, applies the body contract and labels, and emits a
 dependency graph and predicted file footprint. Run it whenever you want the
 tickets to match the plan; re-running converges.
 
-Agent Orchestrator is the work loop. Each tick it refreshes external state,
-reconciles its dispatch ledger, dispatches startable `kind-slice` tickets to
-local or remote workers up to a concurrency cap, calls review and integrate as
-steps, heals unambiguous tracker mistakes inline, and logs where it struggled to
-a friction ticket with compact event entries and run rollups. It can also nudge
-a worker, route feedback, mark tickets for human review, or stop on a real
-blocker. Config records supported worker delegation paths such as
-`local-worktree`, `issue-assigned`, or both.
+Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
+runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
+Claude Code; a scheduled task or automation in Codex) and never needs a human to
+re-trigger a pass. Each tick it wakes light, refreshes external state, reconciles
+its dispatch ledger, dispatches startable `kind-slice` tickets to local or remote
+workers up to a concurrency cap (default 3), calls review and integrate as steps,
+heals unambiguous tracker mistakes inline, and logs where it struggled to a
+friction ticket with compact event entries and run rollups. It can also nudge a
+worker, route feedback, mark tickets for human review, or stop on a real blocker.
+It keeps only a compact queue, ledger, and checkpoint between ticks and delegates
+heavy reads to isolated workers, so a long-running loop stays as light as a first
+run. Config records supported worker delegation paths such as `local-worktree`,
+`issue-assigned`, or both.
+
+For issue-assigned remote workers such as Cursor, the orchestrator delegates by
+setting the issue's agent delegate, requires the repo-route label (such as
+`<org>/<repo>`) so the agent knows which repo to clone, and continues a session
+by replying into its agent-session thread rather than a top-level comment.
 
 A delegated worker, local or remote Cursor, owns implementation: it writes code,
 self-reviews with `workflow-code-review`, and opens its own PR with

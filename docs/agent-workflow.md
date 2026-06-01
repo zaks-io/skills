@@ -104,6 +104,15 @@ changes, or evidence is missing.
 The system has one active work loop: Agent Orchestrator. It drives work forward
 one stateless tick at a time while keeping its context thin.
 
+The loop is self-scheduling. It runs on the runtime's own recurring mechanism (a
+schedule, `/loop`, or wake-up timer in Claude Code; a scheduled task or
+automation in Codex) and never needs a human to re-trigger a pass. Each tick
+wakes light, rebuilds the queue from systems of record, acts on a bounded slice
+of work, persists only the ledger and checkpoint, and sleeps. A long-running loop
+stays as light as a first run; it does not loop in-context until the backlog
+empties. The orchestrator skill bundles the tick contract in
+`skills/workflow-agent-orchestrator/references/loop-contract.md`.
+
 Review and integrate are steps the orchestrator calls inside a tick and waits
 on. Decompose and triage are front-loaded steps the user runs before
 orchestration, or bounded repair steps the orchestrator can delegate when current
@@ -209,7 +218,11 @@ blocked states gate whether Orchestrator may start or delegate the work.
 
 Before assigning issue-assigned work, Orchestrator must verify the issue is
 implementation-ready and unblocked using tracker status, labels, provider blocker
-relationships, body blockers, existing claims, and open PR state. It must not
+relationships, body blockers, existing claims, and open PR state. It must also
+verify the configured repo-route label (such as `<org>/<repo>`) is present, since
+the assigned agent needs it to resolve which repository to clone; a missing
+repo-route label is a hard block on delegation, healed inline when the team maps
+unambiguously to one repo or escalated as `needs-info` otherwise. It must not
 mutate a real issue to discover whether a delegation field or agent name works.
 If the user explicitly chooses issue-assigned agents and an implementation-ready
 issue is missing only the configured worker environment metadata, Orchestrator
@@ -217,11 +230,13 @@ can repair that metadata without treating dependencies as a label blocker. It
 still must not start blocked work.
 
 If Agent Orchestrator needs to send fixes, review feedback, failed-check
-details, or PR process instructions back to that agent, it must reply directly to
-the assigned agent's continuation target, such as the latest agent comment thread
-or the config-named reply location. For remote Cursor agents, a top-level issue
-comment is not a continuation unless config verifies it. Starting a new
-assignment is only for cases where the original session cannot continue.
+details, or PR process instructions back to that agent, it must reply into the
+assigned agent's session thread, using the thread-root comment's `parentId`, not
+a top-level issue comment. For remote Cursor agents, the integration posts an
+"agent session" thread; a top-level issue comment does not continue the session.
+Record the session handle (such as the `cursor.com/agents/bc-<id>` URL) in the
+ledger. Starting a new assignment is only for cases where the original session
+cannot continue.
 
 After clean review and passing required checks, Agent Orchestrator should mark a
 draft PR ready-for-review unless the user or repo config explicitly says to keep
@@ -380,6 +395,8 @@ Setup uses these bundled references when writing repo config:
 - `skills/workflow-setup/references/project-config.md`
 - `skills/workflow-setup/references/agent-workflow.md`
 - `skills/workflow-setup/references/issue-tracker-contract.md`
+- `skills/workflow-setup/references/operating-profile.md`
+- `skills/workflow-setup/references/linear-cursor-example.md`
 - `skills/workflow-setup/references/handoff.md`
 
 ## Skill Quality Bar

@@ -49,6 +49,21 @@ work. Clear means every issue in scope has a truthful next state and owner:
 implemented, delegated, ready for review, ready to merge, blocked, needs-info,
 ready-for-human, or explicitly out of scope.
 
+## Loop Entry Point
+
+The orchestrator is meant to run as a self-driving recurring loop, not a manual
+one-shot. Use the runtime's own recurring mechanism (a schedule, a `/loop`, or a
+wake-up timer in Claude Code; a scheduled task or automation in Codex) so it
+wakes itself. Never require a human to re-trigger each pass. If the runtime has no
+recurring primitive, run one pass and report the exact command to schedule.
+
+Each wake-up is one tick: wake light, rebuild the queue from systems of record,
+act on a bounded slice of work, persist only the ledger and checkpoint, then
+sleep. A long-running loop must stay as light as a first run; do not loop
+in-context until the backlog empties. See
+[references/loop-contract.md](references/loop-contract.md) for the tick contract,
+light-context budget, and cadence.
+
 ## Lightweight Control Loop
 
 Keep the orchestrator's own context small. Load enough state to choose and track
@@ -273,7 +288,8 @@ Each tick is stateless against external state. On each pass:
    file/package contention. Do not dispatch a ticket whose predicted files
    collide with an in-flight dispatch; defer it and record a `file-collision`
    friction entry.
-7. Respect the configured concurrency cap. Dispatch new work only up to
+7. Respect the configured concurrency cap. Default to 3 concurrent in-flight
+   workers when config names no cap. Dispatch new work only up to
    `cap - in-flight`. If the cap is reached, advance existing work only.
 8. Choose the next orchestration action:
    - isolated implementation worker, such as Claude Code
@@ -360,11 +376,21 @@ Before starting issue-assigned work, run a read-only preflight:
 - resolve the issue by configured tracker ID, not only by a human-friendly team
   or project name
 - verify status, readiness labels, routing labels, priority, and issue body
+- verify the configured repo-route label (such as `<org>/<repo>`) is present.
+  The assigned agent needs it to resolve which repository to clone, so it is a
+  hard precondition for delegation, not optional metadata. If the route is
+  missing but the tracker team maps unambiguously to one repo, heal it inline and
+  log a `config-gap`; if the target repo is ambiguous, escalate `needs-info` and
+  do not delegate.
 - verify blockers and dependencies from provider relationships and body text
 - verify the requested agent is exposed by the tracker or the config has a
   previously verified delegation tool, field, or agent ID
 - verify the issue is not already claimed, delegated, linked to an open PR, or
   waiting on review feedback
+
+See [../../workflow-setup/references/operating-profile.md](../../workflow-setup/references/operating-profile.md)
+for the full delegation preflight table, the agent-session continuation
+mechanic, the concurrency default, and the merge-safety decision table.
 
 Configured worker environment labels or fields, such as `remote-cursor`, are
 environment approval metadata. Apply or preserve them when the issue identity,
@@ -398,10 +424,14 @@ can be found, stop with the missing continuation path instead of assuming the
 agent will see it. Do not start a new assignment for PR fixes while the original
 session can continue.
 
-For Linear issue-assigned agents, use the Linear tool/MCP delegation mechanism
-when it exists, such as a `delegate` field or verified agent ID. Do not confuse a
-human assignee with an issue-assigned coding agent. Record the returned
-delegation metadata when the tool provides it.
+For Linear issue-assigned agents, delegate by setting the issue `delegate` field
+to the configured agent user (for Cursor, the `Cursor` agent user); the human
+stays assignee. Do not confuse a human assignee with an issue-assigned coding
+agent. Continue an existing session by replying into the agent-session thread
+(the integration's thread-root comment) using its `parentId`; a top-level issue
+comment does not reach the session. Record the returned session handle, such as
+the `cursor.com/agents/bc-<id>` URL, in the ledger. See the operating profile
+referenced above for the verified mechanic.
 
 ## PR Review And Integrate
 

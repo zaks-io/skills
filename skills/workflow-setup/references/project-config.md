@@ -46,6 +46,7 @@ Last updated: YYYY-MM-DD
 - Label docs:
 - Project, board, repo, milestone, or roadmap:
 - Routing label:
+- Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required before issue-assigned delegation so the agent resolves which repo to clone
 - Triage scope: Todo and active or PR-linked current issues by default; backlog only when explicitly requested
 - Orphan policy:
 - Issue key examples:
@@ -62,7 +63,7 @@ Last updated: YYYY-MM-DD
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
-- Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
+- Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, repo-route label when issue-assigned, no active blockers, no active claim or open PR
 - Agent suitability policy: default agent work includes docs, tests, build/CI,
   small local refactors, scoped bugs with reproduction, and isolated UI changes;
   human planning required for auth, secrets, PII, payments, production,
@@ -89,7 +90,7 @@ Last updated: YYYY-MM-DD
 - Worker delegation paths: local-worktree, issue-assigned, or both
 - Default worker path:
 - Parallelism policy:
-- Concurrency cap: max workers dispatched at once
+- Concurrency cap: max workers dispatched at once (default 3 if unset)
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before re-dispatch or escalation
 - Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
 - Required checks for merge: the CI checks that define green for the integrate gate
@@ -115,7 +116,7 @@ Last updated: YYYY-MM-DD
 - Local Codex:
 - Issue-assigned agents: none, or project-specific routing/continuation notes
 - Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
-- Issue-assigned continuation replies: direct-agent reply target or thread; top-level issue comments are not continuation unless verified here
+- Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
 - Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:

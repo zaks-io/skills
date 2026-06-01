@@ -69,6 +69,11 @@ domain behavior, and performance work without benchmarks.
 ## Loop Model
 
 - Agent Orchestrator drives work forward, one stateless tick at a time.
+- The loop is self-scheduling: it runs on the runtime's own recurring mechanism
+  (schedule, `/loop`, or wake-up timer; Codex scheduled task or automation) and
+  never needs a human to re-trigger a pass. Each tick wakes light, rebuilds the
+  queue from systems of record, acts on a bounded slice, persists only the ledger
+  and checkpoint, and sleeps.
 - Review and integrate are steps the orchestrator calls inside a tick, not loops.
   Decompose and triage are front-loaded steps the user runs before orchestration.
 
@@ -125,14 +130,18 @@ For issue-assigned delegation:
   state during requested intake cleanup.
 - The issue needs the repo routing label or metadata the integration uses to
   choose the preconfigured environment, when the repo requires one.
+- The issue needs the configured repo-route label (such as `<org>/<repo>`) so the
+  assigned agent can resolve which repository to clone. A missing repo-route
+  label is a hard block on delegation: heal it inline when the tracker team maps
+  unambiguously to one repo, otherwise escalate `needs-info`.
 - Agent Orchestrator starts work by assigning the selected tracker-exposed agent.
 - The assigned agent executes the ticket in its configured environment and
   returns a PR.
 - Agent Orchestrator sends review fixes, failed-check details, or PR process
-  problems back by replying directly to the assigned agent's continuation target,
-  such as the latest agent comment thread or the config-named reply location. For
-  remote Cursor agents, a top-level issue comment is not a continuation unless
-  config verifies it.
+  problems back by replying into the assigned agent's session thread, using the
+  thread-root comment's `parentId`. For remote Cursor agents, a top-level issue
+  comment does not continue the session; record the session handle (such as the
+  `cursor.com/agents/bc-<id>` URL) in the ledger.
 - PR draft state lives in the code host. After clean review and passing required
   checks, Agent Orchestrator should mark a draft PR ready-for-review unless the
   user or repo config explicitly says to keep it draft, then refresh the PR state

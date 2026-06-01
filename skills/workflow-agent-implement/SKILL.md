@@ -40,6 +40,8 @@ Start only when the issue:
 - has `ready-for-agent`
 - has any project-configured worker environment label or field required for the
   selected delegation path
+- has the configured repo-route label (such as `<org>/<repo>`) when the
+  delegation path needs it to resolve the target repository
 - has enough acceptance criteria and required checks to verify
 
 For issue-assigned agents, the claim should come from the configured issue

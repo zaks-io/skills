@@ -96,6 +96,11 @@ contains:
 - Issue-assigned agent work, when supported by the repo, uses the repo-configured
   worker environment label, routing field, or metadata the tracker integration
   needs to select the environment.
+- Issue-assigned delegation also requires the configured repo-route label (such
+  as `<org>/<repo>`) so the assigned agent can resolve which repository to clone.
+  Treat a missing repo-route label as a hard block on delegation: heal it inline
+  when the tracker team maps unambiguously to one repo, otherwise escalate
+  `needs-info`.
 - When the user explicitly chooses an issue-assigned worker path, Orchestrator or
   Issue Triage may add the configured worker environment label or field after
   verifying the issue identity, repo route, and environment approval criteria. Do

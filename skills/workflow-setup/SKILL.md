@@ -48,6 +48,11 @@ Load these references when writing the config:
   responsibilities and adapter minimums
 - [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
   for tracker states, labels, readiness, and issue body shape
+- [references/operating-profile.md](references/operating-profile.md) for the
+  concurrency default, the issue-assigned delegation and continuation mechanic,
+  the repo-route precondition, and the merge-safety decision table
+- [references/linear-cursor-example.md](references/linear-cursor-example.md) for
+  a worked Linear + Cursor config to copy when the repo uses that stack
 - [references/handoff.md](references/handoff.md) for cross-agent handoff shape
 
 ## Refresh Existing Config
