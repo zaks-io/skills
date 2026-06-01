@@ -20,6 +20,16 @@ repo uses.
 
 ## Default Labels
 
+Kind (single-select; skills enforce exclusivity even if the tracker group does
+not):
+
+- `kind-spec`: holds spec or PRD prose; input to decompose; never dispatched
+- `kind-epic`: parent or workstream container; never dispatched
+- `kind-slice`: one-PR implementation ticket; the only kind a worker runs
+
+Kind is a separate axis from type. A `kind-slice` still carries one type label.
+`workflow-decompose` sets exactly one kind and clears any other `kind-*`.
+
 Readiness:
 
 - `needs-triage`
@@ -102,7 +112,11 @@ contains:
 - Dependency order should be encoded with tracker relationships when the
   provider supports them.
 - Parent or workstream issues are containers unless explicitly marked
-  executable.
+  executable. `kind-spec` and `kind-epic` are containers: they are decompose
+  input and must never be dispatched to a worker or marked `ready-for-agent`.
+  Only `kind-slice` tickets are startable implementation work. `kind-spec` and `kind-epic` are containers: they are decompose
+  input and must never be dispatched to a worker or marked `ready-for-agent`.
+  Only `kind-slice` tickets are startable implementation work.
 - Backlog review is opt-in. Do not scan, rewrite, promote, or reprioritize
   backlog issues during default issue triage.
 

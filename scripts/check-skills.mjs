@@ -10,6 +10,7 @@ const manualOnlySkills = new Set([
   "workflow-agent-orchestrator",
   "workflow-agent-review",
   "workflow-create-pr",
+  "workflow-decompose",
   "workflow-issue-triage",
   "workflow-setup",
 ]);
@@ -23,6 +24,7 @@ const triggerTerms = {
   "workflow-agent-review": ["review", "pr"],
   "workflow-code-review": ["review", "code"],
   "workflow-create-pr": ["pr", "pull request"],
+  "workflow-decompose": ["decompose", "ticket", "dependency"],
   "workflow-issue-triage": ["tracker", "triage", "project", "issue"],
   "workflow-secret-redaction": ["secret", ".env", "redact"],
   "workflow-setup": ["setup", "config"],
