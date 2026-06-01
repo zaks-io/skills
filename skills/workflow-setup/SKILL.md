@@ -140,6 +140,7 @@ Record:
   readiness label policy, worker environment label policy when present, startable
   work criteria (including `kind-slice` only), priority policy, dependency policy,
   dependency graph mechanism, file footprint convention, issue body contract,
+  agent-suitability policy for work types and risk,
   Issue Triage verified-state reconciliation authority, requested intake-to-ready
   authority, and which workflow role owns active status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
@@ -151,8 +152,7 @@ Record:
 - autonomous-loop controls when the repo runs the orchestrator unattended:
   concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
   breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, post-merge check, friction-log ticket ID, and spec-conformance
-  cadence
+  risk tiers, post-merge check, friction-log ticket ID, and delivery metrics
 - label source of truth: the live tracker metadata, tracker workflow settings,
   existing repo docs, or explicit user instruction used to verify label names
 - label documentation policy: whether repo-local label docs exist, and whether

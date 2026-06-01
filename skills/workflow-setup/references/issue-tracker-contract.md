@@ -65,6 +65,7 @@ contains:
 
 - outcome
 - context docs
+- likely files, packages, or artifacts
 - in scope
 - out of scope
 - acceptance criteria
@@ -123,11 +124,36 @@ contains:
 - Parent or workstream issues are containers unless explicitly marked
   executable. `kind-spec` and `kind-epic` are containers: they are decompose
   input and must never be dispatched to a worker or marked `ready-for-agent`.
-  Only `kind-slice` tickets are startable implementation work. `kind-spec` and `kind-epic` are containers: they are decompose
-  input and must never be dispatched to a worker or marked `ready-for-agent`.
   Only `kind-slice` tickets are startable implementation work.
 - Backlog review is opt-in. Do not scan, rewrite, promote, or reprioritize
   backlog issues during default issue triage.
+
+## Agent Suitability
+
+Use task type and risk to decide whether a `kind-slice` should be delegated to
+an implementation agent.
+
+Good default agent work:
+
+- documentation
+- tests
+- build, CI, and lint updates
+- small refactors with clear local checks
+- scoped bug fixes with reproduction steps or acceptance checks
+- isolated UI changes with screenshots, target states, or exact copy
+
+Default human-planning work:
+
+- auth, authorization, PII, secrets, payments, or destructive data
+- production incidents or production deploy decisions
+- broad refactors and cross-repo changes
+- deep domain behavior without clear acceptance criteria
+- performance work without a benchmark
+- tasks where learning, design judgment, or product ambiguity is central
+
+External APIs, credentials, production access, or unclear domain behavior should
+move a ticket to `needs-info` or `ready-for-human` unless the ticket states the
+verification path clearly enough for an implementation worker.
 
 ## Tracker Metadata Verification
 

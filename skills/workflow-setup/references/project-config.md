@@ -63,6 +63,11 @@ Last updated: YYYY-MM-DD
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
 - Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
+- Agent suitability policy: default agent work includes docs, tests, build/CI,
+  small local refactors, scoped bugs with reproduction, and isolated UI changes;
+  human planning required for auth, secrets, PII, payments, production,
+  destructive data, broad refactors, cross-repo work, unclear domain behavior,
+  or performance work without benchmarks
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; skills enforce exclusivity; only kind-slice is dispatchable)
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Risk label policy: use the default risk labels as dimensions, not severity levels; add repo-specific risk labels only when they change routing, checks, approvals, or reviewer assignment
@@ -75,7 +80,8 @@ Last updated: YYYY-MM-DD
 - Dependency policy:
 - Dependency graph mechanism: tracker relationship/blocker field, or configured body shape
 - File footprint convention: where decompose records predicted files/packages per slice
-- Agent-ready issue body:
+- Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
+  scope, acceptance criteria, required checks, safety invariants, dependencies
 - Labels are signals, not authority:
 
 ## Work Coordination
@@ -101,7 +107,7 @@ Last updated: YYYY-MM-DD
 - Claim record:
 - Orchestrator local state:
 - Friction-log ticket: dedicated ticket ID, parked out of the work queue, for orchestrator friction comments
-- Spec-conformance cadence: when Orchestrator triggers workflow-spec-conformance, such as every N merges or a timer
+- Delivery metrics: merge rate, first-pass check rate, review rework, stuck workers, human escalations, and agent cost when available
 - Handoff format:
 
 ## Agent Access

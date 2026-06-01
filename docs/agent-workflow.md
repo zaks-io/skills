@@ -4,6 +4,10 @@ This document holds the technical contract behind the workflow skills. README is
 the usage guide. This file is for agents and maintainers who need the exact
 state model and role split.
 
+The research basis for this contract is
+[agent-delivery-research.md](agent-delivery-research.md). Update that note when
+research changes a workflow rule.
+
 ## Repo Config
 
 Every downstream repo should have:
@@ -52,6 +56,12 @@ The friction log is the one retrospective artifact and is intentionally not a
 system of record. The orchestrator writes it as append-only comments on a
 dedicated parked ticket and never reads it back to make decisions.
 
+Friction logging should favor compact run rollups over per-tick chatter. Per
+event entries are useful for escalations, re-dispatches, file contention, review
+thrash, merge conflicts, and post-merge failures. A bounded run should also emit
+counts for started, merged, waiting, blocked, first-pass checks, review rework,
+stuck workers, and agent cost when available.
+
 ## Roles
 
 - Decompose: the front door that turns a spec, PRD, or epic ticket into
@@ -75,6 +85,10 @@ dedicated parked ticket and never reads it back to make decisions.
   This is the worker's shipping step, not a separate orchestration stage.
 - Code Review: shared bug-focused review gate.
 
+Setup, Decompose, Issue Triage, Agent Orchestrator, Agent Implement, and Agent
+Review are the core workflow roles. Code Review, Create PR, and Secret
+Redaction are helper gates used by those roles.
+
 PR draft state is code-host state, not tracker state. Draft and
 ready-for-review are mutually exclusive. A draft PR is pre-review; a
 ready-for-review PR is non-draft.
@@ -85,19 +99,15 @@ ticket. It must be applied with PR URL and reviewed head SHA evidence, and
 removed when the PR head changes, blocking findings appear, the linked PR
 changes, or evidence is missing.
 
-## Two Loops
+## Loop Model
 
-The system runs two independent loops that share the tracker and never call each
-other:
+The system has one active work loop: Agent Orchestrator. It drives work forward
+one stateless tick at a time while keeping its context thin.
 
-- Agent Orchestrator drives work forward. It runs continuously while a backlog
-  exists, one stateless tick at a time, keeping its context thin.
-- Spec-conformance audits coverage. It runs on its own cadence, reads the spec
-  set against delivered work, and files gap tickets for under-delivery or drift.
-
-Review and integrate are not loops. They are steps the orchestrator calls inside
-a tick and waits on. Decompose and triage are not loops either; they are
-front-loaded steps the user runs before orchestration.
+Review and integrate are steps the orchestrator calls inside a tick and waits
+on. Decompose and triage are front-loaded steps the user runs before
+orchestration, or bounded repair steps the orchestrator can delegate when current
+work is stale.
 
 ## Ticket Kinds
 
@@ -111,6 +121,18 @@ when the tracker label group does not.
 Containers (`kind-spec`, `kind-epic`) are decompose input, not work to ship.
 Decompose reads them and emits `kind-slice` children. The orchestrator hard-
 refuses to dispatch a container even if it carries `ready-for-agent`.
+
+## Agent Suitability
+
+Delegation is based on work type, risk, and verification quality. Good default
+agent work includes docs, tests, build or CI updates, small local refactors,
+scoped bugs with reproduction, and isolated UI changes with target states.
+
+Keep human planning in front of auth, authorization, PII, secrets, payments,
+production, destructive data, broad refactors, cross-repo changes, unclear
+domain behavior, and performance work without benchmarks. These can still become
+agent work after the ticket has clear scope, safety constraints, and verification
+commands.
 
 ## Self-Healing
 
@@ -222,7 +244,6 @@ flowchart TD
   AgentReview["workflow-agent-review\nindependent review and drift"]
   CodeReview["workflow-code-review\nreview gate"]
   Integrate["integrate step\nauto-merge gate on green"]
-  Conformance["workflow-spec-conformance\ncoverage audit (separate loop)"]
 
   Setup --> Config
   Config --> Decompose
@@ -245,7 +266,6 @@ flowchart TD
   AgentReview -->|bug or drift issues| Tracker
   Orchestrator -->|call merge step on green| Integrate
   Integrate -->|merged, move to Done| Tracker
-  Conformance -->|gap tickets| Tracker
 ```
 
 ```mermaid
@@ -277,7 +297,7 @@ sequenceDiagram
   Q->>T: Changes Requested or Ready to Merge
   Q->>G: On green, rebase if needed, merge, post-merge check
   Q->>T: Move to Done
-  Q->>T: Friction comment for any heal, stuck worker, or thrash
+  Q->>T: Friction entry or run rollup for heals, stuck workers, or thrash
 ```
 
 ## Status Ownership

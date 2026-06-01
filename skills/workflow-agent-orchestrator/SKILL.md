@@ -117,8 +117,6 @@ diffs or source.
   worktree. Orchestrator never reads the diff to review it itself.
 - Merge is a called step: the integrate gate below. It is the only action that
   writes to the default branch.
-- Spec-conformance is a separate loop on its own cadence. Orchestrator does not
-  audit spec coverage; it only triggers conformance when configured to.
 
 ## State Authority
 
@@ -263,7 +261,7 @@ Each tick is stateless against external state. On each pass:
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`. Prefer advancing active work over
    starting new work.
-4. Advance returned PRs through the PR Review And Integrate Loop below.
+4. Advance returned PRs through the PR Review And Integrate process below.
 5. Find startable work: `kind-slice` plus `Todo` plus `ready-for-agent`,
    unblocked, with a complete agent-ready body. `ready-for-agent` means no
    further human refinement is needed before agent handoff; it can be present on
@@ -299,9 +297,7 @@ Each tick is stateless against external state. On each pass:
    issue body, linked docs, required checks, branch/worktree, and
    `workflow-agent-implement`. Record the dispatch in the ledger and tracker with
    an idempotency key.
-10. Trigger `workflow-spec-conformance` when the configured cadence is reached,
-    such as every N merges or per configured timer. Do not inline conformance.
-11. Append friction entries for this tick (see Friction Log) and continue until
+10. Append friction entries for this tick (see Friction Log) and continue until
     no safe action remains or the user-specified loop budget ends.
 
 ## Worker Prompts
@@ -407,7 +403,7 @@ when it exists, such as a `delegate` field or verified agent ID. Do not confuse 
 human assignee with an issue-assigned coding agent. Record the returned
 delegation metadata when the tool provides it.
 
-## PR Review And Integrate Loop
+## PR Review And Integrate
 
 For each returned PR, review and integrate are called steps, not inlined work:
 
@@ -500,11 +496,11 @@ work queue. Append only; do not read the whole thread. If config names no
 friction-log ticket, create one once in the configured location, parked out of
 the work queue, and record its ID in config during the next setup refresh.
 
-Write an entry at the loop's existing give-up, retry, and stop points: every
-escalation, every re-dispatch, every stop condition, every deferral for
-contention, and every ticket that bounces review. Also post one per-tick rollup
-comment so repeated struggle on the same ticket across ticks is visible even when
-no single tick escalated.
+Write entries at the loop's existing give-up, retry, and stop points: every
+escalation, every re-dispatch, every deferral for contention, and every ticket
+that bounces review. At the end of a bounded run, post one compact rollup with
+counts by category. Do not post a rollup every tick unless the run is explicitly
+unattended and config asks for that visibility.
 
 Each entry is one compact comment, metadata only:
 
@@ -515,6 +511,21 @@ category: ambiguous-ticket | dependency-wrong | file-collision | stuck-worker | 
 what: <one line>
 cost: <ticks, retries, or wall-clock burned>
 signal: <what would have prevented it, and which upstream skill it points at>
+```
+
+Rollup comments use the same metadata style:
+
+```text
+run: <id or timestamp>
+scope: <ticket IDs, query, project, or filter>
+started: <count>
+merged: <count>
+waiting: <count>
+blocked: <count>
+first-pass-checks: <passed/total or "unknown">
+review-rework: <tickets returned for fixes>
+friction: <category=count, category=count>
+agent-cost: <tokens, credits, or "unknown">
 ```
 
 Categories map to the upstream skill to fix: `ambiguous-ticket` and
@@ -544,8 +555,8 @@ Stop and report when:
 - a thrash circuit breaker trips, such as one ticket exceeding the configured
   attempt cap across implement and review
 
-When all in-flight work is done, the ready frontier is empty, and conformance is
-clean or not configured, report the backlog as delivered with a summary.
+When all in-flight work is done and the ready frontier is empty, report the
+backlog as delivered with a summary.
 
 ## Guardrails
 
@@ -584,6 +595,5 @@ Report:
 - workers launched or messaged, direct reply targets used, and any stuck workers
   re-dispatched or escalated
 - issue updates made
-- friction entries logged this run, grouped by category
-- whether spec-conformance was triggered
+- friction entries and delivery metrics logged this run, grouped by category
 - remaining blockers and next safe action, or a delivered-backlog summary

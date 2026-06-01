@@ -166,6 +166,12 @@ Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
 containers that decompose reads as input and are never dispatched; `kind-slice`
 is a one-PR ticket and the only kind a worker runs.
 
+Agent suitability is based on work type and risk, not agent brand. Docs, tests,
+build or CI updates, small refactors, scoped bugs, and isolated UI changes are
+good default agent work. Auth, PII, secrets, payments, production, destructive
+data, broad refactors, cross-repo changes, unclear domain behavior, and
+performance work without benchmarks require human planning first.
+
 Issue Triage defaults to current work: `Todo` tickets plus active or PR-linked
 tickets whose tracker state may be stale. It makes Todo tickets ready for
 agents, fixes metadata, and marks verified merged work done. It does not review
@@ -196,9 +202,10 @@ Agent Orchestrator is the work loop. Each tick it refreshes external state,
 reconciles its dispatch ledger, dispatches startable `kind-slice` tickets to
 local or remote workers up to a concurrency cap, calls review and integrate as
 steps, heals unambiguous tracker mistakes inline, and logs where it struggled to
-a friction ticket. It can also nudge a worker, route feedback, mark tickets for
-human review, or stop on a real blocker. Config records supported worker
-delegation paths such as `local-worktree`, `issue-assigned`, or both.
+a friction ticket with compact event entries and run rollups. It can also nudge
+a worker, route feedback, mark tickets for human review, or stop on a real
+blocker. Config records supported worker delegation paths such as
+`local-worktree`, `issue-assigned`, or both.
 
 A delegated worker, local or remote Cursor, owns implementation: it writes code,
 self-reviews with `workflow-code-review`, and opens its own PR with
@@ -210,9 +217,10 @@ Review runs `workflow-code-review` from clean context and returns a verdict;
 integrate is the auto-merge gate that defines green, rebases on moved main,
 merges, and runs a post-merge check.
 
-Spec-conformance is the second loop. On its own cadence it checks the spec set
-against delivered work and files gap tickets for under-delivery or drift. It
-never touches code or active work.
+The research behind this operating model is captured in
+[docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short
+version: keep one work loop, keep issues small and verifiable, measure outcomes,
+and add agent or skill complexity only when it improves delivery.
 
 ## The Skills
 
@@ -231,14 +239,14 @@ never touches code or active work.
   becoming the coder or reviewer.
 - `workflow-agent-implement`: take one startable issue through implementation,
   checks, review, and PR creation.
-- `workflow-code-review`: bug-focused review for branches, PRs, working trees,
-  and main drift.
-- `workflow-secret-redaction`: redact, diff, schema-check, and summarize `.env`,
-  credential, token, and secret command output.
-- `workflow-create-pr`: run checks, confirm review, commit, push, create or
-  update the PR, and hand off tracker state to Orchestrator.
 - `workflow-agent-review`: independent PR review and main-drift review from
   clean context.
+- `workflow-code-review`: helper review gate for branches, PRs, working trees,
+  and main drift.
+- `workflow-create-pr`: helper shipping gate that checks, reviews, commits,
+  pushes, creates or updates the PR, and hands tracker state to Orchestrator.
+- `workflow-secret-redaction`: helper for redacting, diffing, schema-checking,
+  and summarizing `.env`, credential, token, and secret command output.
 
 ## Recommended Flow
 
@@ -274,8 +282,8 @@ A repo is ready when:
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
 - kind labels, the concurrency cap, stuck-worker timeout, required-checks-for-
-  merge, auto-merge risk tiers, and friction-log ticket are set when running the
-  autonomous loop
+  merge, auto-merge risk tiers, friction-log ticket, and delivery metrics are
+  set when running the autonomous loop
 - `workflow-decompose`, `workflow-agent-orchestrator`, `workflow-agent-implement`,
   `workflow-code-review`, and `workflow-create-pr` can run without guessing repo
   conventions

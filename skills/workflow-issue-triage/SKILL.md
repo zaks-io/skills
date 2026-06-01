@@ -183,6 +183,7 @@ Required body content:
 
 - outcome
 - context docs
+- likely files, packages, or artifacts
 - in scope
 - out of scope
 - acceptance criteria
@@ -193,6 +194,14 @@ Required body content:
 If any required field is unknowable, add the missing heading, ask the specific
 question when the user is available, label the issue `needs-info` or
 `ready-for-human`, and do not mark it ready.
+
+When deciding whether a ticket should become agent-ready, consider the work type
+and risk. Docs, tests, build or CI updates, small local refactors, scoped bugs
+with reproduction, and isolated UI changes are good default agent work.
+Production, auth, authorization, PII, secrets, payments, destructive data, broad
+refactors, cross-repo changes, performance work without benchmarks, and unclear
+domain behavior should stay with human planning unless the ticket contains a
+clear verification path and config grants the worker environment.
 
 ## Human Clarification
 

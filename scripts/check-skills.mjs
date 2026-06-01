@@ -31,6 +31,10 @@ const triggerTerms = {
 };
 const claudePluginFile = path.join(root, ".claude-plugin", "plugin.json");
 const claudeAgentsDir = path.join(root, "agents");
+const docsDir = path.join(root, "docs");
+const readmeFile = path.join(root, "README.md");
+const agentWorkflowFile = path.join(docsDir, "agent-workflow.md");
+const researchFile = path.join(docsDir, "agent-delivery-research.md");
 const expectedClaudeAgents = new Set([
   "workflow-implementer",
   "workflow-reviewer",
@@ -73,6 +77,48 @@ const skillNames = readdirSync(skillsDir)
     return statSync(fullPath).isDirectory();
   })
   .sort();
+
+if (!existsSync(researchFile)) {
+  fail(`${relative(researchFile)} is missing`);
+} else {
+  const researchText = readText(researchFile);
+  for (const required of [
+    "## Takeaways",
+    "## Evidence",
+    "## Workflow Decisions",
+    "## Documentation Rules",
+    "## Done",
+  ]) {
+    if (!researchText.includes(required)) {
+      fail(`${relative(researchFile)} must include ${required}`);
+    }
+  }
+}
+
+const docsAndSkillFiles = [
+  readmeFile,
+  agentWorkflowFile,
+  ...markdownFiles(docsDir),
+  ...markdownFiles(skillsDir),
+  ...markdownFiles(claudeAgentsDir),
+];
+for (const file of [...new Set(docsAndSkillFiles)]) {
+  const text = readText(file);
+  const removedLoopName = `${"spec"}-${"con" + "formance"}`;
+  const removedCoverageLoop = new RegExp(`workflow-${removedLoopName}|${removedLoopName}`, "i");
+  if (removedCoverageLoop.test(text)) {
+    fail(`${relative(file)} must not reference the removed coverage-audit workflow`);
+  }
+}
+
+const readmeText = readText(readmeFile);
+if (!readmeText.includes("docs/agent-delivery-research.md")) {
+  fail(`${relative(readmeFile)} must link to docs/agent-delivery-research.md`);
+}
+const workflowText = readText(agentWorkflowFile);
+if (!workflowText.includes("agent-delivery-research.md")) {
+  fail(`${relative(agentWorkflowFile)} must link to agent-delivery-research.md`);
+}
 
 for (const name of skillNames) {
   if (!name.startsWith("workflow-")) {

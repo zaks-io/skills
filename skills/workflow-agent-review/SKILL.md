@@ -47,7 +47,7 @@ ${CODEX_HOME:-$HOME/.codex}/automation-state/workflow-agent-review/<repo-slug>/l
 On first run, write the current `origin/main` SHA and stop unless the user asked
 for a backfill.
 
-## Loop
+## Process
 
 1. Fetch remote state.
 2. Resolve default branch from config, usually `origin/main`.

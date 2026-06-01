@@ -25,9 +25,6 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   work; its default goal is to make all Todo tickets ready for agents and keep
   tracker state truthful. It does not review backlog unless asked. When something
   is unclear, it asks the user or leaves exact human next actions.
-- Spec-conformance: a separate loop that audits the spec set against delivered
-  work and files gap tickets for under-delivery or drift. It does not touch code
-  or active work.
 
 ## Ticket Kinds
 
@@ -37,6 +34,15 @@ when the tracker label group does not.
 - `kind-spec`, `kind-epic`: containers. Decompose input. Never dispatched.
 - `kind-slice`: a one-PR ticket. The only kind a worker runs. Only `kind-slice`
   is startable; the orchestrator hard-refuses to dispatch a container.
+
+## Agent Suitability
+
+Agent delegation should follow task type, risk, and verification quality. Good
+default agent work includes docs, tests, build or CI updates, small local
+refactors, scoped bugs with reproduction, and isolated UI changes with target
+states. Human planning stays in front of auth, secrets, PII, payments,
+production, destructive data, broad refactors, cross-repo changes, unclear
+domain behavior, and performance work without benchmarks.
 
 ## Flow
 
@@ -59,12 +65,10 @@ when the tracker label group does not.
    ready-for-review when allowed, requests CodeRabbit when the current diff
    needs it, applies or removes `Code review passed`, or calls the integrate
    step to merge on green and move the issue to the done state.
-9. Spec-conformance audits coverage on its own cadence and files gap tickets.
 
-## Two Loops
+## Loop Model
 
 - Agent Orchestrator drives work forward, one stateless tick at a time.
-- Spec-conformance audits coverage on its own cadence.
 - Review and integrate are steps the orchestrator calls inside a tick, not loops.
   Decompose and triage are front-loaded steps the user runs before orchestration.
 
