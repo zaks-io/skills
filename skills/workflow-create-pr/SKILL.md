@@ -95,9 +95,10 @@ required review gate has not passed. Ready-for-review means non-draft.
 
 If an existing PR is draft, mark it ready-for-review when the current diff has a
 clean code review, required local checks pass, and the user did not ask to keep
-it draft. If CodeRabbit `PR REVIEW` is recommended for a high-risk or complex
-open PR, report that post-PR escalation in the handoff; do not use draft state
-as a holding pen after local review is clean.
+it draft. Refresh the code-host PR state afterward and verify it is non-draft. If
+CodeRabbit `PR REVIEW` is recommended for a high-risk or complex open PR, report
+that post-PR escalation in the handoff; do not use draft state as a holding pen
+after local review is clean.
 
 If the user or repo config requires a draft PR, report the PR as a draft
 pre-review handoff. Do not call it ready-for-review until it is marked non-draft

@@ -172,8 +172,9 @@ subagents when the runtime supports them.
 Repo config should record only project-specific details that are annoying to
 rediscover, such as supported worker delegation paths, routing labels, routing
 fields, readiness label policy, worker environment label policy, startable work
-criteria, or non-default continuation comment rules. The tracker remains the
-source of truth for which agents are currently assignable.
+criteria, direct-agent reply targets, or non-default continuation comment rules.
+The tracker remains the source of truth for which agents are currently
+assignable.
 
 Readiness and worker environment labels describe separate things. By default,
 `ready-for-agent` means the ticket needs no further human refinement before
@@ -194,16 +195,18 @@ can repair that metadata without treating dependencies as a label blocker. It
 still must not start blocked work.
 
 If Agent Orchestrator needs to send fixes, review feedback, failed-check
-details, or PR process instructions back to that agent, it should reply on the
-original issue thread or configured tracker thread. That keeps the same session
-in context. Starting a new assignment is only for cases where the original
-session cannot continue.
+details, or PR process instructions back to that agent, it must reply directly to
+the assigned agent's continuation target, such as the latest agent comment thread
+or the config-named reply location. For remote Cursor agents, a top-level issue
+comment is not a continuation unless config verifies it. Starting a new
+assignment is only for cases where the original session cannot continue.
 
 After clean review and passing required checks, Agent Orchestrator should mark a
 draft PR ready-for-review unless the user or repo config explicitly says to keep
-it draft. If it stays draft, it is not ready-for-review. CodeRabbit escalation
-follows the `workflow-code-review` recommendation and is required only for
-high-risk or genuinely complex diffs, or when the user asks for it.
+it draft, then refresh the code-host PR state and verify it is non-draft. If it
+stays draft, it is not ready-for-review. CodeRabbit escalation follows the
+`workflow-code-review` recommendation and is required only for high-risk or
+genuinely complex diffs, or when the user asks for it.
 
 ## Flow
 
@@ -297,13 +300,14 @@ Default rule:
   review backlog unless asked.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
 - Create PR can attach or mark the PR ready-for-review when its local gates
-  pass, and report the review-state handoff.
+  pass, verify the code-host PR is non-draft, and report the review-state
+  handoff.
 - Agent Review can post findings and verdicts.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
   integrate gate when config grants merge authority. It repairs draft PRs that
-  should already be ready-for-review and applies or removes `Code review passed`
-  based on current PR head SHA evidence.
+  should already be ready-for-review, verifies the code-host PR is non-draft, and
+  applies or removes `Code review passed` based on current PR head SHA evidence.
 
 ## Handoff
 

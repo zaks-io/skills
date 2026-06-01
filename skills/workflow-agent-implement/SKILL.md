@@ -112,9 +112,10 @@ Orchestrator can mark it ready-for-review. Ready-for-review means non-draft.
 Remote workers should not create another worktree. Continue on the assigned
 branch and PR for review fixes.
 
-Issue-assigned agents should receive fixes and PR process feedback where the
-tracker integration continues the same session, usually the same issue comments
-unless config says otherwise.
+Issue-assigned agents should receive fixes and PR process feedback as direct
+replies to the assigned agent's continuation target. For remote Cursor agents, do
+not rely on top-level issue comments unless config verifies that they continue
+the assigned-agent session.
 
 ## Changes Requested
 

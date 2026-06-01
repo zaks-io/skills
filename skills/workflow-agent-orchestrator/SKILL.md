@@ -258,8 +258,8 @@ Each tick is stateless against external state. On each pass:
    branch HEAD.
 2. Reconcile the dispatch ledger against refreshed state. For each in-flight
    dispatch with no branch, PR, or worker signal past the configured stuck
-   timeout, treat the worker as stuck: re-dispatch on the same issue thread or
-   escalate, and record a `stuck-worker` friction entry.
+   timeout, treat the worker as stuck: reply directly to the assigned agent's
+   continuation target or escalate, and record a `stuck-worker` friction entry.
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`. Prefer advancing active work over
    starting new work.
@@ -290,7 +290,7 @@ Each tick is stateless against external state. On each pass:
    - additional code review, CodeRabbit escalation, or check rerun when the PR
      state needs evidence
    - integrate for a reviewed, green PR
-   - worker nudge or feedback reply when the original worker can continue
+   - direct worker nudge or feedback reply when the original worker can continue
    - human-review marker when the next step needs human judgment
    - local Codex for orchestration repair, metadata updates, and small
      coordination fixes
@@ -356,8 +356,8 @@ Return changed issues, newly startable issues, blockers, and questions.
 Use issue-assigned agents only when the issue tracker currently exposes an
 assignable agent for the ticket. The agent might be Cursor, Codex, or another
 configured worker. This is issue-tracker assignment, not a local CLI invocation.
-Use config only for project-specific routing or continuation comment details
-that are not obvious from the tracker.
+Use config only for project-specific routing, direct-agent reply targets, or
+continuation comment details that are not obvious from the tracker.
 
 Before starting issue-assigned work, run a read-only preflight:
 
@@ -394,8 +394,12 @@ To start issue-assigned work:
 
 The assigned agent owns the configured environment, implementation run, code
 review, and PR return path. If Orchestrator needs to reach that same session,
-reply on the original issue comments unless config names a different continuation
-comment location. Do not start a new assignment for PR fixes while the original
+reply directly to the assigned agent's continuation target, such as the latest
+agent comment thread or the config-named reply location. For remote Cursor
+agents, do not post a top-level issue comment unless config verifies that
+top-level comments continue the assigned-agent session. If no direct reply target
+can be found, stop with the missing continuation path instead of assuming the
+agent will see it. Do not start a new assignment for PR fixes while the original
 session can continue.
 
 For Linear issue-assigned agents, use the Linear tool/MCP delegation mechanism
@@ -420,9 +424,11 @@ For each returned PR, review and integrate are called steps, not inlined work:
 6. If the latest review has blocking findings, remove `Code review passed` and
    post actionable findings as PR review comments when configured.
 7. Move the issue to `Changes Requested` when author fixes are needed.
-8. Send feedback to Agent Implement or the original worker thread when
-   available. Record a `review-thrash` friction entry when a ticket returns to
-   review more than the configured number of times.
+8. Send feedback as a direct reply to Agent Implement or the original worker's
+   continuation target when available. Do not use a top-level issue comment for a
+   remote Cursor agent unless config verifies that route. Record a `review-thrash`
+   friction entry when a ticket returns to review more than the configured number
+   of times.
 9. Keep fixes on the same branch and PR.
 10. After fixes, ask Agent Review to rerun review and required checks.
 11. When Agent Review is clean for the current PR head, apply
@@ -431,8 +437,9 @@ For each returned PR, review and integrate are called steps, not inlined work:
     evidence field.
 12. If review is clean, required checks pass or are not required, and the PR is
     still draft, move the PR to ready-for-review unless the user or repo config
-    explicitly says to keep it draft. This is a code-host PR state change,
-    separate from tracker status. A kept-draft PR is pre-review; do not call it
+    explicitly says to keep it draft. Then refresh the code-host PR state and
+    verify it is non-draft. This is a code-host PR state change, separate from
+    tracker status. A kept-draft PR is pre-review; do not call it
     ready-for-review.
 13. If CodeRabbit is recommended for the current diff, request the configured
     CodeRabbit path after local review is clean. Treat missing auth, rate
@@ -574,7 +581,8 @@ Report:
 - `Code review passed` labels applied, preserved, or removed with reviewed head
   SHA evidence
 - CodeRabbit escalations requested, completed, skipped, or still required
-- workers launched or messaged, and any stuck workers re-dispatched
+- workers launched or messaged, direct reply targets used, and any stuck workers
+  re-dispatched or escalated
 - issue updates made
 - friction entries logged this run, grouped by category
 - whether spec-conformance was triggered

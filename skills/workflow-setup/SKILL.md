@@ -165,7 +165,8 @@ Record:
   repo-approved worker
 - issue-assigned agent notes when available: project-specific environment labels
   or fields, worker environment approval labels, delegation tool or field,
-  verified agent IDs, continuation comment rules, and no-mutation probe policy
+  verified agent IDs, direct-agent reply targets, continuation comment rules, and
+  no-mutation probe policy
 - Claude Code compatibility: the target repo's Claude Code integration source
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified

@@ -179,12 +179,12 @@ Agent Orchestrator does whatever needs to happen to get tickets handled safely.
 It can start local subagents in isolated branches or worktrees, assign a
 tracker-exposed coding agent to a ticket, request another code review, rerun
 checks, move clean draft PRs to ready-for-review, apply or remove
-`Code review passed`, request CodeRabbit for risky or complex diffs, nudge the
-original worker, route feedback, mark tickets for human review or missing
+`Code review passed`, request CodeRabbit for risky or complex diffs, reply
+directly to the original worker, mark tickets for human review or missing
 information, or stop on a real blocker. The repo config records supported worker
 delegation paths such as
 `local-worktree`, `issue-assigned`, or both, plus only the project-specific
-routing or continuation comment details that are annoying to rediscover.
+routing or direct-agent continuation details that are annoying to rediscover.
 
 Decompose is the front door. It turns a spec, PRD, or epic ticket into
 dependency-ordered `kind-slice` tickets, adopts any tickets you made by hand

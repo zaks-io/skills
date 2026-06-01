@@ -109,6 +109,7 @@ Last updated: YYYY-MM-DD
 - Local Codex:
 - Issue-assigned agents: none, or project-specific routing/continuation notes
 - Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
+- Issue-assigned continuation replies: direct-agent reply target or thread; top-level issue comments are not continuation unless verified here
 - Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:
@@ -129,8 +130,8 @@ Last updated: YYYY-MM-DD
 - CodeRabbit:
 - Draft PR policy: draft only while checks, code review, requested human prep,
   or required author fixes are incomplete; Agent Orchestrator marks clean draft
-  PRs ready-for-review unless this repo says otherwise. A kept-draft PR is
-  pre-review, not ready-for-review
+  PRs ready-for-review and verifies the code-host PR is non-draft unless this
+  repo says otherwise. A kept-draft PR is pre-review, not ready-for-review
 - Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:

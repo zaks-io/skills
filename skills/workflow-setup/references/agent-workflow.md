@@ -112,7 +112,8 @@ For issue-assigned delegation:
 - The config should record only project-specific details that are annoying to
   rediscover, such as supported worker delegation paths, routing labels, routing
   fields, readiness label policy, worker environment label policy, startable work
-  criteria, or non-default continuation comment rules.
+  criteria, direct-agent reply targets, or non-default continuation comment
+  rules.
 - Worker environment labels, such as `remote-worker` or `remote-cursor`, are
   approval metadata. Apply or preserve them when the issue route and environment
   approval criteria are verified. Do not require dependencies to be clear just to
@@ -124,13 +125,15 @@ For issue-assigned delegation:
 - The assigned agent executes the ticket in its configured environment and
   returns a PR.
 - Agent Orchestrator sends review fixes, failed-check details, or PR process
-  problems back by replying where the tracker integration continues the same
-  assigned-agent session, usually the same issue comments unless config says
-  otherwise.
+  problems back by replying directly to the assigned agent's continuation target,
+  such as the latest agent comment thread or the config-named reply location. For
+  remote Cursor agents, a top-level issue comment is not a continuation unless
+  config verifies it.
 - PR draft state lives in the code host. After clean review and passing required
   checks, Agent Orchestrator should mark a draft PR ready-for-review unless the
-  user or repo config explicitly says to keep it draft. If it stays draft, it is
-  pre-review, not ready-for-review.
+  user or repo config explicitly says to keep it draft, then refresh the PR state
+  and verify it is non-draft. If it stays draft, it is pre-review, not
+  ready-for-review.
 - CodeRabbit escalation follows the `workflow-code-review` recommendation. It
   is required only for high-risk or genuinely complex diffs, or when the user
   asks for it.
@@ -170,10 +173,11 @@ refresh the systems of record before acting. The friction log is retrospective,
 not state: append-only comments on a parked ticket, never read back to decide
 anything.
 
-Create PR can mark the PR ready-for-review when its local gates pass.
-Orchestrator repairs draft PRs that should already be ready-for-review after
-Agent Review and required checks are clean. Orchestrator applies or removes
-`Code review passed` based on current PR head SHA evidence.
+Create PR can mark the PR ready-for-review when its local gates pass and verify
+the code-host PR is non-draft. Orchestrator repairs draft PRs that should already
+be ready-for-review after Agent Review and required checks are clean, verifies
+the code-host PR is non-draft, and applies or removes `Code review passed` based
+on current PR head SHA evidence.
 
 ## Adapter Minimum
 
