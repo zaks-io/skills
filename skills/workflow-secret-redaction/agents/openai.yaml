@@ -1,6 +1,0 @@
-interface:
-  display_name: "Secret Redaction"
-  short_description: "Redact, diff, and check secrets"
-  default_prompt: "Use $workflow-secret-redaction to redact .env files, credentials, API keys, tokens, or secret command output, compare values, and check common key formats before inspecting them."
-policy:
-  allow_implicit_invocation: true

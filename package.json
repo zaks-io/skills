@@ -12,7 +12,7 @@
     "security:audit": "pnpm audit --audit-level high",
     "security:secrets": "gitleaks detect --no-git --source . --redact --no-banner",
     "security:secrets:history": "gitleaks detect --source . --redact --no-banner",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test",
     "validate:skills": "npx --yes skills add . --list"
   },
   "license": "MIT",

@@ -64,8 +64,8 @@ context-heavy pieces to these isolated subagents:
 - `workflow-reviewer`: clean-context review of PRs, branches, ranges, and
   main-drift findings.
 
-Setup, PR creation, code review details, and secret redaction remain workflow
-skills that these subagents load only when needed.
+Setup, PR creation, and code review details remain workflow skills that these
+subagents load only when needed.
 
 Codex and other Agent Skills runtimes should use the same orchestration model
 with native skill names:
@@ -136,7 +136,6 @@ Use direct skills when you want one specific action:
 ```text
 $workflow-agent-implement <issue>
 $workflow-code-review <branch|pr|range>
-$workflow-secret-redaction <path|stdin>
 $workflow-create-pr
 $workflow-agent-review <pr|range>
 ```
@@ -267,8 +266,6 @@ and add agent or skill complexity only when it improves delivery.
   and main drift.
 - `workflow-create-pr`: helper shipping gate that checks, reviews, commits,
   pushes, creates or updates the PR, and hands tracker state to Orchestrator.
-- `workflow-secret-redaction`: helper for redacting, diffing, schema-checking,
-  and summarizing `.env`, credential, token, and secret command output.
 
 ## Recommended Flow
 

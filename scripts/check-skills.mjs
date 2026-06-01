@@ -14,10 +14,10 @@ const manualOnlySkills = new Set([
   "workflow-issue-triage",
   "workflow-setup",
 ]);
-const implicitInvocationSkills = new Set(["workflow-code-review", "workflow-secret-redaction"]);
+const implicitInvocationSkills = new Set(["workflow-code-review"]);
 const cleanContextSkills = new Set(["workflow-agent-review", "workflow-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
-const scriptAllowedSkills = new Set(["workflow-secret-redaction"]);
+const scriptAllowedSkills = new Set();
 const triggerTerms = {
   "workflow-agent-implement": ["implement", "issue", "pr"],
   "workflow-agent-orchestrator": ["orchestrate", "issue", "tracker"],
@@ -26,7 +26,6 @@ const triggerTerms = {
   "workflow-create-pr": ["pr", "pull request"],
   "workflow-decompose": ["decompose", "ticket", "dependency"],
   "workflow-issue-triage": ["tracker", "triage", "project", "issue"],
-  "workflow-secret-redaction": ["secret", ".env", "redact"],
   "workflow-setup": ["setup", "config"],
 };
 const claudePluginFile = path.join(root, ".claude-plugin", "plugin.json");

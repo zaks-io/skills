@@ -16,10 +16,6 @@ Load and follow:
 
 - `${CLAUDE_PLUGIN_ROOT}/skills/workflow-issue-triage/SKILL.md`
 
-Use secret redaction before reading secret-bearing input:
-
-- `${CLAUDE_PLUGIN_ROOT}/skills/workflow-secret-redaction/SKILL.md`
-
 Read `docs/agents/workflow/config.md` first. Confirm provider location, status
 names, readiness labels, routing labels, worker environment labels, dependency
 policy, and issue body contract before mutating the tracker.

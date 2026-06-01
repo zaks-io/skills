@@ -73,7 +73,6 @@ Helper gates:
 
 - `workflow-code-review`
 - `workflow-create-pr`
-- `workflow-secret-redaction`
 
 Do not add a new workflow skill unless it has one job, a distinct owner in the
 workflow, and a measurable reason not to live inside an existing role.

@@ -21,7 +21,6 @@ Use these workflow skills when the implementation pipeline reaches them:
 
 - `${CLAUDE_PLUGIN_ROOT}/skills/workflow-code-review/SKILL.md`
 - `${CLAUDE_PLUGIN_ROOT}/skills/workflow-create-pr/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/workflow-secret-redaction/SKILL.md`
 
 Read only the repo config, issue, PR, changed-file docs, and required checks
 needed for the assigned issue. If the orchestrator did not provide an isolated
