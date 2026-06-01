@@ -27,6 +27,14 @@ const triggerTerms = {
   "workflow-secret-redaction": ["secret", ".env", "redact"],
   "workflow-setup": ["setup", "config"],
 };
+const claudePluginFile = path.join(root, ".claude-plugin", "plugin.json");
+const claudeAgentsDir = path.join(root, "agents");
+const expectedClaudeAgents = new Set([
+  "workflow-implementer",
+  "workflow-reviewer",
+  "workflow-triage",
+]);
+const unsupportedClaudeAgentFields = ["hooks", "mcpServers", "permissionMode"];
 
 const fail = (message) => errors.push(message);
 const relative = (file) => path.relative(root, file) || ".";
@@ -38,6 +46,23 @@ const readText = (file) => {
     fail(`Cannot read ${relative(file)}: ${error.message}`);
     return "";
   }
+};
+
+const markdownFiles = (dir) => {
+  if (!existsSync(dir)) {
+    fail(`${relative(dir)} is missing`);
+    return [];
+  }
+
+  return readdirSync(dir, { withFileTypes: true })
+    .flatMap((entry) => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return markdownFiles(fullPath);
+      }
+      return entry.isFile() && entry.name.endsWith(".md") ? [fullPath] : [];
+    })
+    .sort();
 };
 
 const skillNames = readdirSync(skillsDir)
@@ -146,6 +171,75 @@ for (const name of skillNames) {
     fail(
       `${relative(openaiFile)} must set policy.allow_implicit_invocation: ${expectedImplicitPolicy}`,
     );
+  }
+}
+
+const pluginManifestText = readText(claudePluginFile);
+try {
+  const pluginManifest = JSON.parse(pluginManifestText);
+  if (pluginManifest.name !== "zaks-io-skills") {
+    fail(`${relative(claudePluginFile)} name must be zaks-io-skills`);
+  }
+  if (!pluginManifest.description) {
+    fail(`${relative(claudePluginFile)} is missing description`);
+  }
+} catch (error) {
+  fail(`${relative(claudePluginFile)} must be valid JSON: ${error.message}`);
+}
+
+const claudeAgentNames = new Set();
+for (const agentFile of markdownFiles(claudeAgentsDir)) {
+  const agentText = readText(agentFile);
+  const frontmatterMatch = agentText.match(/^---\n([\s\S]*?)\n---/);
+  if (!frontmatterMatch) {
+    fail(`${relative(agentFile)} is missing YAML frontmatter`);
+    continue;
+  }
+
+  const frontmatter = frontmatterMatch[1];
+  const frontmatterValue = (field) => {
+    const match = frontmatter.match(new RegExp(`^${field}:\\s*(.+)\\s*$`, "m"));
+    return match?.[1]?.trim().replace(/^["']|["']$/g, "");
+  };
+  const hasFrontmatterField = (field) => new RegExp(`^${field}:\\s*`, "m").test(frontmatter);
+  const agentName = frontmatterValue("name");
+
+  if (!agentName) {
+    fail(`${relative(agentFile)} is missing frontmatter name`);
+  } else {
+    claudeAgentNames.add(agentName);
+    if (!/^[a-z0-9-]+$/.test(agentName)) {
+      fail(`${relative(agentFile)} name must be lowercase kebab-case`);
+    }
+    if (path.basename(agentFile, ".md") !== agentName) {
+      fail(`${relative(agentFile)} filename must match agent name ${agentName}`);
+    }
+  }
+
+  if (!frontmatterValue("description")) {
+    fail(`${relative(agentFile)} is missing frontmatter description`);
+  }
+  if (frontmatterValue("model") !== "inherit") {
+    fail(`${relative(agentFile)} must set model: inherit`);
+  }
+  if (!agentText.includes("${CLAUDE_PLUGIN_ROOT}/skills/")) {
+    fail(`${relative(agentFile)} must load its skill from CLAUDE_PLUGIN_ROOT`);
+  }
+  for (const field of unsupportedClaudeAgentFields) {
+    if (hasFrontmatterField(field)) {
+      fail(`${relative(agentFile)} must not set unsupported plugin agent field ${field}`);
+    }
+  }
+}
+
+for (const expectedAgent of expectedClaudeAgents) {
+  if (!claudeAgentNames.has(expectedAgent)) {
+    fail(`agents/${expectedAgent}.md is missing`);
+  }
+}
+for (const agentName of claudeAgentNames) {
+  if (!expectedClaudeAgents.has(agentName)) {
+    fail(`agents/${agentName}.md is not a configured workflow agent`);
   }
 }
 

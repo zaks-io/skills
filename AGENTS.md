@@ -16,6 +16,9 @@ content.
   one job and one top-level heading.
 - `skills/<skill>/agents/openai.yaml`: Codex adapter and trigger fixture for the
   matching skill.
+- `.claude-plugin/plugin.json`: Claude Code plugin manifest.
+- `agents/<agent>.md`: Claude Code sub-agent definitions for the few workflow
+  roles that benefit from isolated context.
 - `skills/workflow-setup/references/`: templates and contracts used to create
   downstream `docs/agents/workflow/config.md`.
 - `skills/workflow-code-review/references/`: review support material.
@@ -35,6 +38,9 @@ content.
   frontmatter, and Codex `agents/openai.yaml` metadata in sync.
 - Side-effecting workflow skills are manual-only in both Claude frontmatter and
   `agents/openai.yaml`.
+- Claude Code sub-agents live only in root `agents/`, load skill files through
+  `${CLAUDE_PLUGIN_ROOT}`, and use `model: inherit`. Keep them limited to
+  context-heavy delegation roles, not every workflow skill.
 - `workflow-code-review` is the implicit review gate. `workflow-agent-review` and
   `workflow-code-review` should run from clean context.
 - Do not add per-skill scripts unless `scripts/check-skills.mjs` is updated to
@@ -45,6 +51,8 @@ content.
 - Fast structure check: `pnpm check`
 - Skill discovery: `pnpm validate:skills`
 - Formatting: `pnpm format:check`
+- Claude plugin validation: `claude plugin validate .` when Claude Code is
+  available
 - Full local gate: `pnpm ci:check`
 - Secrets scan: `pnpm security:secrets`
 

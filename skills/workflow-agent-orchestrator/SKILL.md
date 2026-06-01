@@ -1,7 +1,7 @@
 ---
 name: workflow-agent-orchestrator
-description: Use for Agent Orchestrator, the short-loop agent that orchestrates issue-tracked implementation work by selecting startable issues, launching or nudging workers, requesting Agent Review, updating the tracker, and stopping when human input is needed.
-argument-hint: "[loop-budget-or-filter]"
+description: Use for Agent Orchestrator, the lightweight control loop that orchestrates a specific ticket set, filter, project, or backlog-until-clear run by selecting startable issues, launching or nudging workers, requesting Agent Review, updating the tracker, and stopping when human input is needed.
+argument-hint: "[ticket-ids|filter|project|until-clear]"
 disable-model-invocation: true
 ---
 
@@ -13,8 +13,82 @@ configured issue tracker. Do not become the default implementer or reviewer.
 ## Inputs
 
 - Repo path and configured issue tracker location.
-- Optional loop budget, project, milestone, label, or issue filter.
+- Optional explicit ticket IDs or URLs.
+- Optional loop budget, project, milestone, label, status, backlog, or issue
+  filter.
+- Optional completion target such as `until clear`, `until backlog clear`,
+  `until no startable work remains`, or `one pass`.
 - Current tracker and PR state for the configured workflow.
+
+## Invocation Modes
+
+Resolve the user's requested scope before taking action. If the scope is
+ambiguous and a safe read-only query can disambiguate it, run that query and
+continue. Ask only when multiple real scopes remain plausible.
+
+- Explicit tickets: work exactly the listed issue IDs or URLs. Include linked
+  blockers, PRs, and child issues only when they affect whether those tickets
+  can move.
+- Filtered queue: work the configured tracker query, project, milestone, label,
+  status, assignee, or roadmap the user named.
+- Current-work loop: when no scope is named, work configured ready and active
+  issues only.
+- Backlog or intake clear: when the user explicitly says backlog, intake, or
+  "until backlog is clear", first run triage with backlog or intake scope
+  included, then orchestrate all newly ready or active work in that scope.
+- Until clear: continue passes until every issue in the requested scope is done,
+  delegated and waiting, blocked, waiting on human input, ready for merge but
+  lacking merge authority, or otherwise has no safe next action.
+- One pass or budgeted loop: stop after the requested pass count, worker count,
+  ticket count, time budget, or first meaningful state change.
+
+Do not interpret "clear the backlog" as permission to implement vague future
+work. Clear means every issue in scope has a truthful next state and owner:
+implemented, delegated, ready for review, ready to merge, blocked, needs-info,
+ready-for-human, or explicitly out of scope.
+
+## Lightweight Control Loop
+
+Keep the orchestrator's own context small. Load enough state to choose and track
+the next action, then delegate context-heavy work.
+
+In the main orchestration context, keep only:
+
+- repo config path and relevant verified config values
+- scope query, pass budget, and completion target
+- compact issue queue with ID, title, state, readiness, blockers, PR, owner, and
+  next action
+- compact worker ledger with issue, branch or PR, agent path, started time,
+  latest status, and next check
+- blocker and human-question list
+
+Do not load full issue histories, long logs, full diffs, full PR reviews, or
+test output into the main context unless they are needed to choose the next
+orchestration action.
+
+For runtimes with subagents or worker threads, delegate these context-heavy
+pieces to the runtime's isolated-worker equivalent:
+
+- Triage worker for tracker inventory, backlog or intake cleanup, readiness
+  repair, dependency cleanup, and stale-state reconciliation
+- Implementation worker for one issue's implementation, verification, review
+  feedback, and PR handoff
+- Review worker for PR review, branch or range review, and main-drift review
+
+Use runtime-native names when they exist:
+
+- Claude Code plugin: `zaks-io-skills:workflow-triage`,
+  `zaks-io-skills:workflow-implementer`, and
+  `zaks-io-skills:workflow-reviewer`
+- Codex or Agent Skills runtimes: `$workflow-issue-triage`,
+  `$workflow-agent-implement`, `$workflow-agent-review`, and
+  `$workflow-code-review`, preferably in isolated subagents, sessions, branches,
+  or worktrees when available
+
+Worker prompts should include only repo path, scope or issue ID, branch or PR,
+acceptance criteria, required checks, hard constraints, and expected output.
+After each worker returns, reduce its result into the compact queue and worker
+ledger before continuing.
 
 ## Context
 
@@ -87,6 +161,31 @@ Use the worker delegation paths supported by `docs/agents/workflow/config.md`:
 Orchestrator may use both paths when config allows it, choosing the safest path
 for the issue. Orchestrator does not become the implementer or reviewer.
 
+## Scope Clearing
+
+At the start of each pass, classify every issue in scope:
+
+- `needs-triage`: missing body contract, labels, route, dependencies, or stale
+  state repair
+- `startable`: ready for agent, unblocked, complete enough to verify, and not
+  already claimed
+- `active`: delegated, in progress, in review, changes requested, ready to
+  merge, or linked to an open PR
+- `blocked`: blocked by tracker relationship, body blocker, credentials,
+  provider, product, security, ADR, customer input, or production approval
+- `human`: needs human judgment or lacks authority for the next state
+- `done`: verified merged, closed, canceled, or otherwise terminal according to
+  config
+
+For an `until clear` run, continue until no issue remains in `needs-triage`,
+`startable`, or active states that have a safe next action. If new issues enter
+scope during the run through triage repair, include them unless the user set a
+fixed ticket list or fixed count.
+
+For explicit ticket sets, do not silently expand to unrelated backlog work. For
+backlog clear runs, do not skip the triage pass; otherwise the orchestrator will
+start from stale or vague issue state.
+
 ## Loop
 
 On each pass:
@@ -107,9 +206,15 @@ On each pass:
 6. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention.
 7. Choose the next orchestration action:
-   - local Agent Implement subagent or worktree for `local-worktree`
+   - isolated implementation worker, such as Claude Code
+     `workflow-implementer`, Codex `$workflow-agent-implement`, or local
+     worktree for `local-worktree`
    - tracker-exposed assigned agent for `issue-assigned`
-   - Agent Review for independent PR review and main-branch drift review
+   - isolated review worker, such as Claude Code `workflow-reviewer` or Codex
+     `$workflow-agent-review`, for independent PR review and main-branch drift
+     review
+   - isolated triage worker, such as Claude Code `workflow-triage` or Codex
+     `$workflow-issue-triage`, for issue metadata cleanup
    - additional code review, CodeRabbit escalation, or check rerun when the PR
      state needs evidence
    - worker nudge or feedback reply when the original worker can continue
@@ -122,6 +227,53 @@ On each pass:
    `workflow-agent-implement`.
 9. Record delegation or action in the issue tracker.
 10. Continue until no safe action remains or the user-specified loop budget ends.
+
+## Worker Prompts
+
+Build short, self-contained prompts. The worker should fetch details itself from
+the repo, tracker, branch, or PR.
+
+Implementation worker prompt:
+
+```text
+Use the isolated implementation worker for this runtime.
+Claude Code: zaks-io-skills:workflow-implementer.
+Codex or Agent Skills: $workflow-agent-implement.
+Repo: <path>
+Issue: <id-or-url>
+Branch/worktree: <branch-or-create-policy>
+Scope: <one sentence from issue>
+Required checks: <commands or config reference>
+Constraints: preserve unrelated changes; no production deploy; no secrets.
+Return the workflow handoff only.
+```
+
+Review worker prompt:
+
+```text
+Use the isolated review worker for this runtime.
+Claude Code: zaks-io-skills:workflow-reviewer.
+Codex or Agent Skills: $workflow-agent-review or $workflow-code-review.
+Repo: <path>
+PR/branch/range: <target>
+Base: <base branch or range>
+Intent source: <issue or PR URL>
+Required checks: <commands or config reference>
+Return the review report and no code changes.
+```
+
+Triage worker prompt:
+
+```text
+Use the isolated triage worker for this runtime.
+Claude Code: zaks-io-skills:workflow-triage.
+Codex or Agent Skills: $workflow-issue-triage.
+Repo: <path>
+Scope: <ticket list, query, project, backlog, or intake scope>
+Goal: <make ready/current work truthful/until backlog clear>
+Authority: <config mutation authority summary>
+Return changed issues, newly startable issues, blockers, and questions.
+```
 
 ## Issue-Assigned Agents
 

@@ -54,6 +54,12 @@ mark draft PRs ready-for-review after review gates pass, repair tracker
 metadata, apply or remove review-evidence labels, mark tickets for human review
 or missing information, move active workflow state, or stop on a real blocker.
 
+It can be invoked for explicit tickets, a tracker filter, a project, a
+milestone, a label, one pass, or an `until clear` target. `Clear` means every
+issue in scope has a truthful next state and owner: implemented, delegated,
+ready for review, ready to merge, blocked, needs human input, or terminal. It
+does not mean implementing vague future work without triage.
+
 Config should name the worker delegation paths this repo supports:
 
 - `local-worktree`: Agent Orchestrator starts local subagents, gives each worker
@@ -100,6 +106,14 @@ For issue-assigned delegation:
   only with PR URL and reviewed head SHA evidence. Remove it when the PR head
   changes, blocking findings appear, the linked PR changes, or evidence is
   missing.
+
+For local agent runtimes, keep the orchestrator parent thread small and delegate
+large context loads to isolated workers when available. Claude Code uses plugin
+subagents such as `workflow-triage`, `workflow-implementer`, and
+`workflow-reviewer`. Codex and other Agent Skills runtimes should use matching
+skill names such as `$workflow-issue-triage`, `$workflow-agent-implement`,
+`$workflow-agent-review`, and `$workflow-code-review` inside isolated sessions,
+branches, worktrees, or subagents when available.
 
 ## State Authority
 

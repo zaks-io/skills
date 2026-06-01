@@ -1,0 +1,12 @@
+{
+  "name": "zaks-io-skills",
+  "version": "0.1.0",
+  "displayName": "Zaks.io Workflow Skills",
+  "description": "Shared workflow skills and subagents for issue-tracked engineering work.",
+  "author": {
+    "name": "Zaks.io"
+  },
+  "repository": "https://github.com/zaks-io/skills",
+  "license": "MIT",
+  "keywords": ["workflow", "agents", "code-review", "pull-requests", "issue-triage"]
+}

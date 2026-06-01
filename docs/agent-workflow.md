@@ -81,6 +81,12 @@ mark draft PRs ready-for-review after review gates pass, repair tracker
 metadata, apply or remove review-evidence labels, mark tickets for human review
 or missing information, move active workflow state, or stop on a real blocker.
 
+Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
+a milestone, a label, one pass, or an `until clear` target. `Clear` means every
+issue in scope has a truthful next state and owner: implemented, delegated,
+ready for review, ready to merge, blocked, needs human input, or terminal. It
+does not mean implementing vague future work without triage.
+
 Downstream config should say which worker delegation paths the project supports:
 
 - `local-worktree`: Agent Orchestrator starts local subagents, gives each worker
@@ -94,6 +100,15 @@ Downstream config should say which worker delegation paths the project supports:
 
 Issue-assigned agents can be Cursor, Codex, or any other agent the tracker can
 assign. The skills do not infer this from local CLI availability.
+
+For local agent runtimes, the orchestrator should keep its parent thread small
+and delegate large context loads to isolated workers when available. Claude Code
+uses the plugin subagents `workflow-triage`, `workflow-implementer`, and
+`workflow-reviewer`. Codex and other Agent Skills runtimes should use the
+matching skill names, such as `$workflow-issue-triage`,
+`$workflow-agent-implement`, `$workflow-agent-review`, and
+`$workflow-code-review`, inside isolated sessions, branches, worktrees, or
+subagents when the runtime supports them.
 
 Repo config should record only project-specific details that are annoying to
 rediscover, such as supported worker delegation paths, routing labels, routing

@@ -37,6 +37,56 @@ Install one skill:
 npx skills add zaks-io/skills --skill workflow-setup --agent '*' -g -y
 ```
 
+## Claude Code Plugin
+
+This repo also defines a Claude Code plugin manifest and root subagents:
+
+```text
+.claude-plugin/plugin.json
+agents/*.md
+```
+
+When loaded as a Claude Code plugin, the workflow agents are available as
+namespaced subagents:
+
+```text
+zaks-io-skills:workflow-triage
+zaks-io-skills:workflow-implementer
+zaks-io-skills:workflow-reviewer
+```
+
+Claude Code should keep the orchestrator in the main thread and delegate the
+context-heavy pieces to these isolated subagents:
+
+- `workflow-triage`: issue tracker inventory and metadata cleanup.
+- `workflow-implementer`: one issue's implementation, checks, review, and PR
+  handoff.
+- `workflow-reviewer`: clean-context review of PRs, branches, ranges, and
+  main-drift findings.
+
+Setup, PR creation, code review details, and secret redaction remain workflow
+skills that these subagents load only when needed.
+
+Codex and other Agent Skills runtimes should use the same orchestration model
+with native skill names:
+
+```text
+$workflow-agent-orchestrator ZAK-123 ZAK-456
+$workflow-agent-orchestrator project "Payments" until clear
+$workflow-agent-orchestrator backlog until clear
+```
+
+When the runtime supports subagents, sessions, branches, or worktrees,
+Orchestrator should keep the parent thread small and delegate context-heavy work
+to `$workflow-issue-triage`, `$workflow-agent-implement`,
+`$workflow-agent-review`, and `$workflow-code-review`.
+
+For local development, validate the plugin shape when Claude Code is available:
+
+```sh
+claude plugin validate .
+```
+
 For private cloud environments, grant the agent system access to this repository
 through the provider's GitHub integration, or inject a read-only deploy key or
 fine-grained token before running `skills add`.
@@ -65,6 +115,15 @@ Then run the normal loop:
 ```text
 $workflow-issue-triage
 $workflow-agent-orchestrator
+```
+
+Orchestrate a bounded scope:
+
+```text
+$workflow-agent-orchestrator ZAK-123 ZAK-456
+$workflow-agent-orchestrator label:ready-for-agent one pass
+$workflow-agent-orchestrator project "Payments" until clear
+$workflow-agent-orchestrator backlog until clear
 ```
 
 Use direct skills when you want one specific action:
