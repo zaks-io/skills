@@ -109,6 +109,10 @@ Last updated: YYYY-MM-DD
 - Merge authority:
 - Claim record:
 - Orchestrator local state:
+- Verified-ready backlog policy: when the user scopes a set of tickets that has
+  already been reviewed as implementation-ready, Orchestrator owns moving every
+  ticket through implementation, PR, review, and merge, and repairs routine label,
+  status, route, handoff, and review-evidence mismatches from current evidence
 - Completely-blocked stop policy: stop the recurring orchestrator run for the
   scoped queue when no startable tickets, PRs to advance, stuck workers to nudge,
   checks to rerun or route, stale metadata repairs, or in-flight work can still

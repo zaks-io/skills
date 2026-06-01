@@ -12,13 +12,27 @@ configured issue tracker. Coordinate; do not implement, review, or merge by hand
 Implementation, review, and merge are delegated work or called steps, never
 inlined.
 
-Use the model's judgment to move work forward. The orchestrator is not a passive
-rules engine: synthesize issue state, PR state, checks, review evidence, worker
-signals, repo config, and risk into the next safe action. Prefer acting,
-delegating, nudging, rerunning, or repairing when the action is reversible,
-bounded to workflow state, and supported by evidence. Escalate only when the next
-safe action truly needs missing authority, credentials, provider/customer input,
-production approval, or product/security/ADR judgment.
+Use the model's judgment to move work forward. The orchestrator's job is to find
+where tickets are stuck in the tracker-to-PR-to-merge pipeline, determine why
+they are not advancing, and take the next safe action to unblock them. It is not
+a passive rules engine or a checklist executor: synthesize issue state, PR state,
+checks, review evidence, worker signals, repo config, and risk into the next safe
+action. The actions named in this skill are examples and guardrails, not a
+complete menu. If a ticket is not moving and the needed workflow action is not
+listed, use model judgment to identify and take the safe action anyway. Prefer
+acting, delegating, nudging, rerunning, or repairing when the action is
+reversible, bounded to workflow state, and supported by evidence. Escalate only
+when the next safe action truly needs missing authority, credentials,
+provider/customer input, production approval, or product/security/ADR judgment.
+
+For a backlog that has already been triaged or verified as ready to implement,
+Orchestrator owns the whole delivery lane until each scoped ticket is done or has
+a real external blocker. Simple label, status, readiness, route, or handoff
+misunderstandings are Orchestrator repair work. Do not stop or ask the user just
+because a ticket is missing the expected label, sitting in the wrong workflow
+status, or waiting for a routine handoff state; diagnose the mismatch from
+tracker, PR, check, and config evidence, fix the metadata, and keep the ticket
+moving.
 
 ## Inputs
 
@@ -46,6 +60,12 @@ continue. Ask only when multiple real scopes remain plausible.
 - Backlog or intake clear: when the user explicitly says backlog, intake, or
   "until backlog is clear", first run triage with backlog or intake scope
   included, then orchestrate all newly ready or active work in that scope.
+- Verified-ready backlog: when the user gives a large set of tickets that have
+  already been reviewed for implementation readiness, treat the set as a delivery
+  lane. Do not send routine label/status mismatches back to the user. Repair
+  readiness labels, workflow status, repo-route metadata, environment metadata,
+  review evidence labels, and handoff state when current evidence and config make
+  the intended state clear.
 - Until clear: continue passes until every issue in the requested scope is done,
   delegated and waiting, blocked, waiting on human input, ready for merge but
   lacking merge authority, or otherwise has no safe next action.
@@ -237,10 +257,22 @@ ticket silently, and record every fix. For the orchestrator specifically:
 
 Orchestrator chooses the next action needed to get tickets handled safely by
 reasoning over tracker state, PR state, checks, review evidence, worker signals,
-repo config, and risk. Depending on that evidence, it can assign implementation
-work, nudge an existing worker, call review, call integrate, route review
-feedback, mark a ticket for human review or missing information, repair tracker
-metadata, move workflow state, or stop on a real blocker.
+repo config, and risk. The examples below are not exhaustive. Depending on the
+evidence, it can assign implementation work, nudge an existing worker, call
+review, call integrate, route review feedback, mark a ticket for human review or
+missing information, repair tracker metadata, move workflow state, or stop on a
+real blocker.
+
+When a previously verified-ready ticket is not moving through the expected
+workflow state, first ask "what fact would make this ticket eligible for the next
+pipeline step?" Then verify that fact against systems of record and repair the
+workflow metadata when evidence is clear. Examples: add or restore
+`ready-for-agent`, move a ready ticket back to the configured ready status, set a
+missing repo-route or worker environment value, clear stale review evidence,
+change a draft PR to ready-for-review, move a reviewed PR to `Ready to Merge`, or
+move merged work to `Done` and clear readiness. Escalate only when the missing
+fact is product intent, authority, credentials, provider/customer input,
+production approval, or a judgment the orchestrator cannot safely make.
 
 Use the worker delegation paths supported by `docs/agents/workflow/config.md`:
 
@@ -304,7 +336,9 @@ Each tick is stateless against external state. On each pass:
    blocked issues. Never treat a `kind-spec` or `kind-epic` container as
    startable. Check provider blocker relationships and explicit body blockers
    before starting or delegating work. Treat labels as signals and statuses as
-   the workflow state.
+   the workflow state. For verified-ready backlog work, if the only gap is a
+   routine label or status mismatch and the correct state is clear from evidence,
+   repair it and continue instead of skipping the ticket.
 6. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention. Do not dispatch a ticket whose predicted files
    collide with an in-flight dispatch; defer it and record a `file-collision`
@@ -312,7 +346,9 @@ Each tick is stateless against external state. On each pass:
 7. Respect the configured concurrency cap. Default to 3 concurrent in-flight
    workers when config names no cap. Dispatch new work only up to
    `cap - in-flight`. If the cap is reached, advance existing work only.
-8. Choose the next orchestration action:
+8. Choose the next orchestration action. The following actions are examples, not
+   limits; use model judgment to handle any other evidence-backed workflow action
+   needed to keep the ticket moving:
    - isolated implementation worker, such as Claude Code
      `workflow-implementer`, Codex `$workflow-agent-implement`, or local
      worktree for `local-worktree`

@@ -184,18 +184,29 @@ and CI state, starts workers, asks for review, and moves tickets when the
 external state says that is safe.
 
 Agent Orchestrator does whatever needs to happen to get tickets handled safely.
-It uses model judgment to synthesize tracker state, PR state, checks, review
-evidence, worker signals, repo config, and risk into the next safe action. It can
-start local subagents in isolated branches or worktrees, assign a tracker-exposed
-coding agent to a ticket, request another code review, rerun checks, diagnose
-draft PRs that have stalled, move unblocked draft PRs to ready-for-review, apply
-or remove
+Its job is to find where tickets are stuck in the tracker-to-PR-to-merge
+pipeline, determine why they are not advancing, and take the next safe action to
+unblock them. It uses model judgment to synthesize tracker state, PR state,
+checks, review evidence, worker signals, repo config, and risk into the next safe
+action. The named actions are examples, not a complete menu; if a ticket is not
+moving, Orchestrator should identify and take any safe workflow action needed to
+move it forward. It can start local subagents in isolated branches or worktrees,
+assign a tracker-exposed coding agent to a ticket, request another code review,
+rerun checks, diagnose draft PRs that have stalled, move unblocked draft PRs to
+ready-for-review, apply or remove
 `Code review passed`, request CodeRabbit for risky or complex diffs, reply
 directly to the original worker, mark tickets for human review or missing
 information, or stop on a real blocker. The repo config records supported worker
 delegation paths such as
 `local-worktree`, `issue-assigned`, or both, plus only the project-specific
 routing or direct-agent continuation details that are annoying to rediscover.
+
+When you hand Orchestrator a large backlog that has already been triaged or
+verified as ready to implement, it owns the delivery lane. Routine
+misunderstandings about when to apply a label, move a status, attach review
+evidence, set repo-route metadata, or mark a PR ready-for-review are
+orchestration repairs. It should fix those from tracker, PR, check, and config
+evidence and keep going instead of escalating them.
 
 Decompose is the front door. It turns a spec, PRD, or epic ticket into
 dependency-ordered `kind-slice` tickets, adopts any tickets you made by hand

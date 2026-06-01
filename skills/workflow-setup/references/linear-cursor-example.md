@@ -68,6 +68,8 @@ Last updated: 2026-06-01
 - Auto-merge risk tiers: orchestrator may auto-merge LOW and MEDIUM when green;
   HIGH routes to human merge
 - Post-merge check: <command/signal on main, or none>
+- Verified-ready backlog policy: repair routine label/status/route/review
+  evidence mismatches and keep scoped ready tickets moving
 - Completely-blocked stop policy: stop the recurring orchestrator run for this
   scope and report blockers instead of waking forever
 - Authoritative issue state: Linear

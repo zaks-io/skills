@@ -157,8 +157,8 @@ Record:
 - autonomous-loop controls when the repo runs the orchestrator unattended:
   concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
   breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, post-merge check, completely-blocked stop policy, friction-log
-  ticket ID, and delivery metrics
+  risk tiers, post-merge check, verified-ready backlog policy,
+  completely-blocked stop policy, friction-log ticket ID, and delivery metrics
 - label source of truth: the live tracker metadata, tracker workflow settings,
   existing repo docs, or explicit user instruction used to verify label names
 - label documentation policy: whether repo-local label docs exist, and whether

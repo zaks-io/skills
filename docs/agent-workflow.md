@@ -172,16 +172,28 @@ Self-healing cannot fix a bad spec; a vague PRD dead-ends at the user by design.
 
 ## Orchestration
 
-Agent Orchestrator owns orchestration, not implementation. It chooses the next
-action needed to get tickets handled safely. It uses model judgment to synthesize
-tracker state, PR state, checks, review evidence, worker signals, repo config,
-and risk into actions: delegate a `kind-slice` to a worker, nudge an existing
-worker, call the review step, call the integrate step, rerun checks, route review
-feedback, request CodeRabbit escalation when the review gate recommends it,
-diagnose and repair stuck draft PRs, mark unblocked draft PRs ready-for-review,
-heal or repair tracker metadata, apply or remove review-evidence labels, log
-friction, mark tickets for human review when the next step genuinely needs human
-input, move active workflow state, or stop on a real blocker.
+Agent Orchestrator owns orchestration, not implementation. Its job is to find
+where tickets are stuck in the tracker-to-PR-to-merge pipeline, determine why
+they are not advancing, and choose the next safe action needed to get them
+handled. It uses model judgment to synthesize tracker state, PR state, checks,
+review evidence, worker signals, repo config, and risk into actions. The named
+actions are examples, not a complete menu; when a ticket is not moving,
+Orchestrator should identify and take any safe workflow action needed to move it
+forward. Examples include delegating a `kind-slice` to a worker, nudging an
+existing worker, calling the review step, calling the integrate step, rerunning
+checks, routing review feedback, requesting CodeRabbit escalation when the review
+gate recommends it, diagnosing and repairing stuck draft PRs, marking unblocked
+draft PRs ready-for-review, healing or repairing tracker metadata, applying or
+removing review-evidence labels, logging friction, marking tickets for human
+review when the next step genuinely needs human input, moving active workflow
+state, or stopping on a real blocker.
+
+When the user hands Orchestrator a large backlog that has already been triaged or
+verified as ready to implement, Orchestrator owns the delivery lane. Routine
+misunderstandings about when to apply a label, move a status, attach review
+evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
+repairs. Orchestrator should fix them from tracker, PR, check, and config
+evidence and keep going instead of escalating them.
 
 Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
 a milestone, a label, one pass, or an `until clear` target. `Clear` means every
