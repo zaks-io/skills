@@ -112,6 +112,11 @@ Last updated: YYYY-MM-DD
 - Required checks:
 - Code review:
 - CodeRabbit:
+- Draft PR policy: draft only while checks, code review, requested human prep,
+  or required author fixes are incomplete; Agent Orchestrator marks clean draft
+  PRs ready-for-review unless this repo says otherwise. A kept-draft PR is
+  pre-review, not ready-for-review
+- Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:
 

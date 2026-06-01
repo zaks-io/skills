@@ -7,7 +7,8 @@ disable-model-invocation: true
 
 # Create PR
 
-Take the current code to a ready PR. Do the whole workflow unless blocked.
+Take the current code to a non-draft ready-for-review PR. Do the whole workflow
+unless blocked.
 
 ## Inputs
 
@@ -74,6 +75,8 @@ changes.
 
 Use CodeRabbit only when code review recommends it, the change is high-risk, or
 the user asks. Missing auth, rate limits, or credits are a skip, not a blocker.
+Record the CodeRabbit decision in the handoff so Agent Orchestrator can decide
+whether any post-PR escalation remains.
 
 ## Commit
 
@@ -87,7 +90,18 @@ the user asks. Missing auth, rate limits, or credits are a skip, not a blocker.
 
 ## PR
 
-Create or update a ready-for-review PR unless the user asked for draft.
+Create or update a ready-for-review PR unless the user asked for draft or a
+required review gate has not passed. Ready-for-review means non-draft.
+
+If an existing PR is draft, mark it ready-for-review when the current diff has a
+clean code review, required local checks pass, and the user did not ask to keep
+it draft. If CodeRabbit `PR REVIEW` is recommended for a high-risk or complex
+open PR, report that post-PR escalation in the handoff; do not use draft state
+as a holding pen after local review is clean.
+
+If the user or repo config requires a draft PR, report the PR as a draft
+pre-review handoff. Do not call it ready-for-review until it is marked non-draft
+in the code host.
 
 PR title:
 
@@ -132,7 +146,8 @@ When an issue exists:
 - report the configured review-state transition, usually `In Review`, for
   Agent Orchestrator
 - comment with checks run, code review verdict, CodeRabbit decision,
-  acceptance criteria status, and differences from original intent
+  PR draft or ready-for-review state, acceptance criteria status, and
+  differences from original intent
 - never move to `Done`; merge is not complete
 
 Do not move workflow state unless the repo config or user explicitly delegates
@@ -148,6 +163,7 @@ Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
 Review: local <verdict>; CodeRabbit <skipped|CLI|PR review>
+PR state: <draft|ready-for-review>
 Issue:  <issue, handoff status, created, or skipped>
 ```
 

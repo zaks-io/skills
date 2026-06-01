@@ -34,9 +34,12 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
    creates or updates the PR.
 5. Agent Orchestrator requests Agent Review for PR review.
 6. Agent Review runs `workflow-code-review` in a clean context and reports
-   findings without modifying product code or moving issue state.
-7. Agent Orchestrator routes findings back to the implementation worker or moves
-   the issue to the configured merge-ready state when review and checks are
+   findings, CodeRabbit recommendation, and PR readiness without modifying
+   product code or moving issue state.
+7. Agent Orchestrator routes findings back to the implementation worker, marks a
+   clean draft PR ready-for-review when allowed, requests CodeRabbit when the
+   current diff needs it, or moves the issue to the configured merge-ready state
+   when review, checks, PR readiness, and required CodeRabbit escalation are
    clean.
 8. Agent Review periodically reviews main drift and creates tracker issues for
    real regressions or contract gaps.
@@ -46,8 +49,10 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 Agent Orchestrator owns orchestration, not implementation. It chooses the next
 action needed to get tickets handled safely: delegate implementation work, nudge
 an existing worker, request another code review, rerun checks, route review
-feedback, repair tracker metadata, mark tickets for human review or missing
-information, move active workflow state, or stop on a real blocker.
+feedback, request CodeRabbit escalation when the review gate recommends it,
+mark draft PRs ready-for-review after review gates pass, repair tracker
+metadata, mark tickets for human review or missing information, move active
+workflow state, or stop on a real blocker.
 
 Config should name the worker delegation paths this repo supports:
 
@@ -84,6 +89,13 @@ For issue-assigned delegation:
   problems back by replying where the tracker integration continues the same
   assigned-agent session, usually the same issue comments unless config says
   otherwise.
+- PR draft state lives in the code host. After clean review and passing required
+  checks, Agent Orchestrator should mark a draft PR ready-for-review unless the
+  user or repo config explicitly says to keep it draft. If it stays draft, it is
+  pre-review, not ready-for-review.
+- CodeRabbit escalation follows the `workflow-code-review` recommendation. It
+  is required only for high-risk or genuinely complex diffs, or when the user
+  asks for it.
 
 ## State Authority
 
@@ -103,6 +115,10 @@ and writes the systems of record:
 Orchestrator-local files, run logs, and checkpoints are only scratch state. They
 can speed up polling or avoid duplicate work, but agents must refresh the
 systems of record before acting.
+
+Create PR can mark the PR ready-for-review when its local gates pass.
+Orchestrator repairs draft PRs that should already be ready-for-review after
+Agent Review and required checks are clean.
 
 ## Adapter Minimum
 

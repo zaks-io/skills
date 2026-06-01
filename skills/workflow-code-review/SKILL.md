@@ -78,6 +78,11 @@ background jobs, public contracts, broad refactors, or unresolved reviewer
 uncertainty. Treat missing auth, rate limits, or credits as skipped unless the
 user explicitly requested CodeRabbit.
 
+For draft PRs, include whether CodeRabbit should run after the PR is marked
+ready-for-review. Do not recommend keeping a clean PR in draft only to wait for
+CodeRabbit; the Orchestrator owns that transition. Ready-for-review means
+non-draft.
+
 ## Output
 
 ```markdown
@@ -87,6 +92,7 @@ Scope check: CLEAN | DRIFT DETECTED | REQUIREMENTS MISSING
 Diff: <N files, +X/-Y>
 Checks run: <commands or "not run">
 CodeRabbit recommendation: SKIP | CLI | PR REVIEW, because <reason>
+PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
 
 Findings:
 

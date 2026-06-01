@@ -59,13 +59,19 @@ Agents must refresh the relevant systems of record before mutating anything.
 - Create PR: turns the current branch into a PR after checks and code review.
 - Code Review: shared bug-focused review gate.
 
+PR draft state is code-host state, not tracker state. Draft and
+ready-for-review are mutually exclusive. A draft PR is pre-review; a
+ready-for-review PR is non-draft.
+
 ## Orchestration
 
 Agent Orchestrator owns orchestration, not implementation. It chooses the next
 action needed to get tickets handled safely: delegate implementation work, nudge
 an existing worker, request another code review, rerun checks, route review
-feedback, repair tracker metadata, mark tickets for human review or missing
-information, move active workflow state, or stop on a real blocker.
+feedback, request CodeRabbit escalation when the review gate recommends it,
+mark draft PRs ready-for-review after review gates pass, repair tracker
+metadata, mark tickets for human review or missing information, move active
+workflow state, or stop on a real blocker.
 
 Downstream config should say which worker delegation paths the project supports:
 
@@ -110,6 +116,12 @@ details, or PR process instructions back to that agent, it should reply on the
 original issue thread or configured tracker thread. That keeps the same session
 in context. Starting a new assignment is only for cases where the original
 session cannot continue.
+
+After clean review and passing required checks, Agent Orchestrator should mark a
+draft PR ready-for-review unless the user or repo config explicitly says to keep
+it draft. If it stays draft, it is not ready-for-review. CodeRabbit escalation
+follows the `workflow-code-review` recommendation and is required only for
+high-risk or genuinely complex diffs, or when the user asks for it.
 
 ## Flow
 
@@ -163,11 +175,13 @@ sequenceDiagram
   W->>W: Implement and verify
   W->>W: Run code review and iterate
   W->>G: Open or update PR
-  W->>Q: Handoff PR ready for review state
+  W->>Q: Handoff PR state and review evidence
   Q->>T: Move to In Review
   Q->>R: Request independent review
   R->>R: Run code review in clean context
-  R->>Q: Changes requested or ready verdict
+  R->>Q: Findings, CodeRabbit recommendation, and PR readiness
+  Q->>G: Mark clean draft PR ready for review
+  Q->>G: Request CodeRabbit if required by risk or complexity
   Q->>T: Changes Requested or Ready to Merge
 ```
 
@@ -186,10 +200,12 @@ Default rule:
 - Issue Triage can edit labels, readiness, body shape, dependencies, metadata,
   and verified stale states. It does not review backlog unless asked.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
-- Create PR can attach the PR and report the review-state handoff.
+- Create PR can attach or mark the PR ready-for-review when its local gates
+  pass, and report the review-state handoff.
 - Agent Review can post findings and verdicts.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
-  `Changes Requested`, and `Ready to Merge`.
+  `Changes Requested`, and `Ready to Merge`, and repairs draft PRs that should
+  already be ready-for-review.
 
 ## Handoff
 
@@ -199,9 +215,11 @@ Use the shared handoff shape from
 Every handoff should say:
 
 - issue, branch, PR, owner, agent path, and environment
+- PR state: draft/pre-review or non-draft/ready-for-review
 - current state and next owner
 - checks run
 - whether code review covers the current diff
+- whether CodeRabbit is skipped, complete, or still required for the current diff
 - tracker updates made or requested
 - blockers and residual risk
 

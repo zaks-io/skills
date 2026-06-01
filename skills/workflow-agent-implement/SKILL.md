@@ -84,7 +84,7 @@ Treat implementation, code review, and PR creation as one pipeline:
    blocker that needs human input.
 7. Run `workflow-create-pr` to commit, push, create or update the PR, and update
    the issue tracker. Tell Create PR whether the latest code review covers the
-   current diff.
+   current diff and whether any CodeRabbit escalation remains.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.
@@ -103,6 +103,11 @@ Use `workflow-code-review` as the implementation quality gate. Then use
 `workflow-create-pr` as the shipping gate. `workflow-create-pr` may rerun code
 review, but Agent Implement should still run it before PR creation so review
 feedback is handled while the implementation context is fresh.
+
+Do not leave the PR in draft after checks and code review pass unless the user
+or repo config explicitly asks for a draft handoff. If a draft handoff remains,
+report it as pre-review and state exactly what must happen before Agent
+Orchestrator can mark it ready-for-review. Ready-for-review means non-draft.
 
 Remote workers should not create another worktree. Continue on the assigned
 branch and PR for review fixes.
@@ -131,5 +136,7 @@ Report:
 - checks run and result
 - code review verdict
 - whether code review covers the current diff
+- PR draft or ready-for-review state
+- CodeRabbit decision or remaining escalation
 - tracker comments and status handoff
 - blockers or follow-up issues

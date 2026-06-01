@@ -87,9 +87,13 @@ For each PR:
 2. Start the clean-context review with `workflow-code-review`.
 3. Post or return findings without fixing the PR locally.
 4. Report `Changes Requested` for blocking findings.
-5. Report `Ready to Merge` only when review is clean and required checks pass.
-6. Send feedback to Agent Orchestrator so it can move tracker state and nudge the
-   original implementer.
+5. Include the CodeRabbit recommendation and PR readiness recommendation from
+   the `workflow-code-review` output.
+6. Report `Ready to Merge` only when review is clean, required checks pass, the
+   PR is non-draft and ready-for-review, and required CodeRabbit escalation is
+   complete or recorded as skipped by policy.
+7. Send feedback to Agent Orchestrator so it can move tracker state, update PR
+   draft state, and nudge the original implementer.
 
 ## Review Focus
 
@@ -155,7 +159,8 @@ Fix the reviewed-main finding in one concrete PR.
 ## Done
 
 Report PRs reviewed, reviewed main range, issues created or recommended, checks
-run, checkpoint result, handoff to Agent Orchestrator, and residual risk.
+run, CodeRabbit recommendations, PR readiness recommendations, checkpoint
+result, handoff to Agent Orchestrator, and residual risk.
 
 ## Guardrails
 

@@ -102,7 +102,7 @@ On each pass:
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`.
 4. Check open PRs, failed checks, stale branches, unresolved review comments,
-   and workers waiting for feedback.
+   draft status, and workers waiting for feedback.
 5. Prefer unblocking active work before starting new work.
 6. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention.
@@ -110,7 +110,8 @@ On each pass:
    - local Agent Implement subagent or worktree for `local-worktree`
    - tracker-exposed assigned agent for `issue-assigned`
    - Agent Review for independent PR review and main-branch drift review
-   - additional code review or check rerun when the PR state needs evidence
+   - additional code review, CodeRabbit escalation, or check rerun when the PR
+     state needs evidence
    - worker nudge or feedback reply when the original worker can continue
    - human-review marker when the next step needs human judgment
    - local Codex for orchestration repair, metadata updates, and small
@@ -178,20 +179,43 @@ delegation metadata when the tool provides it.
 
 For Agent Implement PRs:
 
-1. Confirm code review happened when feasible.
-2. Ask Agent Review to run `workflow-code-review` in a subagent or
-   disposable worktree.
-3. Post actionable findings as PR review comments when configured.
-4. Move the issue to `Changes Requested` when author fixes are needed.
-5. Send feedback to Agent Implement or the original worker thread when
+1. Refresh PR draft status, branch head, required checks, review comments, and
+   linked issue state from the code host and tracker.
+2. Confirm code review happened when feasible and covers the current PR head. If
+   it does not, request Agent Review before changing draft state.
+3. Ask Agent Review to run `workflow-code-review` in a subagent or disposable
+   worktree.
+4. Read the review verdict and CodeRabbit recommendation from the review
+   artifact.
+5. If the latest review has blocking findings, post actionable findings as PR
+   review comments when configured.
+6. Move the issue to `Changes Requested` when author fixes are needed.
+7. Send feedback to Agent Implement or the original worker thread when
    available.
-6. Keep fixes on the same branch and PR.
-7. After fixes, ask Agent Review to rerun review and required checks.
-8. Move to `Ready to Merge` only when Agent Review is clean and required checks
-   pass.
-9. Merge only when config grants Agent Orchestrator merge authority and all
-   approval rules are satisfied. Otherwise stop with the PR ready for human
-   merge.
+8. Keep fixes on the same branch and PR.
+9. After fixes, ask Agent Review to rerun review and required checks.
+10. If review is clean, required checks pass or are not required, and the PR is
+    still draft, move the PR to ready-for-review unless the user or repo config
+    explicitly says to keep it draft. This is a code-host PR state change,
+    separate from tracker status. A kept-draft PR is pre-review; do not call it
+    ready-for-review.
+11. If CodeRabbit is recommended for the current diff, request the configured
+    CodeRabbit path after local review is clean. Treat missing auth, rate
+    limits, or credits as a recorded skip unless the user explicitly required
+    CodeRabbit.
+12. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
+    correctness regression, production blocker, or a user-requested finding.
+13. Move to `Ready to Merge` only when Agent Review is clean, required checks
+    pass, the PR is non-draft and ready-for-review, and required CodeRabbit
+    escalation is complete or recorded as skipped by policy.
+14. Merge only when config grants Agent Orchestrator merge authority and all
+    approval rules are satisfied. Otherwise stop with the PR ready for human
+    merge.
+
+Do not leave a PR in draft after review gates pass just because the
+implementation worker opened it as draft. If Orchestrator lacks permission to
+mark it ready-for-review, stop with the exact required code-host action.
+Ready-for-review means non-draft.
 
 ## Stop Conditions
 
@@ -230,6 +254,8 @@ Report:
 
 - issues started, nudged, reviewed, blocked, or moved
 - PRs checked and their state
+- draft PRs marked ready-for-review or left draft/pre-review with exact reason
+- CodeRabbit escalations requested, completed, skipped, or still required
 - workers launched or messaged
 - issue updates made
 - remaining blockers and next safe action

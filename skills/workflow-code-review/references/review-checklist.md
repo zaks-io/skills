@@ -133,6 +133,11 @@ Recommend `CLI` when the PR is not open yet and the change is high risk enough t
 
 Recommend `PR REVIEW` when the PR is already open, the diff is broad, or review comments need to land on GitHub threads.
 
+For a draft PR with a clean local review, do not use draft state as the reason
+to delay CodeRabbit. Recommend ready-for-review when the local gate is clean,
+then recommend `PR REVIEW` only if the risk or complexity triggers below apply.
+Ready-for-review means non-draft.
+
 Escalation triggers:
 
 - Auth, authorization, secrets, data retention, deletion, payments, billing, migrations, or background jobs.
