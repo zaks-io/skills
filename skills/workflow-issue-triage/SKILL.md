@@ -113,6 +113,8 @@ Apply obvious mechanical updates in batches:
   explicitly asks for backlog review
 - move issues to the configured done state when linked PR, branch, release, or
   code-host evidence proves the work is merged or otherwise complete
+- remove `ready-for-agent` or the repo-configured readiness label when moving an
+  issue to the configured done state
 - recommend moving issues out of done or merge-ready states when current external
   state proves the status is wrong, such as a closed-unmerged PR or reverted work
 - add missing routing, type, risk, area, kind, and readiness labels from config
@@ -151,9 +153,9 @@ duplicate", "approve security scope", or "provide credential owner".
 
 ## Self-Healing
 
-Triage is the bulk reconciler. Heal unambiguous mechanical mistakes, escalate
-intent, never leave a silent dead end, and record every fix. For triage
-specifically:
+Triage is the bulk reconciler. Use model judgment over current evidence to
+repair stale or inconsistent tracker state, escalate missing intent or authority,
+never leave a silent dead end, and record every fix. For triage specifically:
 
 - Heal across the whole current set in batches: wrong or duplicate `kind-*`,
   stale labels that resolve to verified ones, leaked containers, and statuses
@@ -178,6 +180,7 @@ By default, `ready-for-agent` means the ticket needs no further human refinement
 before handoff to an implementation agent. Use the repo config if it defines a
 different readiness policy. `ready-for-agent` does not mean dependencies are
 clear, and it is not removed only because the issue is blocked by another issue.
+It is removed when the issue moves to the configured done state.
 
 Required body content:
 
@@ -273,9 +276,11 @@ For first-run backfill:
   explicitly asks for backlog review.
 - Do not move active issues between workflow states unless config or the user
   explicitly delegates that authority to Issue Triage, or direct external
-  evidence proves a terminal state such as merged equals `Done`. Moving complete
-  issues from configured intake states to the configured ready state is allowed
-  only for requested intake cleanup or backfill.
+  evidence proves a terminal state such as merged equals `Done`. When that
+  terminal-state repair is made, also remove `ready-for-agent` or the
+  repo-configured readiness label. Moving complete issues from configured intake
+  states to the configured ready state is allowed only for requested intake
+  cleanup or backfill.
 - Do not create noisy comments for every small label edit. Prefer one summary
   comment when an issue needs explanation.
 - Do not create new label taxonomies unless config or the user explicitly names

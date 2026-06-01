@@ -67,8 +67,8 @@ The structured body required before a **Slice Ticket** can be handed to an imple
 _Avoid_: template, checklist, acceptance text
 
 **Readiness Label**:
-A label that says whether a **Ticket** still needs human refinement before agent handoff.
-_Avoid_: status, scheduling gate
+A label that says whether a **Ticket** still needs human refinement before agent handoff; remove it when the ticket is **Done**.
+_Avoid_: status, scheduling gate, completion marker
 
 **Worker Environment Label**:
 Approval metadata that says a **Ticket** may run in a configured worker environment.
@@ -93,6 +93,10 @@ _Avoid_: current work, intake
 **Intake**:
 New or unshaped work that may be promoted to the configured ready state only during requested intake cleanup.
 _Avoid_: backlog, startable work
+
+**Completely Blocked**:
+A scoped Orchestrator queue with no startable work, no PR or worker action to advance, no repairable stale state, and no in-flight signal expected without outside input.
+_Avoid_: transient wait, sleeping tick
 
 **Orphan**:
 A real workflow **Ticket** missing the project, team, parent, route label, status, body, or dependency links needed for orchestration.
@@ -167,8 +171,8 @@ A write-only retrospective record of places where orchestration struggled.
 _Avoid_: decision log, blocker state
 
 **Self-Healing**:
-Repairing unambiguous mechanical tracker mistakes from direct evidence while escalating intent gaps.
-_Avoid_: guessing, cleanup sweep
+Using model judgment over direct evidence to repair stale or inconsistent workflow state while escalating missing intent or authority.
+_Avoid_: guessing, cleanup sweep, rigid checklist
 
 **Escalation**:
 Marking or reporting that the next safe action requires human, provider, credential, product, security, customer, or ADR input.
@@ -205,7 +209,7 @@ The code-host PR state where a PR is non-draft and ready for external review or 
 _Avoid_: Code review passed, In Review
 
 **Pre-review**:
-The PR state where a draft PR still needs checks, local review, requested author prep, or human prep before it is ready for review.
+The PR state where a draft PR still needs checks, requested author prep, required author fixes, or human prep before it is ready for review.
 _Avoid_: ready-for-review
 
 **Green**:
@@ -273,7 +277,7 @@ _Avoid_: local check, CI in general
 - "Agent" is overloaded. Use **Implementation Worker** for the coding agent, **Agent Orchestrator** for the control loop, and **Issue-assigned Delegation** for tracker-exposed coding agents.
 - "Review" is overloaded. Use **Code Review** for the bug-focused gate and **Agent Review** for the clean-context role that invokes it.
 - "Kind" and "type" are distinct. **Kind** controls dispatchability; **Type** classifies the nature of the work.
-- "Draft" does not mean "waiting for CodeRabbit". A draft PR is **Pre-review** until it becomes non-draft **Ready For Review**.
+- "Draft" does not mean "waiting for CodeRabbit" or "needs another code review". A draft PR is **Pre-review** until Orchestrator verifies there is a real blocker or makes it non-draft **Ready For Review**.
 - "Backlog clear" does not mean implementing vague future work. It means each scoped ticket has a truthful next state and owner.
 - Local CLI availability does not prove **Issue-assigned Delegation** exists. That path must come from the **Issue Tracker** or verified **Repo Config**.
 - The **Dispatch Ledger** is not workflow state. The relevant **Systems Of Record** must be refreshed before acting.

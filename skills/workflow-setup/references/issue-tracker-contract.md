@@ -82,6 +82,8 @@ contains:
   the issue to an implementation agent. The issue should be scoped to one PR and
   backed by a complete agent-ready body. It can be present while dependency
   blockers remain.
+- `ready-for-agent` must be removed when an issue moves to the configured `Done`
+  state. Done work is complete, not waiting for agent handoff.
 - Issue Triage should make current tickets agent-ready and keep tracker state
   aligned with external reality. Its default scope is the configured ready state,
   usually `Todo`, plus active or PR-linked issues that need repair. It should
@@ -110,8 +112,9 @@ contains:
 - Labels are coordination signals. The issue tracker is the source of truth for
   workflow state. Issue Triage owns requested intake-to-ready promotion and
   verified stale-state reconciliation, such as marking linked merged PR work
-  `Done`. Agent Orchestrator owns active workflow state unless the user
-  explicitly says otherwise.
+  `Done`; when it marks work `Done`, it also clears `ready-for-agent`. Agent
+  Orchestrator owns active workflow state unless the user explicitly says
+  otherwise.
 - `Code review passed` means the latest linked PR head SHA has passed the
   configured code review gate for this ticket. Apply it only with adjacent
   review evidence that names the PR URL and reviewed head SHA. Remove it when

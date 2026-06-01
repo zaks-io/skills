@@ -150,7 +150,9 @@ check what "ready" means; the tracker just stores the label. Repo config defines
 how labels are treated.
 
 Draft PRs are pre-review. If a PR is ready-for-review, it must be non-draft in
-the code host.
+the code host. Draft state is not a request for another code review; the
+orchestrator should diagnose the draft blocker and unstick the PR when no blocker
+remains.
 
 `Code review passed` is a review-evidence label, not a ticket state. It means
 the latest linked PR head SHA passed the configured code review gate. Agents
@@ -160,7 +162,8 @@ changes, or evidence is stale.
 By default, `ready-for-agent` means the ticket needs no further human refinement
 before handoff to an implementation agent. Worker environment labels such as
 `remote-cursor` mean the issue is approved for that configured environment. Those
-labels are not dependency or scheduling gates.
+labels are not dependency or scheduling gates. When a ticket moves to `Done`,
+Orchestrator or verified stale-state triage removes `ready-for-agent`.
 
 Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
 containers that decompose reads as input and are never dispatched; `kind-slice`
@@ -182,9 +185,12 @@ and CI state, starts workers, asks for review, and moves tickets when the
 external state says that is safe.
 
 Agent Orchestrator does whatever needs to happen to get tickets handled safely.
-It can start local subagents in isolated branches or worktrees, assign a
-tracker-exposed coding agent to a ticket, request another code review, rerun
-checks, move clean draft PRs to ready-for-review, apply or remove
+It uses model judgment to synthesize tracker state, PR state, checks, review
+evidence, worker signals, repo config, and risk into the next safe action. It can
+start local subagents in isolated branches or worktrees, assign a tracker-exposed
+coding agent to a ticket, request another code review, rerun checks, diagnose
+draft PRs that have stalled, move unblocked draft PRs to ready-for-review, apply
+or remove
 `Code review passed`, request CodeRabbit for risky or complex diffs, reply
 directly to the original worker, mark tickets for human review or missing
 information, or stop on a real blocker. The repo config records supported worker
@@ -204,13 +210,19 @@ Claude Code; a scheduled task or automation in Codex) and never needs a human to
 re-trigger a pass. Each tick it wakes light, refreshes external state, reconciles
 its dispatch ledger, dispatches startable `kind-slice` tickets to local or remote
 workers up to a concurrency cap (default 3), calls review and integrate as steps,
-heals unambiguous tracker mistakes inline, and logs where it struggled to a
-friction ticket with compact event entries and run rollups. It can also nudge a
-worker, route feedback, mark tickets for human review, or stop on a real blocker.
-It keeps only a compact queue, ledger, and checkpoint between ticks and delegates
-heavy reads to isolated workers, so a long-running loop stays as light as a first
-run. Config records supported worker delegation paths such as `local-worktree`,
+reasons over the available evidence, and logs where it struggled to a friction
+ticket with compact event entries and run rollups. It can also nudge a worker,
+repair workflow state, route feedback, mark tickets for human review when the
+next action genuinely needs human input, or stop on a real blocker. It keeps only
+a compact queue, ledger, and checkpoint between ticks and delegates heavy reads
+to isolated workers, so a long-running loop stays as light as a first run. Config
+records supported worker delegation paths such as `local-worktree`,
 `issue-assigned`, or both.
+
+If every scoped item is blocked and no orchestration action remains, the
+orchestrator stops the recurring loop for that scope instead of waking forever.
+The blocked report names each blocker, next owner, and what would make the scope
+runnable again.
 
 For issue-assigned remote workers such as Cursor, the orchestrator delegates by
 setting the issue's agent delegate, requires the repo-route label (such as
@@ -269,7 +281,8 @@ and add agent or skill complexity only when it improves delivery.
    Todo or active tracker state needs repair. Ask explicitly when you want
    backlog review or intake backfill.
 4. Run `workflow-agent-orchestrator` to run the loop: dispatch, review,
-   integrate, repeat until the backlog is delivered or blocked.
+   integrate, repeat until the backlog is delivered or completely blocked. A
+   completely blocked loop stops instead of rescheduling itself.
 5. Use `workflow-create-pr` directly only when you are already on a branch and
    want to ship it.
 

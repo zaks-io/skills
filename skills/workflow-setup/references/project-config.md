@@ -57,13 +57,15 @@ Last updated: YYYY-MM-DD
 - Status transition owner: Issue Triage may reconcile verified stale states and move requested intake cleanup to ready state; Agent Orchestrator owns active workflow transitions
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
-  - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable
+  - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable; remove when the issue moves to Done
   - needs-info:
   - ready-for-human:
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
 - Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, repo-route label when issue-assigned, no active blockers, no active claim or open PR
+- Done cleanup: remove ready-for-agent or the repo-configured readiness label
+  when moving an issue to Done
 - Agent suitability policy: default agent work includes docs, tests, build/CI,
   small local refactors, scoped bugs with reproduction, and isolated UI changes;
   human planning required for auth, secrets, PII, payments, production,
@@ -107,6 +109,10 @@ Last updated: YYYY-MM-DD
 - Merge authority:
 - Claim record:
 - Orchestrator local state:
+- Completely-blocked stop policy: stop the recurring orchestrator run for the
+  scoped queue when no startable tickets, PRs to advance, stuck workers to nudge,
+  checks to rerun or route, stale metadata repairs, or in-flight work can still
+  produce signal
 - Friction-log ticket: dedicated ticket ID, parked out of the work queue, for orchestrator friction comments
 - Delivery metrics: merge rate, first-pass check rate, review rework, stuck workers, human escalations, and agent cost when available
 - Handoff format:
@@ -123,7 +129,9 @@ Last updated: YYYY-MM-DD
 - Claude Code imports:
 - Claude Code symlinks:
 - Claude Code verification:
-- Review model policy:
+- Review model policy: use the strongest configured reasoning path for
+  orchestration and review decisions where evidence must be synthesized; use
+  cheaper paths only for mechanical inventory reads when configured
 - Agent Orchestrator:
 - Agent Review:
 - Agent Implement:
@@ -135,10 +143,11 @@ Last updated: YYYY-MM-DD
 - Required checks:
 - Code review:
 - CodeRabbit:
-- Draft PR policy: draft only while checks, code review, requested human prep,
-  or required author fixes are incomplete; Agent Orchestrator marks clean draft
-  PRs ready-for-review and verifies the code-host PR is non-draft unless this
-  repo says otherwise. A kept-draft PR is pre-review, not ready-for-review
+- Draft PR policy: draft only while checks, requested human prep, or required
+  author fixes are incomplete; draft state alone is not a code review request.
+  Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts
+  ready-for-review, and verifies the code-host PR is non-draft unless this repo
+  says otherwise. A kept-draft PR is pre-review, not ready-for-review
 - Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:
@@ -202,9 +211,10 @@ State authority should live in external systems:
 Every configured readiness or worker environment label needs a short treatment
 policy in this file. `ready-for-agent` should answer "does a human need to refine
 this ticket before I hand it to an implementation agent?" It must not be used as
-a dependency, status, or scheduling signal. Worker environment labels such as
-`remote-cursor` should answer "is this issue allowed to run in that configured
-environment?" They must not be used as dependency, status, or scheduling signals.
+a dependency, status, or scheduling signal, and it must be removed when the
+ticket moves to Done. Worker environment labels such as `remote-cursor` should
+answer "is this issue allowed to run in that configured environment?" They must
+not be used as dependency, status, or scheduling signals.
 
 Issue-assigned worker config should be stable enough for Orchestrator to act
 without probing real work. Record the configured worker path, environment labels

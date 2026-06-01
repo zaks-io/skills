@@ -61,10 +61,11 @@ domain behavior, and performance work without benchmarks.
 7. Agent Review runs `workflow-code-review` in a clean context and reports
    findings, CodeRabbit recommendation, PR readiness, and reviewed head SHA
    without modifying product code or moving issue state.
-8. Agent Orchestrator routes findings back to the worker, marks a clean draft PR
-   ready-for-review when allowed, requests CodeRabbit when the current diff
-   needs it, applies or removes `Code review passed`, or calls the integrate
-   step to merge on green and move the issue to the done state.
+8. Agent Orchestrator routes findings back to the worker, repairs stuck draft PRs
+   or marks them ready-for-review when allowed, requests CodeRabbit when the
+   current diff needs it, applies or removes `Code review passed`, or calls the
+   integrate step to merge on green, move the issue to the done state, and remove
+   `ready-for-agent`.
 
 ## Loop Model
 
@@ -73,13 +74,20 @@ domain behavior, and performance work without benchmarks.
   (schedule, `/loop`, or wake-up timer; Codex scheduled task or automation) and
   never needs a human to re-trigger a pass. Each tick wakes light, rebuilds the
   queue from systems of record, acts on a bounded slice, persists only the ledger
-  and checkpoint, and sleeps.
+  and checkpoint, and sleeps only when future external signal can still arrive.
+- If the refreshed scope is completely blocked, Orchestrator stops the recurring
+  loop for that scope instead of waking forever. Completely blocked means there
+  are no startable tickets, returned PRs to advance, stuck workers to nudge,
+  failed checks to rerun or route, stale metadata repairs, or in-flight work that
+  can still produce signal. The blocked report names each blocker, next owner,
+  and the condition that would make the scope runnable again.
 - Review and integrate are steps the orchestrator calls inside a tick, not loops.
   Decompose and triage are front-loaded steps the user runs before orchestration.
 
 ## Self-Healing
 
-Heal unambiguous mechanical mistakes, escalate intent, never skip silently,
+Use model judgment over current evidence, take the next safe action when the
+evidence is enough, escalate missing intent or authority, never skip silently,
 record every fix. Decompose and triage report heals in their run summaries; the
 orchestrator logs a friction entry per inline heal. Never fabricate scope or
 acceptance criteria; a vague spec dead-ends at the user by design.
@@ -87,19 +95,23 @@ acceptance criteria; a vague spec dead-ends at the user by design.
 ## Orchestration
 
 Agent Orchestrator owns orchestration, not implementation. It chooses the next
-action needed to get tickets handled safely: delegate a `kind-slice` to a
-worker, nudge an existing worker, call the review step, call the integrate step,
-rerun checks, route review feedback, request CodeRabbit escalation when the
-review gate recommends it, mark draft PRs ready-for-review after review gates
-pass, heal or repair tracker metadata, apply or remove review-evidence labels,
-log friction, mark tickets for human review or missing information, move active
-workflow state, or stop on a real blocker.
+action needed to get tickets handled safely. It uses model judgment to synthesize
+tracker state, PR state, checks, review evidence, worker signals, repo config,
+and risk into actions: delegate a `kind-slice` to a worker, nudge an existing
+worker, call the review step, call the integrate step, rerun checks, route review
+feedback, request CodeRabbit escalation when the review gate recommends it,
+diagnose and repair stuck draft PRs, mark unblocked draft PRs ready-for-review,
+heal or repair tracker metadata, apply or remove review-evidence labels, log
+friction, mark tickets for human review when the next step genuinely needs human
+input, move active workflow state, or stop on a real blocker.
 
 It can be invoked for explicit tickets, a tracker filter, a project, a
 milestone, a label, one pass, or an `until clear` target. `Clear` means every
 issue in scope has a truthful next state and owner: implemented, delegated,
 ready for review, ready to merge, blocked, needs human input, or terminal. It
-does not mean implementing vague future work without triage.
+does not mean implementing vague future work without triage. If every scoped
+issue is blocked and no orchestration action remains, the loop stops for that
+scope.
 
 Config should name the worker delegation paths this repo supports:
 
@@ -142,10 +154,12 @@ For issue-assigned delegation:
   thread-root comment's `parentId`. For remote Cursor agents, a top-level issue
   comment does not continue the session; record the session handle (such as the
   `cursor.com/agents/bc-<id>` URL) in the ledger.
-- PR draft state lives in the code host. After clean review and passing required
-  checks, Agent Orchestrator should mark a draft PR ready-for-review unless the
-  user or repo config explicitly says to keep it draft, then refresh the PR state
-  and verify it is non-draft. If it stays draft, it is pre-review, not
+- PR draft state lives in the code host. When a PR is stuck in draft, Agent
+  Orchestrator diagnoses the blocker from repo policy, PR state, checks,
+  comments, handoff notes, and the original worker session. Draft state alone is
+  not a reason to request code review. If no explicit blocker remains, Agent
+  Orchestrator marks the PR ready-for-review, then refreshes the PR state and
+  verifies it is non-draft. If it stays draft, it is pre-review, not
   ready-for-review.
 - CodeRabbit escalation follows the `workflow-code-review` recommendation. It
   is required only for high-risk or genuinely complex diffs, or when the user
@@ -168,6 +182,7 @@ branches, worktrees, or subagents when available.
 Issue Triage may move complete issues from configured intake states to the
 configured ready state during requested intake cleanup, and may reconcile
 verified stale states such as moving tickets with merged linked PRs to `Done`.
+When it marks a ticket `Done`, it removes `ready-for-agent`.
 Agent Orchestrator does not store authoritative workflow state locally. It reads
 and writes the systems of record:
 
@@ -187,10 +202,11 @@ not state: append-only comments on a parked ticket, never read back to decide
 anything.
 
 Create PR can mark the PR ready-for-review when its local gates pass and verify
-the code-host PR is non-draft. Orchestrator repairs draft PRs that should already
-be ready-for-review after Agent Review and required checks are clean, verifies
-the code-host PR is non-draft, and applies or removes `Code review passed` based
-on current PR head SHA evidence.
+the code-host PR is non-draft. Orchestrator diagnoses stuck draft PRs without
+treating draft state as a review request, repairs blockers, verifies the
+code-host PR is non-draft, and applies or removes `Code review passed` based on
+current PR head SHA evidence. When Orchestrator moves a ticket to `Done`, it
+removes `ready-for-agent`.
 
 ## Adapter Minimum
 

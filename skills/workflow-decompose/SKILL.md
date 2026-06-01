@@ -166,8 +166,9 @@ colliding slices concurrently.
 
 ## Self-Healing
 
-Heal unambiguous mechanical mistakes, escalate intent, never leave a silent dead
-end, and record every fix. For decompose specifically:
+Use model judgment over current evidence to repair stale or inconsistent ticket
+structure, escalate missing intent or authority, never leave a silent dead end,
+and record every fix. For decompose specifically:
 
 - Heal a wrong or duplicate `kind-*`, a stale label that resolves to a verified
   one, and a re-run duplicate by converging on the canonical ticket.

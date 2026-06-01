@@ -157,7 +157,8 @@ Record:
 - autonomous-loop controls when the repo runs the orchestrator unattended:
   concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
   breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, post-merge check, friction-log ticket ID, and delivery metrics
+  risk tiers, post-merge check, completely-blocked stop policy, friction-log
+  ticket ID, and delivery metrics
 - label source of truth: the live tracker metadata, tracker workflow settings,
   existing repo docs, or explicit user instruction used to verify label names
 - label documentation policy: whether repo-local label docs exist, and whether
@@ -217,7 +218,8 @@ Readiness:
 Readiness label policy belongs in repo config. By default, `ready-for-agent`
 means the ticket needs no further human refinement before handoff to an
 implementation agent. It does not mean unblocked, startable, or assigned to a
-specific worker environment.
+specific worker environment. Remove it when the ticket moves to the configured
+done state.
 
 Worker environment labels, such as `remote-worker` or `remote-cursor`, are
 project config values only. Record them when the repo's tracker uses them; do not

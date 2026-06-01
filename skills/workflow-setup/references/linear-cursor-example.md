@@ -55,6 +55,7 @@ Last updated: 2026-06-01
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Startable work criteria: kind-slice, Todo, ready-for-agent, remote-cursor,
   repo-route label, complete body, no active blockers, no active claim, no open PR
+- Done cleanup: remove ready-for-agent when moving a ticket to Done
 
 ## Work Coordination
 
@@ -67,6 +68,8 @@ Last updated: 2026-06-01
 - Auto-merge risk tiers: orchestrator may auto-merge LOW and MEDIUM when green;
   HIGH routes to human merge
 - Post-merge check: <command/signal on main, or none>
+- Completely-blocked stop policy: stop the recurring orchestrator run for this
+  scope and report blockers instead of waking forever
 - Authoritative issue state: Linear
 - Authoritative PR state: GitHub
 - Merge authority: orchestrator for LOW/MEDIUM green PRs; human for HIGH
