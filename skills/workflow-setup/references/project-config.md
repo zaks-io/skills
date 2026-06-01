@@ -62,7 +62,8 @@ Last updated: YYYY-MM-DD
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
-- Startable work criteria: ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
+- Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
+- Kind labels: kind-spec, kind-epic, kind-slice (single-select; skills enforce exclusivity; only kind-slice is dispatchable)
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Risk label policy: use the default risk labels as dimensions, not severity levels; add repo-specific risk labels only when they change routing, checks, approvals, or reviewer assignment
 - Review evidence labels: Code review passed
@@ -72,6 +73,8 @@ Last updated: YYYY-MM-DD
 - Area labels:
 - Priority policy:
 - Dependency policy:
+- Dependency graph mechanism: tracker relationship/blocker field, or configured body shape
+- File footprint convention: where decompose records predicted files/packages per slice
 - Agent-ready issue body:
 - Labels are signals, not authority:
 
@@ -80,6 +83,12 @@ Last updated: YYYY-MM-DD
 - Worker delegation paths: local-worktree, issue-assigned, or both
 - Default worker path:
 - Parallelism policy:
+- Concurrency cap: max workers dispatched at once
+- Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before re-dispatch or escalation
+- Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
+- Required checks for merge: the CI checks that define green for the integrate gate
+- Auto-merge risk tiers: which risk tiers Orchestrator may auto-merge vs route to human merge
+- Post-merge check: command or signal that confirms the default branch is healthy after merge, if any
 - Authoritative issue state:
 - Authoritative PR state:
 - Authoritative check state:
@@ -91,6 +100,8 @@ Last updated: YYYY-MM-DD
 - Merge authority:
 - Claim record:
 - Orchestrator local state:
+- Friction-log ticket: dedicated ticket ID, parked out of the work queue, for orchestrator friction comments
+- Spec-conformance cadence: when Orchestrator triggers workflow-spec-conformance, such as every N merges or a timer
 - Handoff format:
 
 ## Agent Access

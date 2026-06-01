@@ -110,9 +110,10 @@ On refresh, setup reads the existing config first, checks what changed in the
 repo, issue tracker, CI, worker delegation paths, and environment rules, then
 patches stale or missing values.
 
-Then run the normal loop:
+Then run the normal flow:
 
 ```text
+$workflow-decompose <spec|prd|epic>
 $workflow-issue-triage
 $workflow-agent-orchestrator
 ```
@@ -125,6 +126,10 @@ $workflow-agent-orchestrator label:ready-for-agent one pass
 $workflow-agent-orchestrator project "Payments" until clear
 $workflow-agent-orchestrator backlog until clear
 ```
+
+Decompose turns a spec, PRD, or epic ticket into dependency-ordered one-PR
+tickets. Triage gets the current set consistent. Orchestrator runs the loop:
+dispatch, review, integrate, repeat.
 
 Use direct skills when you want one specific action:
 
@@ -139,8 +144,10 @@ $workflow-agent-review <pr|range>
 ## The Operating Model
 
 The issue tracker is the source of truth for issue state. In most repos that is
-Linear. Labels are signals. Status is state. Repo config defines how labels are
-treated.
+Linear. The tracker is dumb storage: it holds status, labels, and relationships
+and verifies nothing. Labels are signals. Status is state. Skills define and
+check what "ready" means; the tracker just stores the label. Repo config defines
+how labels are treated.
 
 Draft PRs are pre-review. If a PR is ready-for-review, it must be non-draft in
 the code host.
@@ -154,6 +161,10 @@ By default, `ready-for-agent` means the ticket needs no further human refinement
 before handoff to an implementation agent. Worker environment labels such as
 `remote-cursor` mean the issue is approved for that configured environment. Those
 labels are not dependency or scheduling gates.
+
+Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
+containers that decompose reads as input and are never dispatched; `kind-slice`
+is a one-PR ticket and the only kind a worker runs.
 
 Issue Triage defaults to current work: `Todo` tickets plus active or PR-linked
 tickets whose tracker state may be stale. It makes Todo tickets ready for
@@ -175,28 +186,49 @@ delegation paths such as
 `local-worktree`, `issue-assigned`, or both, plus only the project-specific
 routing or continuation comment details that are annoying to rediscover.
 
-Agent Review is a background safety loop. It reviews PRs from clean context,
-checks main for drift, and reports bugs or review verdicts. It should not fix
-code or move active work.
+Decompose is the front door. It turns a spec, PRD, or epic ticket into
+dependency-ordered `kind-slice` tickets, adopts any tickets you made by hand
+instead of duplicating them, applies the body contract and labels, and emits a
+dependency graph and predicted file footprint. Run it whenever you want the
+tickets to match the plan; re-running converges.
 
-Agent Implement handles one issue at a time. It implements, verifies, runs code
-review, fixes findings, and hands off to PR creation.
+Agent Orchestrator is the work loop. Each tick it refreshes external state,
+reconciles its dispatch ledger, dispatches startable `kind-slice` tickets to
+local or remote workers up to a concurrency cap, calls review and integrate as
+steps, heals unambiguous tracker mistakes inline, and logs where it struggled to
+a friction ticket. It can also nudge a worker, route feedback, mark tickets for
+human review, or stop on a real blocker. Config records supported worker
+delegation paths such as `local-worktree`, `issue-assigned`, or both.
 
-Create PR is the shipping gate. If the current diff already has a fresh
-`workflow-code-review` result, it can use it. Otherwise it runs review before
-committing and opening or updating the PR.
+A delegated worker, local or remote Cursor, owns implementation: it writes code,
+self-reviews with `workflow-code-review`, and opens its own PR with
+`workflow-create-pr`. The orchestrator coordinates; it does not write code or
+open PRs.
+
+Agent Review and integrate are steps the orchestrator calls, not loops. Agent
+Review runs `workflow-code-review` from clean context and returns a verdict;
+integrate is the auto-merge gate that defines green, rebases on moved main,
+merges, and runs a post-merge check.
+
+Spec-conformance is the second loop. On its own cadence it checks the spec set
+against delivered work and files gap tickets for under-delivery or drift. It
+never touches code or active work.
 
 ## The Skills
 
 - `workflow-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
-- `workflow-issue-triage`: update current tracker labels, readiness, stale
+- `workflow-decompose`: turn a spec, PRD, or epic ticket into dependency-ordered
+  one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
+  contract and labels, and emit a dependency graph and file footprint.
+- `workflow-issue-triage`: update current tracker labels, kinds, readiness, stale
   verified states, orphans, body shape, and dependencies so Todo tickets are
   clean and agent-ready. It follows the repo-configured label treatment policy,
   skips backlog unless asked, and asks or lists exact human next actions when
   something is unclear.
-- `workflow-agent-orchestrator`: orchestrate tracked work without becoming the
-  coder or reviewer.
+- `workflow-agent-orchestrator`: run the work loop, dispatching startable
+  `kind-slice` tickets and calling review and integrate as steps, without
+  becoming the coder or reviewer.
 - `workflow-agent-implement`: take one startable issue through implementation,
   checks, review, and PR creation.
 - `workflow-code-review`: bug-focused review for branches, PRs, working trees,
@@ -212,11 +244,14 @@ committing and opening or updating the PR.
 
 1. Run `workflow-setup` once per repo, and rerun it when the workflow config may
    be stale.
-2. Run `workflow-issue-triage` before the first orchestration run and whenever
+2. Run `workflow-decompose` on a spec, PRD, or epic ticket to create the
+   `kind-slice` tickets and dependency graph. Re-run it any time to reconcile the
+   tickets with the plan.
+3. Run `workflow-issue-triage` before the first orchestration run and whenever
    Todo or active tracker state needs repair. Ask explicitly when you want
    backlog review or intake backfill.
-3. Run `workflow-agent-orchestrator` to keep active work moving.
-4. Let Agent Orchestrator delegate implementation and review.
+4. Run `workflow-agent-orchestrator` to run the loop: dispatch, review,
+   integrate, repeat until the backlog is delivered or blocked.
 5. Use `workflow-create-pr` directly only when you are already on a branch and
    want to ship it.
 
@@ -238,8 +273,12 @@ A repo is ready when:
   policy are explicit
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
-- `workflow-agent-orchestrator`, `workflow-agent-implement`, `workflow-code-review`,
-  and `workflow-create-pr` can run without guessing repo conventions
+- kind labels, the concurrency cap, stuck-worker timeout, required-checks-for-
+  merge, auto-merge risk tiers, and friction-log ticket are set when running the
+  autonomous loop
+- `workflow-decompose`, `workflow-agent-orchestrator`, `workflow-agent-implement`,
+  `workflow-code-review`, and `workflow-create-pr` can run without guessing repo
+  conventions
 
 ## Validate This Repo
 

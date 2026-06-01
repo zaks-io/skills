@@ -135,17 +135,24 @@ Record:
 - package manager and command table: install, full gate, focused checks, build,
   lint, typecheck, tests, smoke, generated artifacts
 - issue tracker provider, provider location, project or board, routing label,
-  triage scope, orphan policy, statuses, labels, readiness label policy, worker
-  environment label policy when present, startable work criteria, priority
-  policy, dependency policy, issue body contract, Issue Triage verified-state
-  reconciliation authority, requested intake-to-ready authority, and which
-  workflow role owns active status transitions
+  triage scope, orphan policy, statuses, labels, kind label set
+  (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
+  readiness label policy, worker environment label policy when present, startable
+  work criteria (including `kind-slice` only), priority policy, dependency policy,
+  dependency graph mechanism, file footprint convention, issue body contract,
+  Issue Triage verified-state reconciliation authority, requested intake-to-ready
+  authority, and which workflow role owns active status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
   one read-only verification query or tool call that returned the expected scope
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
 - default worker path and parallelism policy when the user or repo has a stable
   preference
+- autonomous-loop controls when the repo runs the orchestrator unattended:
+  concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
+  breaker, required checks that define green for the integrate gate, auto-merge
+  risk tiers, post-merge check, friction-log ticket ID, and spec-conformance
+  cadence
 - label source of truth: the live tracker metadata, tracker workflow settings,
   existing repo docs, or explicit user instruction used to verify label names
 - label documentation policy: whether repo-local label docs exist, and whether
@@ -162,11 +169,12 @@ Record:
 - Claude Code compatibility: the target repo's Claude Code integration source
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified
-- automation roles: Issue Triage, Agent Orchestrator, Agent Review, Create PR,
-  and Agent Implement, including Issue Triage current-ticket readiness repair,
+- automation roles: Decompose, Issue Triage, Agent Orchestrator, Agent Review,
+  Create PR, and Agent Implement, including Decompose spec-to-slice creation and
+  the dependency graph, Issue Triage current-ticket readiness repair,
   verified-state reconciliation, requested intake promotion, Orchestrator-owned
-  active tracker transitions, clean-context review delegation, and the
-  implementation pipeline
+  active tracker transitions, the orchestrator integrate gate and friction log,
+  clean-context review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation,
   required CI, preview checks
 - environment safety: local, development, preview, and production capabilities;
@@ -184,6 +192,13 @@ explicit user instruction. Do not guess from memory.
 Use [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
 only when the repo has no different verified mapping. Treat these labels as
 defaults, not proof that the tracker already has them:
+
+Kind (single-select; skills enforce exclusivity; only `kind-slice` is
+dispatchable):
+
+- `kind-spec`
+- `kind-epic`
+- `kind-slice`
 
 Readiness:
 

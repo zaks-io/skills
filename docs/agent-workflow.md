@@ -40,25 +40,39 @@ Workflow state must not live only in local agent files.
 - Branch and PR state: configured code host
 - Check and preview state: CI, preview, or hosted check provider
 - Deploy state: deployment provider
-- Orchestrator-local state: scratch, polling checkpoints, and duplicate
-  suppression only
+- Orchestrator-local state: scratch, polling checkpoints, dispatch ledger, and
+  duplicate suppression only
 
-Agents must refresh the relevant systems of record before mutating anything.
+Agents must refresh the relevant systems of record before mutating anything. The
+dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegations
+for stuck-worker detection and duplicate suppression; it may be empty on any tick
+and is always reconciled against the tracker and code host.
+
+The friction log is the one retrospective artifact and is intentionally not a
+system of record. The orchestrator writes it as append-only comments on a
+dedicated parked ticket and never reads it back to make decisions.
 
 ## Roles
 
-- Agent Orchestrator: reads external state, starts or nudges workers, asks for
-  review, and owns the authority to mutate active workflow status in the issue
-  tracker.
+- Decompose: the front door that turns a spec, PRD, or epic ticket into
+  dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
+  instead of duplicating them, applies the agent-ready body contract and labels,
+  and emits a dependency graph and predicted file footprint. Creates tickets; it
+  does not implement, review, or move active work.
+- Agent Orchestrator: reads external state, starts or nudges workers, calls
+  review and integrate as steps, records a friction log, and owns the authority
+  to mutate active workflow status in the issue tracker.
 - Agent Implement: owns one delegated issue through implementation, checks,
   code review, PR creation, and handoff.
 - Agent Review: reviews PRs and main drift from clean context, reports verdicts
   to Orchestrator, and files or recommends follow-up issues.
-- Issue Triage: updates tracker metadata, readiness, dependencies, current
-  status, and issue body shape so Todo tickets are clean, ready for agents, and
-  the tracker reflects external reality. It does not review backlog by default;
-  when something is unclear, it asks the user or leaves exact human next actions.
+- Issue Triage: the bulk reconciler. Updates tracker metadata, readiness,
+  dependencies, current status, and issue body shape so Todo tickets are clean,
+  ready for agents, and the tracker reflects external reality. It does not review
+  backlog by default; when something is unclear, it asks the user or leaves exact
+  human next actions.
 - Create PR: turns the current branch into a PR after checks and code review.
+  This is the worker's shipping step, not a separate orchestration stage.
 - Code Review: shared bug-focused review gate.
 
 PR draft state is code-host state, not tracker state. Draft and
@@ -71,15 +85,60 @@ ticket. It must be applied with PR URL and reviewed head SHA evidence, and
 removed when the PR head changes, blocking findings appear, the linked PR
 changes, or evidence is missing.
 
+## Two Loops
+
+The system runs two independent loops that share the tracker and never call each
+other:
+
+- Agent Orchestrator drives work forward. It runs continuously while a backlog
+  exists, one stateless tick at a time, keeping its context thin.
+- Spec-conformance audits coverage. It runs on its own cadence, reads the spec
+  set against delivered work, and files gap tickets for under-delivery or drift.
+
+Review and integrate are not loops. They are steps the orchestrator calls inside
+a tick and waits on. Decompose and triage are not loops either; they are
+front-loaded steps the user runs before orchestration.
+
+## Ticket Kinds
+
+Kind is a single-select axis, separate from type. Skills enforce exclusivity even
+when the tracker label group does not.
+
+- `kind-spec`: holds spec or PRD prose. Decompose input. Never dispatched.
+- `kind-epic`: a parent or workstream container. Never dispatched.
+- `kind-slice`: a one-PR implementation ticket. The only kind a worker runs.
+
+Containers (`kind-spec`, `kind-epic`) are decompose input, not work to ship.
+Decompose reads them and emits `kind-slice` children. The orchestrator hard-
+refuses to dispatch a container even if it carries `ready-for-agent`.
+
+## Self-Healing
+
+Workflow skills recover from tracker mistakes without generating intent or hiding
+problems. The shared rule: heal unambiguous mechanical mistakes, escalate intent,
+never skip silently, record every fix.
+
+- Heal when there is one correct answer from direct evidence: a wrong or
+  duplicate `kind-*`, a stale label that resolves to a verified ID, a status
+  contradicted by a merged PR.
+- Escalate intent-level gaps with `needs-info` or `ready-for-human`. Never
+  fabricate scope or acceptance criteria.
+- Decompose and triage report heals in their run summaries. Orchestrator logs a
+  `config-gap` friction entry per inline heal, so repeated mistakes become a list
+  of what to fix upstream.
+
+Self-healing cannot fix a bad spec; a vague PRD dead-ends at the user by design.
+
 ## Orchestration
 
 Agent Orchestrator owns orchestration, not implementation. It chooses the next
-action needed to get tickets handled safely: delegate implementation work, nudge
-an existing worker, request another code review, rerun checks, route review
-feedback, request CodeRabbit escalation when the review gate recommends it,
-mark draft PRs ready-for-review after review gates pass, repair tracker
-metadata, apply or remove review-evidence labels, mark tickets for human review
-or missing information, move active workflow state, or stop on a real blocker.
+action needed to get tickets handled safely: delegate a `kind-slice` to a
+worker, nudge an existing worker, call the review step, call the integrate step,
+rerun checks, route review feedback, request CodeRabbit escalation when the
+review gate recommends it, mark draft PRs ready-for-review after review gates
+pass, heal or repair tracker metadata, apply or remove review-evidence labels,
+log friction, mark tickets for human review or missing information, move active
+workflow state, or stop on a real blocker.
 
 Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
 a milestone, a label, one pass, or an `until clear` target. `Clear` means every
@@ -153,60 +212,69 @@ flowchart TD
   Setup["workflow-setup\nCreate repo config"]
   Config["Repo config\ncommands, tracker, agents, environments"]
   Tracker["Issue tracker\nsource of truth for issue state"]
+  Decompose["workflow-decompose\nspec/epic to kind-slice tickets + DAG"]
   IssueTriage["workflow-issue-triage\nmetadata, readiness, verified state repair"]
-  Orchestrator["workflow-agent-orchestrator\nstate mutation authority"]
-  Worker["Implementation worker\nlocal or issue-assigned"]
-  CodeReview["workflow-code-review\nreview gate"]
-  CreatePR["workflow-create-pr\nchecks, commit, PR, handoff"]
+  Orchestrator["workflow-agent-orchestrator\nstate authority, friction log"]
+  Worker["Implementation worker\nlocal or issue-assigned; runs create-pr"]
   AgentReview["workflow-agent-review\nindependent review and drift"]
+  CodeReview["workflow-code-review\nreview gate"]
+  Integrate["integrate step\nauto-merge gate on green"]
+  Conformance["workflow-spec-conformance\ncoverage audit (separate loop)"]
 
   Setup --> Config
+  Config --> Decompose
   Config --> Orchestrator
   Config --> IssueTriage
   Config --> Worker
   Config --> CodeReview
-  Config --> CreatePR
   Config --> AgentReview
 
+  Decompose -->|create/adopt slices, DAG, footprint| Tracker
   IssueTriage -->|labels, readiness, verified state repair| Tracker
-  Orchestrator -->|select, claim, move states| Tracker
+  Orchestrator -->|select kind-slice, claim, move states| Tracker
+  Orchestrator -->|friction comments| Tracker
   Orchestrator -->|delegate| Worker
-  Worker --> CodeReview
-  CodeReview -->|review artifact| CreatePR
-  CreatePR -->|PR and handoff| Orchestrator
-  Orchestrator -->|request review| AgentReview
+  Worker -->|self-review + open PR| CodeReview
+  Worker -->|PR and handoff| Orchestrator
+  Orchestrator -->|call review step| AgentReview
   AgentReview -->|clean-context review| CodeReview
   AgentReview -->|verdict| Orchestrator
   AgentReview -->|bug or drift issues| Tracker
+  Orchestrator -->|call merge step on green| Integrate
+  Integrate -->|merged, move to Done| Tracker
+  Conformance -->|gap tickets| Tracker
 ```
 
 ```mermaid
 sequenceDiagram
-  participant Q as Agent Orchestrator
+  participant D as Decompose
   participant I as Issue Triage
+  participant Q as Agent Orchestrator
   participant T as Issue Tracker
   participant W as Implementation Worker
   participant G as Code Host and PR
   participant R as Agent Review
 
-  I->>T: Clean labels, readiness, dependencies, orphans, and verified stale state
-  Q->>T: Refresh startable and active issues
+  D->>T: Create/adopt kind-slice tickets, DAG, footprint
+  I->>T: Clean labels, kinds, readiness, dependencies, verified stale state
+  Q->>T: Refresh startable (kind-slice) and active issues
   Q->>G: Refresh PR, branch, check, and preview state
+  Q->>Q: Reconcile dispatch ledger; re-dispatch stuck workers
   Q->>T: Claim issue and move to In Progress
   Q->>W: Delegate issue through supported worker path
-  W->>T: Post plan and branch
-  W->>W: Implement and verify
-  W->>W: Run code review and iterate
-  W->>G: Open or update PR
+  W->>W: Implement, self-review with code review, iterate
+  W->>G: Open PR via create-pr
   W->>Q: Handoff PR state and review evidence
   Q->>T: Move to In Review
-  Q->>R: Request independent review
-  R->>R: Run code review in clean context
+  Q->>R: Call review step in clean context
   R->>Q: Findings, CodeRabbit recommendation, PR readiness, and reviewed head SHA
   Q->>G: Mark clean draft PR ready for review
   Q->>G: Request CodeRabbit if required by risk or complexity
   Q->>T: Apply or clear Code review passed
   Q->>T: Changes Requested or Ready to Merge
+  Q->>G: On green, rebase if needed, merge, post-merge check
+  Q->>T: Move to Done
+  Q->>T: Friction comment for any heal, stuck worker, or thrash
 ```
 
 ## Status Ownership
@@ -221,16 +289,20 @@ config or user explicitly delegates that authority.
 
 Default rule:
 
-- Issue Triage can edit labels, readiness, body shape, dependencies, metadata,
-  stale review-evidence labels, and verified stale states. It does not review
-  backlog unless asked.
+- Decompose can create and adopt `kind-slice` tickets, set kind/type/risk/
+  readiness labels, encode dependencies, and write the agent-ready body. It does
+  not move active work.
+- Issue Triage can edit labels, kinds, readiness, body shape, dependencies,
+  metadata, stale review-evidence labels, and verified stale states. It does not
+  review backlog unless asked.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
 - Create PR can attach or mark the PR ready-for-review when its local gates
   pass, and report the review-state handoff.
 - Agent Review can post findings and verdicts.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
-  `Changes Requested`, and `Ready to Merge`, and repairs draft PRs that should
-  already be ready-for-review. It also applies or removes `Code review passed`
+  `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
+  integrate gate when config grants merge authority. It repairs draft PRs that
+  should already be ready-for-review and applies or removes `Code review passed`
   based on current PR head SHA evidence.
 
 ## Handoff
