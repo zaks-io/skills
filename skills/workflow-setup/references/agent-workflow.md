@@ -34,13 +34,13 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
    creates or updates the PR.
 5. Agent Orchestrator requests Agent Review for PR review.
 6. Agent Review runs `workflow-code-review` in a clean context and reports
-   findings, CodeRabbit recommendation, and PR readiness without modifying
-   product code or moving issue state.
+   findings, CodeRabbit recommendation, PR readiness, and reviewed head SHA
+   without modifying product code or moving issue state.
 7. Agent Orchestrator routes findings back to the implementation worker, marks a
    clean draft PR ready-for-review when allowed, requests CodeRabbit when the
-   current diff needs it, or moves the issue to the configured merge-ready state
-   when review, checks, PR readiness, and required CodeRabbit escalation are
-   clean.
+   current diff needs it, applies or removes `Code review passed`, or moves the
+   issue to the configured merge-ready state when review, checks, PR readiness,
+   current review evidence, and required CodeRabbit escalation are clean.
 8. Agent Review periodically reviews main drift and creates tracker issues for
    real regressions or contract gaps.
 
@@ -51,8 +51,8 @@ action needed to get tickets handled safely: delegate implementation work, nudge
 an existing worker, request another code review, rerun checks, route review
 feedback, request CodeRabbit escalation when the review gate recommends it,
 mark draft PRs ready-for-review after review gates pass, repair tracker
-metadata, mark tickets for human review or missing information, move active
-workflow state, or stop on a real blocker.
+metadata, apply or remove review-evidence labels, mark tickets for human review
+or missing information, move active workflow state, or stop on a real blocker.
 
 Config should name the worker delegation paths this repo supports:
 
@@ -96,6 +96,10 @@ For issue-assigned delegation:
 - CodeRabbit escalation follows the `workflow-code-review` recommendation. It
   is required only for high-risk or genuinely complex diffs, or when the user
   asks for it.
+- `Code review passed` is a review-evidence label, not workflow state. Apply it
+  only with PR URL and reviewed head SHA evidence. Remove it when the PR head
+  changes, blocking findings appear, the linked PR changes, or evidence is
+  missing.
 
 ## State Authority
 
@@ -108,6 +112,8 @@ and writes the systems of record:
 - issue workflow state: configured issue tracker
 - claim records: configured issue tracker fields, assignments, labels, and
   comments
+- review evidence labels: configured issue tracker labels plus adjacent comments
+  or fields that record PR URL and reviewed head SHA
 - branch and PR state: configured code host
 - check and preview state: CI, preview, or hosted check provider
 - deployment state: deployment provider
@@ -118,7 +124,8 @@ systems of record before acting.
 
 Create PR can mark the PR ready-for-review when its local gates pass.
 Orchestrator repairs draft PRs that should already be ready-for-review after
-Agent Review and required checks are clean.
+Agent Review and required checks are clean. Orchestrator applies or removes
+`Code review passed` based on current PR head SHA evidence.
 
 ## Adapter Minimum
 

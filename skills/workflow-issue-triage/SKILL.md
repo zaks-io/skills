@@ -41,7 +41,8 @@ Confirm these config values before mutating the issue tracker:
 
 - provider location, project, team, roadmap, and routing label
 - status names and mappings
-- readiness, risk, type, area, ownership, and worker environment labels
+- readiness, risk, review evidence, type, area, ownership, and worker
+  environment labels
 - readiness label policy, worker environment label policy, and startable work
   criteria
 - priority policy, dependency policy, and orphan policy
@@ -129,6 +130,9 @@ Apply obvious mechanical updates in batches:
 - apply configured review, merge-ready, or blocked states only when the repo
   config gives Issue Triage that authority and current external evidence is
   direct
+- remove stale `Code review passed` when the linked PR head changed, blocking
+  findings exist, the linked PR changed, or reviewed head SHA evidence is
+  missing
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
 

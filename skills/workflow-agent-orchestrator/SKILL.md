@@ -102,7 +102,7 @@ On each pass:
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`.
 4. Check open PRs, failed checks, stale branches, unresolved review comments,
-   draft status, and workers waiting for feedback.
+   draft status, review-evidence labels, and workers waiting for feedback.
 5. Prefer unblocking active work before starting new work.
 6. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention.
@@ -187,28 +187,35 @@ For Agent Implement PRs:
    worktree.
 4. Read the review verdict and CodeRabbit recommendation from the review
    artifact.
-5. If the latest review has blocking findings, post actionable findings as PR
-   review comments when configured.
-6. Move the issue to `Changes Requested` when author fixes are needed.
-7. Send feedback to Agent Implement or the original worker thread when
+5. If the PR head changed since `Code review passed` was applied, or the label
+   lacks reviewed head SHA evidence, remove the label before continuing.
+6. If the latest review has blocking findings, remove `Code review passed` and
+   post actionable findings as PR review comments when configured.
+7. Move the issue to `Changes Requested` when author fixes are needed.
+8. Send feedback to Agent Implement or the original worker thread when
    available.
-8. Keep fixes on the same branch and PR.
-9. After fixes, ask Agent Review to rerun review and required checks.
-10. If review is clean, required checks pass or are not required, and the PR is
+9. Keep fixes on the same branch and PR.
+10. After fixes, ask Agent Review to rerun review and required checks.
+11. When Agent Review is clean for the current PR head, apply
+    `Code review passed` to the issue and record the PR URL, reviewed head SHA,
+    review artifact, and reviewer path in a tracker comment or configured
+    evidence field.
+12. If review is clean, required checks pass or are not required, and the PR is
     still draft, move the PR to ready-for-review unless the user or repo config
     explicitly says to keep it draft. This is a code-host PR state change,
     separate from tracker status. A kept-draft PR is pre-review; do not call it
     ready-for-review.
-11. If CodeRabbit is recommended for the current diff, request the configured
+13. If CodeRabbit is recommended for the current diff, request the configured
     CodeRabbit path after local review is clean. Treat missing auth, rate
     limits, or credits as a recorded skip unless the user explicitly required
     CodeRabbit.
-12. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
+14. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
     correctness regression, production blocker, or a user-requested finding.
-13. Move to `Ready to Merge` only when Agent Review is clean, required checks
-    pass, the PR is non-draft and ready-for-review, and required CodeRabbit
-    escalation is complete or recorded as skipped by policy.
-14. Merge only when config grants Agent Orchestrator merge authority and all
+15. Move to `Ready to Merge` only when Agent Review is clean, required checks
+    pass, the PR is non-draft and ready-for-review, `Code review passed` is
+    current for the PR head, and required CodeRabbit escalation is complete or
+    recorded as skipped by policy.
+16. Merge only when config grants Agent Orchestrator merge authority and all
     approval rules are satisfied. Otherwise stop with the PR ready for human
     merge.
 
@@ -255,6 +262,8 @@ Report:
 - issues started, nudged, reviewed, blocked, or moved
 - PRs checked and their state
 - draft PRs marked ready-for-review or left draft/pre-review with exact reason
+- `Code review passed` labels applied, preserved, or removed with reviewed head
+  SHA evidence
 - CodeRabbit escalations requested, completed, skipped, or still required
 - workers launched or messaged
 - issue updates made

@@ -83,6 +83,10 @@ ready-for-review. Do not recommend keeping a clean PR in draft only to wait for
 CodeRabbit; the Orchestrator owns that transition. Ready-for-review means
 non-draft.
 
+Recommend applying `Code review passed` only when the verdict is `READY FOR PR`
+or `APPROVE` for a concrete branch or PR head SHA. Recommend clearing it when
+there are blocking findings or the reviewed head is not the current PR head.
+
 ## Output
 
 ```markdown
@@ -90,9 +94,11 @@ non-draft.
 
 Scope check: CLEAN | DRIFT DETECTED | REQUIREMENTS MISSING
 Diff: <N files, +X/-Y>
+Reviewed head: <sha or working tree>
 Checks run: <commands or "not run">
 CodeRabbit recommendation: SKIP | CLI | PR REVIEW, because <reason>
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
+Review evidence label: APPLY Code review passed | CLEAR | LEAVE UNCHANGED, because <reason>
 
 Findings:
 

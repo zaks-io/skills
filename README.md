@@ -86,6 +86,11 @@ treated.
 Draft PRs are pre-review. If a PR is ready-for-review, it must be non-draft in
 the code host.
 
+`Code review passed` is a review-evidence label, not a ticket state. It means
+the latest linked PR head SHA passed the configured code review gate. Agents
+remove it when the PR head changes, blocking findings appear, the linked PR
+changes, or evidence is stale.
+
 By default, `ready-for-agent` means the ticket needs no further human refinement
 before handoff to an implementation agent. Worker environment labels such as
 `remote-cursor` mean the issue is approved for that configured environment. Those
@@ -103,10 +108,11 @@ external state says that is safe.
 Agent Orchestrator does whatever needs to happen to get tickets handled safely.
 It can start local subagents in isolated branches or worktrees, assign a
 tracker-exposed coding agent to a ticket, request another code review, rerun
-checks, move clean draft PRs to ready-for-review, request CodeRabbit for risky
-or complex diffs, nudge the original worker, route feedback, mark tickets for
-human review or missing information, or stop on a real blocker. The repo config
-records supported worker delegation paths such as
+checks, move clean draft PRs to ready-for-review, apply or remove
+`Code review passed`, request CodeRabbit for risky or complex diffs, nudge the
+original worker, route feedback, mark tickets for human review or missing
+information, or stop on a real blocker. The repo config records supported worker
+delegation paths such as
 `local-worktree`, `issue-assigned`, or both, plus only the project-specific
 routing or continuation comment details that are annoying to rediscover.
 

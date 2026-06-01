@@ -64,6 +64,10 @@ Last updated: YYYY-MM-DD
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
 - Startable work criteria: ready state, ready-for-agent, complete body, no active blockers, no active claim or open PR
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
+- Risk label policy: use the default risk labels as dimensions, not severity levels; add repo-specific risk labels only when they change routing, checks, approvals, or reviewer assignment
+- Review evidence labels: Code review passed
+- Review evidence label policy:
+  - Code review passed: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
 - Priority policy:

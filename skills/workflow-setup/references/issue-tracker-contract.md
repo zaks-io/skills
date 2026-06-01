@@ -35,6 +35,10 @@ Risk:
 - `risk-schema`
 - `risk-cross-cutting`
 
+Review evidence:
+
+- `Code review passed`
+
 Type:
 
 - `Bug`
@@ -92,6 +96,11 @@ contains:
   verified stale-state reconciliation, such as marking linked merged PR work
   `Done`. Agent Orchestrator owns active workflow state unless the user
   explicitly says otherwise.
+- `Code review passed` means the latest linked PR head SHA has passed the
+  configured code review gate for this ticket. Apply it only with adjacent
+  review evidence that names the PR URL and reviewed head SHA. Remove it when
+  the PR head changes, blocking review findings appear, the linked PR changes,
+  or the review evidence is missing or stale.
 - Blocked work can keep `ready-for-agent`. Blocker relationships, body blockers,
   or workflow state stop scheduling; they do not redefine readiness metadata.
 - Worker environment labels are approval and routing metadata. They do not say
@@ -150,5 +159,6 @@ When turning roadmaps, specs, ADRs, or plans into issues:
 - apply repo routing, type, risk, area, and readiness labels from config
 - leave vague ideas un-ticketed until scope is clear
 
-Do not invent product scope, create new label taxonomies, or paste secrets,
-customer data, signed URLs, credentials, or private logs into the tracker.
+Do not invent product scope, create new risk levels or label taxonomies, or
+paste secrets, customer data, signed URLs, credentials, or private logs into the
+tracker.

@@ -93,7 +93,8 @@ For each PR:
    PR is non-draft and ready-for-review, and required CodeRabbit escalation is
    complete or recorded as skipped by policy.
 7. Send feedback to Agent Orchestrator so it can move tracker state, update PR
-   draft state, and nudge the original implementer.
+   draft state, apply or remove `Code review passed`, and nudge the original
+   implementer.
 
 ## Review Focus
 
@@ -160,7 +161,8 @@ Fix the reviewed-main finding in one concrete PR.
 
 Report PRs reviewed, reviewed main range, issues created or recommended, checks
 run, CodeRabbit recommendations, PR readiness recommendations, checkpoint
-result, handoff to Agent Orchestrator, and residual risk.
+result, `Code review passed` label recommendation with reviewed head SHA,
+handoff to Agent Orchestrator, and residual risk.
 
 ## Guardrails
 

@@ -146,8 +146,9 @@ When an issue exists:
 - report the configured review-state transition, usually `In Review`, for
   Agent Orchestrator
 - comment with checks run, code review verdict, CodeRabbit decision,
-  PR draft or ready-for-review state, acceptance criteria status, and
-  differences from original intent
+  PR draft or ready-for-review state, `Code review passed` recommendation with
+  reviewed head SHA, acceptance criteria status, and differences from original
+  intent
 - never move to `Done`; merge is not complete
 
 Do not move workflow state unless the repo config or user explicitly delegates

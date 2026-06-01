@@ -211,6 +211,18 @@ Risk:
 - `risk-schema`
 - `risk-cross-cutting`
 
+These risk labels are dimensions, not severity levels. Add repo-specific risk
+labels only when they change routing, checks, approvals, or reviewer assignment.
+
+Review evidence:
+
+- `Code review passed`
+
+By default, `Code review passed` means the latest linked PR head SHA has passed
+the configured code review gate for the ticket. Record the PR URL and reviewed
+head SHA when applying it. Remove it when the PR head changes, blocking findings
+appear, the linked PR changes, or the evidence is missing.
+
 Type:
 
 - `Bug`
@@ -248,8 +260,8 @@ runs can use it without probing.
 
 If `docs/agents/triage-labels.md` or a similar label doc exists, update it to
 match the config or replace its contents with a pointer to the config. Do not
-leave it as a stale partial list. It must cover readiness, risk, type, and any
-configured area or ownership labels.
+leave it as a stale partial list. It must cover readiness, risk, review
+evidence, type, and any configured area or ownership labels.
 
 ## Adapter Update
 

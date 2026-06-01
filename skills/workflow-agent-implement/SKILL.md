@@ -137,6 +137,7 @@ Report:
 - code review verdict
 - whether code review covers the current diff
 - PR draft or ready-for-review state
+- `Code review passed` recommendation with reviewed head SHA
 - CodeRabbit decision or remaining escalation
 - tracker comments and status handoff
 - blockers or follow-up issues

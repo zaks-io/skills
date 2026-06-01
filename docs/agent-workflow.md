@@ -35,6 +35,8 @@ Workflow state must not live only in local agent files.
 
 - Issue workflow state: configured issue tracker
 - Claim records: issue tracker fields, assignments, labels, and comments
+- Review evidence labels: issue tracker labels plus adjacent tracker comments
+  or fields that record PR URL and reviewed head SHA
 - Branch and PR state: configured code host
 - Check and preview state: CI, preview, or hosted check provider
 - Deploy state: deployment provider
@@ -63,6 +65,12 @@ PR draft state is code-host state, not tracker state. Draft and
 ready-for-review are mutually exclusive. A draft PR is pre-review; a
 ready-for-review PR is non-draft.
 
+`Code review passed` is a review-evidence label, not a workflow status. It means
+the latest linked PR head SHA has passed the configured code review gate for the
+ticket. It must be applied with PR URL and reviewed head SHA evidence, and
+removed when the PR head changes, blocking findings appear, the linked PR
+changes, or evidence is missing.
+
 ## Orchestration
 
 Agent Orchestrator owns orchestration, not implementation. It chooses the next
@@ -70,8 +78,8 @@ action needed to get tickets handled safely: delegate implementation work, nudge
 an existing worker, request another code review, rerun checks, route review
 feedback, request CodeRabbit escalation when the review gate recommends it,
 mark draft PRs ready-for-review after review gates pass, repair tracker
-metadata, mark tickets for human review or missing information, move active
-workflow state, or stop on a real blocker.
+metadata, apply or remove review-evidence labels, mark tickets for human review
+or missing information, move active workflow state, or stop on a real blocker.
 
 Downstream config should say which worker delegation paths the project supports:
 
@@ -179,9 +187,10 @@ sequenceDiagram
   Q->>T: Move to In Review
   Q->>R: Request independent review
   R->>R: Run code review in clean context
-  R->>Q: Findings, CodeRabbit recommendation, and PR readiness
+  R->>Q: Findings, CodeRabbit recommendation, PR readiness, and reviewed head SHA
   Q->>G: Mark clean draft PR ready for review
   Q->>G: Request CodeRabbit if required by risk or complexity
+  Q->>T: Apply or clear Code review passed
   Q->>T: Changes Requested or Ready to Merge
 ```
 
@@ -198,14 +207,16 @@ config or user explicitly delegates that authority.
 Default rule:
 
 - Issue Triage can edit labels, readiness, body shape, dependencies, metadata,
-  and verified stale states. It does not review backlog unless asked.
+  stale review-evidence labels, and verified stale states. It does not review
+  backlog unless asked.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
 - Create PR can attach or mark the PR ready-for-review when its local gates
   pass, and report the review-state handoff.
 - Agent Review can post findings and verdicts.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, and `Ready to Merge`, and repairs draft PRs that should
-  already be ready-for-review.
+  already be ready-for-review. It also applies or removes `Code review passed`
+  based on current PR head SHA evidence.
 
 ## Handoff
 
@@ -219,6 +230,8 @@ Every handoff should say:
 - current state and next owner
 - checks run
 - whether code review covers the current diff
+- whether `Code review passed` is applied, removed, or requested for the current
+  PR head SHA
 - whether CodeRabbit is skipped, complete, or still required for the current diff
 - tracker updates made or requested
 - blockers and residual risk
