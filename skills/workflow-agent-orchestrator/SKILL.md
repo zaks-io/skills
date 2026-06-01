@@ -144,10 +144,15 @@ Refresh the systems of record before acting:
 - branch and PR state from the configured code host
 - check and preview state from CI, preview, or hosted check providers
 - deploy state from the deployment provider
+- local Git refs, worktrees, HEAD, and `git status --short --branch` from the
+  repo when a local checkout is in play
 
 Orchestrator may keep local scratch state only for polling, checkpoints, or
 duplicate suppression. The next action must be valid against the refreshed
-external state.
+external state. Local Git is an observation, not the authority, but stale local
+refs are not enough to dispatch, review, integrate, or reason about file
+contention. Update local Git state as the tick advances, especially after worker,
+PR, or default-branch changes.
 
 ## Dispatch Ledger
 
@@ -267,8 +272,9 @@ start from stale or vague issue state.
 Each tick is stateless against external state. On each pass:
 
 1. Refresh code host and issue tracker state for the configured locations using
-   the configured tracker tool/MCP and verified IDs. Note the current default
-   branch HEAD.
+   the configured tracker tool/MCP and verified IDs. Refresh local Git refs and
+   status for the repo, including relevant branches and worktrees, then note the
+   current default branch HEAD.
 2. Reconcile the dispatch ledger against refreshed state. For each in-flight
    dispatch with no branch, PR, or worker signal past the configured stuck
    timeout, treat the worker as stuck: reply directly to the assigned agent's
@@ -461,23 +467,29 @@ For each returned PR, review and integrate are called steps, not inlined work:
     `Code review passed` to the issue and record the PR URL, reviewed head SHA,
     review artifact, and reviewer path in a tracker comment or configured
     evidence field.
-12. If review is clean, required checks pass or are not required, and the PR is
+12. Before applying `Code review passed`, changing draft state, moving tracker
+    state to `Ready to Merge`, or calling integrate, refresh local Git refs and
+    code-host PR state. Verify the local branch or worktree HEAD, PR head SHA,
+    and default branch HEAD still match the review and check evidence. If they
+    do not match, rerun review and checks for the current head instead of
+    approving or merging from stale local state.
+13. If review is clean, required checks pass or are not required, and the PR is
     still draft, move the PR to ready-for-review unless the user or repo config
     explicitly says to keep it draft. Then refresh the code-host PR state and
     verify it is non-draft. This is a code-host PR state change, separate from
     tracker status. A kept-draft PR is pre-review; do not call it
     ready-for-review.
-13. If CodeRabbit is recommended for the current diff, request the configured
+14. If CodeRabbit is recommended for the current diff, request the configured
     CodeRabbit path after local review is clean. Treat missing auth, rate
     limits, or credits as a recorded skip unless the user explicitly required
     CodeRabbit.
-14. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
+15. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
     correctness regression, production blocker, or a user-requested finding.
-15. Move to `Ready to Merge` only when Agent Review is clean, required checks
+16. Move to `Ready to Merge` only when Agent Review is clean, required checks
     pass, the PR is non-draft and ready-for-review, `Code review passed` is
     current for the PR head, and required CodeRabbit escalation is complete or
     recorded as skipped by policy.
-16. Call integrate when the auto-merge gate is satisfied.
+17. Call integrate when the auto-merge gate is satisfied.
 
 Do not leave a PR in draft after review gates pass just because the
 implementation worker opened it as draft. If Orchestrator lacks permission to
@@ -500,16 +512,23 @@ with the PR ready for human merge and mark it for the human-attention queue.
 
 When the gate passes:
 
-1. If the default branch moved since the PR branch last updated, rebase or update
+1. Refresh local Git refs and code-host PR state immediately before merging.
+   Verify the local observation of the PR head, default branch HEAD, merge base,
+   required checks, review verdict, and draft state matches the code host. If
+   any value is stale or missing, update the local checkout and rerun the
+   affected gate instead of merging.
+2. If the default branch moved since the PR branch last updated, rebase or update
    the branch, then rerun required checks and `workflow-agent-review`. Do not
    merge a stale branch on the assumption it still applies. Record a
    `merge-conflict` friction entry if the rebase needed manual resolution and
    escalate instead of guessing on a real conflict.
-2. Merge through the configured mechanism.
-3. Run a post-merge check on the default branch when config names one. Mergeable
+3. Merge through the configured mechanism.
+4. Refresh local Git refs and update the local default branch to the merged head
+   before any post-merge check, next PR decision, or issue `Done` transition.
+5. Run a post-merge check on the default branch when config names one. Mergeable
    does not prove correct after merge. Record a `post-merge-break` friction entry
    and escalate if the post-merge check fails.
-4. Move the issue to `Done` only after the merge and post-merge check succeed.
+6. Move the issue to `Done` only after the merge and post-merge check succeed.
 
 Never merge or deploy production without explicit approval. A label alone is
 never permission to merge.

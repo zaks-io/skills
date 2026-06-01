@@ -27,7 +27,9 @@ until the backlog is empty; that grows context without bound.
 Each tick:
 
 1. Wake light. Load only repo config, scope, the dispatch ledger, and the review
-   checkpoint. Do not carry diffs, logs, or issue histories across ticks.
+   checkpoint. Refresh local Git refs, HEAD, worktree list, and
+   `git status --short --branch` when a local checkout is in play. Do not carry
+   diffs, logs, or issue histories across ticks.
 2. Rebuild the queue from systems of record. Delegate the inventory read to an
    isolated triage worker when the runtime has one; keep only the compact queue
    (ID, state, readiness, blockers, PR, owner, next action) in the main context.
@@ -41,6 +43,12 @@ Each tick:
    continuing.
 6. Persist only the ledger and checkpoint. Append friction entries. Exit.
 7. Sleep until the next scheduled tick.
+
+Refresh local Git state again before any action that depends on current branches,
+PR heads, default-branch drift, worktrees, or file contention. Local Git is not
+the authority, but stale local observations must not drive orchestration.
+Refresh it again after any code-host or tracker mutation that changes PR,
+review, merge, or done state before choosing the next action.
 
 ## Light Context Budget
 
