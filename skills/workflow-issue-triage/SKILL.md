@@ -114,7 +114,11 @@ Apply obvious mechanical updates in batches:
   code-host evidence proves the work is merged or otherwise complete
 - recommend moving issues out of done or merge-ready states when current external
   state proves the status is wrong, such as a closed-unmerged PR or reverted work
-- add missing routing, type, risk, area, and readiness labels from config
+- add missing routing, type, risk, area, kind, and readiness labels from config
+- set exactly one `kind-*` value and clear the others; keep `kind-spec` and
+  `kind-epic` as containers and never mark a container `ready-for-agent`
+- flag a container that leaked into the work queue, such as a `kind-spec` or
+  `kind-epic` carrying `ready-for-agent` or a startable status
 - remove conflicting workflow labels only after the correct replacement is clear
 - mark implementation-ready slices with `ready-for-agent` when the repo-configured
   readiness policy says no further human refinement is needed, even if dependency
@@ -140,6 +144,19 @@ Do not stop at a vague recommendation. For each issue that cannot be made
 implementation-ready, either ask the user a specific question or leave a
 concrete next action such as "confirm acceptance criteria", "choose canonical
 duplicate", "approve security scope", or "provide credential owner".
+
+## Self-Healing
+
+Triage is the bulk reconciler. Heal unambiguous mechanical mistakes, escalate
+intent, never leave a silent dead end, and record every fix. For triage
+specifically:
+
+- Heal across the whole current set in batches: wrong or duplicate `kind-*`,
+  stale labels that resolve to verified ones, leaked containers, and statuses
+  contradicted by direct external evidence such as a merged PR.
+- Escalate intent-level gaps with `needs-info` or `ready-for-human`; never
+  fabricate scope, acceptance criteria, or priority to make a ticket look ready.
+- Report every heal and every escalated gap in the run report.
 
 ## Issue Body
 
