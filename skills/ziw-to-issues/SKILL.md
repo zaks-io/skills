@@ -2,7 +2,6 @@
 name: ziw-to-issues
 description: Use to turn a spec, PRD, or epic ticket into dependency-ordered one-PR implementation tickets, adopting any hand-created tickets, applying the agent-ready body contract and kind labels, and emitting a dependency graph and predicted file footprint.
 argument-hint: "[spec-doc|prd-ticket|epic-ticket|project]"
-disable-model-invocation: true
 ---
 
 # To Issues

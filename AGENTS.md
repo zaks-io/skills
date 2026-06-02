@@ -36,8 +36,10 @@ content.
 - Preserve support for both Claude and Codex skill types. When adding or
   changing a skill, keep the portable `SKILL.md` contract, Claude-compatible
   frontmatter, and Codex `agents/openai.yaml` metadata in sync.
-- Side-effecting workflow skills are manual-only in both Claude frontmatter and
-  `agents/openai.yaml`.
+- Mutating workflow skills are manual-only in both Claude frontmatter and
+  `agents/openai.yaml`, except `ziw-to-issues`: it is model-invocable because it
+  is the planning front door, but it must still confirm before creating or
+  editing tracker tickets.
 - Claude Code sub-agents live only in root `agents/`, load skill files through
   `${CLAUDE_PLUGIN_ROOT}`, and use `model: inherit`. Keep them limited to
   context-heavy delegation roles, not every workflow skill.

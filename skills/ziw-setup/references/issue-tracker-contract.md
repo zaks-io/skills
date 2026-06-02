@@ -88,14 +88,15 @@ contains:
 - `ready-for-agent` must be removed when an issue moves to the configured `Done`
   state. Done work is complete, not waiting for agent handoff.
 - Issue Triage should make current tickets agent-ready and keep tracker state
-  aligned with external reality. Its default scope is the configured ready state,
-  usually `Todo`, plus active or PR-linked issues that need repair. It should
-  not review `Backlog` or equivalent future-work states unless the user
-  explicitly asks for backlog review.
-- During requested intake cleanup, Issue Triage may move complete issues from
-  configured intake states such as `Triage` to the configured ready state,
-  usually `Todo`. Encode blockers separately; dependency blockers do not prevent
-  intake-to-ready promotion. Do not promote `Backlog` by default.
+  aligned with external reality. Its default scope includes configured triage or
+  intake states such as `Triage`, the configured ready state usually `Todo`, and
+  active or PR-linked issues that need repair. It should not review `Backlog` or
+  equivalent future-work states unless the user explicitly asks for backlog
+  review.
+- Issue Triage may move complete issues from configured triage or intake states
+  such as `Triage` to the configured ready state, usually `Todo`, when config
+  grants that authority. Encode blockers separately; dependency blockers do not
+  prevent intake-to-ready promotion. Do not promote `Backlog` by default.
 - Startable implementation work is `Todo`, unblocked, labeled `ready-for-agent`,
   and has a complete agent-ready body.
 - Issue-assigned agent work, when supported by the repo, uses the repo-configured
@@ -113,8 +114,8 @@ contains:
 - If a repo uses an extra label such as `remote-worker` or `remote-cursor`,
   record it in `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
-  workflow state. Issue Triage owns requested intake-to-ready promotion and
-  verified stale-state reconciliation, such as marking linked merged PR work
+  workflow state. Issue Triage owns configured triage/intake-to-ready promotion
+  and verified stale-state reconciliation, such as marking linked merged PR work
   `Done`; when it marks work `Done`, it also clears `ready-for-agent`. Agent
   Orchestrator owns active workflow state unless the user explicitly says
   otherwise.

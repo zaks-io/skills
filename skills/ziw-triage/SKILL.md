@@ -1,20 +1,21 @@
 ---
 name: ziw-triage
-description: Use for issue tracker triage when reconciling current project issues with reality, making Todo tickets agent-ready, applying workflow labels, setting dependencies, normalizing issue bodies, and updating verified stale states.
+description: Use for issue tracker triage when reconciling current project issues with reality, addressing Triage and Todo tickets, applying workflow labels, setting dependencies, normalizing issue bodies, and updating verified stale states.
 argument-hint: "[project-url|team|repo|filter]"
 disable-model-invocation: true
 ---
 
 # Issue Triage
 
-Maintain current issue tracker work so Todo tickets are ready for agents and
-tracker state reflects reality. This is tracker metadata cleanup, readiness
-repair, and verified state reconciliation, not implementation.
+Maintain current issue tracker work so `Triage` tickets are resolved into a
+truthful next state, Todo tickets are ready for agents, and tracker state
+reflects reality. This is tracker metadata cleanup, readiness repair, and
+verified state reconciliation, not implementation.
 
-By default, focus on the configured ready state, usually `Todo`, and active or
-PR-linked issues that need tracker repair. Do not review `Backlog` or equivalent
-future-work states unless the user explicitly asks for backlog review, first-run
-backfill, or intake cleanup.
+By default, focus on configured triage or intake states such as `Triage`, the
+configured ready state usually `Todo`, and active or PR-linked issues that need
+tracker repair. Do not review `Backlog` or equivalent future-work states unless
+the user explicitly asks for backlog review or first-run backfill.
 
 Apply safe tracker updates directly. When external state proves the tracker is
 stale, such as a linked PR already merged, update the issue to the configured
@@ -30,7 +31,7 @@ label and return the exact questions or next actions needed.
 - Existing tracker teams, projects, statuses, labels, priorities, dependencies,
   parent or child relationships, PR links, and issue comments.
 - Optional user instructions for first-run backfill, dry run, priority policy,
-  backlog review, intake cleanup, or orphan routing.
+  backlog review, intake backfill, or orphan routing.
 
 ## Context
 
@@ -57,41 +58,41 @@ boards, or roadmaps without explicit approval.
 
 ## Default Scope
 
-Unless the user asks for backlog review, first-run backfill, or intake cleanup,
-do not scan the whole backlog. Build the default triage set from:
+Unless the user asks for backlog review or first-run backfill, do not scan the
+whole backlog. Build the default triage set from:
 
-1. Issues in the configured ready state, usually `Todo`.
-2. Active issues with linked PRs, branches, blockers, review state, done state,
+1. Issues in configured triage or intake states, such as `Triage`, that are not
+   configured future-work parking states.
+2. Issues in the configured ready state, usually `Todo`.
+3. Active issues with linked PRs, branches, blockers, review state, done state,
    or comments that can prove the tracker is stale.
-3. Issues with the repo routing label that are already in ready or active
+4. Issues with the repo routing label that are already in triage, ready, or active
    states but are missing the configured project, parent, or metadata.
-4. Issues in the configured review-debt intake filter, label, project, parent,
+5. Issues in the configured review-debt intake filter, label, project, parent,
    or status. Review-created findings are current-work intake even when they are
    not ready to dispatch yet.
-5. Recently updated issues only when they are already in ready or active states
-   or have direct links to current PRs or branches.
+6. Recently updated issues only when they are already in triage, ready, or
+   active states or have direct links to current PRs or branches.
 
 Treat `Backlog`, icebox, roadmap, someday, or equivalent future-work states as
-out of scope unless explicitly requested. `Triage` or other intake states are
-also out of scope by default unless config names them as current work,
-review-debt intake, or the user asks for intake cleanup.
+out of scope unless explicitly requested. `Triage` or other configured intake
+states are in scope by default; resolving those tickets into ready, blocked,
+human-needed, duplicate, container, or not-ready states is the point of triage.
 
 ## Inventory
 
 Build a triage set before making changes:
 
 1. Issues in the requested project, board, repo, team, or filter that are in the
-   configured ready or active states.
+   configured triage, ready, or active states.
 2. Issues with the repo routing label but missing current-work metadata.
 3. Active issues linked to PRs, branches, docs, parent issues, blockers, or
    project milestones.
-4. Recently created or updated ready or active issues that match repo, package,
-   feature, or customer terms from the project.
+4. Recently created or updated triage, ready, or active issues that match repo,
+   package, feature, or customer terms from the project.
 5. Issues in the configured review-debt intake route, so review findings are
    normalized into dispatchable slices, human decisions, or To Issues input.
-6. `Triage`, `Backlog`, or equivalent intake and future-work states only when
-   explicitly requested or when config explicitly uses them for review-debt
-   intake.
+6. `Backlog` or equivalent future-work states only when explicitly requested.
 
 Classify each issue as one of:
 
@@ -110,14 +111,18 @@ Apply obvious mechanical updates in batches:
 
 - route orphan issues into the configured project, team, or parent when evidence
   is direct
+- address configured triage or intake-state issues by normalizing body, labels,
+  kind, route, dependencies, and readiness, then leave each with a truthful next
+  state
 - make configured ready-state issues, usually `Todo`, match the agent-ready body
   contract, labels, blockers, and route
 - move issues from configured intake states such as `Triage` or equivalent to
-  the configured ready state only when the user asked for intake cleanup or
-  backfill and routing, labels, and the agent-ready body contract are complete
-- when backlog or intake states are explicitly in scope, move complete
-  `ready-for-agent` `kind-slice` issues to the configured ready state unless
-  config names a blocked-ready state; encode blockers separately
+  the configured ready state when routing, labels, and the agent-ready body
+  contract are complete
+- when future-work states are explicitly in scope, move complete
+  `ready-for-agent` `kind-slice` issues to the configured ready state only when
+  requested unless config names a blocked-ready state; encode blockers
+  separately
 - leave `Backlog` or equivalent future-work states alone unless the user
   explicitly asks for backlog review
 - move issues to the configured done state when linked PR, branch, release, or
@@ -274,7 +279,7 @@ For first-run backfill:
 3. Normalize orphan routing and body headings before setting priorities.
 4. Include `Backlog` or equivalent future-work states only if the user explicitly
    asked for backlog review.
-5. Make readiness and intake-to-ready status promotion the final step after
+5. Make readiness and triage-to-ready status promotion the final step after
    labels and body contracts are correct. Encode blockers separately; blocker
    state does not decide whether `ready-for-agent` or ready-state promotion
    applies.
@@ -286,14 +291,15 @@ For first-run backfill:
   signed URLs, or credentials into the tracker.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
 - Do not review `Backlog` or equivalent future-work states unless the user
-  explicitly asks for backlog review.
+  explicitly asks for backlog review. This does not apply to `Triage` or other
+  configured triage/intake states, which are default Issue Triage scope.
 - Do not move active issues between workflow states unless config or the user
   explicitly delegates that authority to Issue Triage, or direct external
   evidence proves a terminal state such as merged equals `Done`. When that
   terminal-state repair is made, also remove `ready-for-agent` or the
-  repo-configured readiness label. Moving complete issues from configured intake
-  states to the configured ready state is allowed only for requested intake
-  cleanup or backfill.
+  repo-configured readiness label. Moving complete issues from configured triage
+  or intake states to the configured ready state is part of Issue Triage when
+  config grants intake-state transition authority.
 - Do not create noisy comments for every small label edit. Prefer one summary
   comment when an issue needs explanation.
 - Do not create new label taxonomies unless config or the user explicitly names
@@ -306,7 +312,8 @@ For first-run backfill:
 Report:
 
 - issue tracker scope reviewed
-- whether backlog or intake states were skipped or explicitly included
+- triage or intake states reviewed, and whether backlog was skipped or
+  explicitly included
 - issues changed, unchanged, and needing human decision
 - orphans routed or left with reasons
 - labels, priorities, body contracts, dependencies, and status recommendations
@@ -315,7 +322,7 @@ Report:
 - review-debt intake issues normalized, promoted, left for To Issues, or left for
   human decision
 - verified stale states reconciled, including merged work marked done
-- intake-state issues promoted to the configured ready state, if requested
+- intake-state issues promoted to the configured ready state
 - issues newly implementation-ready, newly startable, and removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
 - user questions asked or exact human next actions left

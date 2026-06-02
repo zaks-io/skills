@@ -154,7 +154,7 @@ For issue-assigned delegation:
   approval metadata. Apply or preserve them when the issue route and environment
   approval criteria are verified. Do not require dependencies to be clear just to
   set the environment label or promote a complete intake ticket to the ready
-  state during requested intake cleanup.
+  state when config grants Issue Triage that authority.
 - The issue needs the repo routing label or metadata the integration uses to
   choose the preconfigured environment, when the repo requires one.
 - The issue needs the configured repo-route label (such as `<org>/<repo>`) so the
@@ -194,8 +194,8 @@ branches, worktrees, or subagents when available.
 
 ## State Authority
 
-Issue Triage may move complete issues from configured intake states to the
-configured ready state during requested intake cleanup, and may reconcile
+Issue Triage may move complete issues from configured triage or intake states to
+the configured ready state when config grants that authority, and may reconcile
 verified stale states such as moving tickets with merged linked PRs to `Done`.
 When it marks a ticket `Done`, it removes `ready-for-agent`.
 Agent Orchestrator does not store authoritative workflow state locally. It reads

@@ -40,5 +40,5 @@ Rules:
   resources.
 - Leave active tracker status changes to Agent Orchestrator unless the user
   explicitly says otherwise. Issue Triage may reconcile verified stale states
-  such as merged work marked done, and may promote complete intake issues to the
-  configured ready state only during requested intake cleanup.
+  such as merged work marked done, and may promote complete triage or intake
+  issues to the configured ready state when config grants that authority.

@@ -174,14 +174,15 @@ good default agent work. Auth, PII, secrets, payments, production, destructive
 data, broad refactors, cross-repo changes, unclear domain behavior, and
 performance work without benchmarks require human planning first.
 
-Issue Triage defaults to current work: `Todo` tickets plus active or PR-linked
-tickets whose tracker state may be stale. It makes Todo tickets ready for
-agents, fixes metadata, and marks verified merged work done. It does not review
-`Backlog` unless asked. Dependency blockers should be encoded separately, not
-used to remove readiness. Agent Orchestrator owns active-work state moves except
-for these narrow verified-state repairs. It reads the issue tracker, checks PR
-and CI state, starts workers, asks for review, and moves tickets when the
-external state says that is safe.
+Issue Triage defaults to current work: configured triage/intake tickets such as
+`Triage`, `Todo` tickets, plus active or PR-linked tickets whose tracker state
+may be stale. It resolves triage tickets into a truthful next state, makes Todo
+tickets ready for agents, fixes metadata, and marks verified merged work done.
+It does not review `Backlog` unless asked. Dependency blockers should be encoded
+separately, not used to remove readiness. Agent Orchestrator owns active-work
+state moves except for these narrow verified-state repairs. It reads the issue
+tracker, checks PR and CI state, starts workers, asks for review, and moves
+tickets when the external state says that is safe.
 
 Review-created follow-up tickets are current-work intake when config defines a
 review-debt route. Agent Review files real findings there; Triage normalizes

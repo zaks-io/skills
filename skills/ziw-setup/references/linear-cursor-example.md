@@ -42,7 +42,8 @@ Last updated: 2026-06-01
 - Read-only verification query: list_issues team:"Example" state:Todo
 - Status field names: status / statusType
 - Ready state: Todo
-- Intake states: Triage, Backlog
+- Triage/intake states: Triage
+- Future-work states: Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; only kind-slice dispatchable)

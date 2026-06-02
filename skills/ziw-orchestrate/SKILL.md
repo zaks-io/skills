@@ -116,8 +116,8 @@ orchestration action.
 For runtimes with subagents or worker threads, delegate these context-heavy
 pieces to the runtime's isolated-worker equivalent:
 
-- Triage worker for tracker inventory, backlog or intake cleanup, readiness
-  repair, dependency cleanup, and stale-state reconciliation
+- Triage worker for tracker inventory, triage/intake resolution, optional backlog
+  review, readiness repair, dependency cleanup, and stale-state reconciliation
 - Implementation worker for one issue's implementation, verification, review
   feedback, and PR handoff
 - Review worker for PR review, branch or range review, and main-drift review

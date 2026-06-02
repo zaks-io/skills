@@ -146,7 +146,7 @@ Record:
   work criteria (including `kind-slice` only), priority policy, dependency policy,
   dependency graph mechanism, file footprint convention, issue body contract,
   agent-suitability policy for work types and risk,
-  Issue Triage verified-state reconciliation authority, requested intake-to-ready
+  Issue Triage verified-state reconciliation authority, triage/intake-to-ready
   authority, and which workflow role owns active status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
@@ -183,7 +183,7 @@ Record:
 - automation roles: To Issues, Issue Triage, Agent Orchestrator, Agent Review,
   Create PR, and Agent Implement, including To Issues spec-to-slice creation and
   the dependency graph, Issue Triage current-ticket readiness repair,
-  verified-state reconciliation, requested intake promotion, Orchestrator-owned
+  verified-state reconciliation, triage/intake promotion, Orchestrator-owned
   active tracker transitions, the orchestrator integrate gate and friction log,
   clean-context review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation,

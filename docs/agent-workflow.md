@@ -252,9 +252,10 @@ handoff to an implementation agent. A label such as `remote-worker` or
 environment. These labels can be applied before dependencies are clear. Remove
 `ready-for-agent` when an issue moves to `Done`; done work is not waiting for
 agent handoff.
-During requested intake cleanup, complete intake tickets can move to the ready
-state before dependencies are clear. Dependencies, blocker relationships, and
-blocked states gate whether Orchestrator may start or delegate the work.
+Complete triage or intake tickets can move to the ready state before
+dependencies are clear when config grants Issue Triage that authority.
+Dependencies, blocker relationships, and blocked states gate whether
+Orchestrator may start or delegate the work.
 
 Before assigning issue-assigned work, Orchestrator must verify the issue is
 implementation-ready and unblocked using tracker status, labels, provider blocker
@@ -360,12 +361,12 @@ sequenceDiagram
 ## Status Ownership
 
 The issue tracker stores the current issue state. Issue Triage may move complete
-issues from configured intake states to the configured ready state only when
-intake cleanup is requested, and it may reconcile verified stale states such as
-marking a ticket `Done` when the linked PR is already merged. Agent Orchestrator
-is the default writer for active workflow status transitions. Other roles can
-recommend state changes, but they should not move active work unless the repo
-config or user explicitly delegates that authority.
+issues from configured triage or intake states to the configured ready state
+when config grants that authority, and it may reconcile verified stale states
+such as marking a ticket `Done` when the linked PR is already merged. Agent
+Orchestrator is the default writer for active workflow status transitions. Other
+roles can recommend state changes, but they should not move active work unless
+the repo config or user explicitly delegates that authority.
 
 Default rule:
 
@@ -424,7 +425,9 @@ allowed without approval and which need approval.
 These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
-- Side-effecting workflows use manual invocation.
+- Mutating workflows use manual invocation except `ziw-to-issues`, which may be
+  invoked by the model as the planning front door. It still confirms before
+  creating or editing tracker tickets.
 - `ziw-code-review` and `ziw-review` use clean context where the agent tooling
   supports it and review current committed code unless a working-tree review was
   explicitly requested.
