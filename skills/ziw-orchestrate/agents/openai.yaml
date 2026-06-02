@@ -1,0 +1,6 @@
+interface:
+  display_name: "Orchestrate"
+  short_description: "Orchestrate tracked work"
+  default_prompt: "Use $ziw-orchestrate to orchestrate a specific ticket set, tracker filter, project, or until-clear backlog loop by reasoning over tracker, PR, check, review, worker, config, and risk evidence; selecting startable issues; launching implementation workers; replying directly to assigned agents; requesting Agent Review when review evidence is actually needed; managing PR state including stuck draft PRs; and stopping the recurring loop when the scoped queue is completely blocked."
+policy:
+  allow_implicit_invocation: false

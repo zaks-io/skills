@@ -16,7 +16,7 @@ Every downstream repo should have:
 docs/agents/workflow/config.md
 ```
 
-Run `workflow-setup` once to create it, and rerun setup when the repo workflow
+Run `ziw-setup` once to create it, and rerun setup when the repo workflow
 may have changed. Refresh runs read the existing config first, compare it against
 current repo, tracker, CI, worker delegation, and environment state, then patch
 stale or missing values. Other workflow skills read that file before guessing
@@ -64,7 +64,7 @@ stuck workers, and agent cost when available.
 
 ## Roles
 
-- Decompose: the front door that turns a spec, PRD, or epic ticket into
+- To Issues: the front door that turns a spec, PRD, or epic ticket into
   dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
   instead of duplicating them, applies the agent-ready body contract and labels,
   and emits a dependency graph and predicted file footprint. Creates tickets; it
@@ -85,7 +85,7 @@ stuck workers, and agent cost when available.
   This is the worker's shipping step, not a separate orchestration stage.
 - Code Review: shared bug-focused review gate.
 
-Setup, Decompose, Issue Triage, Agent Orchestrator, Agent Implement, and Agent
+Setup, To Issues, Issue Triage, Agent Orchestrator, Agent Implement, and Agent
 Review are the core workflow roles. Code Review, Create PR, and Secret
 Redaction are helper gates used by those roles.
 
@@ -112,7 +112,7 @@ of work, persists only the ledger and checkpoint, and sleeps only when future
 external signal can still arrive. A long-running loop stays as light as a first
 run; it does not loop in-context until the backlog empties. The orchestrator
 skill bundles the tick contract in
-`skills/workflow-agent-orchestrator/references/loop-contract.md`.
+`skills/ziw-orchestrate/references/loop-contract.md`.
 
 If the refreshed scope is completely blocked, Orchestrator stops the recurring
 loop for that scope instead of waking forever. Completely blocked means there are
@@ -122,7 +122,7 @@ produce signal. The blocked report names each blocker, next owner, and the
 condition that would make the scope runnable again.
 
 Review and integrate are steps the orchestrator calls inside a tick and waits
-on. Decompose and triage are front-loaded steps the user runs before
+on. To Issues and triage are front-loaded steps the user runs before
 orchestration, or bounded repair steps the orchestrator can delegate when current
 work is stale.
 
@@ -131,12 +131,12 @@ work is stale.
 Kind is a single-select axis, separate from type. Skills enforce exclusivity even
 when the tracker label group does not.
 
-- `kind-spec`: holds spec or PRD prose. Decompose input. Never dispatched.
+- `kind-spec`: holds spec or PRD prose. To Issues input. Never dispatched.
 - `kind-epic`: a parent or workstream container. Never dispatched.
 - `kind-slice`: a one-PR implementation ticket. The only kind a worker runs.
 
-Containers (`kind-spec`, `kind-epic`) are decompose input, not work to ship.
-Decompose reads them and emits `kind-slice` children. The orchestrator hard-
+Containers (`kind-spec`, `kind-epic`) are To Issues input, not work to ship.
+To Issues reads them and emits `kind-slice` children. The orchestrator hard-
 refuses to dispatch a container even if it carries `ready-for-agent`.
 
 ## Agent Suitability
@@ -164,7 +164,7 @@ authority, never skip silently, record every fix.
   blocker, or a worker session that needs a direct nudge.
 - Escalate intent-level gaps with `needs-info` or `ready-for-human`. Never
   fabricate scope or acceptance criteria.
-- Decompose and triage report heals in their run summaries. Orchestrator logs a
+- To Issues and triage report heals in their run summaries. Orchestrator logs a
   `config-gap` friction entry per inline heal, so repeated mistakes become a list
   of what to fix upstream.
 
@@ -219,11 +219,11 @@ assign. The skills do not infer this from local CLI availability.
 
 For local agent runtimes, the orchestrator should keep its parent thread small
 and delegate large context loads to isolated workers when available. Claude Code
-uses the plugin subagents `workflow-triage`, `workflow-implementer`, and
-`workflow-reviewer`. Codex and other Agent Skills runtimes should use the
-matching skill names, such as `$workflow-issue-triage`,
-`$workflow-agent-implement`, `$workflow-agent-review`, and
-`$workflow-code-review`, inside isolated sessions, branches, worktrees, or
+uses the plugin subagents `ziw-triager`, `ziw-implementer`, and
+`ziw-reviewer`. Codex and other Agent Skills runtimes should use the
+matching skill names, such as `$ziw-triage`,
+`$ziw-implement`, `$ziw-review`, and
+`$ziw-code-review`, inside isolated sessions, branches, worktrees, or
 subagents when the runtime supports them.
 
 Repo config should record only project-specific details that are annoying to
@@ -271,7 +271,7 @@ repo policy, PR state, checks, comments, handoff notes, and the original worker
 session. Draft state alone is not a reason to request code review. If no explicit
 blocker remains, Agent Orchestrator marks the PR ready-for-review, then refreshes
 the code-host PR state and verifies it is non-draft. If it stays draft, it is not
-ready-for-review. CodeRabbit escalation follows the `workflow-code-review`
+ready-for-review. CodeRabbit escalation follows the `ziw-code-review`
 recommendation and is required only for high-risk or genuinely complex diffs, or
 when the user asks for it.
 
@@ -279,26 +279,26 @@ when the user asks for it.
 
 ```mermaid
 flowchart TD
-  Setup["workflow-setup\nCreate repo config"]
+  Setup["ziw-setup\nCreate repo config"]
   Config["Repo config\ncommands, tracker, agents, environments"]
   Tracker["Issue tracker\nsource of truth for issue state"]
-  Decompose["workflow-decompose\nspec/epic to kind-slice tickets + DAG"]
-  IssueTriage["workflow-issue-triage\nmetadata, readiness, verified state repair"]
-  Orchestrator["workflow-agent-orchestrator\nstate authority, friction log"]
+  ToIssues["ziw-to-issues\nspec/epic to kind-slice tickets + DAG"]
+  IssueTriage["ziw-triage\nmetadata, readiness, verified state repair"]
+  Orchestrator["ziw-orchestrate\nstate authority, friction log"]
   Worker["Implementation worker\nlocal or issue-assigned; runs create-pr"]
-  AgentReview["workflow-agent-review\nindependent review and drift"]
-  CodeReview["workflow-code-review\nreview gate"]
+  AgentReview["ziw-review\nindependent review and drift"]
+  CodeReview["ziw-code-review\nreview gate"]
   Integrate["integrate step\nauto-merge gate on green"]
 
   Setup --> Config
-  Config --> Decompose
+  Config --> ToIssues
   Config --> Orchestrator
   Config --> IssueTriage
   Config --> Worker
   Config --> CodeReview
   Config --> AgentReview
 
-  Decompose -->|create/adopt slices, DAG, footprint| Tracker
+  ToIssues -->|create/adopt slices, DAG, footprint| Tracker
   IssueTriage -->|labels, readiness, verified state repair| Tracker
   Orchestrator -->|select kind-slice, claim, move states| Tracker
   Orchestrator -->|friction comments| Tracker
@@ -315,7 +315,7 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-  participant D as Decompose
+  participant D as To Issues
   participant I as Issue Triage
   participant Q as Agent Orchestrator
   participant T as Issue Tracker
@@ -357,7 +357,7 @@ config or user explicitly delegates that authority.
 
 Default rule:
 
-- Decompose can create and adopt `kind-slice` tickets, set kind/type/risk/
+- To Issues can create and adopt `kind-slice` tickets, set kind/type/risk/
   readiness labels, encode dependencies, and write the agent-ready body. It does
   not move active work.
 - Issue Triage can edit labels, kinds, readiness, body shape, dependencies,
@@ -380,7 +380,7 @@ Default rule:
 ## Handoff
 
 Use the shared handoff shape from
-`skills/workflow-setup/references/handoff.md`.
+`skills/ziw-setup/references/handoff.md`.
 
 Every handoff should say:
 
@@ -413,7 +413,7 @@ These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
 - Side-effecting workflows use manual invocation.
-- `workflow-code-review` and `workflow-agent-review` use clean context where the
+- `ziw-code-review` and `ziw-review` use clean context where the
   agent tooling supports it.
 - Tool-specific permissions belong outside the shared skill contract.
 - Code host and issue tracker tools come from each repo's workflow config.
@@ -425,12 +425,12 @@ Skills systems.
 
 Setup uses these bundled references when writing repo config:
 
-- `skills/workflow-setup/references/project-config.md`
-- `skills/workflow-setup/references/agent-workflow.md`
-- `skills/workflow-setup/references/issue-tracker-contract.md`
-- `skills/workflow-setup/references/operating-profile.md`
-- `skills/workflow-setup/references/linear-cursor-example.md`
-- `skills/workflow-setup/references/handoff.md`
+- `skills/ziw-setup/references/project-config.md`
+- `skills/ziw-setup/references/agent-workflow.md`
+- `skills/ziw-setup/references/issue-tracker-contract.md`
+- `skills/ziw-setup/references/operating-profile.md`
+- `skills/ziw-setup/references/linear-cursor-example.md`
+- `skills/ziw-setup/references/handoff.md`
 
 ## Skill Quality Bar
 

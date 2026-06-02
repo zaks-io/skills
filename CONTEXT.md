@@ -116,7 +116,7 @@ _Avoid_: changed files, ownership map
 The workflow role that creates or refreshes **Repo Config** from current evidence.
 _Avoid_: onboarding, bootstrap
 
-**Decompose**:
+**To Issues**:
 The workflow role that turns a spec, PRD, epic, or plan into dependency-ordered **Slice Tickets**.
 _Avoid_: planning, ticket writing
 
@@ -247,7 +247,7 @@ _Avoid_: local check, CI in general
 - A **Downstream Repo** has one **Repo Config**.
 - A **Workflow Skill** may have one or more **Skill Adapters**.
 - A **Claude Code Sub-agent** loads one or more **Workflow Skills**.
-- A **Container Ticket** may produce many **Slice Tickets** through **Decompose**.
+- A **Container Ticket** may produce many **Slice Tickets** through **To Issues**.
 - A **Slice Ticket** has exactly one **Kind** and one **Type**.
 - A **Slice Ticket** has one **Agent-Ready Body** before it can become **Startable Work**.
 - **Readiness Labels** and **Worker Environment Labels** are metadata, not workflow state.
@@ -263,7 +263,7 @@ _Avoid_: local check, CI in general
 ## Example Dialogue
 
 > **Dev:** "This epic is ready for agents."
-> **Domain expert:** "Use **Container Ticket** for the epic; only the **Slice Tickets** created by **Decompose** can be marked with a **Readiness Label**."
+> **Domain expert:** "Use **Container Ticket** for the epic; only the **Slice Tickets** created by **To Issues** can be marked with a **Readiness Label**."
 >
 > **Dev:** "The ticket has `ready-for-agent`, so Orchestrator can start it."
 > **Domain expert:** "Not by itself. **Startable Work** also needs the ready state, no active blockers, a complete **Agent-Ready Body**, no active claim, and no open PR."

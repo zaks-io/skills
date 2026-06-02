@@ -36,7 +36,7 @@ a coding agent.
 | Xia et al., [Agentless](https://arxiv.org/abs/2407.01489)                                                                                          | A simple localize, repair, validate workflow matched or beat more complex open-source agents on SWE-bench Lite at low cost.                           | Do not add roles or skills when a bounded pipeline can do the job.                                                |
 | Yang et al., [SWE-agent](https://papers.nips.cc/paper_files/paper/2024/hash/5a7c947568c1b1328ccc5230172e1e7c-Abstract-Conference.html)             | Agent-computer interface design affected coding-agent performance.                                                                                    | Tool and handoff shape matter. Keep worker prompts short and give agents real repo commands.                      |
 | Han et al., [SWE-Skills-Bench](https://arxiv.org/abs/2603.15401)                                                                                   | 39 of 49 SWE skills gave zero pass-rate improvement; average gain was +1.2%; token overhead reached 451%; stale guidance sometimes hurt.              | New skills require a clear job, current docs, and measured value. Delete or demote pass-through skills.           |
-| Sayagh, [What Makes a GitHub Issue Ready for Copilot?](https://arxiv.org/abs/2512.21426)                                                           | Merged agent PRs came from issues that were shorter, well scoped, and included guidance about relevant artifacts and implementation.                  | Decompose and triage must optimize ticket quality before delegation.                                              |
+| Sayagh, [What Makes a GitHub Issue Ready for Copilot?](https://arxiv.org/abs/2512.21426)                                                           | Merged agent PRs came from issues that were shorter, well scoped, and included guidance about relevant artifacts and implementation.                  | To Issues and triage must optimize ticket quality before delegation.                                              |
 | GitHub Docs, [Best practices for Copilot cloud agent](https://docs.github.com/en/copilot/tutorials/cloud-agent/get-the-best-results)               | GitHub recommends clear, well-scoped tasks with acceptance criteria and directions about files; ambiguous, sensitive, and broad tasks are poor fits.  | Encode agent-suitability policy in tracker config and triage.                                                     |
 | GitHub Docs, [Copilot cloud agent risks](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/risks-and-mitigations)                     | GitHub emphasizes security scans, branch limits, audit logs, and human review before merge.                                                           | Keep branch protections, review gates, and merge authority explicit.                                              |
 | Linear Docs, [Agents in Linear](https://linear.app/docs/agents-in-linear)                                                                          | Assigning an issue to an agent triggers delegation, but the human teammate remains responsible.                                                       | Issue-assigned delegation is not human ownership transfer. Orchestrator tracks and escalates.                     |
@@ -51,7 +51,7 @@ a coding agent.
 
 Agent Orchestrator is the only active loop. It should keep a small context,
 refresh Linear, GitHub, checks, and PR state, then delegate implementation or
-review. Decompose and Issue Triage prepare current work. Agent Review and
+review. To Issues and Issue Triage prepare current work. Agent Review and
 integrate are called steps.
 
 There is no separate coverage-audit loop in this repo. If coverage auditing is
@@ -62,17 +62,17 @@ and validation data.
 
 Core user-facing roles:
 
-- `workflow-setup`
-- `workflow-decompose`
-- `workflow-issue-triage`
-- `workflow-agent-orchestrator`
-- `workflow-agent-implement`
-- `workflow-agent-review`
+- `ziw-setup`
+- `ziw-to-issues`
+- `ziw-triage`
+- `ziw-orchestrate`
+- `ziw-implement`
+- `ziw-review`
 
 Helper gates:
 
-- `workflow-code-review`
-- `workflow-create-pr`
+- `ziw-code-review`
+- `ziw-pr`
 
 Do not add a new workflow skill unless it has one job, a distinct owner in the
 workflow, and a measurable reason not to live inside an existing role.
@@ -132,7 +132,7 @@ Each orchestrator run should produce enough data to answer:
 - README stays the usage guide.
 - `docs/agent-workflow.md` is the technical contract.
 - `docs/agent-delivery-research.md` records why the contract looks this way.
-- `skills/workflow-setup/references/*` must mirror the contract because setup
+- `skills/ziw-setup/references/*` must mirror the contract because setup
   uses those files to generate downstream repo config.
 - Claude Code sub-agents stay short and load shared `SKILL.md` files through
   `${CLAUDE_PLUGIN_ROOT}`.

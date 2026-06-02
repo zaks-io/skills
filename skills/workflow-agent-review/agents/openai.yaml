@@ -1,6 +1,0 @@
-interface:
-  display_name: "Agent Review"
-  short_description: "Run independent reviews"
-  default_prompt: "Use $workflow-agent-review to review PRs with $workflow-code-review from a clean subagent or worktree, then review main drift."
-policy:
-  allow_implicit_invocation: false

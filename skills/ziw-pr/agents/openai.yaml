@@ -1,0 +1,6 @@
+interface:
+  display_name: "Create PR"
+  short_description: "Create pull requests"
+  default_prompt: "Use $ziw-pr to open or update a non-draft ready-for-review PR for my current branch."
+policy:
+  allow_implicit_invocation: false

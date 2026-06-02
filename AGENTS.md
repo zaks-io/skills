@@ -19,9 +19,9 @@ content.
 - `.claude-plugin/plugin.json`: Claude Code plugin manifest.
 - `agents/<agent>.md`: Claude Code sub-agent definitions for the few workflow
   roles that benefit from isolated context.
-- `skills/workflow-setup/references/`: templates and contracts used to create
+- `skills/ziw-setup/references/`: templates and contracts used to create
   downstream `docs/agents/workflow/config.md`.
-- `skills/workflow-code-review/references/`: review support material.
+- `skills/ziw-code-review/references/`: review support material.
 - `docs/agent-workflow.md`: technical workflow contract, state model, and role
   split.
 - `scripts/check-skills.mjs`: structural validation and repo invariants.
@@ -29,7 +29,7 @@ content.
 
 ## Repo Rules
 
-- Add shared skills under `skills/workflow-*`.
+- Add shared skills under `skills/ziw-*`.
 - Keep runtime-specific metadata minimal. Tool providers, commands, environments,
   issue tracker states, and deploy rules belong in each downstream repo's
   `docs/agents/workflow/config.md`.
@@ -41,8 +41,8 @@ content.
 - Claude Code sub-agents live only in root `agents/`, load skill files through
   `${CLAUDE_PLUGIN_ROOT}`, and use `model: inherit`. Keep them limited to
   context-heavy delegation roles, not every workflow skill.
-- `workflow-code-review` is the implicit review gate. `workflow-agent-review` and
-  `workflow-code-review` should run from clean context.
+- `ziw-code-review` is the implicit review gate. `ziw-review` and
+  `ziw-code-review` should run from clean context.
 - Do not add per-skill scripts unless `scripts/check-skills.mjs` is updated to
   allow that skill.
 

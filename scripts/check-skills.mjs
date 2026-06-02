@@ -6,27 +6,27 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = path.join(root, "skills");
 const errors = [];
 const manualOnlySkills = new Set([
-  "workflow-agent-implement",
-  "workflow-agent-orchestrator",
-  "workflow-agent-review",
-  "workflow-create-pr",
-  "workflow-decompose",
-  "workflow-issue-triage",
-  "workflow-setup",
+  "ziw-implement",
+  "ziw-orchestrate",
+  "ziw-review",
+  "ziw-pr",
+  "ziw-to-issues",
+  "ziw-triage",
+  "ziw-setup",
 ]);
-const implicitInvocationSkills = new Set(["workflow-code-review"]);
-const cleanContextSkills = new Set(["workflow-agent-review", "workflow-code-review"]);
+const implicitInvocationSkills = new Set(["ziw-code-review"]);
+const cleanContextSkills = new Set(["ziw-review", "ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set();
 const triggerTerms = {
-  "workflow-agent-implement": ["implement", "issue", "pr"],
-  "workflow-agent-orchestrator": ["orchestrate", "issue", "tracker"],
-  "workflow-agent-review": ["review", "pr"],
-  "workflow-code-review": ["review", "code"],
-  "workflow-create-pr": ["pr", "pull request"],
-  "workflow-decompose": ["decompose", "ticket", "dependency"],
-  "workflow-issue-triage": ["tracker", "triage", "project", "issue"],
-  "workflow-setup": ["setup", "config"],
+  "ziw-implement": ["implement", "issue", "pr"],
+  "ziw-orchestrate": ["orchestrate", "issue", "tracker"],
+  "ziw-review": ["review", "pr"],
+  "ziw-code-review": ["review", "code"],
+  "ziw-pr": ["pr", "pull request"],
+  "ziw-to-issues": ["spec", "ticket", "dependency"],
+  "ziw-triage": ["tracker", "triage", "project", "issue"],
+  "ziw-setup": ["setup", "config"],
 };
 const claudePluginFile = path.join(root, ".claude-plugin", "plugin.json");
 const claudeAgentsDir = path.join(root, "agents");
@@ -34,11 +34,7 @@ const docsDir = path.join(root, "docs");
 const readmeFile = path.join(root, "README.md");
 const agentWorkflowFile = path.join(docsDir, "agent-workflow.md");
 const researchFile = path.join(docsDir, "agent-delivery-research.md");
-const expectedClaudeAgents = new Set([
-  "workflow-implementer",
-  "workflow-reviewer",
-  "workflow-triage",
-]);
+const expectedClaudeAgents = new Set(["ziw-implementer", "ziw-reviewer", "ziw-triager"]);
 const unsupportedClaudeAgentFields = ["hooks", "mcpServers", "permissionMode"];
 
 const fail = (message) => errors.push(message);
@@ -120,8 +116,8 @@ if (!workflowText.includes("agent-delivery-research.md")) {
 }
 
 for (const name of skillNames) {
-  if (!name.startsWith("workflow-")) {
-    fail(`skills/${name} must start with workflow-`);
+  if (!name.startsWith("ziw-")) {
+    fail(`skills/${name} must start with ziw-`);
   }
 
   const skillFile = path.join(skillsDir, name, "SKILL.md");

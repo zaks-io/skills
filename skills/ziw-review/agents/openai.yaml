@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review"
+  short_description: "Run independent reviews"
+  default_prompt: "Use $ziw-review to review PRs with $ziw-code-review from a clean subagent or worktree, then review main drift."
+policy:
+  allow_implicit_invocation: false

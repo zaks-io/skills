@@ -1,6 +1,0 @@
-interface:
-  display_name: "Issue Triage"
-  short_description: "Shape tracker tickets"
-  default_prompt: "Use $workflow-issue-triage to triage current project tracker issues, make Todo tickets ready for agents, reconcile verified stale states, update labels, dependencies, orphans, and review backlog only when asked."
-policy:
-  allow_implicit_invocation: false

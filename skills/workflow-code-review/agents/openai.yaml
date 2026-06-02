@@ -1,6 +1,0 @@
-interface:
-  display_name: "Code Review"
-  short_description: "Review code changes"
-  default_prompt: "Use $workflow-code-review to review this branch before opening a PR."
-policy:
-  allow_implicit_invocation: true

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Decompose"
-  short_description: "Spec or PRD into ready slices"
-  default_prompt: "Use $workflow-decompose to break this spec, PRD, or epic ticket into dependency-ordered one-PR implementation tickets, adopt any existing tickets, apply the agent-ready body contract and kind labels, and emit the dependency graph and file footprint."
-policy:
-  allow_implicit_invocation: false

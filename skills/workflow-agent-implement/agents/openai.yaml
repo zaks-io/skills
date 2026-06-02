@@ -1,6 +1,0 @@
-interface:
-  display_name: "Agent Implement"
-  short_description: "Implement, review, and PR"
-  default_prompt: "Use $workflow-agent-implement to implement this tracker issue, run code review, iterate, and create the PR."
-policy:
-  allow_implicit_invocation: false

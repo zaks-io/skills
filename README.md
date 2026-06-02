@@ -34,7 +34,7 @@ npx skills add zaks-io/skills --list
 Install one skill:
 
 ```sh
-npx skills add zaks-io/skills --skill workflow-setup --agent '*' -g -y
+npx skills add zaks-io/skills --skill ziw-setup --agent '*' -g -y
 ```
 
 ## Claude Code Plugin
@@ -50,18 +50,18 @@ When loaded as a Claude Code plugin, the workflow agents are available as
 namespaced subagents:
 
 ```text
-zaks-io-skills:workflow-triage
-zaks-io-skills:workflow-implementer
-zaks-io-skills:workflow-reviewer
+zaks-io-skills:ziw-triager
+zaks-io-skills:ziw-implementer
+zaks-io-skills:ziw-reviewer
 ```
 
 Claude Code should keep the orchestrator in the main thread and delegate the
 context-heavy pieces to these isolated subagents:
 
-- `workflow-triage`: issue tracker inventory and metadata cleanup.
-- `workflow-implementer`: one issue's implementation, checks, review, and PR
+- `ziw-triager`: issue tracker inventory and metadata cleanup.
+- `ziw-implementer`: one issue's implementation, checks, review, and PR
   handoff.
-- `workflow-reviewer`: clean-context review of PRs, branches, ranges, and
+- `ziw-reviewer`: clean-context review of PRs, branches, ranges, and
   main-drift findings.
 
 Setup, PR creation, and code review details remain workflow skills that these
@@ -71,15 +71,15 @@ Codex and other Agent Skills runtimes should use the same orchestration model
 with native skill names:
 
 ```text
-$workflow-agent-orchestrator ZAK-123 ZAK-456
-$workflow-agent-orchestrator project "Payments" until clear
-$workflow-agent-orchestrator backlog until clear
+$ziw-orchestrate ZAK-123 ZAK-456
+$ziw-orchestrate project "Payments" until clear
+$ziw-orchestrate backlog until clear
 ```
 
 When the runtime supports subagents, sessions, branches, or worktrees,
 Orchestrator should keep the parent thread small and delegate context-heavy work
-to `$workflow-issue-triage`, `$workflow-agent-implement`,
-`$workflow-agent-review`, and `$workflow-code-review`.
+to `$ziw-triage`, `$ziw-implement`,
+`$ziw-review`, and `$ziw-code-review`.
 
 For local development, validate the plugin shape when Claude Code is available:
 
@@ -97,7 +97,7 @@ Set up a repo once, or rerun setup when you want to confirm the workflow config
 is still current:
 
 ```text
-$workflow-setup
+$ziw-setup
 ```
 
 That creates or refreshes:
@@ -113,31 +113,31 @@ patches stale or missing values.
 Then run the normal flow:
 
 ```text
-$workflow-decompose <spec|prd|epic>
-$workflow-issue-triage
-$workflow-agent-orchestrator
+$ziw-to-issues <spec|prd|epic>
+$ziw-triage
+$ziw-orchestrate
 ```
 
 Orchestrate a bounded scope:
 
 ```text
-$workflow-agent-orchestrator ZAK-123 ZAK-456
-$workflow-agent-orchestrator label:ready-for-agent one pass
-$workflow-agent-orchestrator project "Payments" until clear
-$workflow-agent-orchestrator backlog until clear
+$ziw-orchestrate ZAK-123 ZAK-456
+$ziw-orchestrate label:ready-for-agent one pass
+$ziw-orchestrate project "Payments" until clear
+$ziw-orchestrate backlog until clear
 ```
 
-Decompose turns a spec, PRD, or epic ticket into dependency-ordered one-PR
+To Issues turns a spec, PRD, or epic ticket into dependency-ordered one-PR
 tickets. Triage gets the current set consistent. Orchestrator runs the loop:
 dispatch, review, integrate, repeat.
 
 Use direct skills when you want one specific action:
 
 ```text
-$workflow-agent-implement <issue>
-$workflow-code-review <branch|pr|range>
-$workflow-create-pr
-$workflow-agent-review <pr|range>
+$ziw-implement <issue>
+$ziw-code-review <branch|pr|range>
+$ziw-pr
+$ziw-review <pr|range>
 ```
 
 ## The Operating Model
@@ -165,7 +165,7 @@ labels are not dependency or scheduling gates. When a ticket moves to `Done`,
 Orchestrator or verified stale-state triage removes `ready-for-agent`.
 
 Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
-containers that decompose reads as input and are never dispatched; `kind-slice`
+containers that To Issues reads as input and are never dispatched; `kind-slice`
 is a one-PR ticket and the only kind a worker runs.
 
 Agent suitability is based on work type and risk, not agent brand. Docs, tests,
@@ -208,7 +208,7 @@ evidence, set repo-route metadata, or mark a PR ready-for-review are
 orchestration repairs. It should fix those from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
 
-Decompose is the front door. It turns a spec, PRD, or epic ticket into
+To Issues is the front door. It turns a spec, PRD, or epic ticket into
 dependency-ordered `kind-slice` tickets, adopts any tickets you made by hand
 instead of duplicating them, applies the body contract and labels, and emits a
 dependency graph and predicted file footprint. Run it whenever you want the
@@ -240,12 +240,12 @@ setting the issue's agent delegate, requires the repo-route label (such as
 by replying into its agent-session thread rather than a top-level comment.
 
 A delegated worker, local or remote Cursor, owns implementation: it writes code,
-self-reviews with `workflow-code-review`, and opens its own PR with
-`workflow-create-pr`. The orchestrator coordinates; it does not write code or
+self-reviews with `ziw-code-review`, and opens its own PR with
+`ziw-pr`. The orchestrator coordinates; it does not write code or
 open PRs.
 
 Agent Review and integrate are steps the orchestrator calls, not loops. Agent
-Review runs `workflow-code-review` from clean context and returns a verdict;
+Review runs `ziw-code-review` from clean context and returns a verdict;
 integrate is the auto-merge gate that defines green, rebases on moved main,
 merges, and runs a post-merge check.
 
@@ -256,42 +256,42 @@ and add agent or skill complexity only when it improves delivery.
 
 ## The Skills
 
-- `workflow-setup`: create repo workflow config or refresh it against current
+- `ziw-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
-- `workflow-decompose`: turn a spec, PRD, or epic ticket into dependency-ordered
+- `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered
   one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
   contract and labels, and emit a dependency graph and file footprint.
-- `workflow-issue-triage`: update current tracker labels, kinds, readiness, stale
+- `ziw-triage`: update current tracker labels, kinds, readiness, stale
   verified states, orphans, body shape, and dependencies so Todo tickets are
   clean and agent-ready. It follows the repo-configured label treatment policy,
   skips backlog unless asked, and asks or lists exact human next actions when
   something is unclear.
-- `workflow-agent-orchestrator`: run the work loop, dispatching startable
+- `ziw-orchestrate`: run the work loop, dispatching startable
   `kind-slice` tickets and calling review and integrate as steps, without
   becoming the coder or reviewer.
-- `workflow-agent-implement`: take one startable issue through implementation,
+- `ziw-implement`: take one startable issue through implementation,
   checks, review, and PR creation.
-- `workflow-agent-review`: independent PR review and main-drift review from
+- `ziw-review`: independent PR review and main-drift review from
   clean context.
-- `workflow-code-review`: helper review gate for branches, PRs, working trees,
+- `ziw-code-review`: helper review gate for branches, PRs, working trees,
   and main drift.
-- `workflow-create-pr`: helper shipping gate that checks, reviews, commits,
+- `ziw-pr`: helper shipping gate that checks, reviews, commits,
   pushes, creates or updates the PR, and hands tracker state to Orchestrator.
 
 ## Recommended Flow
 
-1. Run `workflow-setup` once per repo, and rerun it when the workflow config may
+1. Run `ziw-setup` once per repo, and rerun it when the workflow config may
    be stale.
-2. Run `workflow-decompose` on a spec, PRD, or epic ticket to create the
+2. Run `ziw-to-issues` on a spec, PRD, or epic ticket to create the
    `kind-slice` tickets and dependency graph. Re-run it any time to reconcile the
    tickets with the plan.
-3. Run `workflow-issue-triage` before the first orchestration run and whenever
+3. Run `ziw-triage` before the first orchestration run and whenever
    Todo or active tracker state needs repair. Ask explicitly when you want
    backlog review or intake backfill.
-4. Run `workflow-agent-orchestrator` to run the loop: dispatch, review,
+4. Run `ziw-orchestrate` to run the loop: dispatch, review,
    integrate, repeat until the backlog is delivered or completely blocked. A
    completely blocked loop stops instead of rescheduling itself.
-5. Use `workflow-create-pr` directly only when you are already on a branch and
+5. Use `ziw-pr` directly only when you are already on a branch and
    want to ship it.
 
 For the deeper agent contract, state model, handoff shape, and diagrams, see
@@ -315,8 +315,8 @@ A repo is ready when:
 - kind labels, the concurrency cap, stuck-worker timeout, required-checks-for-
   merge, auto-merge risk tiers, friction-log ticket, and delivery metrics are
   set when running the autonomous loop
-- `workflow-decompose`, `workflow-agent-orchestrator`, `workflow-agent-implement`,
-  `workflow-code-review`, and `workflow-create-pr` can run without guessing repo
+- `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
+  `ziw-code-review`, and `ziw-pr` can run without guessing repo
   conventions
 
 ## Validate This Repo
