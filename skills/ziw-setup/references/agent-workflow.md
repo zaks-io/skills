@@ -15,10 +15,11 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   configured merge actions, and stops on human blockers.
 - Agent Implement: owns one delegated issue through implementation, code review,
   iteration, PR creation, and handoff.
-- Agent Review: a step the orchestrator calls. Reviews PRs from a clean subagent
-  or disposable worktree using `ziw-code-review`; also reviews main-branch
-  drift from its checkpoint, reports verdicts to Agent Orchestrator, and files
-  actionable tracker issues without moving active work between workflow states.
+- Agent Review: a step the orchestrator calls. Reviews latest committed PR heads
+  from a clean subagent or disposable worktree using `ziw-code-review`; also
+  reviews main-branch drift from its checkpoint, reports freshness, verdicts, and
+  orchestrator refactor findings to Agent Orchestrator, and files actionable
+  tracker issues without moving active work between workflow states.
 - Issue Triage: the bulk reconciler. Periodically updates configured current
   tracker issues, labels, kinds, priorities, dependencies, orphans, stale
   verified states, and agent-ready issue bodies before Agent Orchestrator selects
@@ -58,9 +59,10 @@ domain behavior, and performance work without benchmarks.
    runs checks, self-reviews with code review, fixes blocking findings, and opens
    its own PR via `ziw-pr`.
 6. Agent Orchestrator calls Agent Review as a step.
-7. Agent Review runs `ziw-code-review` in a clean context and reports
-   findings, CodeRabbit recommendation, PR readiness, and reviewed head SHA
-   without modifying product code or moving issue state.
+7. Agent Review fetches latest state, runs `ziw-code-review` in a clean context
+   against current committed code, and reports freshness, findings, CodeRabbit
+   recommendation, PR readiness, orchestrator refactor candidates, and reviewed
+   head SHA without modifying product code or moving issue state.
 8. Agent Orchestrator routes findings back to the worker, repairs stuck draft PRs
    or marks them ready-for-review when allowed, requests CodeRabbit when the
    current diff needs it, applies or removes `Code review passed`, or calls the
@@ -71,10 +73,11 @@ domain behavior, and performance work without benchmarks.
 
 - Agent Orchestrator drives work forward, one stateless tick at a time.
 - The loop is self-scheduling: it runs on the runtime's own recurring mechanism
-  (schedule, `/loop`, or wake-up timer; Codex scheduled task or automation) and
-  never needs a human to re-trigger a pass. Each tick wakes light, rebuilds the
-  queue from systems of record, acts on a bounded slice, persists only the ledger
-  and checkpoint, and sleeps only when future external signal can still arrive.
+  (Claude Code schedule, `/loop`, or wake-up timer; Codex automations, either
+  cron automations or heartbeat automations) and never needs a human to
+  re-trigger a pass. Each tick wakes light, rebuilds the queue from systems of
+  record, acts on a bounded slice, persists only the ledger and checkpoint, and
+  sleeps only when future external signal can still arrive.
 - If the refreshed scope is completely blocked, Orchestrator stops the recurring
   loop for that scope instead of waking forever. Completely blocked means there
   are no startable tickets, returned PRs to advance, stuck workers to nudge,
@@ -229,7 +232,7 @@ and name the core skills:
 - `ziw-to-issues` for turning a spec, PRD, or epic into `kind-slice` tickets
 - `ziw-orchestrate` for the orchestration loop
 - `ziw-implement` for one startable issue through PR creation
-- `ziw-review` for independent PR and main drift review
+- `ziw-review` for independent latest-committed PR and main drift review
 - `ziw-triage` for current tracker cleanup, readiness repair, and
   optional backlog or intake backfill when explicitly requested
 - `ziw-code-review` as the shared review gate

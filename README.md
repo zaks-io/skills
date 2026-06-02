@@ -61,8 +61,8 @@ context-heavy pieces to these isolated subagents:
 - `ziw-triager`: issue tracker inventory and metadata cleanup.
 - `ziw-implementer`: one issue's implementation, checks, review, and PR
   handoff.
-- `ziw-reviewer`: clean-context review of PRs, branches, ranges, and
-  main-drift findings.
+- `ziw-reviewer`: clean-context review of latest committed PRs, branches,
+  ranges, main-drift findings, and orchestrator refactor candidates.
 
 Setup, PR creation, and code review details remain workflow skills that these
 subagents load only when needed.
@@ -223,17 +223,18 @@ tickets to match the plan; re-running converges.
 
 Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
 runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
-Claude Code; a scheduled task or automation in Codex) and never needs a human to
-re-trigger a pass. Each tick it wakes light, refreshes external state, reconciles
-its dispatch ledger, dispatches startable `kind-slice` tickets to local or remote
-workers up to a concurrency cap (default 3), calls review and integrate as steps,
-reasons over the available evidence, and logs where it struggled to a friction
-ticket with compact event entries and run rollups. It can also nudge a worker,
-repair workflow state, route feedback, mark tickets for human review when the
-next action genuinely needs human input, or stop on a real blocker. It keeps only
-a compact queue, ledger, and checkpoint between ticks and delegates heavy reads
-to isolated workers, so a long-running loop stays as light as a first run. Config
-records supported worker delegation paths such as `local-worktree`,
+Claude Code; Codex automations, either cron automations or heartbeat
+automations) and never needs a human to re-trigger a pass. Each tick it wakes
+light, refreshes external state, reconciles its dispatch ledger, dispatches
+startable `kind-slice` tickets to local or remote workers up to a concurrency cap
+(default 3), calls review and integrate as steps, reasons over the available
+evidence, and logs where it struggled to a friction ticket with compact event
+entries and run rollups. It can also nudge a worker, repair workflow state, route
+feedback, mark tickets for human review when the next action genuinely needs
+human input, or stop on a real blocker. It keeps only a compact queue, ledger,
+and checkpoint between ticks and delegates heavy reads to isolated workers, so a
+long-running loop stays as light as a first run. Config records supported worker
+delegation paths such as `local-worktree`,
 `issue-assigned`, or both.
 
 If every scoped item is blocked and no orchestration action remains, the
@@ -252,9 +253,10 @@ self-reviews with `ziw-code-review`, and opens its own PR with
 open PRs.
 
 Agent Review and integrate are steps the orchestrator calls, not loops. Agent
-Review runs `ziw-code-review` from clean context and returns a verdict;
-integrate is the auto-merge gate that defines green, rebases on moved main,
-merges, and runs a post-merge check.
+Review fetches latest state, runs `ziw-code-review` from clean context against
+current committed code, and returns freshness, refactor candidates, and a
+verdict; integrate is the auto-merge gate that defines green, rebases on moved
+main, merges, and runs a post-merge check.
 
 The research behind this operating model is captured in
 [docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short
@@ -278,10 +280,10 @@ and add agent or skill complexity only when it improves delivery.
   becoming the coder or reviewer.
 - `ziw-implement`: take one startable issue through implementation,
   checks, review, and PR creation.
-- `ziw-review`: independent PR review and main-drift review from
+- `ziw-review`: independent latest-committed PR review and main-drift review from
   clean context.
-- `ziw-code-review`: helper review gate for branches, PRs, working trees,
-  and main drift.
+- `ziw-code-review`: helper review gate for branches, PRs, explicit working
+  trees, and main drift.
 - `ziw-pr`: helper shipping gate that checks, reviews, commits,
   pushes, creates or updates the PR, and hands tracker state to Orchestrator.
 

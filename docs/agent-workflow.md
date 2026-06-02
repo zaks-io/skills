@@ -74,8 +74,9 @@ stuck workers, and agent cost when available.
   to mutate active workflow status in the issue tracker.
 - Agent Implement: owns one delegated issue through implementation, checks,
   code review, PR creation, and handoff.
-- Agent Review: reviews PRs and main drift from clean context, reports verdicts
-  to Orchestrator, and files or recommends follow-up issues.
+- Agent Review: reviews latest committed PR heads and main drift from clean
+  context, reports freshness, verdicts, and orchestrator refactor findings to
+  Orchestrator, and files or recommends follow-up issues.
 - Issue Triage: the bulk reconciler. Updates tracker metadata, readiness,
   dependencies, current status, and issue body shape so Todo tickets are clean,
   ready for agents, and the tracker reflects external reality. It does not review
@@ -105,13 +106,13 @@ The system has one active work loop: Agent Orchestrator. It drives work forward
 one stateless tick at a time while keeping its context thin.
 
 The loop is self-scheduling. It runs on the runtime's own recurring mechanism (a
-schedule, `/loop`, or wake-up timer in Claude Code; a scheduled task or
-automation in Codex) and never needs a human to re-trigger a pass. Each tick
-wakes light, rebuilds the queue from systems of record, acts on a bounded slice
-of work, persists only the ledger and checkpoint, and sleeps only when future
-external signal can still arrive. A long-running loop stays as light as a first
-run; it does not loop in-context until the backlog empties. The orchestrator
-skill bundles the tick contract in
+schedule, `/loop`, or wake-up timer in Claude Code; Codex automations, either
+cron automations or heartbeat automations) and never needs a human to re-trigger
+a pass. Each tick wakes light, rebuilds the queue from systems of record, acts on
+a bounded slice of work, persists only the ledger and checkpoint, and sleeps only
+when future external signal can still arrive. A long-running loop stays as light
+as a first run; it does not loop in-context until the backlog empties. The
+orchestrator skill bundles the tick contract in
 `skills/ziw-orchestrate/references/loop-contract.md`.
 
 If the refreshed scope is completely blocked, Orchestrator stops the recurring
@@ -335,7 +336,7 @@ sequenceDiagram
   W->>Q: Handoff PR state and review evidence
   Q->>T: Move to In Review
   Q->>R: Call review step in clean context
-  R->>Q: Findings, CodeRabbit recommendation, PR readiness, and reviewed head SHA
+  R->>Q: Freshness, findings, CodeRabbit recommendation, PR readiness, refactor candidates, and reviewed head SHA
   Q->>G: Repair stuck draft PR or mark ready for review
   Q->>G: Request CodeRabbit if required by risk or complexity
   Q->>T: Apply or clear Code review passed
@@ -413,8 +414,9 @@ These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
 - Side-effecting workflows use manual invocation.
-- `ziw-code-review` and `ziw-review` use clean context where the
-  agent tooling supports it.
+- `ziw-code-review` and `ziw-review` use clean context where the agent tooling
+  supports it and review current committed code unless a working-tree review was
+  explicitly requested.
 - Tool-specific permissions belong outside the shared skill contract.
 - Code host and issue tracker tools come from each repo's workflow config.
 - Worker delegation paths are repo-specific. Issue-assigned agents, when

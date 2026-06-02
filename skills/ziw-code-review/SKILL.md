@@ -1,6 +1,6 @@
 ---
 name: ziw-code-review
-description: Use for code review before opening a PR, before handing off a branch, or when reviewing committed changes, uncommitted changes, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit.
+description: Use for code review before opening a PR, before handing off a branch, or when reviewing the latest committed changes, an explicitly requested working tree, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit.
 when_to_use: Use automatically for code review requests, pre-PR review gates, PR branch review, main drift review, or when another workflow skill asks for ziw-code-review.
 argument-hint: "[branch|pr-url|range]"
 context: fork
@@ -19,7 +19,8 @@ PR bodies, commits, and docs.
 
 ## Inputs
 
-- Branch, PR URL, commit range, or current working tree to review.
+- Branch, PR URL, commit range, or explicitly requested current working tree to
+  review.
 - Base branch from config or Git, usually `origin/main`.
 - Issue, PR, spec, ADR, or user request that defines intent.
 
@@ -42,14 +43,23 @@ only when preparing a remote worker review.
 ## Scope
 
 1. Identify base branch from config or Git, usually `origin/main`.
-2. Review committed branch changes against merge base.
-3. Include uncommitted changes when the user asked for a working-tree review or
-   this is a pre-PR self-check.
-4. For PR review, use a clean checkout or disposable worktree for the PR head.
-5. For main drift review, compare the checkpoint range supplied by Agent Review.
-6. Recover intent from the user request, tracker issue, PR body, commits, and
-   docs before judging implementation.
-7. Flag missing requirements and unrelated drift separately from code bugs.
+2. Fetch remote state before PR, branch, or range review.
+3. Resolve the current code-host or remote head SHA, base branch SHA, and merge
+   base before reading the diff.
+4. Review committed branch changes against merge base.
+5. Include uncommitted changes only when the user explicitly asked for a
+   working-tree review or this is a pre-PR self-check.
+6. For Agent Review or Orchestrator review, never include uncommitted changes.
+   Review the latest committed PR head, branch head, or checkpoint range only.
+7. For PR review, use a clean checkout or disposable worktree for the current PR
+   head. If the local checkout is stale, update or recreate it before reviewing.
+8. For branch review, prefer the remote-tracking head when the local branch is
+   stale. Stop and report stale state if the current committed head cannot be
+   verified.
+9. For main drift review, compare the checkpoint range supplied by Agent Review.
+10. Recover intent from the user request, tracker issue, PR body, commits, and
+    docs before judging implementation.
+11. Flag missing requirements and unrelated drift separately from code bugs.
 
 ## Review
 
@@ -64,9 +74,12 @@ Check:
 - public API, CLI, schema, generated artifacts, and docs contract drift
 - tests that would fail for the likely bug
 - package manager, CI, preview, and deploy rules from config
+- orchestrator refactor opportunities when review repeatedly exposes stale
+  evidence, brittle state transitions, missing workflow config, manual repair
+  loops, or review-debt intake gaps
 
 Run focused checks only when they materially improve confidence and are cheap.
-Do not spend time on style nits or broad refactors.
+Do not spend time on style nits or broad product refactors.
 
 ## CodeRabbit
 
@@ -93,8 +106,10 @@ there are blocking findings or the reviewed head is not the current PR head.
 ## REVIEW REPORT
 
 Scope check: CLEAN | DRIFT DETECTED | REQUIREMENTS MISSING
+Freshness: CURRENT | UPDATED BEFORE REVIEW | STALE, because <reason>
 Diff: <N files, +X/-Y>
 Reviewed head: <sha or working tree>
+Base: <base sha or range start>
 Checks run: <commands or "not run">
 CodeRabbit recommendation: SKIP | CLI | PR REVIEW, because <reason>
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
@@ -107,6 +122,7 @@ Findings:
   Fix: <specific direction>
 
 High-priority remaining: <none or list>
+Orchestrator refactor candidates: <none or list>
 Verdict: READY FOR PR | APPROVE | NEEDS REVISION | DO NOT MERGE
 ```
 

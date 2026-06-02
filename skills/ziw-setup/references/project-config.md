@@ -114,6 +114,9 @@ Last updated: YYYY-MM-DD
 - Authoritative check state:
 - Authoritative deploy state:
 - Orchestrator mutation authority:
+- Orchestrator recurring mechanism: Claude Code `/loop`, schedule, or wake-up
+  timer; Codex automations, either cron automations or heartbeat automations;
+  exact configured mechanism or "none"
 - Issue Triage mutation authority:
 - Implement authority:
 - Review authority:
@@ -144,6 +147,8 @@ Last updated: YYYY-MM-DD
 - Claude Code imports:
 - Claude Code symlinks:
 - Claude Code verification:
+- Claude loop terminology:
+- Codex automations terminology:
 - Review model policy: use the strongest configured reasoning path for
   orchestration and review decisions where evidence must be synthesized; use
   cheaper paths only for mechanical inventory reads when configured

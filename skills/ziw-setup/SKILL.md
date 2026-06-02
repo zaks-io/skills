@@ -159,6 +159,10 @@ Record:
   breaker, required checks that define green for the integrate gate, auto-merge
   risk tiers, post-merge check, verified-ready backlog policy,
   completely-blocked stop policy, friction-log ticket ID, and delivery metrics
+- runtime loop and automation terminology for each supported adapter: Claude Code
+  `/loop`, schedule, or wake-up timer; Codex automations, either cron
+  automations or heartbeat automations; and which mechanism owns recurring
+  Orchestrator ticks
 - label source of truth: the live tracker metadata, tracker workflow settings,
   existing repo docs, or explicit user instruction used to verify label names
 - label documentation policy: whether repo-local label docs exist, and whether

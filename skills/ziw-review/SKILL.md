@@ -1,6 +1,6 @@
 ---
 name: ziw-review
-description: Use for independent review that reviews PRs by launching ziw-code-review in a clean subagent or worktree, reviews main-branch drift since its checkpoint, and creates tracker issues for Agent Orchestrator.
+description: Use for independent review that reviews the latest committed PR heads by launching ziw-code-review in a clean subagent or worktree, reviews main-branch drift since its checkpoint, and creates tracker issues or orchestrator refactor findings for Agent Orchestrator.
 argument-hint: "[pr-url-or-range]"
 disable-model-invocation: true
 context: fork
@@ -9,9 +9,11 @@ agent: general-purpose
 
 # Review
 
-Review PRs and merged state from clean context. Report active-work verdicts to
-Agent Orchestrator and file actionable tracker issues for new drift. Do not implement
-fixes or move active work between workflow states.
+Review PRs and merged state from clean context. Always review current committed
+code, not stale local files. Report active-work verdicts, stale-state gaps, and
+orchestrator refactor findings to Agent Orchestrator. File actionable tracker
+issues for new drift. Do not implement fixes or move active work between
+workflow states.
 
 For Claude, this skill runs in a forked context. Reconstruct intent from repo
 artifacts, tracker state, PR bodies, commits, and docs rather than parent
@@ -51,18 +53,19 @@ for a backfill.
 
 1. Fetch remote state.
 2. Resolve default branch from config, usually `origin/main`.
-3. Review active PRs that are waiting on independent review.
-4. Load checkpoint.
-5. If checkpoint equals current SHA, stop with "no new commits".
-6. If checkpoint is not an ancestor, review only a safe reachable range or
+3. Resolve each reviewed PR or branch to the current code-host head SHA.
+4. Review active PRs that are waiting on independent review.
+5. Load checkpoint.
+6. If checkpoint equals current SHA, stop with "no new commits".
+7. If checkpoint is not an ancestor, review only a safe reachable range or
    escalate the history problem.
-7. Create a disposable worktree at current SHA.
-8. Review the diff from checkpoint to current SHA as merged product state.
-9. Run focused checks only when they are cheap and relevant.
-10. Create or update tracker issues for real findings.
-11. Advance checkpoint only after PR review, main review, and issue updates
+8. Create a disposable worktree at current SHA.
+9. Review the diff from checkpoint to current SHA as merged product state.
+10. Run focused checks only when they are cheap and relevant.
+11. Create or update tracker issues for real findings.
+12. Advance checkpoint only after PR review, main review, and issue updates
     complete.
-12. Remove disposable worktrees unless preserving them helps debugging.
+13. Remove disposable worktrees unless preserving them helps debugging.
 
 ## Review Delegation
 
@@ -72,10 +75,10 @@ Agent Review.
 Use one of these clean-context paths:
 
 - Subagent: launch a fresh reviewer with the PR URL, repo path, base branch,
-  linked tracker issue, required checks, and the instruction to use
-  `ziw-code-review`.
+  linked tracker issue, required checks, current PR head SHA, and the instruction
+  to use `ziw-code-review` against the latest committed code only.
 - Worktree: create a disposable worktree from the PR head, read config there,
-  and run `ziw-code-review` against the PR branch.
+  and run `ziw-code-review` against the current PR branch head.
 
 Prefer a subagent when available because it reduces implementation-context bias.
 Prefer a worktree when tools cannot launch a subagent, when local checks need a
@@ -84,15 +87,20 @@ real checkout, or when the PR state must be inspected from a clean filesystem.
 For each PR:
 
 1. Confirm Agent Implement or `ziw-pr` ran code review when feasible.
-2. Start the clean-context review with `ziw-code-review`.
-3. Post or return findings without fixing the PR locally.
-4. Report `Changes Requested` for blocking findings.
-5. Include the CodeRabbit recommendation and PR readiness recommendation from
+2. Fetch remote state and verify the local review target matches the current
+   code-host PR head. If not, update or recreate the review worktree and restart
+   the review.
+3. Start the clean-context review with `ziw-code-review`.
+4. Post or return findings without fixing the PR locally.
+5. Report `Changes Requested` for blocking findings.
+6. Include stale-state findings when review evidence, local refs, draft state, or
+   tracker metadata no longer match the current PR head.
+7. Include the CodeRabbit recommendation and PR readiness recommendation from
    the `ziw-code-review` output.
-6. Report `Ready to Merge` only when review is clean, required checks pass, the
+8. Report `Ready to Merge` only when review is clean, required checks pass, the
    PR is non-draft and ready-for-review, and required CodeRabbit escalation is
    complete or recorded as skipped by policy.
-7. Send feedback to Agent Orchestrator so it can move tracker state, update PR
+9. Send feedback to Agent Orchestrator so it can move tracker state, update PR
    draft state, apply or remove `Code review passed`, and nudge the original
    implementer.
 
@@ -108,6 +116,10 @@ Look for:
   deployment drift
 - missing tests or verification for risky changes
 - follow-up work discovered but not tracked in issue tracker
+- orchestrator refactor opportunities: repeated manual repairs, stale review
+  evidence, unclear status transitions, missing workflow config, brittle
+  handoffs, review debt that cannot become clean `kind-slice` work, or places
+  where Orchestrator has to infer state the systems of record should expose
 
 Use the code review checklist from
 `ziw-code-review/references/review-checklist.md` as taxonomy.
@@ -170,10 +182,12 @@ Fix the reviewed-main finding in one concrete PR.
 
 ## Done
 
-Report PRs reviewed, reviewed main range, issues created or recommended, checks
-run, CodeRabbit recommendations, PR readiness recommendations, checkpoint
-result, `Code review passed` label recommendation with reviewed head SHA,
-review-debt intake route used, handoff to Agent Orchestrator, and residual risk.
+Report PRs reviewed, freshness result for each review target, reviewed main
+range, issues created or recommended, checks run, CodeRabbit recommendations, PR
+readiness recommendations, checkpoint result, `Code review passed` label
+recommendation with reviewed head SHA, review-debt intake route used,
+orchestrator refactor candidates, handoff to Agent Orchestrator, and residual
+risk.
 
 ## Guardrails
 
