@@ -40,6 +40,9 @@ Confidence guide:
 
 - New route, command, worker, job, or API path lacks the expected auth gate.
 - Authorization checks use identity but miss workspace, tenant, role, resource ownership, or capability scope.
+- Claim, bootstrap, invitation, or ownership flows trust a supplied `userId`,
+  owner ID, or tenant ID instead of binding the operation to the authenticated
+  actor and authorized tenant.
 - Tokens, session cookies, service credentials, or secrets are logged, returned to clients, written to artifacts, or committed.
 - A "local only" or "admin only" path is reachable from production routing.
 
@@ -70,6 +73,9 @@ Confidence guide:
 - Idempotent workflows cover the primary write but leave optional side effects
   outside the key, such as notifications, enqueueing, provider calls, or token
   minting.
+- One-use grants, bootstrap claims, invitation accepts, or custody transfers are
+  checked and consumed in separate non-atomic steps, allowing double claim,
+  replay, or actor swap under concurrent attempts.
 - Replay hooks work for one principal type but skip another principal accepted by the route contract; completed retries should replay before rate limiting for every accepted actor.
 
 ### API and contract compatibility

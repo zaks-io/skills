@@ -82,6 +82,9 @@ contains:
   the issue to an implementation agent. The issue should be scoped to one PR and
   backed by a complete agent-ready body. It can be present while dependency
   blockers remain.
+- A ready `kind-slice` should be in the configured ready state, usually `Todo`,
+  unless config names a specific blocked-ready state. `Backlog` is future work,
+  not the ready queue.
 - `ready-for-agent` must be removed when an issue moves to the configured `Done`
   state. Done work is complete, not waiting for agent handoff.
 - Issue Triage should make current tickets agent-ready and keep tracker state
@@ -129,6 +132,10 @@ contains:
   and ADR decisions use `ready-for-human` or `needs-info`.
 - Dependency order should be encoded with tracker relationships when the
   provider supports them.
+- Auth, bootstrap, claim, invitation, one-use grant, custody, or ownership
+  tickets need explicit security invariants before they are marked ready:
+  authenticated actor binding, tenant or resource scope, replay behavior, atomic
+  consume or claim semantics, and concurrency checks.
 - Parent or workstream issues are containers unless explicitly marked
   executable. `kind-spec` and `kind-epic` are containers: they are To Issues
   input and must never be dispatched to a worker or marked `ready-for-agent`.

@@ -122,6 +122,12 @@ isolated UI changes with target states. Mark high-risk or ambiguous work for
 human planning when the plan does not settle the security, product, data, or
 architecture decision.
 
+For auth, bootstrap, claim, invitation, one-use grant, custody, or ownership
+slices, make the security invariants concrete before marking the ticket ready.
+Name the authenticated actor, tenant or resource binding, replay behavior,
+atomic consume or claim requirement, and concurrency checks the worker must
+prove.
+
 ## Labels And Readiness
 
 For each `kind-slice`:
@@ -132,6 +138,9 @@ For each `kind-slice`:
   approval criteria are met; dependency state is not a reason to withhold it
 - apply `ready-for-agent` only when the slice is scoped to one PR, routed,
   type and risk labeled, and complete enough to verify
+- place ready `kind-slice` issues in the configured ready state, usually `Todo`,
+  unless config names a specific blocked-ready state; do not park
+  implementation-ready slices in `Backlog`
 - otherwise apply `needs-info` or `ready-for-human` with the exact gap
 
 `ready-for-agent` means no further human refinement is needed before agent
@@ -163,6 +172,9 @@ colliding slices concurrently.
 - List the files, directories, or packages the slice is most likely to change.
 - Keep it a prediction, not a guarantee; the worker may diverge.
 - Flag slices with heavy expected overlap so they are serialized or sequenced.
+- Compare sibling slices after assigning individual footprints. Record hot files
+  or packages and the safe fan-out pairs, so Orchestrator does not discover
+  obvious collisions only after workers are already in flight.
 
 ## Self-Healing
 

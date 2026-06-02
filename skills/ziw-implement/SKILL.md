@@ -96,6 +96,20 @@ end with a PR or a clear reason the PR could not be created.
 Run the issue's required checks first, then the configured full local gate unless
 a narrower gate is justified. Use focused checks while iterating.
 
+Use exact configured or CI-equivalent commands for the full gate. Do not accept a
+self-reported green status, a package-local substitute, or a non-threshold
+variant when config or CI requires typecheck, build, coverage thresholds,
+generated-artifact checks, smoke, or secret scanning. In monorepos, include the
+cross-package checks that CI will enforce for the touched surface.
+
+Preserve existing sibling coverage when editing shared modules. Do not delete or
+weaken unrelated tests just to make the slice pass.
+
+For security, data, driver, and external API boundary changes, verify the real
+boundary shape when practical. Mocks can help iteration, but the done evidence
+should include a test or check that proves the actual read path, parser, driver
+codec, generated artifact, or provider response shape the feature depends on.
+
 If hosted verification is required but not authorized or unavailable, stop and
 report the gap. Do not mark acceptance criteria complete on partial evidence.
 

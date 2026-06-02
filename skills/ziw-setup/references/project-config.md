@@ -104,10 +104,11 @@ Last updated: YYYY-MM-DD
 - Default worker path:
 - Parallelism policy:
 - Concurrency cap: max workers dispatched at once (default 3 if unset)
-- Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before re-dispatch or escalation
+- Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
 - Required checks for merge: the CI checks that define green for the integrate gate
 - Auto-merge risk tiers: which risk tiers Orchestrator may auto-merge vs route to human merge
+- Post-merge preparation: install, build, generated-artifact, or dependency refresh needed before local post-merge checks are trustworthy
 - Post-merge check: command or signal that confirms the default branch is healthy after merge, if any
 - Authoritative issue state:
 - Authoritative PR state:
@@ -141,6 +142,8 @@ Last updated: YYYY-MM-DD
 - Issue-assigned agents: none, or project-specific routing/continuation notes
 - Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
 - Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
+- Issue-assigned liveness signals: session reply, branch, PR, check activity, or provider-specific signal that proves the worker is alive
+- Issue-assigned stuck-worker policy: nudge the existing continuation target before re-delegating unless current evidence proves the session cannot continue
 - Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:

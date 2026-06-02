@@ -115,6 +115,9 @@ Apply obvious mechanical updates in batches:
 - move issues from configured intake states such as `Triage` or equivalent to
   the configured ready state only when the user asked for intake cleanup or
   backfill and routing, labels, and the agent-ready body contract are complete
+- when backlog or intake states are explicitly in scope, move complete
+  `ready-for-agent` `kind-slice` issues to the configured ready state unless
+  config names a blocked-ready state; encode blockers separately
 - leave `Backlog` or equivalent future-work states alone unless the user
   explicitly asks for backlog review
 - move issues to the configured done state when linked PR, branch, release, or

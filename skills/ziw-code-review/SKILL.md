@@ -68,8 +68,11 @@ Check:
 - issue and PR scope
 - acceptance criteria
 - auth, authorization, tenant or workspace boundaries
+- authenticated-actor binding for user, owner, bootstrap, invitation, or claim
+  flows
 - secrets, tokens, signed URLs, customer data, and logging
-- destructive operations, retention, revocation, migrations, and rollback
+- destructive operations, retention, revocation, migrations, one-use grants, and
+  rollback
 - concurrency, idempotency, queues, background jobs, and retries
 - public API, CLI, schema, generated artifacts, and docs contract drift
 - tests that would fail for the likely bug

@@ -62,6 +62,13 @@ Record the skip in the final report.
 Run the repo full local gate from config. If absent, discover it from package
 scripts, CI, Makefile, Justfile, lockfiles, and touched languages.
 
+Use the configured command and runner for each check. Do not infer a test runner
+from filename alone, and do not replace the full gate with a package-local alias
+when CI enforces broader build, typecheck, coverage, generated-artifact, smoke,
+or secret-scan checks. When running secret scanning locally, use the same
+branch, diff, or source scope that CI uses instead of scanning unrelated local
+refs.
+
 Run focused checks for high-risk touched areas. Fix mechanical failures and
 rerun. Never use `--no-verify`.
 

@@ -44,6 +44,18 @@ session, reply **into the agent-session thread**, not at top level.
 - If no agent-session thread exists yet, the agent has not picked up the issue.
   Wait, re-check, or escalate; do not assume a top-level comment will be seen.
 
+### Liveness
+
+Config should name the worker signals that prove an issue-assigned agent is
+alive: agent-session thread reply, branch creation, branch push, PR creation, or
+check activity. The stuck-worker timeout is measured from the latest of those
+signals, not just from the initial delegation timestamp.
+
+When a session is quiet past the timeout, send one direct nudge to the
+continuation target before starting another worker, unless config or current
+evidence proves the original session cannot continue. Re-delegation is a
+duplicate-work risk.
+
 ### Delegation Preflight
 
 Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
@@ -95,6 +107,8 @@ values, not this file:
 - `Concurrency cap` (default 3 if the repo has no preference)
 - worker delegation paths and the configured agent user / delegate field
 - the continuation rule: reply into the agent-session thread, not top-level
+- liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy
 - the repo-route label family used for delegation
 - auto-merge risk tiers the orchestrator may merge vs route to human merge
-- required checks that define green
+- required checks that define green, plus any post-merge preparation needed
+  before local post-merge checks are trustworthy

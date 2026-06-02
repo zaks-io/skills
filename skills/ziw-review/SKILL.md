@@ -90,19 +90,23 @@ For each PR:
 2. Fetch remote state and verify the local review target matches the current
    code-host PR head. If not, update or recreate the review worktree and restart
    the review.
-3. Start the clean-context review with `ziw-code-review`.
-4. Post or return findings without fixing the PR locally.
-5. Report `Changes Requested` for blocking findings.
-6. Include stale-state findings when review evidence, local refs, draft state, or
+3. Verify the PR head is stable enough to review. If the head changed during
+   review setup, the code host has not attached checks to the current head yet,
+   or the implementation session is still actively pushing, stop with a stale
+   review-target finding instead of producing a verdict for a moving head.
+4. Start the clean-context review with `ziw-code-review`.
+5. Post or return findings without fixing the PR locally.
+6. Report `Changes Requested` for blocking findings.
+7. Include stale-state findings when review evidence, local refs, draft state, or
    tracker metadata no longer match the current PR head.
-7. Include the CodeRabbit recommendation and PR readiness recommendation from
+8. Include the CodeRabbit recommendation and PR readiness recommendation from
    the `ziw-code-review` output.
-8. Report `Ready to Merge` only when review is clean, required checks pass, the
+9. Report `Ready to Merge` only when review is clean, required checks pass, the
    PR is non-draft and ready-for-review, and required CodeRabbit escalation is
    complete or recorded as skipped by policy.
-9. Send feedback to Agent Orchestrator so it can move tracker state, update PR
-   draft state, apply or remove `Code review passed`, and nudge the original
-   implementer.
+10. Send feedback to Agent Orchestrator so it can move tracker state, update PR
+    draft state, apply or remove `Code review passed`, and nudge the original
+    implementer.
 
 ## Review Focus
 
@@ -112,6 +116,10 @@ Look for:
 - mismatch between shipped behavior and issue, PR, spec, ADR, or config
 - auth, authorization, tenant/workspace isolation, secrets, logging, retention,
   and public contract violations
+- security-sensitive flows where route input must bind to the authenticated
+  actor, tenant, or capability rather than trusting a supplied user or owner ID
+- one-use grants, bootstrap claims, revocation, or invitation flows that must be
+  atomic under retries and concurrent attempts
 - schema, migration, generated artifact, API, CLI, queue, background job, and
   deployment drift
 - missing tests or verification for risky changes

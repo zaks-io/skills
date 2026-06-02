@@ -157,7 +157,7 @@ Record:
 - autonomous-loop controls when the repo runs the orchestrator unattended:
   concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
   breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, post-merge check, verified-ready backlog policy,
+  risk tiers, post-merge preparation and check, verified-ready backlog policy,
   completely-blocked stop policy, friction-log ticket ID, and delivery metrics
 - runtime loop and automation terminology for each supported adapter: Claude Code
   `/loop`, schedule, or wake-up timer; Codex automations, either cron
@@ -176,7 +176,7 @@ Record:
 - issue-assigned agent notes when available: project-specific environment labels
   or fields, worker environment approval labels, delegation tool or field,
   verified agent IDs, direct-agent reply targets, continuation comment rules, and
-  no-mutation probe policy
+  liveness signals, nudge-before-redelegate policy, and no-mutation probe policy
 - Claude Code compatibility: the target repo's Claude Code integration source
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified

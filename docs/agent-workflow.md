@@ -62,13 +62,19 @@ thrash, merge conflicts, and post-merge failures. A bounded run should also emit
 counts for started, merged, waiting, blocked, first-pass checks, review rework,
 stuck workers, and agent cost when available.
 
+Friction entries use one canonical category per event. Resolved state, false
+alarms, or infra-flake notes belong in `what` or `signal`, not in the category.
+Do not combine multiple events in one friction comment; use rollups for
+aggregation.
+
 ## Roles
 
 - To Issues: the front door that turns a spec, PRD, or epic ticket into
   dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
   instead of duplicating them, applies the agent-ready body contract and labels,
-  and emits a dependency graph and predicted file footprint. Creates tickets; it
-  does not implement, review, or move active work.
+  puts ready slices in the configured ready state, and emits a dependency graph
+  and predicted file footprint. Creates tickets; it does not implement, review,
+  or move active work.
 - Agent Orchestrator: reads external state, starts or nudges workers, calls
   review and integrate as steps, records a friction log, and owns the authority
   to mutate active workflow status in the issue tracker.
@@ -126,6 +132,11 @@ Review and integrate are steps the orchestrator calls inside a tick and waits
 on. To Issues and triage are front-loaded steps the user runs before
 orchestration, or bounded repair steps the orchestrator can delegate when current
 work is stale.
+
+Integrate prepares the local default-branch checkout before interpreting
+post-merge failures: refresh dependencies when the workspace graph changed,
+rebuild or regenerate configured artifacts, and run the configured post-merge
+check with the configured runner.
 
 ## Ticket Kinds
 
