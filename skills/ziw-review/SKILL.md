@@ -117,14 +117,25 @@ Use the code review checklist from
 Before creating an issue, search for duplicates by problem, files, PR, and
 commit range.
 
+Review-created issues are current-work intake, not a parking lot. Use the
+configured review-debt intake filter, label, project, or parent so Issue Triage
+and Agent Orchestrator can find them without a separate human sweep. If config
+does not define a review-debt intake location, use the normal repo route and
+report the missing config as a setup gap.
+
 New issue rules:
 
 - use configured provider location and routing label
 - use `Bug` or `Tech Debt` unless the finding is clearly another type
 - set risk label from config
-- add readiness labels only when config allows Agent Review to create findings
-  directly
-- otherwise report labels for Agent Orchestrator to apply
+- set `kind-slice` only when the finding is scoped to one concrete PR with clear
+  acceptance criteria and checks; otherwise create or recommend `kind-spec` or
+  `kind-epic` for To Issues to slice
+- add `ready-for-agent` and the worker environment label only when config allows
+  Agent Review to create implementation-ready review debt directly and the issue
+  satisfies the full body contract
+- otherwise apply or recommend `needs-info` or `ready-for-human` with the exact
+  decision needed, so the issue is visible but not dispatchable
 - include reviewed range and file evidence
 - keep issue text metadata-only
 
@@ -162,7 +173,7 @@ Fix the reviewed-main finding in one concrete PR.
 Report PRs reviewed, reviewed main range, issues created or recommended, checks
 run, CodeRabbit recommendations, PR readiness recommendations, checkpoint
 result, `Code review passed` label recommendation with reviewed head SHA,
-handoff to Agent Orchestrator, and residual risk.
+review-debt intake route used, handoff to Agent Orchestrator, and residual risk.
 
 ## Guardrails
 

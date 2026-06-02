@@ -330,7 +330,11 @@ Each tick is stateless against external state. On each pass:
    starting new work.
 4. Advance returned PRs, including draft PRs with no clear next action, through
    the PR Review And Integrate process below.
-5. Find startable work: `kind-slice` plus `Todo` plus `ready-for-agent`,
+5. Reconcile the configured review-debt intake route. Send broad or incomplete
+   findings to triage or To Issues, and include concrete review-created
+   `kind-slice` issues in the startable frontier once their body, labels,
+   dependencies, and route are complete.
+6. Find startable work: `kind-slice` plus `Todo` plus `ready-for-agent`,
    unblocked, with a complete agent-ready body. `ready-for-agent` means no
    further human refinement is needed before agent handoff; it can be present on
    blocked issues. Never treat a `kind-spec` or `kind-epic` container as
@@ -339,14 +343,14 @@ Each tick is stateless against external state. On each pass:
    the workflow state. For verified-ready backlog work, if the only gap is a
    routine label or status mismatch and the correct state is clear from evidence,
    repair it and continue instead of skipping the ticket.
-6. Select new work by dependency order, milestone/project priority, risk, and
+7. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention. Do not dispatch a ticket whose predicted files
    collide with an in-flight dispatch; defer it and record a `file-collision`
    friction entry.
-7. Respect the configured concurrency cap. Default to 3 concurrent in-flight
+8. Respect the configured concurrency cap. Default to 3 concurrent in-flight
    workers when config names no cap. Dispatch new work only up to
    `cap - in-flight`. If the cap is reached, advance existing work only.
-8. Choose the next orchestration action. The following actions are examples, not
+9. Choose the next orchestration action. The following actions are examples, not
    limits; use model judgment to handle any other evidence-backed workflow action
    needed to keep the ticket moving:
    - isolated implementation worker, such as Claude Code
@@ -367,11 +371,11 @@ Each tick is stateless against external state. On each pass:
    - local Codex for orchestration repair, metadata updates, and small
      coordination fixes
    - planning agent for ambiguous product, security, or architecture
-9. Build the worker prompt, assignment comment, or tracker handoff from config,
-   issue body, linked docs, required checks, branch/worktree, and
-   `ziw-implement`. Record the dispatch in the ledger and tracker with
-   an idempotency key.
-10. Append friction entries for this tick (see Friction Log). Continue only while
+10. Build the worker prompt, assignment comment, or tracker handoff from config,
+    issue body, linked docs, required checks, branch/worktree, and
+    `ziw-implement`. Record the dispatch in the ledger and tracker with
+    an idempotency key.
+11. Append friction entries for this tick (see Friction Log). Continue only while
     safe actions remain and the user-specified loop budget allows it. If no safe
     action remains because the scoped queue is completely blocked, stop the
     recurring loop for that scope.
@@ -624,12 +628,18 @@ that bounces review. At the end of a bounded run, post one compact rollup with
 counts by category. Do not post a rollup every tick unless the run is explicitly
 unattended and config asks for that visibility.
 
+When review-created tickets repeatedly enter the queue with missing kind, route,
+readiness, dependency, or file-footprint data, log `review-debt-intake` friction
+instead of letting them quietly become generic Tech Debt. That signal points
+upstream to Agent Review, To Issues, triage, or setup depending on the missing
+field.
+
 Each entry is one compact comment, metadata only:
 
 ```text
 tick: <id or timestamp>
 ticket: <ISSUE-ID or "loop">
-category: ambiguous-ticket | dependency-wrong | file-collision | stuck-worker | review-thrash | merge-conflict | post-merge-break | config-gap | escalation
+category: ambiguous-ticket | dependency-wrong | file-collision | stuck-worker | review-thrash | review-debt-intake | merge-conflict | post-merge-break | config-gap | escalation
 what: <one line>
 cost: <ticks, retries, or wall-clock burned>
 signal: <what would have prevented it, and which upstream skill it points at>
@@ -653,7 +663,8 @@ agent-cost: <tokens, credits, or "unknown">
 Categories map to the upstream skill to fix: `ambiguous-ticket` and
 `dependency-wrong` point at To Issues and triage; `file-collision` points at
 To Issues footprint prediction; `stuck-worker` points at liveness timeout tuning;
-`review-thrash` points at slice size; `merge-conflict` and `post-merge-break`
+`review-thrash` points at slice size; `review-debt-intake` points at Agent
+Review, To Issues, triage, or setup; `merge-conflict` and `post-merge-break`
 point at slicing or serialization; `config-gap` points at setup.
 
 The friction log never replaces escalation. Items needing the user now still get

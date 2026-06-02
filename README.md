@@ -183,6 +183,13 @@ for these narrow verified-state repairs. It reads the issue tracker, checks PR
 and CI state, starts workers, asks for review, and moves tickets when the
 external state says that is safe.
 
+Review-created follow-up tickets are current-work intake when config defines a
+review-debt route. Agent Review files real findings there; Triage normalizes
+them into `kind-slice` work, To Issues input, or human-decision items; and
+Orchestrator includes concrete ready slices in the normal queue. This keeps code
+review debt visible without pretending every review finding is immediately
+dispatchable.
+
 Agent Orchestrator does whatever needs to happen to get tickets handled safely.
 Its job is to find where tickets are stuck in the tracker-to-PR-to-merge
 pipeline, determine why they are not advancing, and take the next safe action to

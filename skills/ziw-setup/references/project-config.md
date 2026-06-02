@@ -48,6 +48,14 @@ Last updated: YYYY-MM-DD
 - Routing label:
 - Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required before issue-assigned delegation so the agent resolves which repo to clone
 - Triage scope: Todo and active or PR-linked current issues by default; backlog only when explicitly requested
+- Review-debt intake route: filter, label, project, parent, or status where
+  Agent Review files follow-up findings so triage and orchestration include them
+  by default
+- Review-debt intake policy: review-created findings are current-work intake.
+  Concrete one-PR findings become `kind-slice` with `Bug` or `Tech Debt`, risk,
+  route, body contract, and readiness when complete. Broader architecture or
+  ambiguous findings become `kind-spec` or `kind-epic` for To Issues or
+  `ready-for-human` with the exact decision needed.
 - Orphan policy:
 - Issue key examples:
 - Ready state: Todo
@@ -83,6 +91,9 @@ Last updated: YYYY-MM-DD
 - Dependency policy:
 - Dependency graph mechanism: tracker relationship/blocker field, or configured body shape
 - File footprint convention: where To Issues records predicted files/packages per slice
+- Review-debt footprint convention: where Agent Review or triage records likely
+  files/packages for review-created `kind-slice` tickets before Orchestrator can
+  dispatch them
 - Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
   scope, acceptance criteria, required checks, safety invariants, dependencies
 - Labels are signals, not authority:

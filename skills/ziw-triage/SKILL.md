@@ -65,13 +65,16 @@ do not scan the whole backlog. Build the default triage set from:
    or comments that can prove the tracker is stale.
 3. Issues with the repo routing label that are already in ready or active
    states but are missing the configured project, parent, or metadata.
-4. Recently updated issues only when they are already in ready or active states
+4. Issues in the configured review-debt intake filter, label, project, parent,
+   or status. Review-created findings are current-work intake even when they are
+   not ready to dispatch yet.
+5. Recently updated issues only when they are already in ready or active states
    or have direct links to current PRs or branches.
 
 Treat `Backlog`, icebox, roadmap, someday, or equivalent future-work states as
 out of scope unless explicitly requested. `Triage` or other intake states are
-also out of scope by default unless config names them as current work or the
-user asks for intake cleanup.
+also out of scope by default unless config names them as current work,
+review-debt intake, or the user asks for intake cleanup.
 
 ## Inventory
 
@@ -84,8 +87,11 @@ Build a triage set before making changes:
    project milestones.
 4. Recently created or updated ready or active issues that match repo, package,
    feature, or customer terms from the project.
-5. `Triage`, `Backlog`, or equivalent intake and future-work states only when
-   explicitly requested.
+5. Issues in the configured review-debt intake route, so review findings are
+   normalized into dispatchable slices, human decisions, or To Issues input.
+6. `Triage`, `Backlog`, or equivalent intake and future-work states only when
+   explicitly requested or when config explicitly uses them for review-debt
+   intake.
 
 Classify each issue as one of:
 
@@ -120,6 +126,10 @@ Apply obvious mechanical updates in batches:
 - add missing routing, type, risk, area, kind, and readiness labels from config
 - set exactly one `kind-*` value and clear the others; keep `kind-spec` and
   `kind-epic` as containers and never mark a container `ready-for-agent`
+- normalize review-created findings: make concrete one-PR findings
+  `kind-slice` with `Bug` or `Tech Debt`, route them to the repo, set risk and
+  readiness when the body is complete, and leave broader architecture findings
+  as containers for To Issues
 - flag a container that leaked into the work queue, such as a `kind-spec` or
   `kind-epic` carrying `ready-for-agent` or a startable status
 - remove conflicting workflow labels only after the correct replacement is clear
@@ -299,6 +309,8 @@ Report:
 - labels, priorities, body contracts, dependencies, and status recommendations
   updated
 - ready-state issues made agent-ready or left with exact blockers
+- review-debt intake issues normalized, promoted, left for To Issues, or left for
+  human decision
 - verified stale states reconciled, including merged work marked done
 - intake-state issues promoted to the configured ready state, if requested
 - issues newly implementation-ready, newly startable, and removed from readiness
