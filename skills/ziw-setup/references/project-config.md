@@ -24,6 +24,7 @@ Last updated: YYYY-MM-DD
 - Package manager:
 - Install:
 - Full local gate:
+- Full local gate cache policy: cache-busted command or "cache safe because ..."
 - Focused checks:
 - Build:
 - Generated artifacts:
@@ -40,6 +41,9 @@ Last updated: YYYY-MM-DD
 - Query-safe names:
 - Read-only verification query:
 - Tracker tool query contract:
+- Tracker mutation path: verified tool or provider path agents may use for
+  status, label, comment, dependency, assignment, and delegation updates
+- Tracker mutation paths to avoid: stale, read-only, or known-broken tools
 - Status field names:
 - Dependency and blocker fields:
 - Label source of truth:
@@ -108,7 +112,11 @@ Last updated: YYYY-MM-DD
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
 - Required checks for merge: the CI checks that define green for the integrate gate
+- Required no-cache gates: commands or flags required after edits, such as
+  `--force` or `--no-cache`, especially for coverage, lint, typecheck, and
+  generated artifacts
 - Auto-merge risk tiers: which risk tiers Orchestrator may auto-merge vs route to human merge
+- Merge method: squash, merge commit, rebase, or human-selected
 - Post-merge preparation: install, build, generated-artifact, or dependency refresh needed before local post-merge checks are trustworthy
 - Post-merge check: command or signal that confirms the default branch is healthy after merge, if any
 - Authoritative issue state:
@@ -124,6 +132,8 @@ Last updated: YYYY-MM-DD
 - Review authority:
 - Merge authority:
 - Claim record:
+- Duplicate session or PR policy: how to choose the canonical worker session or
+  PR, and whether Orchestrator may close or mark duplicates
 - Orchestrator local state:
 - Verified-ready backlog policy: when the user scopes a set of tickets that has
   already been reviewed as implementation-ready, Orchestrator owns moving every
@@ -145,6 +155,12 @@ Last updated: YYYY-MM-DD
 - Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
 - Issue-assigned liveness signals: session reply, branch, PR, check activity, or provider-specific signal that proves the worker is alive
 - Issue-assigned stuck-worker policy: nudge the existing continuation target before re-delegating unless current evidence proves the session cannot continue
+- Issue-assigned duplicate policy: if multiple sessions or PRs exist for one
+  issue, pick one canonical path from idempotency key, head freshness, checks,
+  review state, and issue linkage before dispatching more work
+- Issue-assigned supersession policy: feedback that changes scope must be posted
+  in the agent-session thread and explicitly say which earlier instruction it
+  supersedes
 - Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:
@@ -165,6 +181,7 @@ Last updated: YYYY-MM-DD
 - PR title:
 - PR body:
 - Required checks:
+- Cache policy:
 - Code review:
 - CodeRabbit:
 - Draft PR policy: draft only while checks, requested human prep, or required
@@ -175,6 +192,7 @@ Last updated: YYYY-MM-DD
 - Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:
+- Merge method:
 
 ## Environments
 

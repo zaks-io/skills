@@ -127,6 +127,12 @@ Name the authenticated actor, tenant or resource binding, replay behavior,
 atomic consume or claim requirement, and concurrency checks the worker must
 prove.
 
+For invariant or enforcement slices, make the negative case exact enough that a
+worker cannot satisfy it with a broad global check. State whether validation is
+per route, per tenant, per resource, per actor, or global; name the failing input
+that must be rejected; and say whether runtime assertions are allowed in the
+production request path or only in tests, development, or build-time checks.
+
 ## Labels And Readiness
 
 For each `kind-slice`:
@@ -183,6 +189,9 @@ and record every fix. For To Issues specifically:
 
 - Heal a wrong or duplicate `kind-*`, a stale label that resolves to a verified
   one, and a re-run duplicate by converging on the canonical ticket.
+- If current comments or linked evidence prove an existing ticket is not a bug,
+  already resolved, canceled, or intentionally out of scope, move it to the
+  configured terminal or human-review state instead of adopting it as ready work.
 - Escalate with `needs-info` when scope or acceptance criteria are unknowable;
   never fabricate them to make a ticket look ready.
 - Report every heal and every escalated gap in the run summary.

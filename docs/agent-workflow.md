@@ -28,6 +28,10 @@ slugs: provider IDs, exact names or keys accepted by the tracker tool, status
 field names, blocker relationship fields, routing labels, and a read-only query
 that proved the mapping returns the intended issue set.
 
+Config should also name the tracker mutation path agents may use, any known
+stale or read-only mutation paths to avoid, the merge method, and no-cache or
+force variants for required gates that otherwise reuse task results.
+
 Setup must verify every populated value that can affect agent behavior. That
 includes repo commands, code host state, CI checks, tracker metadata, worker
 delegation, adapter paths, and environment safety rules. Values that cannot be
@@ -51,6 +55,12 @@ Agents must refresh the relevant systems of record before mutating anything. The
 dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegations
 for stuck-worker detection and duplicate suppression; it may be empty on any tick
 and is always reconciled against the tracker and code host.
+
+If reconciliation finds multiple active sessions, branches, or PRs for one
+issue, Orchestrator resolves the duplicate state before advancing that issue. It
+selects one canonical path from claim markers, idempotency keys, current head,
+checks, review state, and issue linkage, then closes, marks duplicate, or
+escalates the rest according to config authority.
 
 The friction log is the one retrospective artifact and is intentionally not a
 system of record. The orchestrator writes it as append-only comments on a
@@ -215,6 +225,11 @@ does not mean implementing vague future work without triage. If every scoped
 issue is blocked and no orchestration action remains, the loop stops for that
 scope.
 
+Before dispatching a ready-looking ticket, Orchestrator checks recent issue
+comments and linked evidence for terminal decisions such as verified not-a-bug,
+resolved, duplicate, canceled, or product-deferred. Terminal evidence repairs
+tracker state; it is not a reason to start a worker.
+
 Downstream config should say which worker delegation paths the project supports:
 
 - `local-worktree`: Agent Orchestrator starts local subagents, gives each worker
@@ -278,6 +293,10 @@ a top-level issue comment. For remote Cursor agents, the integration posts an
 Record the session handle (such as the `cursor.com/agents/bc-<id>` URL) in the
 ledger. Starting a new assignment is only for cases where the original session
 cannot continue.
+
+When feedback changes or narrows earlier instructions, the continuation reply
+must explicitly supersede the stale instruction. Otherwise the worker may keep
+following the older, broader scope.
 
 When a PR is stuck in draft, Agent Orchestrator diagnoses the draft blocker from
 repo policy, PR state, checks, comments, handoff notes, and the original worker

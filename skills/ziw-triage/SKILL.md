@@ -114,6 +114,11 @@ Apply obvious mechanical updates in batches:
 - address configured triage or intake-state issues by normalizing body, labels,
   kind, route, dependencies, and readiness, then leave each with a truthful next
   state
+- read recent issue comments before promoting a ticket to ready. If comments or
+  linked evidence verify not-a-bug, duplicate, canceled, resolved, or an
+  intentional product decision, move the issue to the configured terminal,
+  duplicate, or human-review state and remove readiness instead of returning it
+  to the work queue.
 - make configured ready-state issues, usually `Todo`, match the agent-ready body
   contract, labels, blockers, and route
 - move issues from configured intake states such as `Triage` or equivalent to
@@ -138,6 +143,10 @@ Apply obvious mechanical updates in batches:
   `kind-slice` with `Bug` or `Tech Debt`, route them to the repo, set risk and
   readiness when the body is complete, and leave broader architecture findings
   as containers for To Issues
+- for invariant or enforcement findings, make the acceptance criteria name the
+  exact negative case and scope of enforcement, such as per-route rather than a
+  global union, and call out whether assertions may run in production request
+  paths
 - flag a container that leaked into the work queue, such as a `kind-spec` or
   `kind-epic` carrying `ready-for-agent` or a startable status
 - remove conflicting workflow labels only after the correct replacement is clear

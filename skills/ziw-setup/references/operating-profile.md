@@ -56,6 +56,18 @@ continuation target before starting another worker, unless config or current
 evidence proves the original session cannot continue. Re-delegation is a
 duplicate-work risk.
 
+If one issue has multiple active sessions, branches, or PRs, resolve that
+duplicate state before dispatching, reviewing, or merging. Prefer the path whose
+claim marker or idempotency key matches the current issue; otherwise choose the
+current head with the clearest issue linkage, passing checks, and latest review
+state. Close or mark duplicates only when config grants that authority;
+otherwise escalate the duplicate cleanup.
+
+When a nudge or review fix changes scope, reply in the agent-session thread and
+make the supersession explicit: `SUPERSEDES: disregard <prior instruction/date or
+comment id>`. Top-level superseding comments are not enough for issue-assigned
+workers unless config has verified that route.
+
 ### Delegation Preflight
 
 Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
@@ -68,7 +80,8 @@ Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
 | repo-route label (e.g. `<org>/<repo>`)          | tells the agent which repo to clone | heal inline if team maps unambiguously to one repo; else escalate `needs-info` |
 | unblocked                                       | safe to start                       | defer; never start blocked work                                                |
 | complete agent-ready body                       | agent can verify                    | refuse; route to triage                                                        |
-| no active claim, no open PR                     | not already in flight               | skip; advance the existing work instead                                        |
+| no active claim, no agent session, no open PR   | not already in flight               | skip; advance or dedupe the existing work instead                              |
+| recent comments do not prove terminal state     | avoid reopening resolved work       | repair to done, duplicate, canceled, or human-review state                     |
 | in-flight workers < cap                         | concurrency                         | defer to a later tick                                                          |
 
 The repo-route label is a hard precondition, not decoration. Without it the
@@ -95,6 +108,7 @@ Rules that do not change with tier:
 
 - A label is never permission to merge.
 - Never merge a stale branch; rebase, rerun checks and review, then merge.
+- Use the configured merge method, such as squash, merge commit, or rebase.
 - Never merge or deploy production without explicit approval.
 - Missing CodeRabbit auth, rate limits, or credits is a recorded skip unless the
   user explicitly required it.
@@ -108,7 +122,10 @@ values, not this file:
 - worker delegation paths and the configured agent user / delegate field
 - the continuation rule: reply into the agent-session thread, not top-level
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy
+- duplicate session or PR policy and supersession comment policy
 - the repo-route label family used for delegation
 - auto-merge risk tiers the orchestrator may merge vs route to human merge
 - required checks that define green, plus any post-merge preparation needed
   before local post-merge checks are trustworthy
+- required no-cache or force variants for cache-backed local gates
+- configured merge method

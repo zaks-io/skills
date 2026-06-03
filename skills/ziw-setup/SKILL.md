@@ -138,7 +138,8 @@ Record:
   read-only tool calls used, and unverified values
 - repo identity, default branch, branch prefix, and PR conventions
 - package manager and command table: install, full gate, focused checks, build,
-  lint, typecheck, tests, smoke, generated artifacts
+  lint, typecheck, tests, smoke, generated artifacts, and cache-busted variants
+  for required gates that otherwise reuse task results
 - issue tracker provider, provider location, project or board, routing label,
   triage scope, orphan policy, statuses, labels, kind label set
   (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
@@ -148,17 +149,20 @@ Record:
   agent-suitability policy for work types and risk,
   Issue Triage verified-state reconciliation authority, triage/intake-to-ready
   authority, and which workflow role owns active status transitions
-- tracker tool query contract: exact provider IDs, query-safe names, status
-  field names, relationship or blocker fields, pagination shape if relevant, and
-  one read-only verification query or tool call that returned the expected scope
+- tracker tool query and mutation contract: exact provider IDs, query-safe names,
+  status field names, relationship or blocker fields, pagination shape if
+  relevant, the verified tool or path allowed to mutate workflow state, any
+  known stale or read-only paths to avoid, and one read-only verification query
+  or tool call that returned the expected scope
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
 - default worker path and parallelism policy when the user or repo has a stable
   preference
 - autonomous-loop controls when the repo runs the orchestrator unattended:
   concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
-  breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, post-merge preparation and check, verified-ready backlog policy,
-  completely-blocked stop policy, friction-log ticket ID, and delivery metrics
+  breaker, required checks that define green for the integrate gate, required
+  no-cache or force gate variants, auto-merge risk tiers, post-merge preparation
+  and check, verified-ready backlog policy, completely-blocked stop policy,
+  friction-log ticket ID, and delivery metrics
 - runtime loop and automation terminology for each supported adapter: Claude Code
   `/loop`, schedule, or wake-up timer; Codex automations, either cron
   automations or heartbeat automations; and which mechanism owns recurring
@@ -176,7 +180,8 @@ Record:
 - issue-assigned agent notes when available: project-specific environment labels
   or fields, worker environment approval labels, delegation tool or field,
   verified agent IDs, direct-agent reply targets, continuation comment rules, and
-  liveness signals, nudge-before-redelegate policy, and no-mutation probe policy
+  liveness signals, duplicate session or duplicate PR policy,
+  nudge-before-redelegate policy, and no-mutation probe policy
 - Claude Code compatibility: the target repo's Claude Code integration source
   of truth, the agent markdown it imports, the repo-local agent, command, or
   skill paths symlinked there, and how those links were verified
@@ -187,7 +192,8 @@ Record:
   active tracker transitions, the orchestrator integrate gate and friction log,
   clean-context review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation,
-  required CI, preview checks
+  required CI, preview checks, cache policy, PR merge method, and stale-review
+  evidence handling
 - environment safety: local, development, preview, and production capabilities;
   production deploy path; preview deploy path; credential rules; allowed hosted
   checks; and explicit approval requirements

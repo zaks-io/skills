@@ -198,12 +198,24 @@ Per in-flight dispatch, record only:
 - worker path (`local-worktree` or `issue-assigned`) and target (agent or branch)
 - dispatch idempotency key (issue ID + claim marker), to avoid double dispatch
 - first-dispatch tick or timestamp, for stuck detection
+- current worker session handle or continuation target when the provider exposes
+  one
+- current linked PR URL, branch, and head SHA when known
+- claim status from tracker assignment, labels, fields, or comments
 - last observed external signal (branch created, PR opened, review verdict)
 
 On every tick, reconcile the ledger against refreshed tracker and PR state.
 Trust external state over the ledger. Drop ledger entries that external state has
 moved past. Never act on a ledger entry without confirming it against the
 tracker or code host first.
+
+If one issue has multiple active worker sessions, branches, or PRs, treat that
+as a duplicate-dispatch incident before starting or reviewing more work. Pick the
+canonical session or PR from current external state: matching idempotency key or
+claim marker first, then current head completeness, checks, review state, and
+issue linkage. Advance only the canonical path. Close, mark duplicate, or route
+the others according to config authority; if authority is missing, mark the
+ticket for human cleanup and log `stuck-worker`.
 
 ## Tracker Tooling
 
@@ -321,12 +333,15 @@ Each tick is stateless against external state. On each pass:
    the configured tracker tool/MCP and verified IDs. Refresh local Git refs and
    status for the repo, including relevant branches and worktrees, then note the
    current default branch HEAD.
-2. Reconcile the dispatch ledger against refreshed state. For each in-flight
-   dispatch with no branch, PR, or worker signal past the configured stuck
-   timeout, treat the worker as stuck: reply directly to the assigned agent's
-   continuation target or escalate, and record a `stuck-worker` friction entry.
-   Prefer one direct nudge before re-delegating when the original worker session
-   can still continue; re-delegation risks duplicate branches and PRs.
+2. Reconcile the dispatch ledger against refreshed state. First resolve duplicate
+   sessions, branches, or PRs for the same issue; do not dispatch, review, or
+   integrate that issue until one canonical path is selected or the duplicate is
+   escalated. For each in-flight dispatch with no branch, PR, or worker signal
+   past the configured stuck timeout, treat the worker as stuck: reply directly
+   to the assigned agent's continuation target or escalate, and record a
+   `stuck-worker` friction entry. Prefer one direct nudge before re-delegating
+   when the original worker session can still continue; re-delegation risks
+   duplicate branches and PRs.
 3. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`. Prefer advancing active work over
    starting new work.
@@ -340,11 +355,15 @@ Each tick is stateless against external state. On each pass:
    unblocked, with a complete agent-ready body. `ready-for-agent` means no
    further human refinement is needed before agent handoff; it can be present on
    blocked issues. Never treat a `kind-spec` or `kind-epic` container as
-   startable. Check provider blocker relationships and explicit body blockers
-   before starting or delegating work. Treat labels as signals and statuses as
-   the workflow state. For verified-ready backlog work, if the only gap is a
-   routine label or status mismatch and the correct state is clear from evidence,
-   repair it and continue instead of skipping the ticket.
+   startable. Check provider blocker relationships, explicit body blockers, and
+   a compact set of recent issue comments before starting or delegating work.
+   Recent comments can prove the ticket is already resolved, not a bug,
+   canceled, duplicated, waiting on a product decision, or already triaged out of
+   the work queue. If they do, repair the tracker state and do not dispatch.
+   Treat labels as signals and statuses as the workflow state. For
+   verified-ready backlog work, if the only gap is a routine label or status
+   mismatch and the correct state is clear from evidence, repair it and continue
+   instead of skipping the ticket.
 7. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention. Do not dispatch a ticket whose predicted files
    collide with an in-flight dispatch; defer it and record a `file-collision`
@@ -449,12 +468,16 @@ Before starting issue-assigned work, run a read-only preflight:
   log a `config-gap`; if the target repo is ambiguous, escalate `needs-info` and
   do not delegate.
 - verify blockers and dependencies from provider relationships and body text
+- read recent issue comments for verified not-a-bug, resolved, duplicate,
+  canceled, or prior triage verdicts before treating the ticket as startable
 - verify the requested agent is exposed by the tracker or the config has a
   previously verified delegation tool, field, or agent ID
 - verify the issue is not already claimed, delegated, linked to an open PR, or
   waiting on review feedback
+- verify there is not already an active agent-session handle. If more than one
+  session or PR exists, run duplicate reconciliation instead of delegating.
 
-See [../../ziw-setup/references/operating-profile.md](../../ziw-setup/references/operating-profile.md)
+See [../ziw-setup/references/operating-profile.md](../ziw-setup/references/operating-profile.md)
 for the full delegation preflight table, the agent-session continuation
 mechanic, the concurrency default, and the merge-safety decision table.
 
@@ -477,8 +500,9 @@ To start issue-assigned work:
   implementation-ready issue is missing only the configured worker environment
   label or field, repair that environment metadata and continue; do not ask again
 - assign the selected agent to the issue through the configured issue tracker
-- record the delegation in the issue tracker and ledger, including expected PR
-  and check requirements
+- record the delegation in the issue tracker and ledger, including the
+  idempotency key, session handle when available, expected PR, and check
+  requirements
 
 The assigned agent owns the configured environment, implementation run, code
 review, and PR return path. If Orchestrator needs to reach that same session,
@@ -489,6 +513,13 @@ top-level comments continue the assigned-agent session. If no direct reply targe
 can be found, stop with the missing continuation path instead of assuming the
 agent will see it. Do not start a new assignment for PR fixes while the original
 session can continue.
+
+When feedback or a scope correction supersedes earlier instructions, say so in
+the same continuation thread: `SUPERSEDES: disregard <prior instruction/date or
+comment id>`. If config grants comment-edit or comment-resolution authority,
+retract or resolve the stale instruction too. Do not post superseding scope
+changes as top-level comments for issue-assigned workers unless config verifies
+that route.
 
 For Linear issue-assigned agents, delegate by setting the issue `delegate` field
 to the configured agent user (for Cursor, the `Cursor` agent user); the human
@@ -538,7 +569,9 @@ are called steps, not inlined work:
 8. If the PR head changed since `Code review passed` was applied, or the label
    lacks reviewed head SHA evidence, remove the label before continuing.
 9. If the latest review has blocking findings, remove `Code review passed` and
-   post actionable findings as PR review comments when configured.
+   post actionable findings as PR review comments when configured. After the
+   worker pushes fixes, refresh the PR head and diff before reasserting any
+   finding; do not bounce a PR on findings from a stale diff.
 10. Move the issue to `Changes Requested` when author fixes are needed.
 11. Send feedback as a direct reply to Agent Implement or the original worker's
     continuation target when available. Do not use a top-level issue comment for a
@@ -615,7 +648,9 @@ When the gate passes:
    merge a stale branch on the assumption it still applies. Record a
    `merge-conflict` friction entry if the rebase needed manual resolution and
    escalate instead of guessing on a real conflict.
-3. Merge through the configured mechanism.
+3. Merge through the configured mechanism and merge method from config, such as
+   squash, merge commit, or rebase. If the live code host offers a different
+   method than config records, stop or route setup refresh instead of guessing.
 4. Refresh local Git refs and update the local default branch to the merged head
    before any post-merge check, next PR decision, or issue `Done` transition.
 5. Run configured post-merge preparation before judging the default branch:
@@ -662,6 +697,10 @@ Each entry is one compact comment, metadata only. Use exactly one canonical
 category in the `category` field; put resolution state or "not a real break" in
 `what` or `signal`, not in the category. Do not combine multiple friction events
 in one comment. Aggregation belongs in a rollup comment.
+
+Do not invent category names for local color such as `dispatch`,
+`merge-success`, `backlog-intake`, or `scope-blocked`. Map them to the canonical
+category that caused the cost, or put the extra detail in `what`.
 
 ```text
 tick: <id or timestamp>

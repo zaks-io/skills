@@ -102,6 +102,12 @@ variant when config or CI requires typecheck, build, coverage thresholds,
 generated-artifact checks, smoke, or secret scanning. In monorepos, include the
 cross-package checks that CI will enforce for the touched surface.
 
+When the configured gate is cache-backed, threshold-based, or known to reuse
+remote task results, verify the edited surface with the repo-configured
+cache-busted form such as `--force`, `--no-cache`, or an equivalent CI command.
+Coverage, lint, typecheck, and generated-artifact thresholds are not green if the
+task did not actually re-run against the changed files.
+
 Preserve existing sibling coverage when editing shared modules. Do not delete or
 weaken unrelated tests just to make the slice pass.
 

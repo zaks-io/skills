@@ -32,6 +32,8 @@ Last updated: 2026-06-01
 - Package manager: pnpm
 - Install: pnpm install
 - Full local gate: pnpm verify
+- Full local gate cache policy: run `pnpm turbo run verify --force` after edits
+  if the normal gate reuses cached task results
 - Focused checks: pnpm test <path>, pnpm prettier:check
 - Production approval required: yes
 
@@ -40,6 +42,9 @@ Last updated: 2026-06-01
 - Provider: Linear
 - Provider location: team "Example" (id <team-uuid>)
 - Read-only verification query: list_issues team:"Example" state:Todo
+- Tracker mutation path: Linear plugin issue update/comment tools verified on
+  this team and project
+- Tracker mutation paths to avoid: stale direct MCP path <if any>
 - Status field names: status / statusType
 - Ready state: Todo
 - Triage/intake states: Triage
@@ -67,8 +72,11 @@ Last updated: 2026-06-01
   thread nudge, then escalate or re-delegate only if the session cannot continue
 - Attempt cap: 3 implement+review cycles before the thrash breaker escalates
 - Required checks for merge: <CI check names that define green>
+- Required no-cache gates: <coverage/lint/typecheck/generated-artifact force
+  commands, or none>
 - Auto-merge risk tiers: orchestrator may auto-merge LOW and MEDIUM when green;
   HIGH routes to human merge
+- Merge method: squash
 - Post-merge preparation: <install/build/generated-artifact refresh needed before
   local main checks, or none>
 - Post-merge check: <command/signal on main, or none>
@@ -79,6 +87,9 @@ Last updated: 2026-06-01
 - Authoritative issue state: Linear
 - Authoritative PR state: GitHub
 - Merge authority: orchestrator for LOW/MEDIUM green PRs; human for HIGH
+- Duplicate session or PR policy: choose the canonical Cursor session/PR by
+  matching claim marker, current PR head, checks, and review state; escalate if
+  duplicates cannot be closed safely
 - Friction-log ticket: <parked Linear ticket id, out of the work queue>
 
 ## Agent Access
@@ -92,6 +103,8 @@ Last updated: 2026-06-01
 - Delegation probe policy: never mutate real implementation issues to test
 - Session handle: record the cursor.com/agents/bc-<id> URL Cursor posts
 - Liveness signals: agent-thread reply, branch push, PR creation, check activity
+- Supersession policy: scope corrections must be replies in the Cursor
+  agent-session thread and say which earlier instruction they supersede
 
 ## Pull Requests
 
@@ -101,6 +114,7 @@ Last updated: 2026-06-01
 - CodeRabbit: required for HIGH-risk diffs after local review is clean; skip for
   LOW/MEDIUM unless the reviewer is uncertain or the user asks
 - Merge authority: see Work Coordination
+- Merge method: squash
 
 ## Environments
 

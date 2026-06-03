@@ -137,6 +137,14 @@ contains:
   tickets need explicit security invariants before they are marked ready:
   authenticated actor binding, tenant or resource scope, replay behavior, atomic
   consume or claim semantics, and concurrency checks.
+- Invariant or enforcement tickets need exact negative cases before they are
+  marked ready: enforcement scope such as per-route, per-tenant, per-resource,
+  per-actor, or global; the failing input that must be rejected; and whether
+  runtime assertions may run in production request paths.
+- Recent issue comments and linked evidence can prove terminal state. If they
+  verify not-a-bug, duplicate, canceled, resolved, or intentional product scope,
+  repair the ticket to the configured terminal, duplicate, or human-review state
+  instead of promoting it to ready work.
 - Parent or workstream issues are containers unless explicitly marked
   executable. `kind-spec` and `kind-epic` are containers: they are To Issues
   input and must never be dispatched to a worker or marked `ready-for-agent`.

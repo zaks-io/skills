@@ -69,6 +69,13 @@ or secret-scan checks. When running secret scanning locally, use the same
 branch, diff, or source scope that CI uses instead of scanning unrelated local
 refs.
 
+If the full gate or required check is cache-backed, threshold-based, or can reuse
+remote task results, run the configured cache-busted variant after edits before
+claiming it passed. A cached coverage, lint, typecheck, or generated-artifact
+result is not evidence for the current diff unless the task re-ran or config
+explicitly says the cache key includes the touched files and all relevant
+inputs.
+
 Run focused checks for high-risk touched areas. Fix mechanical failures and
 rerun. Never use `--no-verify`.
 
