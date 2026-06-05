@@ -83,6 +83,9 @@ Use one of these clean-context paths:
 Prefer a subagent when available because it reduces implementation-context bias.
 Prefer a worktree when tools cannot launch a subagent, when local checks need a
 real checkout, or when the PR state must be inspected from a clean filesystem.
+When running more than one review in parallel, give each reviewer a separate
+subagent, branch, or disposable worktree. Never share a mutable checkout between
+parallel reviewers.
 
 For each PR:
 
@@ -123,6 +126,10 @@ Look for:
 - schema, migration, generated artifact, API, CLI, queue, background job, and
   deployment drift
 - missing tests or verification for risky changes
+- acceptance criteria whose claimed evidence proves a nearby behavior but not the
+  exact required behavior
+- CI, coverage, secret-scan, env propagation, or generated-artifact gates that
+  differ between local handoff evidence and hosted checks
 - follow-up work discovered but not tracked in issue tracker
 - orchestrator refactor opportunities: repeated manual repairs, stale review
   evidence, unclear status transitions, missing workflow config, brittle

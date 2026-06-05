@@ -56,6 +56,11 @@ continuation target before starting another worker, unless config or current
 evidence proves the original session cannot continue. Re-delegation is a
 duplicate-work risk.
 
+Before re-delegating or starting new work, check for multiple session handles,
+branches, or PRs tied to the same issue. If a provider spawned duplicates, pick
+the canonical branch or PR from current code-host evidence, stop or close the
+duplicate according to config, and record the friction.
+
 ### Delegation Preflight
 
 Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
@@ -110,5 +115,5 @@ values, not this file:
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy
 - the repo-route label family used for delegation
 - auto-merge risk tiers the orchestrator may merge vs route to human merge
-- required checks that define green, plus any post-merge preparation needed
-  before local post-merge checks are trustworthy
+- merge method, required checks that define green, plus any post-merge
+  preparation needed before local post-merge checks are trustworthy

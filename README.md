@@ -145,8 +145,10 @@ $ziw-review <pr|range>
 The issue tracker is the source of truth for issue state. In most repos that is
 Linear. The tracker is dumb storage: it holds status, labels, and relationships
 and verifies nothing. Labels are signals. Status is state. Skills define and
-check what "ready" means; the tracker just stores the label. Repo config defines
-how labels are treated.
+check what "ready" means; the tracker just stores the label. When a GitHub PR
+and Linear ticket are linked, assume the integration sync is active: Linear may
+advance ticket state from PR state. Repo config defines how labels and synced
+state transitions are treated.
 
 Draft PRs are pre-review. If a PR is ready-for-review, it must be non-draft in
 the code host. Draft state is not a request for another code review; the
@@ -166,7 +168,9 @@ Orchestrator or verified stale-state triage removes `ready-for-agent`.
 
 Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
 containers that To Issues reads as input and are never dispatched; `kind-slice`
-is a one-PR ticket and the only kind a worker runs.
+is a one-PR ticket and the only kind a worker runs. Multi-PR work should stay
+under a container and be split into separate slices so a first linked PR cannot
+falsely close the whole scope.
 
 Agent suitability is based on work type and risk, not agent brand. Docs, tests,
 build or CI updates, small refactors, scoped bugs, and isolated UI changes are
@@ -182,6 +186,11 @@ used to remove readiness. Agent Orchestrator owns active-work state moves except
 for these narrow verified-state repairs. It reads the issue tracker, checks PR
 and CI state, starts workers, asks for review, and moves tickets when the
 external state says that is safe.
+
+A one-off user request for a single ticket is still orchestration, just scoped to
+that ticket. The agent should claim, implement, review, integrate when allowed,
+refresh synced GitHub/Linear state, and mark that ticket complete when the normal
+Done evidence exists. It should not fan out into the broader queue.
 
 Review-created follow-up tickets are current-work intake when config defines a
 review-debt route. Agent Review files real findings there; Triage normalizes
@@ -246,6 +255,8 @@ For issue-assigned remote workers such as Cursor, the orchestrator delegates by
 setting the issue's agent delegate, requires the repo-route label (such as
 `<org>/<repo>`) so the agent knows which repo to clone, and continues a session
 by replying into its agent-session thread rather than a top-level comment.
+Before re-delegating, it checks for duplicate sessions, branches, or PRs tied to
+the same issue and resolves the duplicate from code-host evidence.
 
 A delegated worker, local or remote Cursor, owns implementation: it writes code,
 self-reviews with `ziw-code-review`, and opens its own PR with
@@ -256,7 +267,9 @@ Agent Review and integrate are steps the orchestrator calls, not loops. Agent
 Review fetches latest state, runs `ziw-code-review` from clean context against
 current committed code, and returns freshness, refactor candidates, and a
 verdict; integrate is the auto-merge gate that defines green, rebases on moved
-main, merges, and runs a post-merge check.
+main, merges with the configured method, and runs a post-merge check. Worker and
+PR local gates must match configured CI scopes, thresholds, cache policy,
+generated-artifact checks, and secret-scan range.
 
 The research behind this operating model is captured in
 [docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short
@@ -321,9 +334,10 @@ A repo is ready when:
   policy are explicit
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
-- kind labels, the concurrency cap, stuck-worker timeout, required-checks-for-
-  merge, auto-merge risk tiers, friction-log ticket, and delivery metrics are
-  set when running the autonomous loop
+- kind labels, CI-equivalent local gate policy, merge method, duplicate-dispatch
+  policy, the concurrency cap, stuck-worker timeout, required-checks-for-merge,
+  auto-merge risk tiers, friction-log ticket, and delivery metrics are set when
+  running the autonomous loop
 - `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
   `ziw-code-review`, and `ziw-pr` can run without guessing repo
   conventions

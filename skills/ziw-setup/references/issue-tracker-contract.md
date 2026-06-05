@@ -73,6 +73,9 @@ contains:
 - security, privacy, data, or operational invariants
 - dependencies or blockers
 
+If the work requires multiple PRs, keep it as a container or split it into
+multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
+
 ## Label Treatment Rules
 
 - Repo config owns the treatment policy for every readiness and worker
@@ -118,6 +121,13 @@ contains:
   `Done`; when it marks work `Done`, it also clears `ready-for-agent`. Agent
   Orchestrator owns active workflow state unless the user explicitly says
   otherwise.
+- When Linear and GitHub are connected and both linked entities exist, assume the
+  ticket and PR state are synced. Linear may advance ticket status from GitHub PR
+  status, so agents should refresh both systems before manual state repair.
+- When a code-host integration auto-moves an issue to `Done`, Orchestrator or
+  triage must verify the full issue scope is complete before leaving it there.
+  If linked PR evidence covers only part of the issue, reopen or narrow it
+  according to repo config.
 - `Code review passed` means the latest linked PR head SHA has passed the
   configured code review gate for this ticket. Apply it only with adjacent
   review evidence that names the PR URL and reviewed head SHA. Remove it when

@@ -45,6 +45,8 @@ Last updated: 2026-06-01
 - Intake states: Triage, Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
+- Code-host issue sync policy: GitHub PR links and Linear tickets are synced when
+  both exist; Linear may auto-advance ticket state from PR status
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; only kind-slice dispatchable)
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Worker environment labels: remote-cursor (approved to run in remote Cursor)
@@ -78,6 +80,9 @@ Last updated: 2026-06-01
 - Authoritative issue state: Linear
 - Authoritative PR state: GitHub
 - Merge authority: orchestrator for LOW/MEDIUM green PRs; human for HIGH
+- Single-ticket one-off policy: a direct user request for one Linear issue grants
+  authority to orchestrate only that issue through configured states, including
+  Done when merge and verification evidence exists
 - Friction-log ticket: <parked Linear ticket id, out of the work queue>
 
 ## Agent Access
