@@ -126,9 +126,17 @@ as a first run; it does not loop in-context until the backlog empties. The
 orchestrator skill bundles the tick contract in
 `skills/ziw-orchestrate/references/loop-contract.md`.
 
+The active PR/preview cap protects the repo's delivery footprint, not just the
+number of worker sessions. Each tick refreshes repo-level open PRs, active
+PR-scoped previews, and implementation dispatches that have not yet returned a
+PR. When that footprint is at or above the configured cap, Orchestrator drains
+existing work first: review, merge, close, clean up previews, route fixes, or
+escalate the exact human/provider action. It does not dispatch more implementation
+work just because workers are idle.
+
 If the refreshed scope is completely blocked, Orchestrator stops the recurring
 loop for that scope instead of waking forever. Completely blocked means there are
-no startable tickets, returned PRs to advance, stuck workers to nudge, failed
+no startable tickets, PRs or previews to advance, stuck workers to nudge, failed
 checks to rerun or route, stale metadata repairs, or in-flight work that can still
 produce signal. The blocked report names each blocker, next owner, and the
 condition that would make the scope runnable again.
@@ -217,6 +225,12 @@ misunderstandings about when to apply a label, move a status, attach review
 evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
 repairs. Orchestrator should fix them from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
+
+Before selecting new startable work, Orchestrator checks the repo-level active
+delivery footprint against the configured active PR/preview cap. Open PRs and
+active previews outside the requested filter still consume repo capacity. If they
+fill the cap and Orchestrator lacks authority to change them, the loop reports a
+capacity blocker instead of adding another PR and preview.
 
 Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
 a milestone, a label, one pass, or an `until clear` target. `Clear` means every
@@ -354,6 +368,7 @@ sequenceDiagram
   I->>T: Clean labels, kinds, readiness, dependencies, verified stale state
   Q->>T: Refresh startable (kind-slice) and active issues
   Q->>G: Refresh PR, branch, check, and preview state
+  Q->>Q: Compute active PR/preview footprint before dispatch
   Q->>Q: Reconcile dispatch ledger; re-dispatch stuck workers
   Q->>T: Claim issue and move to In Progress
   Q->>W: Delegate issue through supported worker path

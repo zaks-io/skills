@@ -234,17 +234,17 @@ Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
 runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
 Claude Code; Codex automations, either cron automations or heartbeat
 automations) and never needs a human to re-trigger a pass. Each tick it wakes
-light, refreshes external state, reconciles its dispatch ledger, dispatches
-startable `kind-slice` tickets to local or remote workers up to a concurrency cap
-(default 3), calls review and integrate as steps, reasons over the available
-evidence, and logs where it struggled to a friction ticket with compact event
-entries and run rollups. It can also nudge a worker, repair workflow state, route
-feedback, mark tickets for human review when the next action genuinely needs
-human input, or stop on a real blocker. It keeps only a compact queue, ledger,
-and checkpoint between ticks and delegates heavy reads to isolated workers, so a
-long-running loop stays as light as a first run. Config records supported worker
-delegation paths such as `local-worktree`,
-`issue-assigned`, or both.
+light, refreshes external state, reconciles its dispatch ledger, drains existing
+open PRs and active previews first, dispatches startable `kind-slice` tickets
+only when the active PR/preview cap has headroom (default 3), calls review and
+integrate as steps, reasons over the available evidence, and logs where it
+struggled to a friction ticket with compact event entries and run rollups. It can
+also nudge a worker, repair workflow state, route feedback, mark tickets for
+human review when the next action genuinely needs human input, or stop on a real
+blocker. It keeps only a compact queue, ledger, capacity snapshot, and checkpoint
+between ticks and delegates heavy reads to isolated workers, so a long-running
+loop stays as light as a first run. Config records supported worker delegation
+paths such as `local-worktree`, `issue-assigned`, or both.
 
 If every scoped item is blocked and no orchestration action remains, the
 orchestrator stops the recurring loop for that scope instead of waking forever.
@@ -335,9 +335,9 @@ A repo is ready when:
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
 - kind labels, CI-equivalent local gate policy, merge method, duplicate-dispatch
-  policy, the concurrency cap, stuck-worker timeout, required-checks-for-merge,
-  auto-merge risk tiers, friction-log ticket, and delivery metrics are set when
-  running the autonomous loop
+  policy, active PR/preview cap, capacity drain policy, stuck-worker timeout,
+  required-checks-for-merge, auto-merge risk tiers, friction-log ticket, and
+  delivery metrics are set when running the autonomous loop
 - `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
   `ziw-code-review`, and `ziw-pr` can run without guessing repo
   conventions
