@@ -49,8 +49,8 @@ Load these references when writing the config:
 - [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
   for tracker states, labels, readiness, and issue body shape
 - [references/operating-profile.md](references/operating-profile.md) for the
-  concurrency default, the issue-assigned delegation and continuation mechanic,
-  the repo-route precondition, and the merge-safety decision table
+  active PR/preview cap default, the issue-assigned delegation and continuation
+  mechanic, the repo-route precondition, and the merge-safety decision table
 - [references/linear-cursor-example.md](references/linear-cursor-example.md) for
   a worked Linear + Cursor config to copy when the repo uses that stack
 - [references/handoff.md](references/handoff.md) for cross-agent handoff shape
@@ -157,16 +157,16 @@ Record:
   from linked GitHub PR status and whether agents should assume synced state when
   both linked entities exist
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
-- default worker path and parallelism policy when the user or repo has a stable
+- default worker path and capacity policy when the user or repo has a stable
   preference
 - duplicate worker or PR detection policy for issue-assigned providers that can
   spawn more than one session for one dispatch
 - autonomous-loop controls when the repo runs the orchestrator unattended:
-  concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
-  breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, merge method, post-merge preparation and check, auto-Done
-  integration behavior, single-ticket one-off mutation policy,
-  verified-ready backlog policy,
+  active PR/preview cap, cap count policy, preview-provider cap, stuck-worker
+  timeout, attempt cap before the thrash circuit breaker, required checks that
+  define green for the integrate gate, auto-merge risk tiers, merge method,
+  post-merge preparation and check, auto-Done integration behavior,
+  single-ticket one-off mutation policy, verified-ready backlog policy,
   completely-blocked stop policy, friction-log ticket ID, and delivery metrics
 - runtime loop and automation terminology for each supported adapter: Claude Code
   `/loop`, schedule, or wake-up timer; Codex automations, either cron

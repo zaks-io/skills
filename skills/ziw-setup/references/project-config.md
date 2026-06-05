@@ -111,8 +111,16 @@ Last updated: YYYY-MM-DD
 
 - Worker delegation paths: local-worktree, issue-assigned, or both
 - Default worker path:
-- Parallelism policy:
-- Concurrency cap: max workers dispatched at once (default 3 if unset)
+- Capacity policy:
+- Active PR/preview cap: max active delivery slots (default 3 if unset). Count
+  repo-level open PRs, active PR-scoped previews, and implementation dispatches
+  that have not yet produced a PR
+- Cap count policy: count each open PR once, add active previews that are not
+  clearly linked to an already counted PR, then add unreturned implementation
+  dispatches. Obey any stricter preview-provider or worker-session limit
+- Capacity drain policy: when active delivery slots are at or over cap,
+  Orchestrator advances, merges, closes, cleans up, or escalates existing PRs and
+  previews before dispatching new implementation work
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Duplicate worker or PR policy: idempotency key, session-handle source, and how
   to choose a canonical PR when one dispatch creates more than one session
@@ -144,11 +152,13 @@ Last updated: YYYY-MM-DD
   ticket through implementation, PR, review, and merge, and repairs routine label,
   status, route, handoff, and review-evidence mismatches from current evidence
 - Completely-blocked stop policy: stop the recurring orchestrator run for the
-  scoped queue when no startable tickets, PRs to advance, stuck workers to nudge,
-  checks to rerun or route, stale metadata repairs, or in-flight work can still
-  produce signal
+  scoped queue when no startable tickets, PRs or previews to advance, stuck
+  workers to nudge, checks to rerun or route, stale metadata repairs, or
+  in-flight work can still produce signal
 - Friction-log ticket: dedicated ticket ID, parked out of the work queue, for orchestrator friction comments
 - Delivery metrics: merge rate, first-pass check rate, review rework, stuck workers, human escalations, and agent cost when available
+- Capacity metrics: open PRs, active previews, active delivery slots, and
+  remaining headroom at start and end of orchestration runs
 - Handoff format:
 
 ## Agent Access
@@ -201,6 +211,9 @@ Last updated: YYYY-MM-DD
 - Development backing services:
 - Preview: PR-scoped unless this repo says otherwise
 - Preview purpose:
+- Preview provider cap:
+- Preview cleanup policy: how to close stale or orphaned previews before new work
+  is dispatched
 - Production: explicit approval required
 - Production forbidden without approval:
 - Hosted checks allowed without approval:
@@ -259,6 +272,6 @@ not be used as dependency, status, or scheduling signals.
 Issue-assigned worker config should be stable enough for Orchestrator to act
 without probing real work. Record the configured worker path, environment labels
 or fields, environment approval labels, delegation tool or field, known agent
-names or IDs when verified, and the parallelism policy. If the tool cannot
+names or IDs when verified, and the capacity policy. If the tool cannot
 expose assignable agents through a read-only query, record that unknown instead
 of forcing Orchestrator to discover it by assignment.

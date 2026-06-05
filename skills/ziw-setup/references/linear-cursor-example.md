@@ -63,7 +63,14 @@ Last updated: 2026-06-01
 
 - Worker delegation paths: issue-assigned (Cursor), local-worktree
 - Default worker path: issue-assigned (Cursor)
-- Concurrency cap: 3 concurrent Cursor agents
+- Active PR/preview cap: 3 active delivery slots. Count repo-level open PRs,
+  active PR-scoped previews, and Cursor dispatches that have not yet returned a
+  PR
+- Cap count policy: count each open PR once, add active previews that are not
+  clearly linked to an already counted PR, then add unreturned Cursor
+  dispatches. Do not double-count a normal linked PR+preview
+- Capacity drain policy: when the cap is full, review, merge, close, or escalate
+  existing PRs/previews before assigning more Cursor work
 - Stuck-worker timeout: no branch/PR/agent-thread reply within <N> min -> direct
   thread nudge, then escalate or re-delegate only if the session cannot continue
 - Attempt cap: 3 implement+review cycles before the thrash breaker escalates
@@ -84,6 +91,8 @@ Last updated: 2026-06-01
   authority to orchestrate only that issue through configured states, including
   Done when merge and verification evidence exists
 - Friction-log ticket: <parked Linear ticket id, out of the work queue>
+- Capacity metrics: open PRs, active previews, active delivery slots, and
+  remaining headroom at start and end of orchestration runs
 
 ## Agent Access
 
@@ -109,6 +118,10 @@ Last updated: 2026-06-01
 ## Environments
 
 - Local: self-contained unless this repo says otherwise
+- Preview: PR-scoped Cursor/GitHub preview environment
+- Preview provider cap: 3 active previews
+- Preview cleanup policy: close stale duplicate PRs or terminate orphan previews
+  before assigning more work
 - Production: explicit approval required
 - Hosted checks allowed without approval: <list or none>
 - Hosted checks requiring approval: <list>

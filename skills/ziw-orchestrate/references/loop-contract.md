@@ -46,17 +46,21 @@ Each tick:
    (ID, state, readiness, blockers, PR, owner, next action) in the main context.
 3. Reconcile the ledger against refreshed tracker and PR state. Trust external
    state; drop stale ledger entries; re-dispatch or escalate stuck workers.
-4. Act on at most a bounded slice of work this tick: advance returned PRs and
-   stuck draft PRs first, then dispatch new startable work up to
-   `cap - in-flight`. Prefer advancing active work over starting new work. Draft
-   state is an orchestration repair signal, not a code review request.
-5. Delegate every context-heavy step (implement, review, triage) to an isolated
+4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped
+   previews, and implementation dispatches that have not yet produced a PR.
+   Count repo/project preview capacity, not only the requested issue filter.
+5. Act on at most a bounded slice of work this tick: advance returned PRs, active
+   previews, and stuck draft PRs first. Dispatch new startable work only when the
+   active PR/preview cap has headroom. Prefer advancing active work over starting
+   new work. Draft state is an orchestration repair signal, not a code review
+   request.
+6. Delegate every context-heavy step (implement, review, triage) to an isolated
    worker. Reduce each worker result into the compact queue and ledger before
    continuing.
-6. Persist only the ledger and checkpoint. Append friction entries. If the queue
+7. Persist only the ledger and checkpoint. Append friction entries. If the queue
    is completely blocked, report blocked and stop the recurring run for this
    scope. Otherwise exit.
-7. Sleep until the next scheduled tick only when future external signal can still
+8. Sleep until the next scheduled tick only when future external signal can still
    arrive without user intervention.
 
 Refresh local Git state again before any action that depends on current branches,

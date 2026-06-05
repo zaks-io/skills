@@ -7,13 +7,21 @@ should resolve these into config, not leave the loop to guess them.
 
 ## Concurrency
 
-- Default cap: **3** concurrent in-flight implementation workers. Config
-  overrides with `Concurrency cap`.
-- The cap counts active worker sessions, not tickets in the queue. Dispatch new
-  work only up to `cap - in-flight`.
-- For issue-assigned remote workers, the cap is the number of remote agent
-  sessions running at once. Keep headroom under any provider limit so the loop
-  does not starve other work sharing the same agent pool.
+- Default cap: **3** active delivery slots. Config overrides with
+  `Active PR/preview cap` or the legacy `Concurrency cap`.
+- The cap counts the active PR/preview footprint for the configured repo, not
+  only active worker sessions. Count open PRs, active PR-scoped preview
+  environments, and implementation dispatches that have not yet returned a PR.
+- Do not double-count a PR and its normal linked preview as two delivery slots.
+  Count each open PR once, add active previews that are not clearly linked to an
+  already counted PR, then add unreturned implementation dispatches. If the
+  preview provider has a stricter separate limit, obey the stricter limit.
+- Dispatch new work only when active delivery slots are below the cap. If the cap
+  is reached or exceeded, advance, merge, close, or escalate existing PRs and
+  previews before starting more work.
+- For issue-assigned remote workers, worker-session count is only a secondary
+  provider limit. It must never justify starting new work when open PRs or active
+  previews already consume the active delivery cap.
 
 ## Issue-Assigned Delegation (tracker-exposed agent)
 
@@ -74,7 +82,7 @@ Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
 | unblocked                                       | safe to start                       | defer; never start blocked work                                                |
 | complete agent-ready body                       | agent can verify                    | refuse; route to triage                                                        |
 | no active claim, no open PR                     | not already in flight               | skip; advance the existing work instead                                        |
-| in-flight workers < cap                         | concurrency                         | defer to a later tick                                                          |
+| active PR/preview footprint < cap               | repo has delivery headroom          | drain existing PRs/previews first; defer to a later tick                       |
 
 The repo-route label is a hard precondition, not decoration. Without it the
 agent cannot resolve the target repository and delegation is ambiguous.
@@ -109,7 +117,9 @@ Rules that do not change with tier:
 Setup should write these into `docs/agents/workflow/config.md` so the loop reads
 values, not this file:
 
-- `Concurrency cap` (default 3 if the repo has no preference)
+- `Active PR/preview cap` (default 3 if the repo has no preference)
+- cap count policy: which open PRs, active previews, and unreturned dispatches
+  consume delivery slots; any stricter provider preview or worker-session caps
 - worker delegation paths and the configured agent user / delegate field
 - the continuation rule: reply into the agent-session thread, not top-level
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy

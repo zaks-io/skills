@@ -81,11 +81,17 @@ domain behavior, and performance work without benchmarks.
   (Claude Code schedule, `/loop`, or wake-up timer; Codex automations, either
   cron automations or heartbeat automations) and never needs a human to
   re-trigger a pass. Each tick wakes light, rebuilds the queue from systems of
-  record, acts on a bounded slice, persists only the ledger and checkpoint, and
-  sleeps only when future external signal can still arrive.
+  record, refreshes the repo-level open PR and preview footprint, acts on a
+  bounded slice, persists only the ledger and checkpoint, and sleeps only when
+  future external signal can still arrive.
+- The active PR/preview cap protects delivery capacity, not worker count. Open
+  PRs, active PR-scoped previews, and implementation dispatches that have not yet
+  produced a PR consume capacity. When the cap is full, Orchestrator advances,
+  merges, closes, cleans up, or escalates existing PRs/previews before
+  dispatching new work.
 - If the refreshed scope is completely blocked, Orchestrator stops the recurring
   loop for that scope instead of waking forever. Completely blocked means there
-  are no startable tickets, returned PRs to advance, stuck workers to nudge,
+  are no startable tickets, PRs or previews to advance, stuck workers to nudge,
   failed checks to rerun or route, stale metadata repairs, or in-flight work that
   can still produce signal. The blocked report names each blocker, next owner,
   and the condition that would make the scope runnable again.
@@ -126,6 +132,12 @@ misunderstandings about when to apply a label, move a status, attach review
 evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
 repairs. Orchestrator should fix them from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
+
+Before selecting new startable work, Orchestrator checks the repo-level active
+delivery footprint against the configured active PR/preview cap. If open PRs or
+active previews already fill the cap, it must drain those first. Outside-scope
+PRs and previews still consume repo capacity; if Orchestrator lacks authority to
+change them, it reports a capacity blocker instead of dispatching more work.
 
 A direct user request to handle one ticket is delegated authority to orchestrate
 that ticket only. The agent should move that one issue through configured states

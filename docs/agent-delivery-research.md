@@ -24,7 +24,7 @@ a coding agent.
   high-risk work remain part of the delivery system.
 - Measure agent delivery as a system outcome: merge rate, time to merge,
   first-pass check rate, review rework, stuck workers, human escalations, and
-  agent cost when available.
+  open PR/preview footprint, and agent cost when available.
 
 ## Evidence
 
@@ -114,11 +114,24 @@ Default human-planning work:
 - performance work without a benchmark
 - tasks where learning or design judgment is the point
 
+### Active PR/Preview Capacity
+
+Local operating judgment: worker-session concurrency is the wrong throttle when
+remote agents open PR-scoped preview environments. A worker can finish while its
+PR and preview keep consuming scarce provider capacity.
+
+The orchestrator therefore uses an active PR/preview cap. It counts repo-level
+open PRs, active PR-scoped previews, and implementation dispatches that have not
+yet produced a PR. When the cap is full, Orchestrator drains existing PRs and
+previews before assigning more implementation work.
+
 ### Measurement
 
 Each orchestrator run should produce enough data to answer:
 
 - How many tickets were started, merged, blocked, or escalated?
+- How many open PRs, active previews, and active delivery slots existed at the
+  start and end?
 - What was the first-pass check rate?
 - How often did review send work back?
 - How many workers got stuck or needed continuation nudges?

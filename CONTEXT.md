@@ -82,6 +82,14 @@ _Avoid_: workflow state, approval state
 A **Slice Ticket** in the configured ready state with `ready-for-agent`, a complete body, no active blockers, no active claim, and no open PR.
 _Avoid_: ready-for-agent, Todo
 
+**Active Delivery Footprint**:
+The repo-level capacity consumed by open PRs, active PR-scoped previews, and implementation dispatches that have not yet produced a PR.
+_Avoid_: worker concurrency, queue size
+
+**Active PR/Preview Cap**:
+The maximum active delivery footprint allowed before **Agent Orchestrator** must drain existing PRs and previews instead of dispatching more work.
+_Avoid_: agent session cap, parallel worker count
+
 **Current Work**:
 Tickets in configured ready or active states, plus active or PR-linked tickets that may need tracker repair.
 _Avoid_: backlog, all issues
@@ -95,7 +103,7 @@ New or unshaped work that may be promoted to the configured ready state only dur
 _Avoid_: backlog, startable work
 
 **Completely Blocked**:
-A scoped Orchestrator queue with no startable work, no PR or worker action to advance, no repairable stale state, and no in-flight signal expected without outside input.
+A scoped Orchestrator queue with no startable work, no PR, preview, or worker action to advance, no repairable stale state, and no in-flight signal expected without outside input.
 _Avoid_: transient wait, sleeping tick
 
 **Orphan**:
@@ -253,6 +261,8 @@ _Avoid_: local check, CI in general
 - **Readiness Labels** and **Worker Environment Labels** are metadata, not workflow state.
 - **Startable Work** is always a **Slice Ticket**, but not every **Slice Ticket** is **Startable Work**.
 - **Issue Triage** prepares **Current Work** for **Agent Orchestrator**.
+- **Active Delivery Footprint** is compared to the **Active PR/Preview Cap**
+  before **Agent Orchestrator** dispatches more work.
 - **Agent Orchestrator** delegates **Agent Implement** through a **Worker Delegation Path**.
 - **Agent Implement** produces a PR and a **Handoff** for **Agent Orchestrator**.
 - **Agent Review** calls **Code Review** from **Clean Context**.
@@ -270,6 +280,9 @@ _Avoid_: local check, CI in general
 >
 > **Dev:** "The remote Cursor label means the issue is unblocked."
 > **Domain expert:** "No. A **Worker Environment Label** only approves the configured environment; blockers still live in relationships, body text, or workflow state."
+>
+> **Dev:** "The workers are idle, so Orchestrator can start three more tickets."
+> **Domain expert:** "Not if open PRs or previews already fill the **Active PR/Preview Cap**. Drain those first."
 
 ## Flagged Ambiguities
 
@@ -281,3 +294,6 @@ _Avoid_: local check, CI in general
 - "Backlog clear" does not mean implementing vague future work. It means each scoped ticket has a truthful next state and owner.
 - Local CLI availability does not prove **Issue-assigned Delegation** exists. That path must come from the **Issue Tracker** or verified **Repo Config**.
 - The **Dispatch Ledger** is not workflow state. The relevant **Systems Of Record** must be refreshed before acting.
+- "Concurrency" is ambiguous. Use **Active PR/Preview Cap** for delivery
+  capacity and **Worker Delegation Path** or provider session limit for worker
+  mechanics.
