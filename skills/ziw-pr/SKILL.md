@@ -69,6 +69,15 @@ or secret-scan checks. When running secret scanning locally, use the same
 branch, diff, or source scope that CI uses instead of scanning unrelated local
 refs.
 
+When CI has threshold gates, cache-sensitive tasks, or env-filtered test gates,
+run the exact threshold-enforcing and cache-busted command named by config. A
+cached green local gate is not PR evidence unless config says the cache is valid
+for the current diff and environment.
+
+If the branch changes package manifests, lockfiles, generated artifacts, or the
+workspace dependency graph, run the repo-configured install, lockfile validation,
+or artifact refresh before the final gate.
+
 Run focused checks for high-risk touched areas. Fix mechanical failures and
 rerun. Never use `--no-verify`.
 
@@ -153,6 +162,12 @@ When an issue exists:
 - attach the PR URL
 - report the configured review-state transition, usually `In Review`, for
   Agent Orchestrator
+- if this PR is part of a direct single-ticket orchestration, perform the
+  configured review-state update for that issue only when config or the user
+  grants mutation authority
+- when the repo uses Linear + GitHub and the PR is linked to the ticket, assume
+  the integration sync is active and may advance Linear state from PR status; do
+  not duplicate manual state changes unless config delegates that authority
 - comment with checks run, code review verdict, CodeRabbit decision,
   PR draft or ready-for-review state, `Code review passed` recommendation with
   reviewed head SHA, acceptance criteria status, and differences from original

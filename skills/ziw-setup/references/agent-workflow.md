@@ -36,6 +36,11 @@ when the tracker label group does not.
 - `kind-slice`: a one-PR ticket. The only kind a worker runs. Only `kind-slice`
   is startable; the orchestrator hard-refuses to dispatch a container.
 
+`kind-slice` work should close in one PR. If a plan needs scaffold, CI gate,
+data migration, preview flip, and final wiring, To Issues splits those into
+separate slices under a container so the first linked PR cannot falsely close the
+whole scope.
+
 ## Agent Suitability
 
 Agent delegation should follow task type, risk, and verification quality. Good
@@ -86,6 +91,8 @@ domain behavior, and performance work without benchmarks.
   and the condition that would make the scope runnable again.
 - Review and integrate are steps the orchestrator calls inside a tick, not loops.
   To Issues and triage are front-loaded steps the user runs before orchestration.
+- Integrate merges through the configured code-host method only and runs the
+  configured post-merge preparation before judging the default branch.
 
 ## Self-Healing
 
@@ -119,6 +126,12 @@ misunderstandings about when to apply a label, move a status, attach review
 evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
 repairs. Orchestrator should fix them from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
+
+A direct user request to handle one ticket is delegated authority to orchestrate
+that ticket only. The agent should move that one issue through configured states
+as evidence allows, including `Done` after merge, post-merge check, synced state
+refresh, and full-scope verification. It must not use a one-off request as
+permission to work the wider queue.
 
 It can be invoked for explicit tickets, a tracker filter, a project, a
 milestone, a label, one pass, or an `until clear` target. `Clear` means every
@@ -169,6 +182,10 @@ For issue-assigned delegation:
   thread-root comment's `parentId`. For remote Cursor agents, a top-level issue
   comment does not continue the session; record the session handle (such as the
   `cursor.com/agents/bc-<id>` URL) in the ledger.
+- Before starting or re-delegating work, Orchestrator checks for multiple session
+  handles, branches, or PRs tied to the same issue. Duplicate sessions are
+  resolved by choosing the canonical branch or PR from current code-host evidence
+  and stopping the duplicate according to config.
 - PR draft state lives in the code host. When a PR is stuck in draft, Agent
   Orchestrator diagnoses the blocker from repo policy, PR state, checks,
   comments, handoff notes, and the original worker session. Draft state alone is
@@ -210,6 +227,11 @@ and writes the systems of record:
 - check and preview state: CI, preview, or hosted check provider
 - deployment state: deployment provider
 
+When a repo uses Linear and GitHub and both linked entities exist, assume the
+integration sync is active. GitHub PR status can automatically advance Linear
+ticket state, so agents refresh both systems before deciding a manual transition
+is needed.
+
 Orchestrator-local files, run logs, checkpoints, and the dispatch ledger are only
 scratch state. They can speed up polling or avoid duplicate work, but agents must
 refresh the systems of record before acting. The friction log is retrospective,
@@ -217,11 +239,18 @@ not state: append-only comments on a parked ticket, never read back to decide
 anything.
 
 Create PR can mark the PR ready-for-review when its local gates pass and verify
-the code-host PR is non-draft. Orchestrator diagnoses stuck draft PRs without
-treating draft state as a review request, repairs blockers, verifies the
-code-host PR is non-draft, and applies or removes `Code review passed` based on
-current PR head SHA evidence. When Orchestrator moves a ticket to `Done`, it
-removes `ready-for-agent`.
+the code-host PR is non-draft. Its local gate must match configured CI scopes,
+thresholds, cache policy, generated-artifact checks, and secret-scan range.
+When invoked directly for one ticket, Agent Implement can run single-ticket
+orchestration for that ticket only if config or the user grants mutation
+authority.
+Orchestrator diagnoses stuck draft PRs without treating draft state as a review
+request, repairs blockers, verifies the code-host PR is non-draft, and applies or
+removes `Code review passed` based on current PR head SHA evidence. When
+Orchestrator moves a ticket to `Done`, it verifies the full issue scope is
+complete and removes `ready-for-agent`. If a code-host integration auto-moved a
+partial or multi-PR issue to `Done`, Orchestrator reopens or narrows it according
+to config before continuing.
 
 ## Adapter Minimum
 

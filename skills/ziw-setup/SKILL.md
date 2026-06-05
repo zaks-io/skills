@@ -138,7 +138,9 @@ Record:
   read-only tool calls used, and unverified values
 - repo identity, default branch, branch prefix, and PR conventions
 - package manager and command table: install, full gate, focused checks, build,
-  lint, typecheck, tests, smoke, generated artifacts
+  lint, typecheck, tests, smoke, generated artifacts, cache policy, CI env
+  passthrough rules, and the exact coverage or secret-scan scopes that hosted
+  checks enforce
 - issue tracker provider, provider location, project or board, routing label,
   triage scope, orphan policy, statuses, labels, kind label set
   (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
@@ -151,13 +153,20 @@ Record:
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
   one read-only verification query or tool call that returned the expected scope
+- code-host issue sync policy, including whether Linear advances ticket states
+  from linked GitHub PR status and whether agents should assume synced state when
+  both linked entities exist
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
 - default worker path and parallelism policy when the user or repo has a stable
   preference
+- duplicate worker or PR detection policy for issue-assigned providers that can
+  spawn more than one session for one dispatch
 - autonomous-loop controls when the repo runs the orchestrator unattended:
   concurrency cap, stuck-worker timeout, attempt cap before the thrash circuit
   breaker, required checks that define green for the integrate gate, auto-merge
-  risk tiers, post-merge preparation and check, verified-ready backlog policy,
+  risk tiers, merge method, post-merge preparation and check, auto-Done
+  integration behavior, single-ticket one-off mutation policy,
+  verified-ready backlog policy,
   completely-blocked stop policy, friction-log ticket ID, and delivery metrics
 - runtime loop and automation terminology for each supported adapter: Claude Code
   `/loop`, schedule, or wake-up timer; Codex automations, either cron

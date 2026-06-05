@@ -47,6 +47,11 @@ Workflow state must not live only in local agent files.
 - Orchestrator-local state: scratch, polling checkpoints, dispatch ledger, and
   duplicate suppression only
 
+When a repo uses Linear and GitHub and both linked entities exist, assume the
+integration sync is active. GitHub PR status can automatically advance Linear
+ticket state, so agents refresh both systems before deciding a manual transition
+is needed.
+
 Agents must refresh the relevant systems of record before mutating anything. The
 dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegations
 for stuck-worker detection and duplicate suppression; it may be empty on any tick
@@ -136,7 +141,9 @@ work is stale.
 Integrate prepares the local default-branch checkout before interpreting
 post-merge failures: refresh dependencies when the workspace graph changed,
 rebuild or regenerate configured artifacts, and run the configured post-merge
-check with the configured runner.
+check with the configured runner. It merges through the configured code-host
+method only. If the host rejects that method, setup is stale and must be
+refreshed before another merge attempt.
 
 ## Ticket Kinds
 
@@ -148,6 +155,10 @@ when the tracker label group does not.
 - `kind-slice`: a one-PR implementation ticket. The only kind a worker runs.
 
 Containers (`kind-spec`, `kind-epic`) are To Issues input, not work to ship.
+`kind-slice` work should close in one PR. If a plan needs scaffold, CI gate,
+data migration, preview flip, and final wiring, To Issues splits those into
+separate slices under a container so the first linked PR cannot falsely close the
+whole scope.
 To Issues reads them and emits `kind-slice` children. The orchestrator hard-
 refuses to dispatch a container even if it carries `ready-for-agent`.
 
@@ -277,6 +288,10 @@ a top-level issue comment. For remote Cursor agents, the integration posts an
 Record the session handle (such as the `cursor.com/agents/bc-<id>` URL) in the
 ledger. Starting a new assignment is only for cases where the original session
 cannot continue.
+Before starting or re-delegating work, Orchestrator checks for multiple session
+handles, branches, or PRs tied to the same issue. Duplicate sessions are resolved
+by choosing the canonical branch or PR from current code-host evidence and
+stopping the duplicate according to config.
 
 When a PR is stuck in draft, Agent Orchestrator diagnoses the draft blocker from
 repo policy, PR state, checks, comments, handoff notes, and the original worker
@@ -367,6 +382,17 @@ is the default writer for active workflow status transitions. Other roles can
 recommend state changes, but they should not move active work unless the repo
 config or user explicitly delegates that authority.
 
+A direct user request to handle one ticket is delegated authority to orchestrate
+that ticket only. The agent should move that one issue through configured states
+as evidence allows, including `Done` after merge, post-merge check, synced state
+refresh, and full-scope verification. It must not use a one-off request as
+permission to work the wider queue.
+
+For Linear + GitHub, linked PRs and tickets are treated as synced when both
+exist. Let the integration advance routine ticket status from PR state; manually
+repair only when refreshed GitHub and Linear state disagree or full-scope
+verification requires reopening or narrowing the ticket.
+
 Default rule:
 
 - To Issues can create and adopt `kind-slice` tickets, set kind/type/risk/
@@ -377,9 +403,12 @@ Default rule:
   review backlog unless asked. When it verifies a ticket is `Done`, it removes
   `ready-for-agent`.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
+  When invoked directly for one ticket, it can run single-ticket orchestration for
+  that ticket only if config or the user grants mutation authority.
 - Create PR can attach or mark the PR ready-for-review when its local gates
   pass, verify the code-host PR is non-draft, and report the review-state
-  handoff.
+  handoff. Its local gate must match configured CI scopes, thresholds, cache
+  policy, generated-artifact checks, and secret-scan range.
 - Agent Review can post findings and verdicts.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
@@ -387,7 +416,9 @@ Default rule:
   PRs without treating draft state as a review request, repairs blockers, verifies
   the code-host PR is non-draft, and applies or removes `Code review passed`
   based on current PR head SHA evidence. When it moves a ticket to `Done`, it
-  removes `ready-for-agent`.
+  verifies the full issue scope is complete and removes `ready-for-agent`. If a
+  code-host integration auto-moved a partial or multi-PR issue to `Done`,
+  Orchestrator reopens or narrows it according to config before continuing.
 
 ## Handoff
 

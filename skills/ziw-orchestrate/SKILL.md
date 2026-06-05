@@ -53,6 +53,10 @@ continue. Ask only when multiple real scopes remain plausible.
 - Explicit tickets: work exactly the listed issue IDs or URLs. Include linked
   blockers, PRs, and child issues only when they affect whether those tickets
   can move.
+- Single-ticket one-off: when the user asks to handle one ticket, orchestrate
+  exactly that ticket through claim, implementation, review, integrate, synced
+  tracker repair, and `Done` when evidence allows. Do not branch into the wider
+  ready queue.
 - Filtered queue: work the configured tracker query, project, milestone, label,
   status, assignee, or roadmap the user named.
 - Current-work loop: when no scope is named, work configured ready and active
@@ -177,6 +181,11 @@ Refresh the systems of record before acting:
 - local Git refs, worktrees, HEAD, and `git status --short --branch` from the
   repo when a local checkout is in play
 
+When config says the tracker is Linear and the code host is GitHub, assume linked
+PRs and tickets are synced when both exist. GitHub PR status may automatically
+advance Linear ticket state, so refresh both before making a manual tracker state
+transition.
+
 Orchestrator may keep local scratch state only for polling, checkpoints, or
 duplicate suppression. The next action must be valid against the refreshed
 external state. Local Git is an observation, not the authority, but stale local
@@ -197,6 +206,7 @@ Per in-flight dispatch, record only:
 - issue ID
 - worker path (`local-worktree` or `issue-assigned`) and target (agent or branch)
 - dispatch idempotency key (issue ID + claim marker), to avoid double dispatch
+- external session handle when the worker exposes one
 - first-dispatch tick or timestamp, for stuck detection
 - last observed external signal (branch created, PR opened, review verdict)
 
@@ -327,16 +337,20 @@ Each tick is stateless against external state. On each pass:
    continuation target or escalate, and record a `stuck-worker` friction entry.
    Prefer one direct nudge before re-delegating when the original worker session
    can still continue; re-delegation risks duplicate branches and PRs.
-3. Find active work: `In Progress`, `Blocked`, `In Review`,
+3. Detect duplicate worker sessions or duplicate PRs for the same issue before
+   starting new work. If duplicates exist, choose a canonical branch or PR from
+   current code-host evidence, stop or close the duplicate according to config,
+   and log `stuck-worker` or `config-gap` friction.
+4. Find active work: `In Progress`, `Blocked`, `In Review`,
    `Changes Requested`, and `Ready to Merge`. Prefer advancing active work over
    starting new work.
-4. Advance returned PRs, including draft PRs with no clear next action, through
+5. Advance returned PRs, including draft PRs with no clear next action, through
    the PR Review And Integrate process below.
-5. Reconcile the configured review-debt intake route. Send broad or incomplete
+6. Reconcile the configured review-debt intake route. Send broad or incomplete
    findings to triage or To Issues, and include concrete review-created
    `kind-slice` issues in the startable frontier once their body, labels,
    dependencies, and route are complete.
-6. Find startable work: `kind-slice` plus `Todo` plus `ready-for-agent`,
+7. Find startable work: `kind-slice` plus `Todo` plus `ready-for-agent`,
    unblocked, with a complete agent-ready body. `ready-for-agent` means no
    further human refinement is needed before agent handoff; it can be present on
    blocked issues. Never treat a `kind-spec` or `kind-epic` container as
@@ -345,39 +359,41 @@ Each tick is stateless against external state. On each pass:
    the workflow state. For verified-ready backlog work, if the only gap is a
    routine label or status mismatch and the correct state is clear from evidence,
    repair it and continue instead of skipping the ticket.
-7. Select new work by dependency order, milestone/project priority, risk, and
+8. Select new work by dependency order, milestone/project priority, risk, and
    file/package contention. Do not dispatch a ticket whose predicted files
    collide with an in-flight dispatch; defer it and record a `file-collision`
    friction entry.
-8. Respect the configured concurrency cap. Default to 3 concurrent in-flight
+9. Respect the configured concurrency cap. Default to 3 concurrent in-flight
    workers when config names no cap. Dispatch new work only up to
    `cap - in-flight`. If the cap is reached, advance existing work only.
-9. Choose the next orchestration action. The following actions are examples, not
-   limits; use model judgment to handle any other evidence-backed workflow action
-   needed to keep the ticket moving:
-   - isolated implementation worker, such as Claude Code
-     `ziw-implementer`, Codex `$ziw-implement`, or local
-     worktree for `local-worktree`
-   - tracker-exposed assigned agent for `issue-assigned`
-   - isolated review worker, such as Claude Code `ziw-reviewer` or Codex
-     `$ziw-review`, for independent PR review and main-branch drift
-     review
-   - isolated triage worker, such as Claude Code `ziw-triager` or Codex
-     `$ziw-triage`, for issue metadata cleanup
-   - draft-state repair, additional code review, CodeRabbit escalation, or check
-     rerun when the PR state needs evidence
-   - integrate for a reviewed, green PR
-   - direct worker nudge or feedback reply when the original worker can continue
-   - human-review marker only when model judgment cannot safely resolve the next
-     step from evidence and config
-   - local Codex for orchestration repair, metadata updates, and small
-     coordination fixes
-   - planning agent for ambiguous product, security, or architecture
-10. Build the worker prompt, assignment comment, or tracker handoff from config,
+10. Choose the next orchestration action. The following actions are examples, not
+    limits; use model judgment to handle any other evidence-backed workflow action
+    needed to keep the ticket moving:
+
+- isolated implementation worker, such as Claude Code
+  `ziw-implementer`, Codex `$ziw-implement`, or local
+  worktree for `local-worktree`
+- tracker-exposed assigned agent for `issue-assigned`
+- isolated review worker, such as Claude Code `ziw-reviewer` or Codex
+  `$ziw-review`, for independent PR review and main-branch drift
+  review
+- isolated triage worker, such as Claude Code `ziw-triager` or Codex
+  `$ziw-triage`, for issue metadata cleanup
+- draft-state repair, additional code review, CodeRabbit escalation, or check
+  rerun when the PR state needs evidence
+- integrate for a reviewed, green PR
+- direct worker nudge or feedback reply when the original worker can continue
+- human-review marker only when model judgment cannot safely resolve the next
+  step from evidence and config
+- local Codex for orchestration repair, metadata updates, and small
+  coordination fixes
+- planning agent for ambiguous product, security, or architecture
+
+11. Build the worker prompt, assignment comment, or tracker handoff from config,
     issue body, linked docs, required checks, branch/worktree, and
     `ziw-implement`. Record the dispatch in the ledger and tracker with
     an idempotency key.
-11. Append friction entries for this tick (see Friction Log). Continue only while
+12. Append friction entries for this tick (see Friction Log). Continue only while
     safe actions remain and the user-specified loop budget allows it. If no safe
     action remains because the scoped queue is completely blocked, stop the
     recurring loop for that scope.
@@ -451,10 +467,10 @@ Before starting issue-assigned work, run a read-only preflight:
 - verify blockers and dependencies from provider relationships and body text
 - verify the requested agent is exposed by the tracker or the config has a
   previously verified delegation tool, field, or agent ID
-- verify the issue is not already claimed, delegated, linked to an open PR, or
-  waiting on review feedback
+- verify the issue is not already claimed, delegated, linked to an open PR,
+  represented by another active worker session, or waiting on review feedback
 
-See [../../ziw-setup/references/operating-profile.md](../../ziw-setup/references/operating-profile.md)
+See [../ziw-setup/references/operating-profile.md](../ziw-setup/references/operating-profile.md)
 for the full delegation preflight table, the agent-session continuation
 mechanic, the concurrency default, and the merge-safety decision table.
 
@@ -505,7 +521,10 @@ For each returned PR, Orchestrator owns the state machine. Review and integrate
 are called steps, not inlined work:
 
 1. Refresh PR draft status, branch head, required checks, review comments, and
-   linked issue state from the code host and tracker.
+   linked issue state from the code host and tracker. If the tracker/code-host
+   integration syncs linked PRs and tickets, assume the synced state is real when
+   both linked entities exist; manually repair only after both systems have been
+   refreshed.
 2. If the PR is draft, diagnose draft state before asking for review: inspect
    repo draft policy, PR body, check state, unresolved review comments, linked
    issue state, handoff notes, `Code review passed` evidence, and the original
@@ -530,7 +549,8 @@ are called steps, not inlined work:
    existing friction category, usually `stuck-worker` for live worker churn or
    `config-gap` for missing check-state expectations.
 6. When the review target is stable, ask Agent Review to run `ziw-code-review`
-   in a subagent or disposable worktree.
+   in a subagent or disposable worktree. Parallel reviews must use isolated
+   worktrees or sessions, never one shared mutable checkout.
 7. If Agent Review ran, read the review verdict and CodeRabbit recommendation
    from the review artifact. If multiple current review artifacts disagree on
    blocking findings, reconcile conservatively: treat the PR as blocked until a
@@ -615,7 +635,9 @@ When the gate passes:
    merge a stale branch on the assumption it still applies. Record a
    `merge-conflict` friction entry if the rebase needed manual resolution and
    escalate instead of guessing on a real conflict.
-3. Merge through the configured mechanism.
+3. Merge through the configured mechanism, such as squash, merge commit, or
+   rebase merge. If the code host rejects the configured method, stop, log
+   `config-gap`, and refresh setup instead of retrying with a guessed method.
 4. Refresh local Git refs and update the local default branch to the merged head
    before any post-merge check, next PR decision, or issue `Done` transition.
 5. Run configured post-merge preparation before judging the default branch:
@@ -626,10 +648,15 @@ When the gate passes:
    Mergeable does not prove correct after merge. If a prep step clears a stale
    local artifact failure, log `config-gap`; if the checked default branch still
    fails, record `post-merge-break` and escalate.
-6. Move the issue to `Done` only after the merge and post-merge check succeed.
-   In the same tracker update, remove `ready-for-agent` or the repo-configured
-   readiness label from the done ticket. Done work is no longer waiting for agent
-   handoff.
+6. Move the issue to `Done` only after the merge and post-merge check succeed and
+   the full issue scope is complete. For Linear + GitHub, assume the linked PR can
+   auto-advance the ticket state; do not duplicate that transition unless
+   refreshed state still needs repair. If a code-host integration auto-moved the
+   issue to `Done` after the first linked PR but acceptance criteria remain, reopen
+   or narrow the issue according to config, record the residual scope, and log
+   `config-gap`. In the same tracker update for true Done, remove
+   `ready-for-agent` or the repo-configured readiness label from the done ticket.
+   Done work is no longer waiting for agent handoff.
 
 Never merge or deploy production without explicit approval. A label alone is
 never permission to merge.

@@ -24,6 +24,9 @@ Last updated: YYYY-MM-DD
 - Package manager:
 - Install:
 - Full local gate:
+- Local gate cache policy:
+- CI env passthrough:
+- Coverage and secret-scan scope:
 - Focused checks:
 - Build:
 - Generated artifacts:
@@ -63,6 +66,9 @@ Last updated: YYYY-MM-DD
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
 - Status transition owner: Issue Triage may reconcile verified stale states and move requested intake cleanup to ready state; Agent Orchestrator owns active workflow transitions
+- Code-host issue sync policy: for Linear + GitHub, assume linked tickets and PRs
+  are synced when both exist; Linear may advance ticket states from PR status, so
+  refresh both before manual state repair
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
   - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable; remove when the issue moves to Done
@@ -90,6 +96,9 @@ Last updated: YYYY-MM-DD
 - Priority policy:
 - Dependency policy:
 - Dependency graph mechanism: tracker relationship/blocker field, or configured body shape
+- Auto-Done integration policy: whether PR links can move issues to Done, and
+  how Orchestrator verifies full scope before leaving multi-PR or partial-scope
+  issues Done
 - File footprint convention: where To Issues records predicted files/packages per slice
 - Review-debt footprint convention: where Agent Review or triage records likely
   files/packages for review-created `kind-slice` tickets before Orchestrator can
@@ -105,9 +114,12 @@ Last updated: YYYY-MM-DD
 - Parallelism policy:
 - Concurrency cap: max workers dispatched at once (default 3 if unset)
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
+- Duplicate worker or PR policy: idempotency key, session-handle source, and how
+  to choose a canonical PR when one dispatch creates more than one session
 - Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
 - Required checks for merge: the CI checks that define green for the integrate gate
 - Auto-merge risk tiers: which risk tiers Orchestrator may auto-merge vs route to human merge
+- Merge method: squash, merge commit, rebase merge, or repo-specific command
 - Post-merge preparation: install, build, generated-artifact, or dependency refresh needed before local post-merge checks are trustworthy
 - Post-merge check: command or signal that confirms the default branch is healthy after merge, if any
 - Authoritative issue state:
@@ -115,6 +127,9 @@ Last updated: YYYY-MM-DD
 - Authoritative check state:
 - Authoritative deploy state:
 - Orchestrator mutation authority:
+- Single-ticket one-off policy: whether a direct user request for one issue
+  grants mutation authority to orchestrate only that issue through configured
+  states, including Done when merge and verification evidence exists
 - Orchestrator recurring mechanism: Claude Code `/loop`, schedule, or wake-up
   timer; Codex automations, either cron automations or heartbeat automations;
   exact configured mechanism or "none"
@@ -144,6 +159,8 @@ Last updated: YYYY-MM-DD
 - Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
 - Issue-assigned liveness signals: session reply, branch, PR, check activity, or provider-specific signal that proves the worker is alive
 - Issue-assigned stuck-worker policy: nudge the existing continuation target before re-delegating unless current evidence proves the session cannot continue
+- Issue-assigned duplicate-dispatch policy: check for multiple session handles,
+  branches, or PRs for the same issue before assigning again
 - Delegation probe policy: never mutate real implementation issues
 - Claude:
 - Claude Code source of truth:
