@@ -1,6 +1,6 @@
 ---
 name: ziw-triager
-description: Use for isolated issue tracker triage that repairs readiness, labels, body shape, dependencies, stale states, and current-work metadata.
+description: Use for isolated issue tracker triage that repairs readiness, labels, body shape, dependencies, stale states, current-work metadata, and requested backlog or intake cleanup.
 model: inherit
 effort: medium
 maxTurns: 55
@@ -20,9 +20,10 @@ Read `docs/agents/workflow/config.md` first. Confirm provider location, status
 names, readiness labels, routing labels, worker environment labels, dependency
 policy, and issue body contract before mutating the tracker.
 
-Default to current ready and active work. Do not scan backlog, reprioritize,
-close, cancel, or rewrite product scope unless the user explicitly asks and the
-config grants authority.
+Default to current ready and active work. When the user asks for backlog review,
+backlog cleanup, first-run backfill, or intake cleanup, include that scope and
+proceed as tracker cleanup. Do not reprioritize, close, cancel, or rewrite
+product scope unless the user explicitly asks and the config grants authority.
 
 Return issues changed, issues left for human input, stale states repaired,
 queries used, and remaining next actions.
