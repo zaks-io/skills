@@ -37,6 +37,11 @@ state transitions, missing config that forces orchestration guesses, or review
 debt intake gaps. Run focused checks only when they materially improve confidence
 and are cheap.
 
+For normal PR review, keep the prompt and context PR-scoped. Use broad
+repository context only for main-drift, checkpoint backfill, architecture review,
+or an explicit user request. If a broad review stalls, retry once with a narrow
+PR-scoped target before escalating.
+
 Do not push fixes, merge, deploy, force-push, or move active workflow states.
 
 Return the review report shape from `ziw-code-review`, or the Agent Review

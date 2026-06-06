@@ -111,10 +111,19 @@ variant when config or CI requires typecheck, build, coverage thresholds,
 generated-artifact checks, smoke, or secret scanning. In monorepos, include the
 cross-package checks that CI will enforce for the touched surface.
 
+When Markdown or docs changed, run the configured docs formatting check before
+handoff. If the target repo exposes `pnpm format:docs:check`, run that command
+instead of waiting for CI or a hook to catch Prettier drift. Local hooks are a
+backstop, not handoff evidence.
+
 If the repo uses task caches, env filtering, or sharded hosted checks, run the
 cache-busted or CI-equivalent variant named by config before handoff. When adding
 or changing CI env vars, feature flags, or test gates, prove the invoked process
 receives them rather than only setting them in the outer command.
+
+After conflict resolution, branch update, rebase, generated artifact refresh, or
+any worker-applied review fix, rerun the affected final checks on the new head.
+Report only the post-update evidence as completion evidence.
 
 Preserve existing sibling coverage when editing shared modules. Do not delete or
 weaken unrelated tests just to make the slice pass.
@@ -167,6 +176,7 @@ Report:
 - checks run and result
 - code review verdict
 - whether code review covers the current diff
+- PR head SHA, base SHA, and merge base used for the final checks and review
 - PR draft or ready-for-review state
 - `Code review passed` recommendation with reviewed head SHA
 - CodeRabbit decision or remaining escalation

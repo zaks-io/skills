@@ -78,6 +78,11 @@ If the branch changes package manifests, lockfiles, generated artifacts, or the
 workspace dependency graph, run the repo-configured install, lockfile validation,
 or artifact refresh before the final gate.
 
+If Markdown or docs changed, run the configured docs formatting check before the
+PR handoff. Use `pnpm format:docs:check` when that command exists in the target
+repo. Do not rely only on pre-commit hook installation or CI to prove docs
+formatting.
+
 Run focused checks for high-risk touched areas. Fix mechanical failures and
 rerun. Never use `--no-verify`.
 
@@ -169,9 +174,9 @@ When an issue exists:
   the integration sync is active and may advance Linear state from PR status; do
   not duplicate manual state changes unless config delegates that authority
 - comment with checks run, code review verdict, CodeRabbit decision,
-  PR draft or ready-for-review state, `Code review passed` recommendation with
-  reviewed head SHA, acceptance criteria status, and differences from original
-  intent
+  PR draft or ready-for-review state, current PR head SHA, base SHA, merge base,
+  `Code review passed` recommendation with reviewed head SHA, acceptance
+  criteria status, hosted check state, and differences from original intent
 - never move to `Done`; merge is not complete
 
 Do not move workflow state unless the repo config or user explicitly delegates
@@ -187,6 +192,7 @@ Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
 Review: local <verdict>; CodeRabbit <skipped|CLI|PR review>
+Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
 PR state: <draft|ready-for-review>
 Issue:  <issue, handoff status, created, or skipped>
 ```

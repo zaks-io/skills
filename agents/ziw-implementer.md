@@ -36,6 +36,9 @@ Return only the compressed handoff:
 - PR URL or reason no PR exists
 - files changed
 - checks run and result
+- PR head SHA, base SHA, merge base, and hosted check state
 - review verdict and whether it covers the current diff
+- CodeRabbit decision
+- PR draft or ready-for-review state
 - tracker handoff
 - blockers or follow-up issues

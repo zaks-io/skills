@@ -72,6 +72,14 @@ for a backfill.
 Review PRs through `ziw-code-review`; do not inline the review inside
 Agent Review.
 
+Use the narrowest review target that can answer the question. Normal PR review
+is PR-scoped: give the reviewer the PR URL or branch, linked issue, current head
+SHA, base SHA, merge base, required checks, and the few intent docs needed for
+that diff. Reserve broad repository or full-context review for main-drift,
+checkpoint backfill, architecture review, or an explicit user request. If a
+broad review stalls or times out, retry once with a narrow PR-scoped prompt
+before escalating.
+
 Use one of these clean-context paths:
 
 - Subagent: launch a fresh reviewer with the PR URL, repo path, base branch,
@@ -96,7 +104,8 @@ For each PR:
 3. Verify the PR head is stable enough to review. If the head changed during
    review setup, the code host has not attached checks to the current head yet,
    or the implementation session is still actively pushing, stop with a stale
-   review-target finding instead of producing a verdict for a moving head.
+   review-target finding instead of producing a verdict for a moving head. A
+   still-progressing preview or check is wait evidence, not a reason to rerun.
 4. Start the clean-context review with `ziw-code-review`.
 5. Post or return findings without fixing the PR locally.
 6. Report `Changes Requested` for blocking findings.
