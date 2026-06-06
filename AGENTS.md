@@ -17,6 +17,7 @@ content.
 - `skills/<skill>/agents/openai.yaml`: Codex adapter and trigger fixture for the
   matching skill.
 - `.claude-plugin/plugin.json`: Claude Code plugin manifest.
+- `.agents/`: repo-internal runbooks that are not published by skill discovery.
 - `agents/<agent>.md`: Claude Code sub-agent definitions for the few workflow
   roles that benefit from isolated context.
 - `skills/ziw-setup/references/`: templates and contracts used to create
@@ -30,6 +31,8 @@ content.
 ## Repo Rules
 
 - Add shared skills under `skills/ziw-*`.
+- Keep repo-internal procedures under `.agents/`; do not make them publishable
+  skills unless they are meant to ship to downstream repos.
 - Keep runtime-specific metadata minimal. Tool providers, commands, environments,
   issue tracker states, and deploy rules belong in each downstream repo's
   `docs/agents/workflow/config.md`.

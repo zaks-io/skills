@@ -1,6 +1,0 @@
-interface:
-  display_name: "Remote Ticket"
-  short_description: "Create Cursor-ready tickets"
-  default_prompt: "Use $ziw-remote-ticket to create or adopt a repo-scoped remote Cursor-ready Linear ticket for this task, including skill-update tickets, then move it through triage and orchestrate."
-policy:
-  allow_implicit_invocation: false

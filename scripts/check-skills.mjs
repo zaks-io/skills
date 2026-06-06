@@ -13,7 +13,6 @@ const manualOnlySkills = new Set([
   "ziw-to-issues",
   "ziw-triage",
   "ziw-setup",
-  "ziw-remote-ticket",
 ]);
 const implicitInvocationSkills = new Set(["ziw-code-review"]);
 const cleanContextSkills = new Set(["ziw-review", "ziw-code-review"]);
@@ -28,7 +27,6 @@ const triggerTerms = {
   "ziw-to-issues": ["spec", "ticket", "dependency"],
   "ziw-triage": ["tracker", "triage", "project", "issue"],
   "ziw-setup": ["setup", "config"],
-  "ziw-remote-ticket": ["remote", "cursor", "ticket"],
 };
 const claudePluginFile = path.join(root, ".claude-plugin", "plugin.json");
 const claudeAgentsDir = path.join(root, "agents");
