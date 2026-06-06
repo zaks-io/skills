@@ -125,6 +125,7 @@ $ziw-orchestrate ZAK-123 ZAK-456
 $ziw-orchestrate label:ready-for-agent one pass
 $ziw-orchestrate project "Payments" until clear
 $ziw-orchestrate backlog until clear
+$ziw-remote-ticket zaks-io/agent-paste "update skills"
 ```
 
 Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
@@ -290,6 +291,9 @@ and add agent or skill complexity only when it improves delivery.
 - `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered
   one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
   contract and labels, and emit a dependency graph and file footprint.
+- `ziw-remote-ticket`: create or adopt one repo-scoped remote Cursor-ready
+  Linear ticket for a concrete task such as updating workflow skills, then hand
+  that ticket to triage and orchestration.
 - `ziw-triage`: update current tracker labels, kinds, readiness, stale
   verified states, orphans, body shape, and dependencies so Todo tickets are
   clean and agent-ready. It follows the repo-configured label treatment policy,
@@ -320,7 +324,9 @@ and add agent or skill complexity only when it improves delivery.
 4. Run `ziw-orchestrate` to run the loop: dispatch, review,
    integrate, repeat until the backlog is delivered or completely blocked. A
    completely blocked loop stops instead of rescheduling itself.
-5. Use `ziw-pr` directly only when you are already on a branch and
+5. Use `ziw-remote-ticket` for a one-off remote Cursor maintenance task,
+   such as updating a target repo with `npx skills add zaks-io/skills --all`.
+6. Use `ziw-pr` directly only when you are already on a branch and
    want to ship it.
 
 For the deeper agent contract, state model, handoff shape, and diagrams, see
