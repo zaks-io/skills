@@ -53,7 +53,8 @@ Each tick:
    previews, and stuck draft PRs first. Dispatch new startable work only when the
    active PR/preview cap has headroom. Prefer advancing active work over starting
    new work. Draft state is an orchestration repair signal, not a code review
-   request.
+   request, and capacity pressure is not a reason to close a draft or
+   in-progress PR.
 6. Delegate every context-heavy step (implement, review, triage) to an isolated
    worker. Reduce each worker result into the compact queue and ledger before
    continuing.

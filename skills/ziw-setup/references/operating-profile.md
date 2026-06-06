@@ -17,8 +17,13 @@ should resolve these into config, not leave the loop to guess them.
   already counted PR, then add unreturned implementation dispatches. If the
   preview provider has a stricter separate limit, obey the stricter limit.
 - Dispatch new work only when active delivery slots are below the cap. If the cap
-  is reached or exceeded, advance, merge, close, or escalate existing PRs and
-  previews before starting more work.
+  is reached or exceeded, advance, merge, route fixes, clean up previews, or
+  escalate existing PRs and previews before starting more work.
+- Capacity pressure never authorizes closing draft or in-progress PRs just to
+  free headroom. Close PRs only when current code-host and tracker evidence shows
+  a duplicate, explicitly canceled or abandoned work, already-terminal work, or a
+  security or policy reason that requires closure. PR age, draft status, and
+  active-delivery pressure are not abandonment evidence.
 - For issue-assigned remote workers, worker-session count is only a secondary
   provider limit. It must never justify starting new work when open PRs or active
   previews already consume the active delivery cap.

@@ -245,14 +245,38 @@ If the active delivery footprint is at or above the cap, do not dispatch new
 implementation work. First reduce the footprint by advancing existing PRs and
 previews: diagnose draft PRs, rerun or route checks, request or apply review,
 send fixes to the original worker, integrate green PRs when authority allows,
-close duplicate or abandoned PRs, terminate orphan previews according to config,
-or escalate exact human merge or provider actions. If outside-scope PRs or
-previews consume capacity and Orchestrator lacks authority to change them, report
-that capacity blocker instead of starting more work.
+terminate orphan previews according to config, or escalate exact human merge or
+provider actions. Close PRs only when they pass the PR Closure Guard below. If
+outside-scope PRs or previews consume capacity and Orchestrator lacks authority
+to change them, report that capacity blocker instead of starting more work.
 
 If preview state cannot be refreshed and config says previews count toward the
 cap, treat headroom as unknown and full for new dispatch. Continue only with
 actions that advance existing PRs or repair the missing config/tooling evidence.
+
+## PR Closure Guard
+
+Capacity pressure is never a reason to close legitimate in-progress work. Do not
+close a draft PR, a PR linked to an active ticket, a PR with recent worker,
+branch, check, or review activity, or a PR with unclear ownership only to make
+room under the active delivery cap.
+
+Before closing any PR, refresh code-host and tracker state and verify one of
+these closure reasons:
+
+- duplicate PR for the same issue after a canonical PR has been selected from
+  current code-host evidence
+- explicitly canceled, abandoned, or out-of-scope work, with owner or config
+  evidence that closing the PR is allowed
+- already merged, superseded, or otherwise terminal according to code-host and
+  tracker evidence
+- security or policy reason that requires closing the PR, with the reason
+  recorded
+
+PR age, draft status, and active-delivery pressure are not abandonment evidence.
+If an open PR consumes capacity but does not satisfy this guard, keep it open,
+pause new dispatch, and route the next action: review, worker feedback, check
+repair, merge escalation, or an exact capacity blocker report.
 
 ## Tracker Tooling
 
@@ -389,8 +413,9 @@ Each tick is stateless against external state. On each pass:
    `Changes Requested`, and `Ready to Merge`. Prefer advancing active work over
    starting new work.
 6. If the active delivery footprint is at or above the configured cap, dispatch
-   no new work this tick. Advance, merge, close, clean up, or escalate existing
-   PRs and previews first. If capacity is consumed by outside-scope work the
+   no new work this tick. Advance, merge, route fixes, clean up previews, or
+   escalate existing PRs and previews first. Close a PR only when it satisfies
+   the PR Closure Guard. If capacity is consumed by outside-scope work the
    orchestrator cannot mutate, stop with a capacity blocker and exact PR/preview
    list.
 7. Advance returned PRs, including draft PRs with no clear next action, through
