@@ -159,6 +159,12 @@ does not mean implementing vague future work without triage. If every scoped
 issue is blocked and no orchestration action remains, the loop stops for that
 scope.
 
+Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
+automatically exclude the configured `Done` state unless the user explicitly asks
+to audit Done cleanup. A stale readiness label on a terminal ticket should be
+removed when that ticket is touched, but it should not pull the ticket into the
+normal queue.
+
 Config should name the worker delegation paths this repo supports:
 
 - `local-worktree`: Agent Orchestrator starts local subagents, gives each worker
@@ -233,6 +239,8 @@ Issue Triage may move complete issues from configured intake states to the
 configured ready state during requested intake cleanup, and may reconcile
 verified stale states such as moving tickets with merged linked PRs to `Done`.
 When it marks a ticket `Done`, it removes `ready-for-agent`.
+Readiness-label queries still exclude `Done` by default, so stale labels on done
+tickets do not inflate the active queue.
 Agent Orchestrator does not store authoritative workflow state locally. It reads
 and writes the systems of record:
 

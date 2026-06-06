@@ -127,6 +127,10 @@ $ziw-orchestrate project "Payments" until clear
 $ziw-orchestrate backlog until clear
 ```
 
+Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
+automatically exclude the configured `Done` state unless you explicitly ask to
+audit Done cleanup.
+
 To Issues turns a spec, PRD, or epic ticket into dependency-ordered one-PR
 tickets. Triage gets the current set consistent. Orchestrator runs the loop:
 dispatch, review, integrate, repeat.
@@ -165,6 +169,8 @@ before handoff to an implementation agent. Worker environment labels such as
 `remote-cursor` mean the issue is approved for that configured environment. Those
 labels are not dependency or scheduling gates. When a ticket moves to `Done`,
 Orchestrator or verified stale-state triage removes `ready-for-agent`.
+Readiness-label queries exclude `Done` by default so stale labels on terminal
+tickets do not keep growing the active queue.
 
 Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
 containers that To Issues reads as input and are never dispatched; `kind-slice`

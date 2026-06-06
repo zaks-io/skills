@@ -243,6 +243,12 @@ does not mean implementing vague future work without triage. If every scoped
 issue is blocked and no orchestration action remains, the loop stops for that
 scope.
 
+Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
+automatically exclude the configured `Done` state unless the user explicitly asks
+to audit Done cleanup. A stale readiness label on a terminal ticket should be
+removed when that ticket is touched, but it should not pull the ticket into the
+normal queue.
+
 Downstream config should say which worker delegation paths the project supports:
 
 - `local-worktree`: Agent Orchestrator starts local subagents, gives each worker
@@ -280,6 +286,8 @@ handoff to an implementation agent. A label such as `remote-worker` or
 environment. These labels can be applied before dependencies are clear. Remove
 `ready-for-agent` when an issue moves to `Done`; done work is not waiting for
 agent handoff.
+Readiness-label queries exclude `Done` by default, so stale labels on done
+tickets do not keep inflating the active queue.
 During requested intake cleanup, complete intake tickets can move to the ready
 state before dependencies are clear. Dependencies, blocker relationships, and
 blocked states gate whether Orchestrator may start or delegate the work.

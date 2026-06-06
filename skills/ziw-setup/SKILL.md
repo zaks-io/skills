@@ -145,7 +145,8 @@ Record:
   triage scope, orphan policy, statuses, labels, kind label set
   (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
   readiness label policy, worker environment label policy when present, startable
-  work criteria (including `kind-slice` only), priority policy, dependency policy,
+  work criteria (including `kind-slice` only), readiness-label query policy that
+  excludes the configured done state, priority policy, dependency policy,
   dependency graph mechanism, file footprint convention, issue body contract,
   agent-suitability policy for work types and risk,
   Issue Triage verified-state reconciliation authority, requested intake-to-ready
@@ -233,6 +234,10 @@ means the ticket needs no further human refinement before handoff to an
 implementation agent. It does not mean unblocked, startable, or assigned to a
 specific worker environment. Remove it when the ticket moves to the configured
 done state.
+
+Readiness-label queries for `ready-for-agent`, `ready-for-human`, or equivalent
+human/agent attention queues must exclude the configured done state by default.
+Do not rely on Done tickets having already had stale readiness labels removed.
 
 Worker environment labels, such as `remote-worker` or `remote-cursor`, are
 project config values only. Record them when the repo's tracker uses them; do not

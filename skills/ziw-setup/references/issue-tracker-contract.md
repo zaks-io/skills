@@ -90,6 +90,9 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
   not the ready queue.
 - `ready-for-agent` must be removed when an issue moves to the configured `Done`
   state. Done work is complete, not waiting for agent handoff.
+- Queries for `ready-for-agent`, `ready-for-human`, or equivalent readiness
+  attention labels must also exclude the configured `Done` state by default.
+  Stale labels on Done tickets are cleanup drift, not current work queue input.
 - Issue Triage should make current tickets agent-ready and keep tracker state
   aligned with external reality. Its default scope is the configured ready state,
   usually `Todo`, plus active or PR-linked issues that need repair. It should

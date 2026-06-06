@@ -75,6 +75,12 @@ do not scan the whole backlog. Build the default triage set from:
 5. Recently updated issues only when they are already in ready or active states
    or have direct links to current PRs or branches.
 
+When building any readiness-label queue, including `ready-for-agent` or
+`ready-for-human`, add the configured non-done status filter up front. Do not
+include `Done` tickets in the initial triage set only because a stale readiness
+label remains. If a requested Done audit or direct stale-state evidence brings a
+Done ticket into scope, clean the stale readiness label then.
+
 Treat `Backlog`, icebox, roadmap, someday, or equivalent future-work states as
 skipped by default unless explicitly requested. `Triage` or other intake states
 are also skipped by default unless config names them as current work, review-debt
@@ -123,6 +129,10 @@ Build a triage set before making changes:
 6. `Triage`, `Backlog`, or equivalent intake and future-work states only when
    explicitly requested or when config explicitly uses them for review-debt
    intake.
+
+If the inventory starts from `ready-for-agent`, `ready-for-human`, or another
+readiness label, exclude the configured done state unless the user explicitly
+asked to inspect done tickets.
 
 Classify each issue as one of:
 

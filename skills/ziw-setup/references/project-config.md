@@ -74,6 +74,9 @@ Last updated: YYYY-MM-DD
   - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable; remove when the issue moves to Done
   - needs-info:
   - ready-for-human:
+- Readiness-label query policy: queries for ready-for-agent, ready-for-human,
+  or equivalent attention labels exclude the configured Done state unless the
+  user explicitly asks to audit or repair done-ticket cleanup
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
@@ -274,6 +277,12 @@ a dependency, status, or scheduling signal, and it must be removed when the
 ticket moves to Done. Worker environment labels such as `remote-cursor` should
 answer "is this issue allowed to run in that configured environment?" They must
 not be used as dependency, status, or scheduling signals.
+
+The tracker query contract should exclude the configured Done state from
+readiness-label queues such as `ready-for-agent` and `ready-for-human`. Done
+cleanup still removes stale readiness labels when a Done ticket is touched, but
+the normal queue should not load terminal tickets just to rediscover that label
+drift.
 
 Issue-assigned worker config should be stable enough for Orchestrator to act
 without probing real work. Record the configured worker path, environment labels

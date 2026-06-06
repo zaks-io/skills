@@ -76,6 +76,12 @@ continue. Ask only when multiple real scopes remain plausible.
 - One pass or budgeted loop: stop after the requested pass count, worker count,
   ticket count, time budget, or first meaningful state change.
 
+When the requested scope is a readiness label such as `ready-for-agent` or
+`ready-for-human`, automatically exclude the configured done state from the
+initial tracker query. Done tickets are terminal even when a stale readiness
+label remains. Include them only when the user explicitly asks to audit or repair
+done-ticket cleanup.
+
 Do not interpret "clear the backlog" as permission to implement vague future
 work. Clear means every issue in scope has a truthful next state and owner:
 implemented, delegated, ready for review, ready to merge, blocked, needs-info,
@@ -425,14 +431,14 @@ Each tick is stateless against external state. On each pass:
    `kind-slice` issues in the startable frontier once their body, labels,
    dependencies, and route are complete.
 9. Find startable work: `kind-slice` plus `Todo` plus `ready-for-agent`,
-   unblocked, with a complete agent-ready body. `ready-for-agent` means no
-   further human refinement is needed before agent handoff; it can be present on
-   blocked issues. Never treat a `kind-spec` or `kind-epic` container as
-   startable. Check provider blocker relationships and explicit body blockers
-   before starting or delegating work. Treat labels as signals and statuses as
-   the workflow state. For verified-ready backlog work, if the only gap is a
-   routine label or status mismatch and the correct state is clear from evidence,
-   repair it and continue instead of skipping the ticket.
+   excluding the configured done state, unblocked, with a complete agent-ready
+   body. `ready-for-agent` means no further human refinement is needed before
+   agent handoff; it can be present on blocked issues. Never treat a `kind-spec`
+   or `kind-epic` container as startable. Check provider blocker relationships
+   and explicit body blockers before starting or delegating work. Treat labels as
+   signals and statuses as the workflow state. For verified-ready backlog work,
+   if the only gap is a routine label or status mismatch and the correct state is
+   clear from evidence, repair it and continue instead of skipping the ticket.
 10. Select new work by dependency order, milestone/project priority, risk, and
     file/package contention. Do not dispatch a ticket whose predicted files
     collide with an in-flight dispatch; defer it and record a `file-collision`
