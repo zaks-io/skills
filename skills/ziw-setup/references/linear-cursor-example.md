@@ -120,8 +120,9 @@ Last updated: 2026-06-01
 - Local: self-contained unless this repo says otherwise
 - Preview: PR-scoped Cursor/GitHub preview environment
 - Preview provider cap: 3 active previews
-- Preview cleanup policy: close stale duplicate PRs or terminate orphan previews
-  before assigning more work
+- Preview cleanup policy: close verified duplicate PRs or terminate orphan
+  previews before assigning more work; never close draft or in-progress PRs only
+  to free capacity
 - Production: explicit approval required
 - Hosted checks allowed without approval: <list or none>
 - Hosted checks requiring approval: <list>

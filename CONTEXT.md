@@ -87,8 +87,8 @@ The repo-level capacity consumed by open PRs, active PR-scoped previews, and imp
 _Avoid_: worker concurrency, queue size
 
 **Active PR/Preview Cap**:
-The maximum active delivery footprint allowed before **Agent Orchestrator** must drain existing PRs and previews instead of dispatching more work.
-_Avoid_: agent session cap, parallel worker count
+The maximum active delivery footprint allowed before **Agent Orchestrator** must advance existing PRs or previews instead of dispatching more work. It is not a PR closure quota.
+_Avoid_: agent session cap, parallel worker count, queue eviction
 
 **Current Work**:
 Tickets in configured ready or active states, plus active or PR-linked tickets that may need tracker repair.

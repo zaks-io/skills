@@ -119,8 +119,14 @@ Last updated: YYYY-MM-DD
   clearly linked to an already counted PR, then add unreturned implementation
   dispatches. Obey any stricter preview-provider or worker-session limit
 - Capacity drain policy: when active delivery slots are at or over cap,
-  Orchestrator advances, merges, closes, cleans up, or escalates existing PRs and
-  previews before dispatching new implementation work
+  Orchestrator advances, merges, routes fixes, cleans up previews, or escalates
+  existing PRs and previews before dispatching new implementation work
+- PR closure guard: capacity pressure is not a closure reason. Orchestrator may
+  close PRs only with refreshed code-host and tracker evidence of duplicate,
+  explicitly canceled or abandoned, already-terminal, or security/policy-required
+  work. Draft, active, recently updated, or unclear-ownership PRs stay open and
+  become capacity blockers or active work to advance. PR age, draft status, and
+  active-delivery pressure are not abandonment evidence
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Duplicate worker or PR policy: idempotency key, session-handle source, and how
   to choose a canonical PR when one dispatch creates more than one session

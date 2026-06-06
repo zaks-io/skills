@@ -87,8 +87,11 @@ domain behavior, and performance work without benchmarks.
 - The active PR/preview cap protects delivery capacity, not worker count. Open
   PRs, active PR-scoped previews, and implementation dispatches that have not yet
   produced a PR consume capacity. When the cap is full, Orchestrator advances,
-  merges, closes, cleans up, or escalates existing PRs/previews before
-  dispatching new work.
+  merges, routes fixes, cleans up previews, or escalates existing PRs/previews
+  before dispatching new work. It closes PRs only when refreshed code-host and
+  tracker evidence satisfies the PR closure guard; draft or in-progress PRs are
+  never closed just to make room. Age, draft status, and capacity pressure are
+  not abandonment evidence.
 - If the refreshed scope is completely blocked, Orchestrator stops the recurring
   loop for that scope instead of waking forever. Completely blocked means there
   are no startable tickets, PRs or previews to advance, stuck workers to nudge,
@@ -135,9 +138,12 @@ evidence and keep going instead of escalating them.
 
 Before selecting new startable work, Orchestrator checks the repo-level active
 delivery footprint against the configured active PR/preview cap. If open PRs or
-active previews already fill the cap, it must drain those first. Outside-scope
-PRs and previews still consume repo capacity; if Orchestrator lacks authority to
-change them, it reports a capacity blocker instead of dispatching more work.
+active previews already fill the cap, it must drain those first by advancing,
+merging, routing fixes, cleaning up previews, or escalating exact blockers.
+Outside-scope PRs and previews still consume repo capacity; if Orchestrator lacks
+authority to change them, it reports a capacity blocker instead of dispatching
+more work. It must not close a draft, active, recently updated, or
+unclear-ownership PR merely to reduce the footprint.
 
 A direct user request to handle one ticket is delegated authority to orchestrate
 that ticket only. The agent should move that one issue through configured states

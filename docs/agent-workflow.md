@@ -130,9 +130,12 @@ The active PR/preview cap protects the repo's delivery footprint, not just the
 number of worker sessions. Each tick refreshes repo-level open PRs, active
 PR-scoped previews, and implementation dispatches that have not yet returned a
 PR. When that footprint is at or above the configured cap, Orchestrator drains
-existing work first: review, merge, close, clean up previews, route fixes, or
-escalate the exact human/provider action. It does not dispatch more implementation
-work just because workers are idle.
+existing work first: review, merge, route fixes, clean up previews, or escalate
+the exact human/provider action. It closes PRs only with refreshed evidence that
+the PR is duplicate, explicitly canceled or abandoned, terminal, or must close for
+security or policy. Age, draft status, and capacity pressure are not abandonment
+evidence. It never closes draft or in-progress PRs just to make room. It does not
+dispatch more implementation work just because workers are idle.
 
 If the refreshed scope is completely blocked, Orchestrator stops the recurring
 loop for that scope instead of waking forever. Completely blocked means there are
