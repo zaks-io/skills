@@ -222,6 +222,9 @@ information, or stop on a real blocker. The repo config records supported worker
 delegation paths such as
 `local-worktree`, `issue-assigned`, or both, plus only the project-specific
 routing or direct-agent continuation details that are annoying to rediscover.
+For CodeRabbit, the repo config records a compact summary of root
+`.coderabbit.yaml` auto-review behavior and the per-PR command policy, including
+when agents may add `@coderabbitai ignore` to skip optional automatic review.
 
 When you hand Orchestrator a large backlog that has already been triaged or
 verified as ready to implement, it owns the delivery lane. Routine

@@ -45,8 +45,10 @@ Rules:
   current PR head SHA.
 - Say whether the PR is draft/pre-review or non-draft/ready-for-review, and who
   owns any required ready-for-review transition.
-- Say whether CodeRabbit is skipped, complete, or still required for the current
-  diff.
+- Say whether CodeRabbit is skipped, complete, auto-review pending, or still
+  required for the current diff. Include auto-review mode when known and the
+  command or PR-description marker used, such as `@coderabbitai full review` or
+  `@coderabbitai ignore`.
 - Say which hosted checks were observed for the current head, whether they were
   pending, passing, failing, or still progressing, and whether they used local,
   development, preview, or production resources.

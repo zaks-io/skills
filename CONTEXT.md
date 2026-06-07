@@ -228,6 +228,10 @@ _Avoid_: checks passed, looks good
 Requesting CodeRabbit only when the review gate recommends it, the diff is high-risk or complex, or the user asks.
 _Avoid_: default review step, required review
 
+**CodeRabbit Auto-Review Mode**:
+The resolved `reviews.auto_review` behavior from root `.coderabbit.yaml`: enabled, disabled, opt-in by label or description keyword, or unknown.
+_Avoid_: assumed enabled, hidden default
+
 ### Environments
 
 **Local Environment**:

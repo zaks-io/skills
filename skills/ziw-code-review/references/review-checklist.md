@@ -153,6 +153,22 @@ Recommend `CLI` when the PR is not open yet and the change is high risk enough t
 
 Recommend `PR REVIEW` when the PR is already open, the diff is broad, or review comments need to land on GitHub threads.
 
+Use this command map for PR review recommendations:
+
+- Auto-review enabled and the PR is eligible: wait for the automatic review if
+  it is already running or current; otherwise comment `@coderabbitai review` for
+  incremental review or `@coderabbitai full review` for a fresh full pass.
+- Auto-review disabled or opt-in only: comment `@coderabbitai review` for
+  incremental review, or `@coderabbitai full review` when no complete review
+  covers the current PR head.
+- Manual `review` and `full review` commands consume PR review allowance when
+  the review runs; record a skip instead when rate limits or credits block an
+  optional review.
+- Optional review should be skipped for this PR: add `@coderabbitai ignore` to
+  the PR description, not a comment. Remove it to re-enable automatic reviews.
+- Too many rapid commits: comment `@coderabbitai pause` while work is churning
+  and `@coderabbitai resume` when the branch is ready for automatic reviews.
+
 For a draft PR with a clean local review, do not use draft state as the reason
 to delay CodeRabbit. Recommend ready-for-review when the local gate is clean,
 then recommend `PR REVIEW` only if the risk or complexity triggers below apply.

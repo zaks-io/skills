@@ -31,6 +31,7 @@ Read first when present:
 - `docs/agents/workflow/config.md`
 - `AGENTS.md`
 - `CONTEXT.md`
+- root `.coderabbit.yaml` when CodeRabbit policy or auto-review state matters
 - project status, roadmap, specs, ADRs, and runbooks relevant to touched files
 - linked tracker issue body, comments, labels, dependencies, and acceptance
   criteria
@@ -88,6 +89,13 @@ Do not spend time on style nits or broad product refactors.
 
 Default to `SKIP` after a clean code review.
 
+When a PR exists, inspect the repo workflow config and root `.coderabbit.yaml`
+from the reviewed head when present. Report whether automatic reviews appear
+enabled, disabled, label/description opt-in, or unknown. Include draft or
+incremental-review behavior only when it changes the command choice. The project
+config is the short handoff source; `.coderabbit.yaml` is the root source for
+`reviews.auto_review`.
+
 Recommend `CLI` or `PR REVIEW` only for high-risk or genuinely complex work:
 auth, authorization, secrets, payments, destructive data, migrations,
 background jobs, public contracts, broad refactors, or unresolved reviewer
@@ -115,6 +123,8 @@ Reviewed head: <sha or working tree>
 Base: <base sha or range start>
 Checks run: <commands or "not run">
 CodeRabbit recommendation: SKIP | CLI | PR REVIEW, because <reason>
+CodeRabbit state: auto-review <enabled|disabled|opt-in|unknown>
+CodeRabbit command: <none|@coderabbitai review|@coderabbitai full review|@coderabbitai ignore|CLI>
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
 Review evidence label: APPLY Code review passed | CLEAR | LEAVE UNCHANGED, because <reason>
 

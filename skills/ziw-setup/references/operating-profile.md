@@ -114,6 +114,9 @@ Rules that do not change with tier:
 - A label is never permission to merge.
 - Never merge a stale branch; rebase, rerun checks and review, then merge.
 - Never merge or deploy production without explicit approval.
+- Read root `.coderabbit.yaml` for `reviews.auto_review`; use
+  `@coderabbitai ignore` in the PR description to skip optional auto-review for
+  a PR when repo policy allows.
 - Missing CodeRabbit auth, rate limits, or credits is a recorded skip unless the
   user explicitly required it.
 

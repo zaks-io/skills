@@ -43,6 +43,7 @@ Return only:
 - Scope check: clean, drift, or missing requirements
 - Findings table with severity, confidence, file:line, evidence, impact, and suggested fix
 - Checks run
-- CodeRabbit recommendation: skip, CLI, or PR review
+- CodeRabbit recommendation: skip, CLI, or PR review; include auto-review mode
+  and command or skip marker when known
 - Verdict: ready, needs revision, or do not merge
 ```

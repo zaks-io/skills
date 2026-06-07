@@ -96,8 +96,18 @@ changes.
 
 Use CodeRabbit only when code review recommends it, the change is high-risk, or
 the user asks. Missing auth, rate limits, or credits are a skip, not a blocker.
-Record the CodeRabbit decision in the handoff so Agent Orchestrator can decide
-whether any post-PR escalation remains.
+Read root `.coderabbit.yaml` when present and record whether
+`reviews.auto_review` is enabled, disabled, opt-in by label or description
+keyword, or unknown. Note draft or incremental-review behavior only when it
+changes the command choice. Record the CodeRabbit decision in the handoff so
+Agent Orchestrator can decide whether any post-PR escalation remains.
+
+When CodeRabbit is optional and the root config would otherwise auto-review the
+PR, add `@coderabbitai ignore` to the PR description only if the repo config
+allows agents to skip optional CodeRabbit reviews or rate-limit conservation is
+needed. When CodeRabbit is required after the PR exists, use a top-level PR
+comment: `@coderabbitai review` for incremental review, or
+`@coderabbitai full review` when no complete review covers the current PR head.
 
 ## Commit
 
@@ -191,7 +201,7 @@ PR:     <url>
 Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
-Review: local <verdict>; CodeRabbit <skipped|CLI|PR review>
+Review: local <verdict>; CodeRabbit <skipped|CLI|PR review|auto pending>
 Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
 PR state: <draft|ready-for-review>
 Issue:  <issue, handoff status, created, or skipped>

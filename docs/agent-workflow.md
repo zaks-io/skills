@@ -325,7 +325,12 @@ blocker remains, Agent Orchestrator marks the PR ready-for-review, then refreshe
 the code-host PR state and verifies it is non-draft. If it stays draft, it is not
 ready-for-review. CodeRabbit escalation follows the `ziw-code-review`
 recommendation and is required only for high-risk or genuinely complex diffs, or
-when the user asks for it.
+when the user asks for it. Agent Orchestrator reads the root `.coderabbit.yaml`
+when present and records the resolved auto-review mode from
+`reviews.auto_review`: enabled, disabled, opt-in, or unknown. Manual review
+requests are top-level PR comments. `@coderabbitai ignore` is a PR-description
+marker for skipping automatic reviews on that PR, and is recorded as a policy
+skip when used.
 
 ## Flow
 
@@ -460,7 +465,9 @@ Every handoff should say:
 - whether code review covers the current diff
 - whether `Code review passed` is applied, removed, or requested for the current
   PR head SHA
-- whether CodeRabbit is skipped, complete, or still required for the current diff
+- whether CodeRabbit is skipped, complete, auto-review pending, or still required
+  for the current diff, including auto-review mode and the command or PR
+  description marker used when known
 - tracker updates made or requested
 - blockers and residual risk
 

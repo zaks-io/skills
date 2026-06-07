@@ -683,17 +683,29 @@ are called steps, not inlined work:
     verify it is non-draft. This is a code-host PR state change, separate from
     tracker status. A kept-draft PR is pre-review; do not call it
     ready-for-review.
-17. If CodeRabbit is recommended for the current diff, request the configured
-    CodeRabbit path after local review is clean. Treat missing auth, rate
-    limits, or credits as a recorded skip unless the user explicitly required
-    CodeRabbit.
-18. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
+17. Resolve CodeRabbit state from the workflow config and root `.coderabbit.yaml`
+    at the reviewed PR head when present. Track whether `reviews.auto_review` is
+    enabled, disabled, opt-in by label or description keyword, or unknown. Note
+    draft or incremental-review behavior only when it changes the command
+    choice.
+18. If CodeRabbit is recommended for the current diff, request it after local
+    review is clean and the PR is non-draft unless repo policy says otherwise.
+    Use a top-level PR comment: `@coderabbitai review` for incremental review,
+    or `@coderabbitai full review` when no complete review covers the current
+    PR head. If automatic review is already current for the head, record it
+    instead of spending another review.
+19. If optional CodeRabbit should be skipped for this PR, add
+    `@coderabbitai ignore` to the PR description when repo policy allows. This
+    is the per-PR auto-review skip; do not post it as a comment. Treat missing
+    auth, rate limits, or credits as a recorded skip unless the user explicitly
+    required CodeRabbit.
+20. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
     correctness regression, production blocker, or a user-requested finding.
-19. Move to `Ready to Merge` only when Agent Review is clean, required checks
+21. Move to `Ready to Merge` only when Agent Review is clean, required checks
     pass, the PR is non-draft and ready-for-review, `Code review passed` is
     current for the PR head, and required CodeRabbit escalation is complete or
     recorded as skipped by policy.
-20. Call integrate when the auto-merge gate is satisfied.
+22. Call integrate when the auto-merge gate is satisfied.
 
 Do not leave a PR in draft just because the implementation worker opened it as
 draft or because no one asked Orchestrator to unstick it. Orchestrator owns

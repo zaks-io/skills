@@ -219,7 +219,11 @@ For issue-assigned delegation:
   ready-for-review.
 - CodeRabbit escalation follows the `ziw-code-review` recommendation. It
   is required only for high-risk or genuinely complex diffs, or when the user
-  asks for it.
+  asks for it. Agent Orchestrator reads the root `.coderabbit.yaml` when present
+  and records the resolved auto-review mode from `reviews.auto_review`: enabled,
+  disabled, opt-in, or unknown. Manual review requests are top-level PR
+  comments. `@coderabbitai ignore` is a PR-description marker for skipping
+  automatic reviews on that PR, and is recorded as a policy skip when used.
 - `Code review passed` is a review-evidence label, not workflow state. Apply it
   only with PR URL and reviewed head SHA evidence. Remove it when the PR head
   changes, blocking findings appear, the linked PR changes, or evidence is

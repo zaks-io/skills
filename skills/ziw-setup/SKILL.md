@@ -123,6 +123,7 @@ Inspect files that exist:
 - project status, roadmap, specs, ADRs, runbooks, and existing `docs/agents/*`
 - existing agent label docs, such as `docs/agents/triage-labels.md`
 - code host branch, default branch, PR, preview, and deploy workflows
+- root `.coderabbit.yaml` when present, especially `reviews.auto_review`
 - issue tracker provider, provider location, projects or boards, statuses,
   labels, issue templates, and existing issue examples by querying tracker tools
   when available
@@ -196,8 +197,8 @@ Record:
   verified-state reconciliation, requested intake promotion, Orchestrator-owned
   active tracker transitions, the orchestrator integrate gate and friction log,
   clean-context review delegation, and the implementation pipeline
-- review gates: code review, Agent Review, CodeRabbit escalation,
-  required CI, preview checks
+- review gates: code review, Agent Review, CodeRabbit escalation, root
+  CodeRabbit auto-review mode, required CI, preview checks
 - environment safety: local, development, preview, and production capabilities;
   production deploy path; preview deploy path; credential rules; allowed hosted
   checks; and explicit approval requirements

@@ -113,8 +113,15 @@ Last updated: 2026-06-01
 - Draft PR policy: Cursor opens a draft PR; orchestrator marks it ready-for-review
   after review is clean and required checks pass, then verifies non-draft
 - Ready-for-review owner: Agent Orchestrator
-- CodeRabbit: required for HIGH-risk diffs after local review is clean; skip for
-  LOW/MEDIUM unless the reviewer is uncertain or the user asks
+- CodeRabbit config source: root `.coderabbit.yaml`
+- CodeRabbit bot handle: @coderabbitai
+- CodeRabbit auto-review: enabled for non-draft PRs unless root config says
+  otherwise
+- CodeRabbit command policy: HIGH-risk diffs require CodeRabbit after local
+  review is clean; LOW/MEDIUM skip unless the reviewer is uncertain or the user
+  asks. Use top-level PR comments for `@coderabbitai review` or
+  `@coderabbitai full review`; add `@coderabbitai ignore` to the PR description
+  to skip optional auto-review when rate limits or credits matter.
 - Merge authority: see Work Coordination
 
 ## Environments
