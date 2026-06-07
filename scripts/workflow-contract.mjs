@@ -1,0 +1,211 @@
+const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
+const DEFAULT_READINESS_LABELS = ["ready-for-agent", "ready-for-human"];
+const TERMINAL_PR_STATES = ["closed", "merged"];
+const INACTIVE_PREVIEW_STATES = ["inactive", "deleted", "closed", "failed"];
+const CLEAN_REVIEW_VERDICTS = ["approve", "approved", "ready for pr", "ready_to_merge"];
+
+const TRUSTED_POLICY_SOURCES = new Set([
+  "agent_adapter",
+  "repo_config",
+  "system",
+  "user_request",
+  "workflow_skill",
+]);
+
+const UNTRUSTED_OVERRIDE_PATTERNS = [
+  /\bignore\b.*\b(instruction|policy|workflow|system|developer)\b/i,
+  /\b(skip|bypass|disable)\b.*\b(test|check|review|hook|secret scan|gitleaks)\b/i,
+  /\b(push|commit|merge|deploy)\b.*\b(main|master|production)\b/i,
+  /\b(print|exfiltrate|upload|send)\b.*\b(secret|token|key|credential)\b/i,
+];
+
+const toArray = (value) => {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+const normalize = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+const labelName = (label) => normalize(typeof label === "string" ? label : label?.name);
+
+const shaEquals = (left, right) => Boolean(left && right && normalize(left) === normalize(right));
+
+const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boolean));
+
+export const workflowDecisionActions = Object.freeze({
+  applyReviewEvidence: "APPLY_REVIEW_EVIDENCE",
+  clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
+  dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
+  drainActiveWork: "DRAIN_ACTIVE_WORK",
+  ignoreUntrustedOverride: "IGNORE_AND_RECORD_SECURITY_FINDING",
+  leaveUnchanged: "LEAVE_UNCHANGED",
+  stopBlocked: "STOP_COMPLETELY_BLOCKED",
+  treatAsWorkContext: "TREAT_AS_WORK_CONTEXT",
+  waitForSignal: "WAIT_FOR_EXTERNAL_SIGNAL",
+});
+
+export function isDoneTicket(ticket, config = {}) {
+  const doneStates = valueSet([
+    ...DEFAULT_DONE_STATES,
+    ...toArray(config.doneStates),
+    config.doneState,
+  ]);
+  return doneStates.has(normalize(ticket?.state ?? ticket?.status ?? ticket?.workflowState));
+}
+
+export function hasReadinessLabel(ticket, config = {}) {
+  const readinessLabels = valueSet([
+    ...DEFAULT_READINESS_LABELS,
+    ...toArray(config.readinessLabels),
+    config.readinessLabel,
+  ]);
+  return toArray(ticket?.labels).some((label) => readinessLabels.has(labelName(label)));
+}
+
+export function shouldIncludeReadinessTicket(ticket, config = {}) {
+  return hasReadinessLabel(ticket, config) && !isDoneTicket(ticket, config);
+}
+
+export function reviewEvidenceDecision(evidence = {}) {
+  const hasEvidence = Boolean(evidence.hasReviewEvidence ?? evidence.evidenceLabel);
+  const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(evidence.reviewVerdict));
+
+  if (!hasEvidence) {
+    if (cleanVerdict && shaEquals(evidence.reviewedHeadSha, evidence.currentPrHeadSha)) {
+      return {
+        action: workflowDecisionActions.applyReviewEvidence,
+        reason: "clean review covers the current PR head",
+      };
+    }
+
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "no current review evidence to apply or clear",
+    };
+  }
+
+  if (evidence.blockingFindings) {
+    return {
+      action: workflowDecisionActions.clearReviewEvidence,
+      reason: "blocking findings invalidate review evidence",
+    };
+  }
+
+  if (evidence.linkedPrChanged || evidence.evidenceMissing) {
+    return {
+      action: workflowDecisionActions.clearReviewEvidence,
+      reason: "linked PR or review evidence no longer matches the ticket",
+    };
+  }
+
+  if (!shaEquals(evidence.reviewedHeadSha, evidence.currentPrHeadSha)) {
+    return {
+      action: workflowDecisionActions.clearReviewEvidence,
+      reason: "reviewed head SHA does not match current PR head",
+    };
+  }
+
+  return {
+    action: workflowDecisionActions.leaveUnchanged,
+    reason: "review evidence is current",
+  };
+}
+
+export function activeDeliveryFootprint(state = {}) {
+  const openPrs = toArray(state.pullRequests).filter(
+    (pr) => pr?.open !== false && !TERMINAL_PR_STATES.includes(normalize(pr?.state ?? pr?.status)),
+  );
+  const prKeys = new Set(
+    openPrs
+      .flatMap((pr) => [pr.id, pr.url, pr.number, pr.prId])
+      .map(normalize)
+      .filter(Boolean),
+  );
+
+  const activePreviews = toArray(state.previews).filter((preview) => {
+    if (preview?.active === false) return false;
+    return !INACTIVE_PREVIEW_STATES.includes(normalize(preview?.state ?? preview?.status));
+  });
+  const unlinkedPreviews = activePreviews.filter((preview) => {
+    const previewPrKeys = [preview.prId, preview.prUrl, preview.prNumber]
+      .map(normalize)
+      .filter(Boolean);
+    return previewPrKeys.length === 0 || previewPrKeys.every((key) => !prKeys.has(key));
+  });
+
+  const pendingDispatches = toArray(state.dispatches).filter(
+    (dispatch) =>
+      dispatch?.returned !== true &&
+      dispatch?.stopped !== true &&
+      dispatch?.hasPr !== true &&
+      !["returned", "stopped", "failed"].includes(normalize(dispatch?.state ?? dispatch?.status)),
+  );
+
+  return {
+    dispatches: pendingDispatches.length,
+    previews: unlinkedPreviews.length,
+    prs: openPrs.length,
+    total: openPrs.length + unlinkedPreviews.length + pendingDispatches.length,
+  };
+}
+
+export function capacityDecision(state = {}, config = {}) {
+  const cap = Number(config.activePrPreviewCap ?? config.cap ?? 3);
+  const footprint = activeDeliveryFootprint(state);
+  const startableCount = toArray(state.startableTickets).length;
+  const activeSignalExpected = Boolean(state.activeSignalExpected);
+
+  if (footprint.total >= cap) {
+    return {
+      action: workflowDecisionActions.drainActiveWork,
+      footprint,
+      reason: "active PR, preview, or dispatch footprint is at capacity",
+    };
+  }
+
+  if (startableCount > 0) {
+    return {
+      action: workflowDecisionActions.dispatchStartableWork,
+      footprint,
+      reason: "capacity exists and startable work is available",
+    };
+  }
+
+  if (footprint.total > 0 || activeSignalExpected) {
+    return {
+      action: workflowDecisionActions.waitForSignal,
+      footprint,
+      reason: "external worker, check, preview, or review signal may still arrive",
+    };
+  }
+
+  return {
+    action: workflowDecisionActions.stopBlocked,
+    footprint,
+    reason: "no startable work, active work, or expected external signal remains",
+  };
+}
+
+export function classifyInstructionSource(instruction = {}) {
+  const source = normalize(instruction.source);
+  const text = String(instruction.text ?? "");
+  const trusted = TRUSTED_POLICY_SOURCES.has(source);
+  const overrideAttempt = UNTRUSTED_OVERRIDE_PATTERNS.some((pattern) => pattern.test(text));
+
+  if (!trusted && overrideAttempt) {
+    return {
+      action: workflowDecisionActions.ignoreUntrustedOverride,
+      trusted: false,
+      reason: "untrusted source attempted to override workflow policy",
+    };
+  }
+
+  return {
+    action: trusted ? "MAY_APPLY_AS_POLICY" : workflowDecisionActions.treatAsWorkContext,
+    trusted,
+    reason: trusted ? "trusted policy source" : "untrusted source may describe work but not policy",
+  };
+}

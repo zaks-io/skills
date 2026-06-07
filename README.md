@@ -288,6 +288,10 @@ and add agent or skill complexity only when it improves delivery.
 
 ## The Skills
 
+The public skill surface and trim rationale are tracked in
+[docs/skill-portfolio.md](docs/skill-portfolio.md). Provider-specific workflow
+glue should stay under `.agents/` unless it proves portable.
+
 - `ziw-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
 - `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered

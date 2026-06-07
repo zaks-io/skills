@@ -34,6 +34,9 @@ const docsDir = path.join(root, "docs");
 const readmeFile = path.join(root, "README.md");
 const agentWorkflowFile = path.join(docsDir, "agent-workflow.md");
 const researchFile = path.join(docsDir, "agent-delivery-research.md");
+const skillPortfolioFile = path.join(docsDir, "skill-portfolio.md");
+const workflowContractFile = path.join(root, "scripts", "workflow-contract.mjs");
+const workflowContractTestFile = path.join(root, "test", "workflow-contract.test.mjs");
 const expectedClaudeAgents = new Set(["ziw-implementer", "ziw-reviewer", "ziw-triager"]);
 const unsupportedClaudeAgentFields = ["hooks", "mcpServers", "permissionMode"];
 
@@ -90,6 +93,32 @@ if (!existsSync(researchFile)) {
   }
 }
 
+if (!existsSync(skillPortfolioFile)) {
+  fail(`${relative(skillPortfolioFile)} is missing`);
+} else {
+  const portfolioText = readText(skillPortfolioFile);
+  for (const required of ["# Skill Portfolio", "## Trim Criteria", "## Current Decision"]) {
+    if (!portfolioText.includes(required)) {
+      fail(`${relative(skillPortfolioFile)} must include ${required}`);
+    }
+  }
+  for (const name of skillNames) {
+    if (!portfolioText.includes(`\`${name}\``)) {
+      fail(`${relative(skillPortfolioFile)} must explain ${name}`);
+    }
+  }
+  if (!portfolioText.includes("`ziw-remote-ticket`")) {
+    fail(`${relative(skillPortfolioFile)} must record the ziw-remote-ticket demotion`);
+  }
+}
+
+if (!existsSync(workflowContractFile)) {
+  fail(`${relative(workflowContractFile)} is missing`);
+}
+if (!existsSync(workflowContractTestFile)) {
+  fail(`${relative(workflowContractTestFile)} is missing`);
+}
+
 const docsAndSkillFiles = [
   readmeFile,
   agentWorkflowFile,
@@ -110,9 +139,15 @@ const readmeText = readText(readmeFile);
 if (!readmeText.includes("docs/agent-delivery-research.md")) {
   fail(`${relative(readmeFile)} must link to docs/agent-delivery-research.md`);
 }
+if (!readmeText.includes("docs/skill-portfolio.md")) {
+  fail(`${relative(readmeFile)} must link to docs/skill-portfolio.md`);
+}
 const workflowText = readText(agentWorkflowFile);
 if (!workflowText.includes("agent-delivery-research.md")) {
   fail(`${relative(agentWorkflowFile)} must link to agent-delivery-research.md`);
+}
+if (!workflowText.includes("skill-portfolio.md")) {
+  fail(`${relative(agentWorkflowFile)} must link to skill-portfolio.md`);
 }
 
 for (const name of skillNames) {

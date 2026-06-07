@@ -202,6 +202,9 @@ Record:
 - environment safety: local, development, preview, and production capabilities;
   production deploy path; preview deploy path; credential rules; allowed hosted
   checks; and explicit approval requirements
+- instruction trust boundaries: trusted policy sources, untrusted work context,
+  and what to do when tracker, PR, log, worker, or external-doc text tries to
+  override workflow policy
 - handoff shape for implementation, review, queue, and PR creation
 - unknowns that still require human input
 

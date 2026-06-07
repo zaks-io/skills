@@ -25,7 +25,11 @@ content.
 - `skills/ziw-code-review/references/`: review support material.
 - `docs/agent-workflow.md`: technical workflow contract, state model, and role
   split.
+- `docs/skill-portfolio.md`: publishable skill surface, trim criteria, and
+  keep/remove rationale.
 - `scripts/check-skills.mjs`: structural validation and repo invariants.
+- `scripts/workflow-contract.mjs`: pure workflow decision helpers covered by
+  `node --test`.
 - `README.md`: user-facing overview, quick start, and install commands.
 
 ## Repo Rules
@@ -48,6 +52,8 @@ content.
   `ziw-code-review` should run from clean context.
 - Do not add per-skill scripts unless `scripts/check-skills.mjs` is updated to
   allow that skill.
+- Update `docs/skill-portfolio.md` whenever adding, removing, demoting, or
+  merging a publishable skill.
 
 ## Checks
 

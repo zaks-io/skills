@@ -77,6 +77,20 @@ Helper gates:
 Do not add a new workflow skill unless it has one job, a distinct owner in the
 workflow, and a measurable reason not to live inside an existing role.
 
+The current keep, watch, remove, and demote decisions live in
+[skill-portfolio.md](skill-portfolio.md). Provider-specific delegation glue, such
+as remote Cursor ticket handling, should be internal unless it becomes portable
+across downstream repos.
+
+### Executable Workflow Contract
+
+Workflow rules that are easy to regress should not live only in prose. Keep pure
+decision logic in `scripts/workflow-contract.mjs` and cover it with `node --test`
+tests. Good candidates are queue exclusion, review-evidence freshness, active
+delivery footprint counting, capacity behavior, and untrusted instruction
+classification. Provider API calls and mutations stay in the skills and setup
+config.
+
 ### Agent-Ready Tickets
 
 A slice ticket should be short and specific. It needs:
@@ -145,6 +159,10 @@ Each orchestrator run should produce enough data to answer:
 - README stays the usage guide.
 - `docs/agent-workflow.md` is the technical contract.
 - `docs/agent-delivery-research.md` records why the contract looks this way.
+- `docs/skill-portfolio.md` records the public skill surface and trim
+  rationale.
+- `scripts/workflow-contract.mjs` and `test/workflow-contract.test.mjs` hold
+  executable checks for brittle workflow decisions.
 - `skills/ziw-setup/references/*` must mirror the contract because setup
   uses those files to generate downstream repo config.
 - Claude Code sub-agents stay short and load shared `SKILL.md` files through
@@ -163,6 +181,8 @@ A workflow change is done when:
 - unsupported loops and roles are not referenced
 - Codex and Claude Code entry points still point to the same workflow roles
 - setup references generate the current contract for downstream repos
+- the skill portfolio explains any added, removed, or demoted public skills
+- executable workflow contract tests pass when a tested rule changes
 - `pnpm check` and `pnpm format:check` pass
 - research-backed decisions are linked from this file or intentionally marked as
   local judgment
