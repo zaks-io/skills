@@ -498,6 +498,8 @@ Every handoff should say:
 - whether CodeRabbit is skipped, complete, auto-review pending, or still required
   for the current diff, including auto-review mode and the command or PR
   description marker used when known
+- no CodeRabbit PR command or CLI fallback is allowed while auto-review mode or
+  current hosted review state is unknown
 - tracker updates made or requested
 - blockers and residual risk
 

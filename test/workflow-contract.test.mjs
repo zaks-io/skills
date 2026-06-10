@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   activeDeliveryFootprint,
+  codeRabbitEscalationDecision,
   capacityDecision,
   classifyInstructionSource,
   reviewEvidenceDecision,
@@ -88,6 +89,66 @@ test("capacity decision drains active work before dispatching more tickets", () 
   );
 
   assert.equal(decision.action, workflowDecisionActions.drainActiveWork);
+});
+
+test("CodeRabbit waits when hosted review is already pending for the PR head", () => {
+  assert.deepEqual(
+    codeRabbitEscalationDecision({
+      recommended: true,
+      prExists: true,
+      autoReviewMode: "enabled",
+      currentPrHeadSha: "abc123",
+      hostedReviewHeadSha: "ABC123",
+      hostedReviewPending: true,
+    }),
+    {
+      action: workflowDecisionActions.hostedReviewPending,
+      reason: "hosted review is already pending for the current PR head",
+    },
+  );
+});
+
+test("CodeRabbit command is blocked until auto-review mode is resolved", () => {
+  assert.deepEqual(
+    codeRabbitEscalationDecision({
+      recommended: true,
+      prExists: true,
+      currentPrHeadSha: "abc123",
+    }),
+    {
+      action: workflowDecisionActions.resolveAutoReviewState,
+      reason: "resolve CodeRabbit auto-review mode before posting review commands",
+    },
+  );
+});
+
+test("CodeRabbit waits when auto-review is enabled even before hosted review appears", () => {
+  assert.deepEqual(
+    codeRabbitEscalationDecision({
+      recommended: true,
+      prExists: true,
+      autoReviewMode: "enabled",
+      currentPrHeadSha: "abc123",
+    }),
+    {
+      action: workflowDecisionActions.hostedReviewPending,
+      reason: "auto-review is enabled; wait for hosted review state",
+    },
+  );
+});
+
+test("remote workers do not fall back to local CodeRabbit CLI before PR review", () => {
+  assert.deepEqual(
+    codeRabbitEscalationDecision({
+      recommended: true,
+      explicitLocalCliRequest: true,
+      remoteWorker: true,
+    }),
+    {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "no PR-hosted review path exists yet",
+    },
+  );
 });
 
 test("untrusted sources cannot override workflow policy", () => {

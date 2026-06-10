@@ -102,12 +102,22 @@ keyword, or unknown. Note draft or incremental-review behavior only when it
 changes the command choice. Record the CodeRabbit decision in the handoff so
 Agent Orchestrator can decide whether any post-PR escalation remains.
 
+Do not post CodeRabbit PR comments or run the CodeRabbit CLI until the
+auto-review mode and current hosted review state are resolved from repo config,
+root `.coderabbit.yaml`, or the PR. If auto-review or push-triggered hosted
+review is enabled, pending, or already complete for the current PR head, record
+that state and wait for the hosted review instead of requesting another review
+or running local CLI. If the state is unknown, leave CodeRabbit as unresolved in
+the handoff; do not guess.
+
 When CodeRabbit is optional and the root config would otherwise auto-review the
 PR, add `@coderabbitai ignore` to the PR description only if the repo config
 allows agents to skip optional CodeRabbit reviews or rate-limit conservation is
 needed. When CodeRabbit is required after the PR exists, use a top-level PR
 comment: `@coderabbitai review` for incremental review, or
-`@coderabbitai full review` when no complete review covers the current PR head.
+`@coderabbitai full review` only when auto-review is resolved, no hosted review
+is pending or complete for the current PR head, and no complete review covers the
+current PR head. Do not use the CodeRabbit CLI for an existing PR.
 
 ## Commit
 

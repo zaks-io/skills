@@ -97,6 +97,10 @@ the update is returned as a PR.
 - The command completes or the worker records the exact blocker.
 - Generated changes are committed in one scoped PR.
 - The PR body lists the files changed and checks run.
+- Any CodeRabbit or GitHub-hosted review triggered by push is recorded as
+  pending or complete; the worker does not run local CodeRabbit CLI or post
+  CodeRabbit commands unless the repo config proves auto-review is disabled and
+  Orchestrator explicitly requests a PR-hosted review.
 - No unrelated local or generated noise is included.
 
 ## Required checks

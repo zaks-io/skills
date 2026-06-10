@@ -586,13 +586,18 @@ are called steps, not inlined work:
     at the reviewed PR head when present. Track whether `reviews.auto_review` is
     enabled, disabled, opt-in by label or description keyword, or unknown. Note
     draft or incremental-review behavior only when it changes the command
-    choice.
+    choice. Also refresh current PR-hosted review state for the PR head before
+    posting any CodeRabbit command.
 18. If CodeRabbit is recommended for the current diff, request it after local
     review is clean and the PR is non-draft unless repo policy says otherwise.
-    Use a top-level PR comment: `@coderabbitai review` for incremental review,
-    or `@coderabbitai full review` when no complete review covers the current
-    PR head. If automatic review is already current for the head, record it
-    instead of spending another review.
+    If auto-review mode is unknown, stop and resolve it first; do not post a
+    blind comment. If auto-review is enabled, pending, or already current for the
+    PR head, record that state and wait instead of spending another review. Only
+    after auto-review is resolved as disabled or explicit opt-in is still needed,
+    and no hosted review is pending/current, use a top-level PR comment:
+    `@coderabbitai review` for incremental review, or `@coderabbitai full review`
+    when no complete review covers the current PR head. Do not run CodeRabbit CLI
+    for an existing PR or remote worker PR.
 19. If optional CodeRabbit should be skipped for this PR, add
     `@coderabbitai ignore` to the PR description when repo policy allows. This
     is the per-PR auto-review skip; do not post it as a comment. Treat missing

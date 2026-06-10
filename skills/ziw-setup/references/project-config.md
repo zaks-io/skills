@@ -207,7 +207,9 @@ Last updated: YYYY-MM-DD
   keyword, or unknown; note draft or incremental behavior only when non-default
 - CodeRabbit command policy: request manual reviews with top-level PR comments;
   skip optional PR reviews by adding `@coderabbitai ignore` to the PR
-  description when repo policy allows; record auth, rate-limit, or credit skips
+  description when repo policy allows; never post review commands or use CLI
+  until auto-review mode and current hosted review state are resolved; record
+  auth, rate-limit, or credit skips
 - Draft PR policy: draft only while checks, requested human prep, or required
   author fixes are incomplete; draft state alone is not a code review request.
   Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts

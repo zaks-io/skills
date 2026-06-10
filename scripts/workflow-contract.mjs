@@ -40,8 +40,14 @@ export const workflowDecisionActions = Object.freeze({
   clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
   dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
   drainActiveWork: "DRAIN_ACTIVE_WORK",
+  deferUntilPrReady: "DEFER_UNTIL_PR_READY",
+  hostedReviewComplete: "RECORD_HOSTED_REVIEW_COMPLETE",
+  hostedReviewPending: "RECORD_HOSTED_REVIEW_PENDING",
   ignoreUntrustedOverride: "IGNORE_AND_RECORD_SECURITY_FINDING",
   leaveUnchanged: "LEAVE_UNCHANGED",
+  requestPrReview: "REQUEST_PR_REVIEW",
+  resolveAutoReviewState: "RESOLVE_AUTO_REVIEW_STATE",
+  runLocalCli: "RUN_LOCAL_CLI",
   stopBlocked: "STOP_COMPLETELY_BLOCKED",
   treatAsWorkContext: "TREAT_AS_WORK_CONTEXT",
   waitForSignal: "WAIT_FOR_EXTERNAL_SIGNAL",
@@ -186,6 +192,79 @@ export function capacityDecision(state = {}, config = {}) {
     action: workflowDecisionActions.stopBlocked,
     footprint,
     reason: "no startable work, active work, or expected external signal remains",
+  };
+}
+
+export function codeRabbitEscalationDecision(state = {}) {
+  const recommended = Boolean(state.recommended || state.required || state.highRisk);
+  const hasPr = Boolean(state.prExists || state.prUrl);
+  const currentHead = state.currentPrHeadSha;
+  const hostedHead = state.hostedReviewHeadSha;
+  const hostedCoversHead = shaEquals(hostedHead, currentHead);
+  const autoReviewMode = normalize(state.autoReviewMode ?? state.autoReview);
+  const autoReviewKnown = ["enabled", "disabled", "opt-in", "label", "description"].includes(
+    autoReviewMode,
+  );
+
+  if (!recommended) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "CodeRabbit is not required for this diff",
+    };
+  }
+
+  if (hasPr && !autoReviewKnown) {
+    return {
+      action: workflowDecisionActions.resolveAutoReviewState,
+      reason: "resolve CodeRabbit auto-review mode before posting review commands",
+    };
+  }
+
+  if (state.hostedReviewComplete && hostedCoversHead) {
+    return {
+      action: workflowDecisionActions.hostedReviewComplete,
+      reason: "hosted review already covers the current PR head",
+    };
+  }
+
+  if (state.hostedReviewPending && hostedCoversHead) {
+    return {
+      action: workflowDecisionActions.hostedReviewPending,
+      reason: "hosted review is already pending for the current PR head",
+    };
+  }
+
+  if (hasPr && autoReviewMode === "enabled") {
+    return {
+      action: workflowDecisionActions.hostedReviewPending,
+      reason: "auto-review is enabled; wait for hosted review state",
+    };
+  }
+
+  if (hasPr) {
+    if (state.draft === true || normalize(state.prState) === "draft") {
+      return {
+        action: workflowDecisionActions.deferUntilPrReady,
+        reason: "request hosted review only after the PR is ready for review",
+      };
+    }
+
+    return {
+      action: workflowDecisionActions.requestPrReview,
+      reason: "request hosted PR review with a top-level PR comment",
+    };
+  }
+
+  if (state.explicitLocalCliRequest && state.remoteWorker !== true) {
+    return {
+      action: workflowDecisionActions.runLocalCli,
+      reason: "local CodeRabbit CLI was explicitly requested before a PR exists",
+    };
+  }
+
+  return {
+    action: workflowDecisionActions.leaveUnchanged,
+    reason: "no PR-hosted review path exists yet",
   };
 }
 
