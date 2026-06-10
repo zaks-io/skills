@@ -150,8 +150,9 @@ Record:
   excludes the configured done state, priority policy, dependency policy,
   dependency graph mechanism, file footprint convention, issue body contract,
   agent-suitability policy for work types and risk,
-  Issue Triage verified-state reconciliation authority, requested intake-to-ready
-  authority, and which workflow role owns active status transitions
+  Issue Triage verified-state reconciliation authority, requested ready-state
+  promotion authority, explicit Linear Backlog promotion gate, and which workflow
+  role owns active status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
   one read-only verification query or tool call that returned the expected scope
@@ -168,7 +169,7 @@ Record:
   timeout, attempt cap before the thrash circuit breaker, required checks that
   define green for the integrate gate, auto-merge risk tiers, merge method,
   post-merge preparation and check, auto-Done integration behavior,
-  single-ticket one-off mutation policy, verified-ready backlog policy,
+  single-ticket one-off mutation policy, verified-ready ticket-set policy,
   completely-blocked stop policy, friction-log ticket ID, and delivery metrics
 - runtime loop and automation terminology for each supported adapter: Claude Code
   `/loop`, schedule, or wake-up timer; Codex automations, either cron
@@ -194,7 +195,7 @@ Record:
 - automation roles: To Issues, Issue Triage, Agent Orchestrator, Agent Review,
   Create PR, and Agent Implement, including To Issues spec-to-slice creation and
   the dependency graph, Issue Triage current-ticket readiness repair,
-  verified-state reconciliation, requested intake promotion, Orchestrator-owned
+  verified-state reconciliation, requested ready-state promotion, Orchestrator-owned
   active tracker transitions, the orchestrator integrate gate and friction log,
   clean-context review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation, root

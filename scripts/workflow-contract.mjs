@@ -1,5 +1,7 @@
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
+const DEFAULT_READY_STATES = ["todo"];
 const DEFAULT_READINESS_LABELS = ["ready-for-agent", "ready-for-human"];
+const DEFAULT_READY_PROMOTION_SOURCE_STATES = ["triage", "intake"];
 const TERMINAL_PR_STATES = ["closed", "merged"];
 const INACTIVE_PREVIEW_STATES = ["inactive", "deleted", "closed", "failed"];
 const CLEAN_REVIEW_VERDICTS = ["approve", "approved", "ready for pr", "ready_to_merge"];
@@ -45,6 +47,7 @@ export const workflowDecisionActions = Object.freeze({
   hostedReviewPending: "RECORD_HOSTED_REVIEW_PENDING",
   ignoreUntrustedOverride: "IGNORE_AND_RECORD_SECURITY_FINDING",
   leaveUnchanged: "LEAVE_UNCHANGED",
+  promoteToReadyState: "PROMOTE_TO_READY_STATE",
   requestPrReview: "REQUEST_PR_REVIEW",
   resolveAutoReviewState: "RESOLVE_AUTO_REVIEW_STATE",
   runLocalCli: "RUN_LOCAL_CLI",
@@ -73,6 +76,89 @@ export function hasReadinessLabel(ticket, config = {}) {
 
 export function shouldIncludeReadinessTicket(ticket, config = {}) {
   return hasReadinessLabel(ticket, config) && !isDoneTicket(ticket, config);
+}
+
+function isKindSlice(ticket) {
+  const explicitKind = normalize(ticket?.kind ?? ticket?.kindLabel ?? ticket?.kindName);
+  if (explicitKind === "kind-slice") return true;
+  return toArray(ticket?.labels).some((label) => labelName(label) === "kind-slice");
+}
+
+export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
+  const readyState = config.readyState ?? "Todo";
+  const readyStates = valueSet([readyState, ...toArray(config.readyStates)]);
+  const linearBacklogStates = valueSet([
+    "backlog",
+    config.linearBacklogState,
+    ...toArray(config.linearBacklogStates),
+  ]);
+  const sourceStates = valueSet([
+    ...DEFAULT_READY_PROMOTION_SOURCE_STATES,
+    ...toArray(config.readyPromotionSourceStates),
+    ...toArray(config.intakeStates),
+    config.intakeState,
+  ]);
+  const state = normalize(ticket?.state ?? ticket?.status ?? ticket?.workflowState);
+  const requestedReadyStatePromotion = Boolean(
+    options.requestedReadyStatePromotion ?? config.requestedReadyStatePromotion,
+  );
+  const requestedLinearBacklogReview = Boolean(
+    options.requestedLinearBacklogReview ?? config.requestedLinearBacklogReview,
+  );
+  const implementationReady = Boolean(
+    ticket?.implementationReady ??
+    ticket?.readyForImplementation ??
+    (isKindSlice(ticket) && hasReadinessLabel(ticket, config)),
+  );
+
+  if (!implementationReady) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "ticket is not implementation-ready",
+    };
+  }
+
+  if (isDoneTicket(ticket, config)) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "done tickets are terminal, not ready-state candidates",
+    };
+  }
+
+  if (readyStates.has(state)) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "ticket is already in the configured ready state",
+    };
+  }
+
+  if (!sourceStates.has(state)) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "ticket is not in a configured ready-state promotion source state",
+    };
+  }
+
+  if (!requestedReadyStatePromotion) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "ready-state promotion was not requested",
+    };
+  }
+
+  if (linearBacklogStates.has(state) && !requestedLinearBacklogReview) {
+    return {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "Linear Backlog promotion requires requested Linear Backlog review",
+    };
+  }
+
+  return {
+    action: workflowDecisionActions.promoteToReadyState,
+    targetState: readyState,
+    reason:
+      "implementation-ready work belongs in the ready state; dependency blockers are encoded separately",
+  };
 }
 
 export function reviewEvidenceDecision(evidence = {}) {

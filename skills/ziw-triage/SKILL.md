@@ -1,6 +1,6 @@
 ---
 name: ziw-triage
-description: Use for issue tracker triage when reconciling current project issues with reality, making Todo tickets agent-ready, applying workflow labels, setting dependencies, normalizing issue bodies, cleaning requested backlog or intake issues, and updating verified stale states.
+description: Use for issue tracker triage when reconciling current project issues with reality, making Todo tickets agent-ready, applying workflow labels, setting dependencies, normalizing issue bodies, cleaning explicitly requested Linear Backlog review or backfill scope separately from configured intake issues, and updating verified stale states.
 argument-hint: "[project-url|team|repo|filter]"
 disable-model-invocation: true
 ---
@@ -12,13 +12,17 @@ tracker state reflects reality. This is tracker metadata cleanup, readiness
 repair, and verified state reconciliation, not implementation.
 
 By default, focus on the configured ready state, usually `Todo`, and active or
-PR-linked issues that need tracker repair. Skip `Backlog` or equivalent
-future-work states in the default pass, but treat requested backlog review,
-first-run backfill, or intake cleanup as normal Issue Triage work.
+PR-linked issues that need tracker repair. Skip the Linear `Backlog` state or
+equivalent out-of-work-queue tracker states in the default pass, but treat
+requested Linear Backlog review, first-run intake backfill, or intake cleanup as
+normal Issue Triage work. Intake cleanup does not include Linear `Backlog`
+unless the user explicitly asks for Linear Backlog review or backfill. The Linear
+`Backlog` state means the user does not want agents working it yet: the work may
+be uncommitted, intentionally parked, or not shaped into correct tickets.
 
-If the user asks to clean, review, backfill, or promote backlog or intake issues,
-include the requested states, perform the cleanup below, and leave delivery to
-`ziw-orchestrate` after the issues are ready.
+If the user asks to clean, review, backfill, or promote Linear Backlog or intake
+issues, include the requested states, perform the cleanup below, and leave
+delivery to `ziw-orchestrate` after the issues are ready.
 
 Apply safe tracker updates directly. When external state proves the tracker is
 stale, such as a linked PR already merged, update the issue to the configured
@@ -28,13 +32,14 @@ label and return the exact questions or next actions needed.
 
 ## Inputs
 
-- Issue tracker project, team, repo, board, roadmap, query, or explicit backlog
-  scope.
+- Issue tracker project, team, repo, board, roadmap, query, or explicit Linear
+  `Backlog` state scope.
 - Repo path and `docs/agents/workflow/config.md`.
 - Existing tracker teams, projects, statuses, labels, priorities, dependencies,
   parent or child relationships, PR links, and issue comments.
-- Optional user instructions for first-run backfill, dry run, priority policy,
-  backlog review, intake cleanup, or orphan routing.
+- Optional user instructions for first-run intake backfill, first-run Linear
+  Backlog backfill, dry run, priority policy, Linear Backlog review, intake
+  cleanup, or orphan routing.
 
 ## Context
 
@@ -54,6 +59,7 @@ Confirm these config values before mutating the issue tracker:
 - active workflow status transition owner
 - Issue Triage intake-state transition authority
 - Issue Triage verified-state reconciliation authority
+- dependency graph mechanism and blocker relationship direction
 
 If tracker metadata disagrees with config, update only exact label gaps that are
 safe to create. Do not create or rename workflows, statuses, teams, projects,
@@ -61,8 +67,9 @@ boards, or roadmaps without explicit approval.
 
 ## Default Scope
 
-Unless the user asks for backlog review, first-run backfill, or intake cleanup,
-do not scan the whole backlog. Build the default triage set from:
+Unless the user asks for Linear Backlog review or Linear Backlog backfill, do not
+scan the whole Linear Backlog state. Generic intake cleanup scans configured
+intake states, not Linear `Backlog`. Build the default triage set from:
 
 1. Issues in the configured ready state, usually `Todo`.
 2. Active issues with linked PRs, branches, blockers, review state, done state,
@@ -81,37 +88,45 @@ include `Done` tickets in the initial triage set only because a stale readiness
 label remains. If a requested Done audit or direct stale-state evidence brings a
 Done ticket into scope, clean the stale readiness label then.
 
-Treat `Backlog`, icebox, roadmap, someday, or equivalent future-work states as
-skipped by default unless explicitly requested. `Triage` or other intake states
-are also skipped by default unless config names them as current work, review-debt
-intake, or the user asks for intake cleanup.
+Treat the Linear `Backlog` state, icebox, roadmap, someday, or equivalent
+out-of-work-queue tracker states as skipped by default unless explicitly
+requested. `Triage` or other intake states are also skipped by default unless
+config names them as current work, review-debt intake, or the user asks for
+intake cleanup.
 
-## Backlog And Intake Cleanup
+## Linear Backlog And Intake Cleanup
 
-Enter this mode when the user asks for backlog review, backlog cleanup, intake
-cleanup, first-run backfill, "get everything ready", "move ready backlog work to
-Todo", or similar tracker cleanup.
+Enter this mode when the user asks for Linear Backlog review, Linear Backlog
+cleanup, intake cleanup, first-run intake backfill, first-run Linear Backlog
+backfill, "get intake ready", "move ready Linear Backlog work to Todo", or
+similar tracker cleanup with an explicit source scope.
 
 This is still `ziw-triage` when the requested work is tracker cleanup. Use
 `ziw-orchestrate` after cleanup when the user asks to deliver the ready work, or
 when an orchestrator tick delegates this triage repair.
 
-For the requested backlog or intake scope:
+For the requested Linear Backlog or intake scope:
 
 - promote now: complete `kind-slice` issues with route, labels, body contract,
-  readiness, worker environment approval, and blockers encoded
+  readiness, worker environment approval, and dependency blockers encoded
 - needs human review: issues missing product, security, credential, customer,
   ADR, priority, or acceptance-criteria decisions
 - needs To Issues: `kind-spec`, `kind-epic`, project notes, vague plans, or
   multi-PR work that must be split before dispatch
-- leave parked: valid future ideas that are intentionally not current work
+- leave parked: uncommitted ideas or intentionally parked work the user does not
+  want agents working yet
 - stale or duplicate: issues contradicted by PR, branch, release, dependency, or
   duplicate evidence
 
 Apply safe updates directly. Move promotable `ready-for-agent` `kind-slice`
 issues to the configured ready state, usually `Todo`, when config grants Issue
-Triage intake-state transition authority. For everything else, leave the exact
-human decision, To Issues input, blocker, duplicate target, or parking reason.
+Triage ready-state promotion authority. For Linear `Backlog` sources, require an
+explicit Linear Backlog review or backfill request; generic intake cleanup is not
+enough. Do this even when the issue is blocked by another ticket. The Linear
+`Backlog` state is not a dependency holding area; dependency order belongs in
+tracker blocker relationships or the configured body field. For everything else,
+leave the exact human decision, To Issues input, blocker, duplicate target, or
+parking reason.
 
 ## Inventory
 
@@ -126,9 +141,9 @@ Build a triage set before making changes:
    feature, or customer terms from the project.
 5. Issues in the configured review-debt intake route, so review findings are
    normalized into dispatchable slices, human decisions, or To Issues input.
-6. `Triage`, `Backlog`, or equivalent intake and future-work states only when
-   explicitly requested or when config explicitly uses them for review-debt
-   intake.
+6. `Triage`, Linear `Backlog`, or equivalent intake and out-of-work-queue states
+   only when explicitly requested or when config explicitly uses them for
+   review-debt intake.
 
 If the inventory starts from `ready-for-agent`, `ready-for-human`, or another
 readiness label, exclude the configured done state unless the user explicitly
@@ -155,12 +170,15 @@ Apply obvious mechanical updates in batches:
   contract, labels, blockers, and route
 - move issues from configured intake states such as `Triage` or equivalent to
   the configured ready state only when the user asked for intake cleanup or
-  backfill and routing, labels, and the agent-ready body contract are complete
-- when backlog or intake states are explicitly in scope, move complete
-  `ready-for-agent` `kind-slice` issues to the configured ready state unless
-  config names a blocked-ready state; encode blockers separately
-- leave `Backlog` or equivalent future-work states alone unless the user
-  explicitly asks for backlog review
+  intake backfill and routing, labels, and the agent-ready body contract are
+  complete
+- when Linear `Backlog` or intake states are explicitly in scope, move complete
+  `ready-for-agent` `kind-slice` issues to the configured ready state; encode
+  blockers separately instead of leaving dependency-ready work in the Linear
+  `Backlog` state. Linear `Backlog` is explicitly in scope only when the user
+  asks for Linear Backlog review or Linear Backlog backfill
+- leave Linear `Backlog` or equivalent out-of-work-queue states alone unless the
+  user explicitly asks for Linear Backlog review or Linear Backlog backfill
 - move issues to the configured done state when linked PR, branch, release, or
   code-host evidence proves the work is merged or otherwise complete
 - for Linear + GitHub, assume linked PRs and tickets are synced when both exist;
@@ -192,7 +210,7 @@ Apply obvious mechanical updates in batches:
 - remove `ready-for-agent` from vague, duplicate, parent, human-owned, or
   body-incomplete issues
 - encode blockers before ready-state promotion; recommend the configured blocked
-  state for Agent Orchestrator when an active issue should stop
+  state only for active work that has already started and should stop
 - apply configured review, merge-ready, or blocked states only when the repo
   config gives Issue Triage that authority and current external evidence is
   direct
@@ -202,9 +220,9 @@ Apply obvious mechanical updates in batches:
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
 
-Do not close, cancel, reprioritize across projects, review backlog, or rewrite
-scope because an issue looks stale. Leave a concise comment and use `needs-info`
-or `ready-for-human` when judgment is required.
+Do not close, cancel, reprioritize across projects, review the Linear Backlog
+state, or rewrite scope because an issue looks stale. Leave a concise comment
+and use `needs-info` or `ready-for-human` when judgment is required.
 
 Do not stop at a vague recommendation. For each issue that cannot be made
 implementation-ready, either ask the user a specific question or leave a
@@ -298,6 +316,28 @@ configured worker environment label. Encode dependency order with tracker
 relationships, blocker fields, body text, or workflow state so Agent
 Orchestrator can avoid starting blocked work.
 
+## Dependency Tree
+
+When repairing current work or requested Linear Backlog or intake scope, build a
+dependency tree for every implementation-ready `kind-slice` in scope.
+
+- Use the configured relationship direction. By default, if ticket A needs ticket
+  B first, A is blocked by B and B blocks A.
+- Prefer tracker blocker relationships. If the provider cannot encode them, write
+  the configured dependencies or blockers body section with ticket IDs and
+  direction.
+- Keep dependency-ready slices in the configured ready state, usually `Todo`.
+  Blocked ready slices are not startable, but they are still current work.
+- Remove blockers that point only to completed, canceled, duplicate, or unrelated
+  work when evidence is direct.
+- Add missing blocker links when sequencing is directly evidenced by specs,
+  parent tickets, migrations, APIs, schema, infra, releases, PRs, or issue text.
+- Do not duplicate every transitive edge unless the tracker requires it. Encode
+  the smallest clear graph that lets Orchestrator compute the ready frontier.
+- Break or escalate cycles. Do not guess through circular blockers.
+- Report the roots, blocked ready slices, cycles, and missing human decisions in
+  the run summary.
+
 ## Priority
 
 Use the configured priority policy. Good signals are:
@@ -313,18 +353,17 @@ neutral and mark the issue for human triage.
 
 ## First Run
 
-For first-run backfill:
+For first-run intake or Linear Backlog backfill:
 
 1. Snapshot current project counts by status, label, priority, dependency state,
    and readiness.
 2. Create missing workflow labels only when names are exact and config-approved.
 3. Normalize orphan routing and body headings before setting priorities.
-4. Include `Backlog` or equivalent future-work states only if the user explicitly
-   asked for backlog review.
-5. Make readiness and intake-to-ready status promotion the final step after
-   labels and body contracts are correct. Encode blockers separately; blocker
-   state does not decide whether `ready-for-agent` or ready-state promotion
-   applies.
+4. Include Linear `Backlog` or equivalent out-of-work-queue states only if the
+   user explicitly asked for Linear Backlog review or Linear Backlog backfill.
+5. Make readiness and ready-state promotion the final step after labels and body
+   contracts are correct. Encode blockers separately; blocker state does not
+   decide whether `ready-for-agent` or ready-state promotion applies.
 6. Report the before and after counts.
 
 ## Guardrails
@@ -332,15 +371,15 @@ For first-run backfill:
 - Keep comments metadata-only. Do not paste secrets, customer data, logs,
   signed URLs, or credentials into the tracker.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
-- Do not review `Backlog` or equivalent future-work states unless the user
-  explicitly asks for backlog review.
+- Do not review Linear `Backlog` or equivalent out-of-work-queue states unless
+  the user explicitly asks for Linear Backlog review or Linear Backlog backfill.
 - Do not move active issues between workflow states unless config or the user
   explicitly delegates that authority to Issue Triage, or direct external
   evidence proves a terminal state such as merged equals `Done`. When that
   terminal-state repair is made, also remove `ready-for-agent` or the
   repo-configured readiness label. Moving complete issues from configured intake
   states to the configured ready state is allowed only for requested intake
-  cleanup or backfill.
+  cleanup or intake backfill.
 - When Linear and GitHub are linked, assume synced ticket/PR state when both
   entities exist and avoid redundant manual status changes unless refreshed state
   disagrees.
@@ -356,17 +395,18 @@ For first-run backfill:
 Report:
 
 - issue tracker scope reviewed
-- whether backlog or intake states were skipped or explicitly included
+- whether Linear Backlog or intake states were skipped or explicitly included
 - issues changed, unchanged, and needing human decision
 - orphans routed or left with reasons
-- labels, priorities, body contracts, dependencies, and status recommendations
-  updated
+- labels, priorities, body contracts, dependency tree, and status
+  recommendations updated
 - ready-state issues made agent-ready or left with exact blockers
 - review-debt intake issues normalized, promoted, left for To Issues, or left for
   human decision
 - verified stale states reconciled, including merged work marked done
 - intake-state issues promoted to the configured ready state, if requested
-- issues newly implementation-ready, newly startable, and removed from readiness
+- issues newly implementation-ready, newly startable, blocked-but-ready, and
+  removed from readiness
 - duplicates, dependency cycles, stale active work, and config gaps found
 - user questions asked or exact human next actions left
 - actual next items to do before the remaining issues can become

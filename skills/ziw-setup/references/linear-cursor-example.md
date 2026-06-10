@@ -42,7 +42,12 @@ Last updated: 2026-06-01
 - Read-only verification query: list_issues team:"Example" state:Todo
 - Status field names: status / statusType
 - Ready state: Todo
-- Intake states: Triage, Backlog
+- Intake states: Triage
+- Linear Backlog state: Backlog
+- Ready-state promotion source states: Triage, Backlog
+- Linear Backlog policy: not delegated to Cursor unless explicitly reviewed and
+  promoted to Todo; use for uncommitted, intentionally parked, or incorrectly
+  shaped work
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
 - Code-host issue sync policy: GitHub PR links and Linear tickets are synced when
@@ -59,6 +64,9 @@ Last updated: 2026-06-01
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Startable work criteria: kind-slice, Todo, ready-for-agent, remote-cursor,
   repo-route label, complete body, no active blockers, no active claim, no open PR
+- Dependency policy: use Linear blocker relationships; if issue A needs issue B
+  first, A is blocked by B and B blocks A. Keep blocked-but-ready slices in Todo,
+  not Linear Backlog.
 - Done cleanup: remove ready-for-agent when moving a ticket to Done
 
 ## Work Coordination
@@ -82,7 +90,7 @@ Last updated: 2026-06-01
 - Post-merge preparation: <install/build/generated-artifact refresh needed before
   local main checks, or none>
 - Post-merge check: <command/signal on main, or none>
-- Verified-ready backlog policy: repair routine label/status/route/review
+- Verified-ready ticket-set policy: repair routine label/status/route/review
   evidence mismatches and keep scoped ready tickets moving
 - Completely-blocked stop policy: stop the recurring orchestrator run for this
   scope and report blockers instead of waking forever

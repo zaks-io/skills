@@ -73,8 +73,13 @@ with native skill names:
 ```text
 $ziw-orchestrate ZAK-123 ZAK-456
 $ziw-orchestrate project "Payments" until clear
-$ziw-orchestrate backlog until clear
+$ziw-orchestrate Linear Backlog until clear
 ```
+
+`Linear Backlog until clear` first triages the Linear `Backlog` state. It only
+implements tickets promoted into the ready queue; uncommitted, parked, or badly
+shaped Linear Backlog tickets stay out of the delivery scope with a clear next
+owner.
 
 When the runtime supports subagents, sessions, branches, or worktrees,
 Orchestrator should keep the parent thread small and delegate context-heavy work
@@ -124,8 +129,13 @@ Orchestrate a bounded scope:
 $ziw-orchestrate ZAK-123 ZAK-456
 $ziw-orchestrate label:ready-for-agent one pass
 $ziw-orchestrate project "Payments" until clear
-$ziw-orchestrate backlog until clear
+$ziw-orchestrate Linear Backlog until clear
 ```
+
+Linear `Backlog` is not the agent work queue. The Linear Backlog form means
+"triage this parked tracker state, promote only correct ready work, and leave the
+rest with a truthful parked, human, To Issues, duplicate, or out-of-scope
+outcome." The set Orchestrator is trying to implement is the delivery scope.
 
 Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
 automatically exclude the configured `Done` state unless you explicitly ask to
@@ -187,11 +197,13 @@ performance work without benchmarks require human planning first.
 Issue Triage defaults to current work: `Todo` tickets plus active or PR-linked
 tickets whose tracker state may be stale. It makes Todo tickets ready for
 agents, fixes metadata, and marks verified merged work done. It does not review
-`Backlog` unless asked. Dependency blockers should be encoded separately, not
-used to remove readiness. Agent Orchestrator owns active-work state moves except
-for these narrow verified-state repairs. It reads the issue tracker, checks PR
-and CI state, starts workers, asks for review, and moves tickets when the
-external state says that is safe.
+Linear `Backlog` unless asked. Linear `Backlog` means work you do not want agents
+working yet: uncommitted ideas, intentionally parked scope, or tickets that are
+not shaped correctly. Dependency blockers should be encoded separately, not used
+to remove readiness or park ready work in Linear Backlog. Agent Orchestrator owns
+active-work state moves except for these narrow verified-state repairs. It reads
+the issue tracker, checks PR and CI state, starts workers, asks for review, and
+moves tickets when the external state says that is safe.
 
 A one-off user request for a single ticket is still orchestration, just scoped to
 that ticket. The agent should claim, implement, review, integrate when allowed,
@@ -226,8 +238,8 @@ For CodeRabbit, the repo config records a compact summary of root
 `.coderabbit.yaml` auto-review behavior and the per-PR command policy, including
 when agents may add `@coderabbitai ignore` to skip optional automatic review.
 
-When you hand Orchestrator a large backlog that has already been triaged or
-verified as ready to implement, it owns the delivery lane. Routine
+When you hand Orchestrator a large ticket set that has already been triaged or
+verified as ready to implement, that set is the delivery scope. Routine
 misunderstandings about when to apply a label, move a status, attach review
 evidence, set repo-route metadata, or mark a PR ready-for-review are
 orchestration repairs. It should fix those from tracker, PR, check, and config
@@ -300,7 +312,7 @@ glue should stay under `.agents/` unless it proves portable.
 - `ziw-triage`: update current tracker labels, kinds, readiness, stale
   verified states, orphans, body shape, and dependencies so Todo tickets are
   clean and agent-ready. It follows the repo-configured label treatment policy,
-  skips backlog unless asked, and asks or lists exact human next actions when
+  skips Linear Backlog unless asked, and asks or lists exact human next actions when
   something is unclear.
 - `ziw-orchestrate`: run the work loop, dispatching startable
   `kind-slice` tickets and calling review and integrate as steps, without
@@ -322,11 +334,11 @@ glue should stay under `.agents/` unless it proves portable.
    `kind-slice` tickets and dependency graph. Re-run it any time to reconcile the
    tickets with the plan.
 3. Run `ziw-triage` before the first orchestration run and whenever
-   Todo or active tracker state needs repair. Ask explicitly when you want
-   backlog review or intake backfill.
+   Todo or active tracker state needs repair. Ask explicitly when you want Linear
+   Linear Backlog review or intake backfill.
 4. Run `ziw-orchestrate` to run the loop: dispatch, review,
-   integrate, repeat until the backlog is delivered or completely blocked. A
-   completely blocked loop stops instead of rescheduling itself.
+   integrate, repeat until the delivery scope is delivered or completely
+   blocked. A completely blocked loop stops instead of rescheduling itself.
 5. Use `ziw-pr` directly only when you are already on a branch and
    want to ship it.
 

@@ -40,7 +40,7 @@ _Avoid_: duplicated workflow guide
 
 **Issue Tracker**:
 The external provider that stores issue workflow state, labels, relationships, claims, and comments.
-_Avoid_: backlog file, local tracker cache
+_Avoid_: local todo file, local tracker cache
 
 **Ticket**:
 A tracked unit of work in the configured **Issue Tracker**.
@@ -82,6 +82,11 @@ _Avoid_: workflow state, approval state
 A **Slice Ticket** in the configured ready state with `ready-for-agent`, a complete body, no active blockers, no active claim, and no open PR.
 _Avoid_: ready-for-agent, Todo
 
+**Blocked Ready Work**:
+A **Slice Ticket** in the configured ready state with `ready-for-agent` and a
+complete body, but blocked by another ticket or external dependency.
+_Avoid_: Linear Backlog, future work
+
 **Active Delivery Footprint**:
 The repo-level capacity consumed by open PRs, active PR-scoped previews, and implementation dispatches that have not yet produced a PR.
 _Avoid_: worker concurrency, queue size
@@ -92,15 +97,24 @@ _Avoid_: agent session cap, parallel worker count, queue eviction
 
 **Current Work**:
 Tickets in configured ready or active states, plus active or PR-linked tickets that may need tracker repair.
-_Avoid_: backlog, all issues
+_Avoid_: Linear Backlog, all issues
 
-**Backlog**:
-Future work that default triage does not scan, rewrite, promote, or reprioritize unless explicitly requested.
-_Avoid_: current work, intake
+**Delivery Scope**:
+The bounded ticket set Agent Orchestrator is trying to move through
+implementation, PR, review, and merge.
+_Avoid_: Linear Backlog, all issues
+
+**Linear Backlog State**:
+The tracker workflow state named `Backlog` in Linear, or the equivalent parked
+state in another tracker. It means work the user does not want agents to work
+yet: uncommitted ideas, intentionally parked scope, or tickets that are not
+shaped well enough for the ready queue. Default triage does not scan, rewrite,
+promote, or reprioritize it unless explicitly requested.
+_Avoid_: current work, blocked ready work, intake
 
 **Intake**:
 New or unshaped work that may be promoted to the configured ready state only during requested intake cleanup.
-_Avoid_: backlog, startable work
+_Avoid_: Linear Backlog, startable work
 
 **Completely Blocked**:
 A scoped Orchestrator queue with no startable work, no PR, preview, or worker action to advance, no repairable stale state, and no in-flight signal expected without outside input.
@@ -130,7 +144,7 @@ _Avoid_: planning, ticket writing
 
 **Issue Triage**:
 The workflow role that repairs current tracker metadata, readiness, dependencies, body shape, and verified stale states.
-_Avoid_: backlog grooming, product triage
+_Avoid_: Linear Backlog grooming, dependency parking, product triage
 
 **Agent Orchestrator**:
 The workflow role that runs the work loop by selecting startable work, delegating workers, calling review and integrate steps, and moving active workflow state.
@@ -295,7 +309,12 @@ _Avoid_: local check, CI in general
 - "Review" is overloaded. Use **Code Review** for the bug-focused gate and **Agent Review** for the clean-context role that invokes it.
 - "Kind" and "type" are distinct. **Kind** controls dispatchability; **Type** classifies the nature of the work.
 - "Draft" does not mean "waiting for CodeRabbit" or "needs another code review". A draft PR is **Pre-review** until Orchestrator verifies there is a real blocker or makes it non-draft **Ready For Review**.
-- "Backlog clear" does not mean implementing vague future work. It means each scoped ticket has a truthful next state and owner.
+- "Backlog" is overloaded. Use **Linear Backlog State** for the parked tracker
+  status and **Delivery Scope** for the ticket set Orchestrator is trying to
+  implement.
+- "Backlog clear" means triaging the **Linear Backlog State** until each scoped
+  ticket has a truthful next state and owner. It does not mean implementing
+  vague parked work.
 - Local CLI availability does not prove **Issue-assigned Delegation** exists. That path must come from the **Issue Tracker** or verified **Repo Config**.
 - The **Dispatch Ledger** is not workflow state. The relevant **Systems Of Record** must be refreshed before acting.
 - "Concurrency" is ambiguous. Use **Active PR/Preview Cap** for delivery

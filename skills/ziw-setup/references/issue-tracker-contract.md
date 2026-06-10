@@ -86,8 +86,10 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
   backed by a complete agent-ready body. It can be present while dependency
   blockers remain.
 - A ready `kind-slice` should be in the configured ready state, usually `Todo`,
-  unless config names a specific blocked-ready state. `Backlog` is future work,
-  not the ready queue.
+  even when it is blocked by another ticket. Linear `Backlog` is out of the agent
+  work queue, not a dependency holding area. It means the user does not want
+  agents working the ticket yet because the work is uncommitted, intentionally
+  parked, or not shaped correctly.
 - `ready-for-agent` must be removed when an issue moves to the configured `Done`
   state. Done work is complete, not waiting for agent handoff.
 - Queries for `ready-for-agent`, `ready-for-human`, or equivalent readiness
@@ -96,12 +98,15 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
 - Issue Triage should make current tickets agent-ready and keep tracker state
   aligned with external reality. Its default scope is the configured ready state,
   usually `Todo`, plus active or PR-linked issues that need repair. It should
-  not review `Backlog` or equivalent future-work states unless the user
-  explicitly asks for backlog review.
+  not review Linear `Backlog` or equivalent out-of-work-queue states unless the
+  user explicitly asks for Linear Backlog review.
 - During requested intake cleanup, Issue Triage may move complete issues from
   configured intake states such as `Triage` to the configured ready state,
   usually `Todo`. Encode blockers separately; dependency blockers do not prevent
-  intake-to-ready promotion. Do not promote `Backlog` by default.
+  ready-state promotion. Do not promote Linear `Backlog` by default, but do
+  promote complete scoped Linear Backlog issues when the user explicitly asked
+  for Linear Backlog review or backfill. Generic intake cleanup does not include
+  Linear Backlog promotion.
 - Startable implementation work is `Todo`, unblocked, labeled `ready-for-agent`,
   and has a complete agent-ready body.
 - Issue-assigned agent work, when supported by the repo, uses the repo-configured
@@ -119,10 +124,10 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
 - If a repo uses an extra label such as `remote-worker` or `remote-cursor`,
   record it in `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
-  workflow state. Issue Triage owns requested intake-to-ready promotion and
-  verified stale-state reconciliation, such as marking linked merged PR work
-  `Done`; when it marks work `Done`, it also clears `ready-for-agent`. Agent
-  Orchestrator owns active workflow state unless the user explicitly says
+  workflow state. Issue Triage owns requested ready-state promotion and verified
+  stale-state reconciliation, such as marking linked merged PR work `Done`; when
+  it marks work `Done`, it also clears `ready-for-agent`. Agent Orchestrator owns
+  active workflow state unless the user explicitly says
   otherwise.
 - When Linear and GitHub are connected and both linked entities exist, assume the
   ticket and PR state are synced. Linear may advance ticket status from GitHub PR
@@ -144,7 +149,9 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
 - Human setup, credentials, product judgment, provider approval, customer input,
   and ADR decisions use `ready-for-human` or `needs-info`.
 - Dependency order should be encoded with tracker relationships when the
-  provider supports them.
+  provider supports them. By default, if ticket A needs ticket B first, A is
+  blocked by B and B blocks A. Use the smallest direct graph that lets
+  Orchestrator compute the ready frontier.
 - Auth, bootstrap, claim, invitation, one-use grant, custody, or ownership
   tickets need explicit security invariants before they are marked ready:
   authenticated actor binding, tenant or resource scope, replay behavior, atomic
@@ -153,8 +160,10 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
   executable. `kind-spec` and `kind-epic` are containers: they are To Issues
   input and must never be dispatched to a worker or marked `ready-for-agent`.
   Only `kind-slice` tickets are startable implementation work.
-- Backlog review is opt-in. Do not scan, rewrite, promote, or reprioritize
-  backlog issues during default issue triage.
+- Linear Backlog review is opt-in. Do not scan, rewrite, promote, or reprioritize
+  Linear Backlog issues during default issue triage. Keeping a ticket in Linear
+  Backlog is a valid outcome when the user has not committed to the work or the
+  ticket is not correct enough to enter the ready queue.
 
 ## Agent Suitability
 

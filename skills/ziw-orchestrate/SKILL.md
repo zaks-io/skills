@@ -1,6 +1,6 @@
 ---
 name: ziw-orchestrate
-description: Use to orchestrate a specific ticket set, filter, project, or backlog-until-clear run by selecting startable issues, delegating to local or remote workers, calling review and integrate as steps, recording a friction log, updating the tracker, and stopping when human input or a completely blocked queue leaves no safe action.
+description: Use to orchestrate a specific ticket set, filter, project, delivery scope, or Linear Backlog clear run by selecting startable issues, delegating to local or remote workers, calling review and integrate as steps, recording a friction log, updating the tracker, and stopping when human input or a completely blocked queue leaves no safe action.
 argument-hint: "[ticket-ids|filter|project|until-clear]"
 disable-model-invocation: true
 ---
@@ -25,22 +25,24 @@ reversible, bounded to workflow state, and supported by evidence. Escalate only
 when the next safe action truly needs missing authority, credentials,
 provider/customer input, production approval, or product/security/ADR judgment.
 
-For a backlog that has already been triaged or verified as ready to implement,
-Orchestrator owns the whole delivery lane until each scoped ticket is done or has
-a real external blocker. Simple label, status, readiness, route, or handoff
-misunderstandings are Orchestrator repair work. Do not stop or ask the user just
-because a ticket is missing the expected label, sitting in the wrong workflow
-status, or waiting for a routine handoff state; diagnose the mismatch from
-tracker, PR, check, and config evidence, fix the metadata, and keep the ticket
-moving.
+For a ticket set that has already been triaged or verified as ready to implement,
+Orchestrator owns the delivery scope until each scoped ticket is done or has a
+real external blocker. The Linear `Backlog` state is not the delivery scope; it
+is work the user does not want agents working yet because it is uncommitted,
+intentionally parked, or not shaped correctly. Simple label, status, readiness,
+route, or handoff misunderstandings are Orchestrator repair work. Do not stop or
+ask the user just because a ticket is missing the expected label, sitting in the
+wrong workflow status, or waiting for a routine handoff state; diagnose the
+mismatch from tracker, PR, check, and config evidence, fix the metadata, and keep
+the ticket moving.
 
 ## Inputs
 
 - Repo path and configured issue tracker location.
 - Optional explicit ticket IDs or URLs.
-- Optional loop budget, project, milestone, label, status, backlog, or issue
-  filter.
-- Optional completion target such as `until clear`, `until backlog clear`,
+- Optional loop budget, project, milestone, label, status, Linear Backlog state,
+  delivery scope, or issue filter.
+- Optional completion target such as `until clear`, `until Linear Backlog clear`,
   `until no startable work remains`, or `one pass`.
 - Current tracker, PR, preview, and worker state for the configured workflow.
 
@@ -61,12 +63,15 @@ continue. Ask only when multiple real scopes remain plausible.
   status, assignee, or roadmap the user named.
 - Current-work loop: when no scope is named, work configured ready and active
   issues only.
-- Backlog or intake clear: when the user explicitly says backlog, intake, or
-  "until backlog is clear", first run triage with backlog or intake scope
-  included, then orchestrate all newly ready or active work in that scope.
-- Verified-ready backlog: when the user gives a large set of tickets that have
-  already been reviewed for implementation readiness, treat the set as a delivery
-  lane. Do not send routine label/status mismatches back to the user. Repair
+- Linear Backlog or intake clear: when the user explicitly says Linear Backlog,
+  intake, or "until Linear Backlog is clear", first run triage with the matching
+  requested scope included. Do not treat generic intake cleanup as Linear
+  Backlog review. After triage, orchestrate only newly ready or active work as
+  the delivery scope. Leave uncommitted, parked, or malformed Linear Backlog
+  tickets out of the delivery scope.
+- Verified-ready delivery scope: when the user gives a large set of tickets that
+  have already been reviewed for implementation readiness, treat the set as a
+  delivery scope. Do not send routine label/status mismatches back to the user. Repair
   readiness labels, workflow status, repo-route metadata, environment metadata,
   review evidence labels, and handoff state when current evidence and config make
   the intended state clear.
@@ -82,10 +87,12 @@ initial tracker query. Done tickets are terminal even when a stale readiness
 label remains. Include them only when the user explicitly asks to audit or repair
 done-ticket cleanup.
 
-Do not interpret "clear the backlog" as permission to implement vague future
-work. Clear means every issue in scope has a truthful next state and owner:
-implemented, delegated, ready for review, ready to merge, blocked, needs-info,
-ready-for-human, or explicitly out of scope.
+Do not interpret "clear the Linear Backlog" as permission to implement vague
+parked work. Clear means every issue in the Linear Backlog scope has a truthful
+next state and owner: implemented, delegated, ready for review, ready to merge,
+blocked, needs-info, ready-for-human, parked in Linear Backlog because the user
+has not committed to it or the ticket is not shaped correctly, or explicitly out
+of scope.
 
 ## Loop Entry Point
 
@@ -99,8 +106,8 @@ Each wake-up is one tick: wake light, rebuild the queue from systems of record,
 act on a bounded slice of work, persist only the ledger and checkpoint, then sleep
 only when future external signal can still arrive. If the scoped queue is
 completely blocked, stop the recurring loop for that scope instead. A long-running
-loop must stay as light as a first run; do not loop in-context until the backlog
-empties. See
+loop must stay as light as a first run; do not loop in-context until the delivery
+scope empties. See
 [references/loop-contract.md](references/loop-contract.md) for the tick contract,
 light-context budget, and cadence.
 
@@ -368,9 +375,9 @@ For an `until clear` run, continue until no issue remains in `needs-triage`,
 scope during the run through triage repair, include them unless the user set a
 fixed ticket list or fixed count.
 
-For explicit ticket sets, do not silently expand to unrelated backlog work. For
-backlog clear runs, do not skip the triage pass; otherwise the orchestrator will
-start from stale or vague issue state.
+For explicit ticket sets, do not silently expand to unrelated Linear Backlog
+work. For Linear Backlog clear runs, do not skip the triage pass; otherwise the
+orchestrator will start from stale or vague issue state.
 
 ## Loop
 
@@ -427,9 +434,10 @@ Use the isolated triage worker for this runtime.
 Claude Code: zaks-io-skills:ziw-triager.
 Codex or Agent Skills: $ziw-triage.
 Repo: <path>
-Scope: <ticket list, query, project, backlog, or intake scope>
-Goal: <make ready/current work truthful/until backlog clear>
+Scope: <ticket list, query, project, Linear Backlog, intake scope, or delivery scope>
+Goal: <make ready/current work truthful/until Linear Backlog clear>
 Authority: <config mutation authority summary>
+Backlog gate: <whether Linear Backlog review/backfill was explicitly requested>
 Return changed issues, newly startable issues, blockers, and questions.
 ```
 
@@ -771,7 +779,7 @@ and waking to rediscover the same blocked state. Report the blocker list, next
 owner, and exact condition that would make the scope runnable again.
 
 When all in-flight work is done, the ready frontier is empty, and no scoped
-ticket remains blocked or waiting on outside input, report the backlog as
+ticket remains blocked or waiting on outside input, report the delivery scope as
 delivered with a summary. Otherwise report the scope as blocked and stop the
 loop.
 
@@ -823,4 +831,4 @@ Report:
 - whether the recurring loop continues or stopped because the scoped queue is
   completely blocked
 - friction entries and delivery metrics logged this run, grouped by category
-- remaining blockers and next safe action, or a delivered-backlog summary
+- remaining blockers and next safe action, or a delivered-scope summary

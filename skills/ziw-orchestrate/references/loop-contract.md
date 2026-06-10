@@ -21,8 +21,8 @@ and report the exact command the user should schedule.
 ## One Tick
 
 A tick is a single, stateless-against-external-state pass. It does the smallest
-amount of work that advances the queue, then exits. It does not loop in-context
-until the backlog is empty; that grows context without bound.
+amount of work that advances the delivery scope, then exits. It does not loop
+in-context until the delivery scope is empty; that grows context without bound.
 
 Each tick should use model judgment over refreshed evidence to choose the next
 safe action. The loop is intentionally light on context, not light on reasoning:
@@ -30,10 +30,12 @@ load or delegate the evidence needed to decide, then act, delegate, repair,
 nudge, or escalate. The examples in this contract bound context and cadence, not
 the orchestrator's authority to choose an unlisted safe workflow action.
 
-For a verified-ready backlog, every tick should assume the scoped tickets are
-intended to move through implementation, PR, review, and merge unless current
-evidence proves a real blocker. Routine label/status drift is repaired as part of
-the tick instead of becoming a human escalation.
+For a verified-ready delivery scope, every tick should assume the scoped tickets
+are intended to move through implementation, PR, review, and merge unless current
+evidence proves a real blocker. The Linear `Backlog` state is different: it is
+not dispatchable until triage promotes correct, committed tickets into the ready
+state. Routine label/status drift is repaired as part of the tick instead of
+becoming a human escalation.
 
 Each tick:
 

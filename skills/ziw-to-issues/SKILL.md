@@ -153,8 +153,8 @@ For each `kind-slice`:
 - apply `ready-for-agent` only when the slice is scoped to one PR, routed,
   type and risk labeled, and complete enough to verify
 - place ready `kind-slice` issues in the configured ready state, usually `Todo`,
-  unless config names a specific blocked-ready state; do not park
-  implementation-ready slices in `Backlog`
+  even when they are blocked by other tickets; do not park
+  implementation-ready slices in Linear `Backlog`
 - otherwise apply `needs-info` or `ready-for-human` with the exact gap
 
 `ready-for-agent` means no further human refinement is needed before agent
@@ -169,13 +169,15 @@ run safe work in parallel.
 - Encode dependencies with the tracker's relationship or blocker fields when the
   provider supports them; otherwise record them in the body in the configured
   shape.
+- Use the configured relationship direction. By default, if ticket A needs ticket
+  B first, A is blocked by B and B blocks A.
 - Order slices so each depends only on earlier ones. Break cycles and report
   them.
 - Serialize slices that must not run concurrently even without a direct data
   dependency, such as shared schema or migration ordering, using the configured
   dependency mechanism.
-- Encoding a dependency never removes `ready-for-agent` or a worker environment
-  label.
+- Encoding a dependency never removes `ready-for-agent`, the configured ready
+  state, or a worker environment label.
 
 ## File Footprint
 

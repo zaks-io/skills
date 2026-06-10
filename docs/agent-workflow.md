@@ -121,8 +121,11 @@ config-gap finding when the conflict affects the workflow.
 - Issue Triage: the bulk reconciler. Updates tracker metadata, readiness,
   dependencies, current status, and issue body shape so Todo tickets are clean,
   ready for agents, and the tracker reflects external reality. It does not review
-  backlog by default; when something is unclear, it asks the user or leaves exact
-  human next actions.
+  Linear `Backlog` by default. Linear `Backlog` means the user does not want
+  agents working that ticket yet because the work is uncommitted, intentionally
+  parked, or not shaped correctly. Triage never leaves dependency-ready tickets
+  in Linear Backlog just because blockers remain. When something is unclear, it
+  asks the user or leaves exact human next actions.
 - Create PR: turns the current branch into a PR after checks and code review.
   This is the worker's shipping step, not a separate orchestration stage.
 - Code Review: shared bug-focused review gate.
@@ -152,7 +155,8 @@ cron automations or heartbeat automations) and never needs a human to re-trigger
 a pass. Each tick wakes light, rebuilds the queue from systems of record, acts on
 a bounded slice of work, persists only the ledger and checkpoint, and sleeps only
 when future external signal can still arrive. A long-running loop stays as light
-as a first run; it does not loop in-context until the backlog empties. The
+as a first run; it does not loop in-context until a delivery scope
+empties. The
 orchestrator skill bundles the tick contract in
 `skills/ziw-orchestrate/references/loop-contract.md`.
 
@@ -252,8 +256,8 @@ removing review-evidence labels, logging friction, marking tickets for human
 review when the next step genuinely needs human input, moving active workflow
 state, or stopping on a real blocker.
 
-When the user hands Orchestrator a large backlog that has already been triaged or
-verified as ready to implement, Orchestrator owns the delivery lane. Routine
+When the user hands Orchestrator a large ticket set that has already been triaged
+or verified as ready to implement, that ticket set is the delivery scope. Routine
 misunderstandings about when to apply a label, move a status, attach review
 evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
 repairs. Orchestrator should fix them from tracker, PR, check, and config
@@ -268,8 +272,9 @@ capacity blocker instead of adding another PR and preview.
 Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
 a milestone, a label, one pass, or an `until clear` target. `Clear` means every
 issue in scope has a truthful next state and owner: implemented, delegated,
-ready for review, ready to merge, blocked, needs human input, or terminal. It
-does not mean implementing vague future work without triage. If every scoped
+ready for review, ready to merge, blocked, needs human input, parked in the
+Linear `Backlog` state because it is not committed or not shaped correctly, or
+terminal. It does not mean implementing vague parked work without triage. If every scoped
 issue is blocked and no orchestration action remains, the loop stops for that
 scope.
 
@@ -319,8 +324,10 @@ agent handoff.
 Readiness-label queries exclude `Done` by default, so stale labels on done
 tickets do not keep inflating the active queue.
 During requested intake cleanup, complete intake tickets can move to the ready
-state before dependencies are clear. Dependencies, blocker relationships, and
-blocked states gate whether Orchestrator may start or delegate the work.
+state before dependencies are clear. Complete scoped Linear Backlog tickets can
+move to the ready state during requested Linear Backlog review or backfill.
+Dependencies, blocker relationships, and active blocked states gate whether
+Orchestrator may start or delegate the work; Linear Backlog does not.
 
 Before assigning issue-assigned work, Orchestrator must verify the issue is
 implementation-ready and unblocked using tracker status, labels, provider blocker
@@ -458,11 +465,13 @@ Default rule:
 
 - To Issues can create and adopt `kind-slice` tickets, set kind/type/risk/
   readiness labels, encode dependencies, and write the agent-ready body. It does
-  not move active work.
+  not move active work. Ready slices go in the configured ready state even when
+  dependency blockers remain.
 - Issue Triage can edit labels, kinds, readiness, body shape, dependencies,
   metadata, stale review-evidence labels, and verified stale states. It does not
-  review backlog unless asked. When it verifies a ticket is `Done`, it removes
-  `ready-for-agent`.
+  review Linear Backlog unless asked, and it does not park dependency-ready
+  slices in Linear Backlog after requested Linear Backlog cleanup. When it
+  verifies a ticket is `Done`, it removes `ready-for-agent`.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.
