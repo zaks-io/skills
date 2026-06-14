@@ -27,6 +27,8 @@ content.
   split.
 - `docs/skill-portfolio.md`: publishable skill surface, trim criteria, and
   keep/remove rationale.
+- `docs/agents/workflow/config.md`: repo-local workflow lookup table. Read it
+  before running `ziw-*` workflow skills in this repo.
 - `scripts/check-skills.mjs`: structural validation and repo invariants.
 - `scripts/workflow-contract.mjs`: pure workflow decision helpers covered by
   `node --test`.

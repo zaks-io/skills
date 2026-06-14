@@ -61,9 +61,18 @@ dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegation
 for stuck-worker detection and duplicate suppression; it may be empty on any tick
 and is always reconciled against the tracker and code host.
 
-The friction log is the one retrospective artifact and is intentionally not a
-system of record. The orchestrator writes it as append-only comments on a
-dedicated parked ticket and never reads it back to make decisions.
+The friction intake is retrospective and is intentionally not a system of
+record. Downstream config chooses the sink: append-only comments on a dedicated
+parked ticket, ticket-per-finding intake in a private tracker team or project,
+or no persistent sink. Orchestrator writes it and never reads it back to make
+delivery decisions.
+
+When config uses ticket-per-finding intake, raw friction tickets must land
+outside the delivery queue, usually in an `Inbox` or `Triage` state without
+`ready-for-agent`. Agent-created friction tickets are evidence for later system
+improvement, not executable work. A configured review loop, often a daily
+automation, groups duplicates, closes noise, and turns actionable patterns into
+small PRs against the skill or repo config that caused the friction.
 
 Friction logging should favor compact run rollups over per-tick chatter. Per
 event entries are useful for escalations, re-dispatches, file contention, review
@@ -111,7 +120,7 @@ config-gap finding when the conflict affects the workflow.
   and predicted file footprint. Creates tickets; it does not implement, review,
   or move active work.
 - Agent Orchestrator: reads external state, starts or nudges workers, calls
-  review and integrate as steps, records a friction log, and owns the authority
+  review and integrate as steps, records friction intake, and owns the authority
   to mutate active workflow status in the issue tracker.
 - Agent Implement: owns one delegated issue through implementation, checks,
   code review, PR creation, and handoff.
@@ -388,7 +397,7 @@ flowchart TD
   Tracker["Issue tracker\nsource of truth for issue state"]
   ToIssues["ziw-to-issues\nspec/epic to kind-slice tickets + DAG"]
   IssueTriage["ziw-triage\nmetadata, readiness, verified state repair"]
-  Orchestrator["ziw-orchestrate\nstate authority, friction log"]
+  Orchestrator["ziw-orchestrate\nstate authority, friction intake"]
   Worker["Implementation worker\nlocal or issue-assigned; runs create-pr"]
   AgentReview["ziw-review\nindependent review and drift"]
   CodeReview["ziw-code-review\nreview gate"]
@@ -405,7 +414,7 @@ flowchart TD
   ToIssues -->|create/adopt slices, DAG, footprint| Tracker
   IssueTriage -->|labels, readiness, verified state repair| Tracker
   Orchestrator -->|select kind-slice, claim, move states| Tracker
-  Orchestrator -->|friction comments| Tracker
+  Orchestrator -->|friction intake| Tracker
   Orchestrator -->|delegate| Worker
   Worker -->|self-review + open PR| CodeReview
   Worker -->|PR and handoff| Orchestrator

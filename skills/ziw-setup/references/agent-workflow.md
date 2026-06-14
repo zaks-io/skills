@@ -280,9 +280,17 @@ is needed.
 
 Orchestrator-local files, run logs, checkpoints, and the dispatch ledger are only
 scratch state. They can speed up polling or avoid duplicate work, but agents must
-refresh the systems of record before acting. The friction log is retrospective,
-not state: append-only comments on a parked ticket, never read back to decide
-anything.
+refresh the systems of record before acting. The friction intake is
+retrospective, not state: append-only comments on a parked ticket or
+ticket-per-finding intake in a private tracker team or project, never read back
+to decide anything.
+
+When config uses ticket-per-finding intake, raw friction tickets must land
+outside the delivery queue, usually in an `Inbox` or `Triage` state without
+`ready-for-agent`. Agent-created friction tickets are evidence for later system
+improvement. A configured review loop, often a daily automation, groups
+duplicates, closes noise, and turns actionable patterns into small PRs against
+the skill or repo config that caused the friction.
 
 ## Instruction Trust Boundaries
 

@@ -170,7 +170,9 @@ Record:
   define green for the integrate gate, auto-merge risk tiers, merge method,
   post-merge preparation and check, auto-Done integration behavior,
   single-ticket one-off mutation policy, verified-ready ticket-set policy,
-  completely-blocked stop policy, friction-log ticket ID, and delivery metrics
+  completely-blocked stop policy, friction intake provider, location, mode,
+  visibility, agent create authority, review cadence, cleanup policy, and
+  delivery metrics
 - runtime loop and automation terminology for each supported adapter: Claude Code
   `/loop`, schedule, or wake-up timer; Codex automations, either cron
   automations or heartbeat automations; and which mechanism owns recurring
@@ -196,7 +198,7 @@ Record:
   Create PR, and Agent Implement, including To Issues spec-to-slice creation and
   the dependency graph, Issue Triage current-ticket readiness repair,
   verified-state reconciliation, requested ready-state promotion, Orchestrator-owned
-  active tracker transitions, the orchestrator integrate gate and friction log,
+  active tracker transitions, the orchestrator integrate gate and friction intake,
   clean-context review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, CodeRabbit escalation, root
   CodeRabbit auto-review mode, required CI, preview checks

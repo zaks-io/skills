@@ -182,6 +182,13 @@ Orchestrator or verified stale-state triage removes `ready-for-agent`.
 Readiness-label queries exclude `Done` by default so stale labels on terminal
 tickets do not keep growing the active queue.
 
+Friction intake is separate from delivery work. Repo config says whether agents
+write friction as comments on a parked ticket, as ticket-per-finding intake in a
+private tracker team or project, or nowhere. Agent-created friction tickets
+start outside the work queue, usually in `Inbox` or `Triage`, and a configured
+review loop such as a daily automation dedupes them, closes noise, and opens PRs
+for concrete skill or config improvements.
+
 Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
 containers that To Issues reads as input and are never dispatched; `kind-slice`
 is a one-PR ticket and the only kind a worker runs. Multi-PR work should stay
@@ -260,7 +267,7 @@ open PRs and active previews first without closing draft or in-progress PRs just
 to make room, dispatches startable `kind-slice` tickets only when the active
 PR/preview cap has headroom (default 3), calls review and integrate as steps,
 reasons over the available evidence, and logs where it struggled to a friction
-ticket with compact event entries and run rollups. It can also nudge a worker,
+intake sink with compact event entries and run rollups. It can also nudge a worker,
 repair workflow state, route feedback, mark tickets for human review when the
 next action genuinely needs human input, or stop on a real blocker. It keeps only
 a compact queue, ledger, capacity snapshot, and checkpoint between ticks and
@@ -363,8 +370,7 @@ A repo is ready when:
 - kind labels, CI-equivalent local gate policy, merge method, duplicate-dispatch
   policy, active PR/preview cap, capacity drain policy, PR closure guard,
   stuck-worker timeout, required-checks-for-merge, auto-merge risk tiers,
-  friction-log ticket, and delivery metrics are set when running the autonomous
-  loop
+  friction intake, and delivery metrics are set when running the autonomous loop
 - `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
   `ziw-code-review`, and `ziw-pr` can run without guessing repo
   conventions

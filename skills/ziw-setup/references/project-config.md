@@ -63,6 +63,21 @@ Last updated: YYYY-MM-DD
   route, body contract, and readiness when complete. Broader architecture or
   ambiguous findings become `kind-spec` or `kind-epic` for To Issues or
   `ready-for-human` with the exact decision needed.
+- Friction intake provider: Linear, GitHub, same tracker, separate tracker, or none
+- Friction intake location: team, project, repo, query-safe ID, or dedicated
+  parked ticket where agents write retrospective workflow friction
+- Friction intake visibility: public, private, or internal
+- Friction intake mode: comments-on-dedicated-ticket or ticket-per-finding
+- Friction intake default state: Inbox, Triage, parked, or none
+- Friction intake agent create authority: which agents may create entries;
+  creation does not grant delivery authority
+- Friction intake close authority: who may close, dedupe, or mark entries not
+  actionable
+- Friction intake triage cadence: daily automation, weekly automation, or manual
+- Friction intake cleanup policy: group duplicates, close noise, link PRs, and
+  turn only concrete recurring patterns into implementation tickets or PRs
+- Friction intake redaction policy: metadata and IDs only; no secrets, private
+  logs, customer data, signed URLs, or diffs
 - Orphan policy:
 - Issue key examples:
 - Ready state: Todo
@@ -178,7 +193,15 @@ Last updated: YYYY-MM-DD
   scoped queue when no startable tickets, PRs or previews to advance, stuck
   workers to nudge, checks to rerun or route, stale metadata repairs, or
   in-flight work can still produce signal
-- Friction-log ticket: dedicated ticket ID, parked out of the work queue, for orchestrator friction comments
+- Friction intake: configured retrospective sink, parked out of the delivery
+  queue. Record the provider, verified location, mode, default state, visibility,
+  allowed writers, close authority, review cadence, and redaction policy
+- Friction-log ticket: when mode is comments-on-dedicated-ticket, the dedicated
+  ticket ID for orchestrator friction comments
+- Friction ticket intake: when mode is ticket-per-finding, the private or public
+  tracker location where raw agent friction tickets land before triage
+- Friction review automation: exact daily, weekly, or manual mechanism that
+  reviews friction entries and opens improvement PRs when warranted
 - Delivery metrics: merge rate, first-pass check rate, review rework, stuck workers, human escalations, and agent cost when available
 - Capacity metrics: open PRs, active previews, active delivery slots, and
   remaining headroom at start and end of orchestration runs
