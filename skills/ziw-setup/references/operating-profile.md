@@ -27,6 +27,10 @@ should resolve these into config, not leave the loop to guess them.
 - For issue-assigned remote workers, worker-session count is only a secondary
   provider limit. It must never justify starting new work when open PRs or active
   previews already consume the active delivery cap.
+- Spare delivery slots are not enough to fan out work. Before dispatch, compare
+  predicted file or package footprints against active PRs, active worker branches,
+  and other selected tickets. Hold colliding or unknown-footprint tickets and
+  record `file-collision` when the hold costs a tick.
 
 ## Issue-Assigned Delegation (tracker-exposed agent)
 
@@ -128,6 +132,8 @@ values, not this file:
 - `Active PR/preview cap` (default 3 if the repo has no preference)
 - cap count policy: which open PRs, active previews, and unreturned dispatches
   consume delivery slots; any stricter provider preview or worker-session caps
+- dispatch footprint policy: how to compare predicted footprints and hold
+  colliding or unknown-footprint tickets before fanning out
 - worker delegation paths and the configured agent user / delegate field
 - the continuation rule: reply into the agent-session thread, not top-level
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy

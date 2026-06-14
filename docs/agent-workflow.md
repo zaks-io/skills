@@ -171,6 +171,12 @@ security or policy. Age, draft status, and capacity pressure are not abandonment
 evidence. It never closes draft or in-progress PRs just to make room. It does not
 dispatch more implementation work just because workers are idle.
 
+Capacity headroom is still gated by file footprint. Before fanning out startable
+work, Orchestrator compares predicted file or package footprints against active
+PRs, active worker branches, and the candidates selected for the same tick. It
+dispatches only a non-colliding set, holds sibling hot-seam collisions as
+`file-collision`, and routes missing footprints to triage or To Issues.
+
 If the refreshed scope is completely blocked, Orchestrator stops the recurring
 loop for that scope instead of waking forever. Completely blocked means there are
 no startable tickets, PRs or previews to advance, stuck workers to nudge, failed
@@ -268,6 +274,10 @@ delivery footprint against the configured active PR/preview cap. Open PRs and
 active previews outside the requested filter still consume repo capacity. If they
 fill the cap and Orchestrator lacks authority to change them, the loop reports a
 capacity blocker instead of adding another PR and preview.
+When headroom exists, it still compares predicted footprints before dispatch:
+shared files, parent directories, generated artifacts, migrations, route files,
+config files, and refactor/test work on the same seam are serialization signals,
+not spare slots to fill.
 
 Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
 a milestone, a label, one pass, or an `until clear` target. `Clear` means every

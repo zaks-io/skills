@@ -56,9 +56,12 @@ Each tick:
    worker count: merge green PRs, route fixes, update branches after main moves,
    and inspect previews before dispatching new work. Dispatch new startable work
    only when the active PR/preview cap has headroom and active work has no near
-   term drain action. Draft state is an orchestration repair signal, not a code
-   review request, and capacity pressure is not a reason to close a draft or
-   in-progress PR.
+   term drain action. Before fanning out, compare predicted file footprints
+   against active PRs, active branches, and selected candidates; hold colliding or
+   unknown-footprint tickets for triage or a later tick instead of spending spare
+   slots. Draft state is an orchestration repair signal, not a code review
+   request, and capacity pressure is not a reason to close a draft or in-progress
+   PR.
 6. Delegate every context-heavy step (implement, review, triage) to an isolated
    worker. Reduce each worker result into the compact queue and ledger before
    continuing.

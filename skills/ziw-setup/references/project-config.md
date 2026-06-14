@@ -130,6 +130,10 @@ Last updated: YYYY-MM-DD
 - Cap count policy: count each open PR once, add active previews that are not
   clearly linked to an already counted PR, then add unreturned implementation
   dispatches. Obey any stricter preview-provider or worker-session limit
+- Dispatch footprint policy: before fanning out startable work, compare predicted
+  file or package footprints against active PRs, active worker branches, and other
+  selected candidates. Hold collisions or unknown footprints for triage or a later
+  tick; capacity headroom alone is not permission to dispatch
 - Capacity drain policy: when active delivery slots are at or over cap,
   Orchestrator advances, merges, routes fixes, cleans up previews, or escalates
   existing PRs and previews before dispatching new implementation work

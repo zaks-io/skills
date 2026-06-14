@@ -247,6 +247,26 @@ If preview state cannot be refreshed and config says previews count toward the
 cap, treat headroom as unknown and full for new dispatch. Continue only with
 actions that advance existing PRs or repair the missing config/tooling evidence.
 
+## File Footprint Dispatch
+
+Capacity headroom is necessary, not sufficient. Before dispatching more than one
+startable issue, compare the predicted file or package footprints from To Issues
+against active PRs, active worker branches, and the other candidates selected for
+this tick.
+
+- Dispatch only a non-colliding set that fits the remaining active delivery
+  headroom.
+- Treat exact files, parent directories, shared packages, generated artifacts,
+  schemas, migrations, route files, config files, and refactor-plus-test work on
+  the same seam as collisions even when the filenames are not identical.
+- If a startable ticket has no predicted footprint, route it to triage or To
+  Issues for footprint repair before fanning it out. A single explicitly requested
+  ticket may still run when no active work can collide with it.
+- Prefer the set that unlocks the most blocked dependents, drains hot seams first,
+  and keeps risk isolated. Do not fill every available slot merely because the
+  active PR/preview cap has headroom.
+- Log held tickets as `file-collision` with "held, not skipped" evidence.
+
 ## PR Closure Guard
 
 Capacity pressure is never a reason to close legitimate in-progress work. Do not

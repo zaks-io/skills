@@ -40,6 +40,7 @@ const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boole
 export const workflowDecisionActions = Object.freeze({
   applyReviewEvidence: "APPLY_REVIEW_EVIDENCE",
   clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
+  deferForFileContention: "DEFER_FOR_FILE_CONTENTION",
   dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
   drainActiveWork: "DRAIN_ACTIVE_WORK",
   deferUntilPrReady: "DEFER_UNTIL_PR_READY",
@@ -48,6 +49,7 @@ export const workflowDecisionActions = Object.freeze({
   ignoreUntrustedOverride: "IGNORE_AND_RECORD_SECURITY_FINDING",
   leaveUnchanged: "LEAVE_UNCHANGED",
   promoteToReadyState: "PROMOTE_TO_READY_STATE",
+  requestFileFootprint: "REQUEST_FILE_FOOTPRINT",
   requestPrReview: "REQUEST_PR_REVIEW",
   resolveAutoReviewState: "RESOLVE_AUTO_REVIEW_STATE",
   runLocalCli: "RUN_LOCAL_CLI",
@@ -278,6 +280,129 @@ export function capacityDecision(state = {}, config = {}) {
     action: workflowDecisionActions.stopBlocked,
     footprint,
     reason: "no startable work, active work, or expected external signal remains",
+  };
+}
+
+function normalizeFootprintPath(value) {
+  return normalize(value)
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "")
+    .replace(/\/+$/, "");
+}
+
+function footprintEntries(item = {}) {
+  return [
+    ...toArray(item.footprint),
+    ...toArray(item.fileFootprint),
+    ...toArray(item.files),
+    ...toArray(item.paths),
+    ...toArray(item.packages),
+    ...toArray(item.changedFiles),
+  ]
+    .map(normalizeFootprintPath)
+    .filter(Boolean);
+}
+
+function footprintsConflict(leftEntries, rightEntries) {
+  return leftEntries.some((left) =>
+    rightEntries.some(
+      (right) => left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`),
+    ),
+  );
+}
+
+function activeFootprintItems(state = {}) {
+  const activePrs = toArray(state.pullRequests).filter(
+    (pr) => pr?.open !== false && !TERMINAL_PR_STATES.includes(normalize(pr?.state ?? pr?.status)),
+  );
+  const activeDispatches = toArray(state.dispatches).filter(
+    (dispatch) =>
+      dispatch?.returned !== true &&
+      dispatch?.stopped !== true &&
+      dispatch?.hasPr !== true &&
+      !["returned", "stopped", "failed"].includes(normalize(dispatch?.state ?? dispatch?.status)),
+  );
+
+  return [...toArray(state.activeWork), ...activePrs, ...activeDispatches];
+}
+
+export function dispatchSelectionDecision(state = {}, config = {}) {
+  const cap = Number(config.activePrPreviewCap ?? config.cap ?? 3);
+  const footprint = activeDeliveryFootprint(state);
+  const headroom = Math.max(0, cap - footprint.total);
+  const candidates = toArray(state.startableTickets);
+  const requireFootprint = config.requireDispatchFootprint !== false;
+
+  if (headroom <= 0) {
+    return {
+      action: workflowDecisionActions.drainActiveWork,
+      deferred: candidates.map((ticket) => ({
+        id: ticket?.id,
+        reason: "active delivery cap has no headroom",
+      })),
+      footprint,
+      selected: [],
+    };
+  }
+
+  const activeItems = activeFootprintItems(state).map((item) => ({
+    id: item?.id ?? item?.number ?? item?.url,
+    footprint: footprintEntries(item),
+  }));
+  const selected = [];
+  const deferred = [];
+
+  for (const ticket of candidates) {
+    if (selected.length >= headroom) {
+      deferred.push({
+        id: ticket?.id,
+        reason: "active delivery cap headroom is already allocated",
+      });
+      continue;
+    }
+
+    const ticketFootprint = footprintEntries(ticket);
+    if (requireFootprint && ticketFootprint.length === 0) {
+      deferred.push({ id: ticket?.id, reason: "missing predicted file footprint" });
+      continue;
+    }
+
+    const conflict = [...activeItems, ...selected].find((item) =>
+      footprintsConflict(ticketFootprint, item.footprint),
+    );
+
+    if (conflict) {
+      deferred.push({
+        id: ticket?.id,
+        conflictsWith: conflict.id,
+        reason: "predicted file footprint collides with active or selected work",
+      });
+      continue;
+    }
+
+    selected.push({ id: ticket?.id, footprint: ticketFootprint });
+  }
+
+  if (selected.length > 0) {
+    return {
+      action: workflowDecisionActions.dispatchStartableWork,
+      deferred,
+      footprint,
+      selected,
+    };
+  }
+
+  const missingFootprintOnly =
+    deferred.length > 0 &&
+    deferred.every((item) => item.reason === "missing predicted file footprint");
+
+  return {
+    action: missingFootprintOnly
+      ? workflowDecisionActions.requestFileFootprint
+      : workflowDecisionActions.deferForFileContention,
+    deferred,
+    footprint,
+    selected,
   };
 }
 

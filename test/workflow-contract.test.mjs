@@ -6,6 +6,7 @@ import {
   codeRabbitEscalationDecision,
   capacityDecision,
   classifyInstructionSource,
+  dispatchSelectionDecision,
   readyStatePromotionDecision,
   reviewEvidenceDecision,
   shouldIncludeReadinessTicket,
@@ -175,6 +176,98 @@ test("capacity decision drains active work before dispatching more tickets", () 
   );
 
   assert.equal(decision.action, workflowDecisionActions.drainActiveWork);
+});
+
+test("dispatch selection spends spare capacity only on non-colliding footprints", () => {
+  assert.deepEqual(
+    dispatchSelectionDecision(
+      {
+        startableTickets: [
+          {
+            id: "AP-101",
+            footprint: ["apps/api/src/routes/ephemeral.ts", "packages/tokens"],
+          },
+          {
+            id: "AP-104",
+            footprint: ["apps/jobs", "apps/content", "packages/config"],
+          },
+          {
+            id: "AP-102",
+            footprint: ["apps/content", "packages/tokens"],
+          },
+          {
+            id: "AP-103",
+            footprint: ["apps/api", "packages/config"],
+          },
+        ],
+      },
+      { activePrPreviewCap: 3 },
+    ),
+    {
+      action: workflowDecisionActions.dispatchStartableWork,
+      deferred: [
+        {
+          id: "AP-102",
+          conflictsWith: "AP-101",
+          reason: "predicted file footprint collides with active or selected work",
+        },
+        {
+          id: "AP-103",
+          conflictsWith: "AP-101",
+          reason: "predicted file footprint collides with active or selected work",
+        },
+      ],
+      footprint: { dispatches: 0, previews: 0, prs: 0, total: 0 },
+      selected: [
+        {
+          id: "AP-101",
+          footprint: ["apps/api/src/routes/ephemeral.ts", "packages/tokens"],
+        },
+        {
+          id: "AP-104",
+          footprint: ["apps/jobs", "apps/content", "packages/config"],
+        },
+      ],
+    },
+  );
+});
+
+test("dispatch selection treats active PR footprints as occupied seams", () => {
+  const decision = dispatchSelectionDecision(
+    {
+      pullRequests: [{ id: "PR-155", state: "open", footprint: ["apps/content"] }],
+      startableTickets: [
+        { id: "AP-102", footprint: ["apps/content/headers.ts"] },
+        { id: "AP-101", footprint: ["apps/api/src/routes/ephemeral.ts"] },
+      ],
+    },
+    { activePrPreviewCap: 3 },
+  );
+
+  assert.deepEqual(decision.selected, [
+    { id: "AP-101", footprint: ["apps/api/src/routes/ephemeral.ts"] },
+  ]);
+  assert.deepEqual(decision.deferred, [
+    {
+      id: "AP-102",
+      conflictsWith: "PR-155",
+      reason: "predicted file footprint collides with active or selected work",
+    },
+  ]);
+});
+
+test("dispatch selection asks for footprints before fanning out unknown work", () => {
+  assert.deepEqual(
+    dispatchSelectionDecision({
+      startableTickets: [{ id: "AP-200" }],
+    }),
+    {
+      action: workflowDecisionActions.requestFileFootprint,
+      deferred: [{ id: "AP-200", reason: "missing predicted file footprint" }],
+      footprint: { dispatches: 0, previews: 0, prs: 0, total: 0 },
+      selected: [],
+    },
+  );
 });
 
 test("CodeRabbit waits when hosted review is already pending for the PR head", () => {
