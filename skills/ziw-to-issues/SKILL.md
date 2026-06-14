@@ -130,6 +130,11 @@ Record deploy prerequisites, runtime secrets, hosted gates, generated artifact
 updates, and CI env passthrough requirements as explicit acceptance criteria or
 required checks. Do not bury launch blockers only in background docs.
 
+When a slice depends on exact external config, resource IDs, provider names,
+label slugs, secret names, or environment values, put the exact configured
+literals or their config lookup location in the body. Do not rely on prior issue
+comments as the only source for hard values a worker must use.
+
 Prefer slices that match known strong agent-fit work: docs, tests, build or CI
 updates, small refactors with clear checks, scoped bugs with reproduction, and
 isolated UI changes with target states. Mark high-risk or ambiguous work for
@@ -142,6 +147,12 @@ Name the authenticated actor, tenant or resource binding, replay behavior,
 atomic consume or claim requirement, and concurrency checks the worker must
 prove.
 
+For custody, persistence, driver-integration, or provider-integration slices,
+give acceptance criteria an executable shape that exercises the real boundary.
+Prefer checks such as multi-instance readback, concurrent first use, real driver
+queries, env passthrough, or provider-shape verification over prose-only
+assertions. Do not make a mock of the integrated seam the only proof.
+
 ## Labels And Readiness
 
 For each `kind-slice`:
@@ -152,6 +163,8 @@ For each `kind-slice`:
   approval criteria are met; dependency state is not a reason to withhold it
 - apply `ready-for-agent` only when the slice is scoped to one PR, routed,
   type and risk labeled, and complete enough to verify
+- do not apply `ready-for-agent` when the body itself says human setup,
+  credentials, provider decisions, or security judgment are still required
 - place ready `kind-slice` issues in the configured ready state, usually `Todo`,
   even when they are blocked by other tickets; do not park
   implementation-ready slices in Linear `Backlog`
@@ -186,6 +199,9 @@ configured location and shape, so the orchestrator can avoid dispatching
 colliding slices concurrently.
 
 - List the files, directories, or packages the slice is most likely to change.
+- Include shared document surfaces the slice is likely to edit, such as dense
+  markdown list blocks, status ledgers, registries, changelogs, config tables,
+  and docs sections owned by many slices.
 - Keep it a prediction, not a guarantee; the worker may diverge.
 - Flag slices with heavy expected overlap so they are serialized or sequenced.
 - Compare sibling slices after assigning individual footprints. Record hot files

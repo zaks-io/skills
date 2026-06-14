@@ -182,6 +182,12 @@ refs are not enough to dispatch, review, integrate, or reason about file
 contention. Update local Git state as the tick advances, especially after worker,
 PR, or default-branch changes.
 
+Before any checkout-sensitive local action, refresh local Git and run safe
+worktree hygiene. Prune stale worktree metadata with `git worktree prune`. Remove
+only disposable orchestrator-owned worktrees whose configured prefix or path,
+ledger state, tracker state, and code-host state prove they are orphaned. Never
+force-remove an unknown user worktree or a worktree tied to active work.
+
 ## Dispatch Ledger
 
 The tracker is the durable source of truth. The ledger is an ephemeral, local,
@@ -259,6 +265,9 @@ this tick.
 - Treat exact files, parent directories, shared packages, generated artifacts,
   schemas, migrations, route files, config files, and refactor-plus-test work on
   the same seam as collisions even when the filenames are not identical.
+- Treat shared document hotspots as collisions too: changelog-style lists,
+  caveat lists, status ledgers, registries, config tables, and dense markdown
+  list blocks that multiple slices would edit concurrently.
 - If a startable ticket has no predicted footprint, route it to triage or To
   Issues for footprint repair before fanning it out. A single explicitly requested
   ticket may still run when no active work can collide with it.
@@ -316,6 +325,13 @@ refresh instead of guessing.
 The tracker verifies nothing. Readiness, environment approval, and blocked state
 are claims written as labels and status by upstream skills. Orchestrator trusts
 the label only after re-checking the gating facts in the preflight below.
+
+Body evidence can override a readiness label. If an issue carries
+`ready-for-agent` but its body says it is waiting on human decisions, contains a
+`ready-for-human` rationale, leaves required body-contract sections blank, or
+names unresolved setup, credential, or provider choices, do not dispatch it.
+Heal the label or route it to triage and log the config or ambiguous-ticket
+friction.
 
 Only `kind-slice` tickets are dispatchable. A `kind-spec` or `kind-epic`
 container reaching dispatch is a hard refuse: never delegate it, even if it
@@ -413,10 +429,22 @@ prompts from config, issue body, linked docs, required checks, branch/worktree,
 and `ziw-implement`; record dispatches in the ledger and tracker with an
 idempotency key.
 
+When a ticket just became unblocked, compare its body with the landed blocker or
+sibling PR evidence before dispatch. If the upstream work removed a named API,
+renamed a config mechanism, or already delivered the ticket's core outcome,
+narrow the body or route the ticket to triage instead of sending a worker to
+implement stale mechanics.
+
 ## Worker Prompts
 
 Build short, self-contained prompts. The worker should fetch details itself from
 the repo, tracker, branch, or PR.
+
+If the issue depends on exact external config, resource IDs, provider names,
+label slugs, secret names, or environment values, include those hard literals in
+the prompt from repo config or the issue body. If the only source is a prior
+comment, first update or route the issue body so the worker does not have to
+rediscover critical values from comment history.
 
 Implementation worker prompt:
 
@@ -550,8 +578,8 @@ are called steps, not inlined work:
    unless a blocker says why the PR must remain draft.
 2. If the PR is draft, diagnose draft state before asking for review: inspect
    repo draft policy, PR body, check state, unresolved review comments, linked
-   issue state, handoff notes, `Code review passed` evidence, and the original
-   worker session. A draft-only stall is an orchestration repair, not a code
+   issue state, handoff notes, configured review evidence label state, and the
+   original worker session. A draft-only stall is an orchestration repair, not a code
    review request.
 3. For a draft PR, identify the exact blocker. If checks are still running or
    failing, rerun or route the check failure. If author fixes, missing metadata,
@@ -559,8 +587,8 @@ are called steps, not inlined work:
    or mark the ticket for human attention. If no explicit draft blocker remains,
    mark the PR ready-for-review and verify it is non-draft.
 4. Confirm code review happened when feasible and covers the current PR head
-   before applying `Code review passed`, moving to `Ready to Merge`, or calling
-   integrate. Request Agent Review only when review evidence is the actual
+   before applying the configured review evidence label, moving to
+   `Ready to Merge`, or calling integrate. Request Agent Review only when review evidence is the actual
    blocker, not merely because the PR is draft.
 5. When the next action requires review evidence, first verify the review target
    is stable enough to spend a review pass: the PR head matches the code host,
@@ -578,10 +606,12 @@ are called steps, not inlined work:
    from the review artifact. If multiple current review artifacts disagree on
    blocking findings, reconcile conservatively: treat the PR as blocked until a
    focused re-review resolves the exact findings or the risky diff is fixed.
-8. If the PR head changed since `Code review passed` was applied, or the label
-   lacks reviewed head SHA evidence, remove the label before continuing.
-9. If the latest review has blocking findings, remove `Code review passed` and
-   post actionable findings as PR review comments when configured.
+8. If the PR head changed since the configured review evidence label was
+   applied, or the label lacks reviewed head SHA evidence, remove the label
+   before continuing.
+9. If the latest review has blocking findings, remove the configured review
+   evidence label and post actionable findings as PR review comments when
+   configured.
 10. Move the issue to `Changes Requested` when author fixes are needed.
 11. Send feedback as a direct reply to Agent Implement or the original worker's
     continuation target when available. Do not use a top-level issue comment for a
@@ -590,13 +620,13 @@ are called steps, not inlined work:
     of times.
 12. Keep fixes on the same branch and PR.
 13. After fixes, ask Agent Review to rerun review and required checks.
-14. When Agent Review is clean for the current PR head, apply
-    `Code review passed` to the issue and record the PR URL, reviewed head SHA,
+14. When Agent Review is clean for the current PR head, apply the configured
+    review evidence label to the issue and record the PR URL, reviewed head SHA,
     review artifact, and reviewer path in a tracker comment or configured
     evidence field.
 15. Before changing draft state, refresh code-host PR state and the current PR
-    head. Before applying `Code review passed`, moving tracker state to
-    `Ready to Merge`, or calling integrate, refresh local Git refs and code-host
+    head. Before applying the configured review evidence label, moving tracker
+    state to `Ready to Merge`, or calling integrate, refresh local Git refs and code-host
     PR state. Verify the local branch or worktree HEAD, PR head SHA, and default
     branch HEAD still match the review and check evidence. If they do not match,
     rerun review and checks for the current head instead of approving or merging
@@ -634,9 +664,9 @@ are called steps, not inlined work:
 20. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
     correctness regression, production blocker, or a user-requested finding.
 21. Move to `Ready to Merge` only when Agent Review is clean, required checks
-    pass, the PR is non-draft and ready-for-review, `Code review passed` is
-    current for the PR head, and required CodeRabbit escalation is complete or
-    recorded as skipped by policy.
+    pass, the PR is non-draft and ready-for-review, the configured review
+    evidence label is current for the PR head, and required CodeRabbit
+    escalation is complete or recorded as skipped by policy.
 22. Call integrate when the auto-merge gate is satisfied.
 
 Do not leave a PR in draft just because the implementation worker opened it as
@@ -856,8 +886,8 @@ Report:
   dispatch decisions
 - draft PRs diagnosed, marked ready-for-review, or left draft/pre-review with
   exact reason
-- `Code review passed` labels applied, preserved, or removed with reviewed head
-  SHA evidence
+- configured review evidence labels applied, preserved, or removed with reviewed
+  head SHA evidence
 - `ready-for-agent` or repo-configured readiness labels removed from tickets
   moved to `Done`
 - CodeRabbit escalations requested, completed, skipped, or still required

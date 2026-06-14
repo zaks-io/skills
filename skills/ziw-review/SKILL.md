@@ -65,7 +65,9 @@ for a backfill.
 11. Create or update tracker issues for real findings.
 12. Advance checkpoint only after PR review, main review, and issue updates
     complete.
-13. Remove disposable worktrees unless preserving them helps debugging.
+13. Remove disposable worktrees on completion, including failure paths. Preserve
+    one only when config or the user explicitly asked for debug retention, and
+    report the retained path.
 
 ## Review Delegation
 
@@ -117,8 +119,8 @@ For each PR:
    PR is non-draft and ready-for-review, and required CodeRabbit escalation is
    complete or recorded as skipped by policy.
 10. Send feedback to Agent Orchestrator so it can move tracker state, update PR
-    draft state, apply or remove `Code review passed`, and nudge the original
-    implementer.
+    draft state, apply or remove the configured review evidence label, and nudge
+    the original implementer.
 
 ## Review Focus
 
@@ -208,7 +210,7 @@ Fix the reviewed-main finding in one concrete PR.
 
 Report PRs reviewed, freshness result for each review target, reviewed main
 range, issues created or recommended, checks run, CodeRabbit recommendations, PR
-readiness recommendations, checkpoint result, `Code review passed` label
+readiness recommendations, checkpoint result, configured review evidence label
 recommendation with reviewed head SHA, review-debt intake route used,
 orchestrator refactor candidates, handoff to Agent Orchestrator, and residual
 risk.

@@ -110,8 +110,8 @@ issue risk labels and the change shape.
 
 "Green" is the configured merge-ready set: clean `ziw-review` verdict,
 required CI checks pass, no unresolved blocking review comments, PR non-draft and
-ready-for-review, `Code review passed` current for the PR head, and required
-CodeRabbit escalation complete or recorded as skipped by policy.
+ready-for-review, the configured review evidence label current for the PR head,
+and required CodeRabbit escalation complete or recorded as skipped by policy.
 
 Rules that do not change with tier:
 
@@ -139,5 +139,7 @@ values, not this file:
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy
 - the repo-route label family used for delegation
 - auto-merge risk tiers the orchestrator may merge vs route to human merge
+- review evidence label slug or ID, plus the evidence comment shape that records
+  PR URL and reviewed head SHA
 - merge method, required checks that define green, plus any post-merge
   preparation needed before local post-merge checks are trustworthy

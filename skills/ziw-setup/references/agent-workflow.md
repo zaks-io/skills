@@ -70,9 +70,9 @@ domain behavior, and performance work without benchmarks.
    head SHA without modifying product code or moving issue state.
 8. Agent Orchestrator routes findings back to the worker, repairs stuck draft PRs
    or marks them ready-for-review when allowed, requests CodeRabbit when the
-   current diff needs it, applies or removes `Code review passed`, or calls the
-   integrate step to merge on green, move the issue to the done state, and remove
-   `ready-for-agent`.
+   current diff needs it, applies or removes the configured review evidence
+   label, or calls the integrate step to merge on green, move the issue to the
+   done state, and remove `ready-for-agent`.
 
 ## Loop Model
 
@@ -236,10 +236,10 @@ For issue-assigned delegation:
   disabled, opt-in, or unknown. Manual review requests are top-level PR
   comments. `@coderabbitai ignore` is a PR-description marker for skipping
   automatic reviews on that PR, and is recorded as a policy skip when used.
-- `Code review passed` is a review-evidence label, not workflow state. Apply it
-  only with PR URL and reviewed head SHA evidence. Remove it when the PR head
-  changes, blocking findings appear, the linked PR changes, or evidence is
-  missing.
+- The configured review evidence label is not workflow state. Resolve it by
+  exact configured slug or ID, apply it only with PR URL and reviewed head SHA
+  evidence, and remove it when the PR head changes, blocking findings appear,
+  the linked PR changes, or evidence is missing.
 
 For local agent runtimes, keep the orchestrator parent thread small and delegate
 large context loads to isolated workers when available. Claude Code uses plugin
@@ -314,7 +314,7 @@ orchestration for that ticket only if config or the user grants mutation
 authority.
 Orchestrator diagnoses stuck draft PRs without treating draft state as a review
 request, repairs blockers, verifies the code-host PR is non-draft, and applies or
-removes `Code review passed` based on current PR head SHA evidence. When
+removes the configured review evidence label based on current PR head SHA evidence. When
 Orchestrator moves a ticket to `Done`, it verifies the full issue scope is
 complete and removes `ready-for-agent`. If a code-host integration auto-moved a
 partial or multi-PR issue to `Done`, Orchestrator reopens or narrows it according

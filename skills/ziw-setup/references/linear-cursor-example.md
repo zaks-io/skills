@@ -60,7 +60,7 @@ Last updated: 2026-06-01
 - Repo-route label: <org>/example-app (REQUIRED before issue-assigned delegation;
   tells Cursor which GitHub repo to clone)
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
-- Review evidence labels: Code review passed
+- Review evidence labels: code-review-passed
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Friction intake provider: Linear
 - Friction intake location: private team "Skills" project "Agent Friction"

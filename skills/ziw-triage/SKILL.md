@@ -214,9 +214,9 @@ Apply obvious mechanical updates in batches:
 - apply configured review, merge-ready, or blocked states only when the repo
   config gives Issue Triage that authority and current external evidence is
   direct
-- remove stale `Code review passed` when the linked PR head changed, blocking
-  findings exist, the linked PR changed, or reviewed head SHA evidence is
-  missing
+- remove the configured review evidence label when the linked PR head changed,
+  blocking findings exist, the linked PR changed, or reviewed head SHA evidence
+  is missing
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
 
@@ -276,6 +276,17 @@ If any required field is unknowable, add the missing heading, ask the specific
 question when the user is available, label the issue `needs-info` or
 `ready-for-human`, and do not mark it ready.
 
+If an issue carries `ready-for-agent` but the body says it is waiting on human
+setup, credentials, provider decisions, security judgment, or a
+`ready-for-human` rationale, treat the body as the stronger signal. Remove or
+withhold `ready-for-agent`, preserve the exact human decision needed, and report
+the contradiction.
+
+When a ticket depends on exact external config, resource IDs, provider names,
+label slugs, secret names, or environment values, make sure those hard literals
+or their config lookup location are in the body before marking it ready. Prior
+comments are not enough for worker handoff.
+
 When deciding whether a ticket should become agent-ready, consider the work type
 and risk. Docs, tests, build or CI updates, small local refactors, scoped bugs
 with reproduction, and isolated UI changes are good default agent work.
@@ -310,6 +321,12 @@ Encode dependencies only from evidence:
 Detect cycles, blockers that are done or canceled, parent issues marked ready,
 and issues blocked by vague placeholder work. Fix obvious completed blockers.
 Escalate ambiguous ordering instead of guessing.
+
+When a blocker has completed, compare the dependent ticket's body against the
+landed blocker or sibling PR evidence before declaring it ready to start. If the
+body names APIs, files, commands, or mechanics that the landed work removed or
+superseded, narrow the residual scope or mark the ticket for human/triage
+repair instead of sending stale instructions to an implementation worker.
 
 Do not use dependencies as a reason to withhold or remove `ready-for-agent` or a
 configured worker environment label. Encode dependency order with tracker

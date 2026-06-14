@@ -47,7 +47,7 @@ Risk:
 
 Review evidence:
 
-- `Code review passed`
+- configured exact label slug or ID, such as `code-review-passed`
 
 Type:
 
@@ -136,11 +136,12 @@ multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
   triage must verify the full issue scope is complete before leaving it there.
   If linked PR evidence covers only part of the issue, reopen or narrow it
   according to repo config.
-- `Code review passed` means the latest linked PR head SHA has passed the
-  configured code review gate for this ticket. Apply it only with adjacent
-  review evidence that names the PR URL and reviewed head SHA. Remove it when
-  the PR head changes, blocking review findings appear, the linked PR changes,
-  or the review evidence is missing or stale.
+- The configured review evidence label means the latest linked PR head SHA has
+  passed the configured code review gate for this ticket. Resolve it by the
+  exact configured slug or ID, not by reconstructing a display name. Apply it
+  only with adjacent review evidence that names the PR URL and reviewed head
+  SHA. Remove it when the PR head changes, blocking review findings appear, the
+  linked PR changes, or the review evidence is missing or stale.
 - Blocked work can keep `ready-for-agent`. Blocker relationships, body blockers,
   or workflow state stop scheduling; they do not redefine readiness metadata.
 - Worker environment labels are approval and routing metadata. They do not say

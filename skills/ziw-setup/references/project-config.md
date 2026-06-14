@@ -26,6 +26,9 @@ Last updated: YYYY-MM-DD
 - Full local gate:
 - Local gate cache policy:
 - CI env passthrough:
+- Separate threshold gates: coverage, smoke, secret scan, generated artifacts, or
+  none; include the exact local command for each hosted job not covered by the
+  full local gate
 - Coverage and secret-scan scope:
 - Focused checks:
 - Build:
@@ -111,9 +114,10 @@ Last updated: YYYY-MM-DD
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; skills enforce exclusivity; only kind-slice is dispatchable)
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Risk label policy: use the default risk labels as dimensions, not severity levels; add repo-specific risk labels only when they change routing, checks, approvals, or reviewer assignment
-- Review evidence labels: Code review passed
+- Review evidence labels: exact configured label slugs or IDs, such as
+  `code-review-passed`
 - Review evidence label policy:
-  - Code review passed: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
+  - code-review-passed: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
 - Priority policy:
@@ -127,11 +131,17 @@ Last updated: YYYY-MM-DD
   how Orchestrator verifies full scope before leaving multi-PR or partial-scope
   issues Done
 - File footprint convention: where To Issues records predicted files/packages per slice
+- Shared document hotspot convention: whether footprints must name dense doc
+  list blocks, registries, status ledgers, changelogs, or config tables that
+  should serialize concurrent slices
 - Review-debt footprint convention: where Agent Review or triage records likely
   files/packages for review-created `kind-slice` tickets before Orchestrator can
   dispatch them
 - Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
   scope, acceptance criteria, required checks, safety invariants, dependencies
+- Hard config literal policy: where exact provider resource IDs, secret names,
+  label slugs, environment values, and other worker-critical literals are
+  recorded so worker prompts do not depend on old issue comments
 - Labels are signals, not authority:
 
 ## Work Coordination
@@ -147,8 +157,12 @@ Last updated: YYYY-MM-DD
   dispatches. Obey any stricter preview-provider or worker-session limit
 - Dispatch footprint policy: before fanning out startable work, compare predicted
   file or package footprints against active PRs, active worker branches, and other
-  selected candidates. Hold collisions or unknown footprints for triage or a later
-  tick; capacity headroom alone is not permission to dispatch
+  selected candidates, including shared document hotspots. Hold collisions or
+  unknown footprints for triage or a later tick; capacity headroom alone is not
+  permission to dispatch
+- Worktree hygiene policy: configured disposable worktree root or prefixes,
+  prune command, and orphan-removal guard. Only orchestrator-owned disposable
+  worktrees may be removed automatically
 - Capacity drain policy: when active delivery slots are at or over cap,
   Orchestrator advances, merges, routes fixes, cleans up previews, or escalates
   existing PRs and previews before dispatching new implementation work

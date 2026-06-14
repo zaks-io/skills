@@ -264,12 +264,14 @@ labels only when they change routing, checks, approvals, or reviewer assignment.
 
 Review evidence:
 
-- `Code review passed`
+- configured exact label slug or ID, such as `code-review-passed`
 
-By default, `Code review passed` means the latest linked PR head SHA has passed
-the configured code review gate for the ticket. Record the PR URL and reviewed
-head SHA when applying it. Remove it when the PR head changes, blocking findings
-appear, the linked PR changes, or the evidence is missing.
+By default, the review evidence label means the latest linked PR head SHA has
+passed the configured code review gate for the ticket. Record the exact
+configured label slug or ID, PR URL, and reviewed head SHA when applying it.
+Remove it when the PR head changes, blocking findings appear, the linked PR
+changes, or the evidence is missing. Resolve the label by configured slug or ID,
+not by reconstructing a title-case display name.
 
 Type:
 

@@ -41,8 +41,8 @@ Rules:
   evidence after that event.
 - When Markdown or docs changed, include the configured docs formatting check,
   such as `pnpm format:docs:check` when the target repo provides it.
-- Say whether `Code review passed` is applied, removed, or requested for the
-  current PR head SHA.
+- Say whether the configured review evidence label is applied, removed, or
+  requested for the current PR head SHA.
 - Say whether the PR is draft/pre-review or non-draft/ready-for-review, and who
   owns any required ready-for-review transition.
 - Say whether CodeRabbit is skipped, complete, auto-review pending, or still

@@ -69,6 +69,11 @@ or secret-scan checks. When running secret scanning locally, use the same
 branch, diff, or source scope that CI uses instead of scanning unrelated local
 refs.
 
+If CI exposes coverage, smoke, or secret scanning as separate threshold jobs,
+run the configured local equivalent before PR handoff when the current diff
+touches that surface. A passing full local gate is not enough when config says a
+threshold job lives outside that gate.
+
 When CI has threshold gates, cache-sensitive tasks, or env-filtered test gates,
 run the exact threshold-enforcing and cache-busted command named by config. A
 cached green local gate is not PR evidence unless config says the cache is valid
@@ -195,8 +200,9 @@ When an issue exists:
   not duplicate manual state changes unless config delegates that authority
 - comment with checks run, code review verdict, CodeRabbit decision,
   PR draft or ready-for-review state, current PR head SHA, base SHA, merge base,
-  `Code review passed` recommendation with reviewed head SHA, acceptance
-  criteria status, hosted check state, and differences from original intent
+  configured review evidence label recommendation with reviewed head SHA,
+  acceptance criteria status, hosted check state, and differences from original
+  intent
 - never move to `Done`; merge is not complete
 
 Do not move workflow state unless the repo config or user explicitly delegates

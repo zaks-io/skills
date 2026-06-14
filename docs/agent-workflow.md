@@ -147,11 +147,12 @@ PR draft state is code-host state, not tracker state. Draft and
 ready-for-review are mutually exclusive. A draft PR is pre-review; a
 ready-for-review PR is non-draft.
 
-`Code review passed` is a review-evidence label, not a workflow status. It means
-the latest linked PR head SHA has passed the configured code review gate for the
-ticket. It must be applied with PR URL and reviewed head SHA evidence, and
-removed when the PR head changes, blocking findings appear, the linked PR
-changes, or evidence is missing.
+The configured review evidence label, such as `code-review-passed`, is not a
+workflow status. It means the latest linked PR head SHA has passed the configured
+code review gate for the ticket. It must be resolved by exact configured slug or
+ID, applied with PR URL and reviewed head SHA evidence, and removed when the PR
+head changes, blocking findings appear, the linked PR changes, or evidence is
+missing.
 
 ## Loop Model
 
@@ -287,6 +288,8 @@ When headroom exists, it still compares predicted footprints before dispatch:
 shared files, parent directories, generated artifacts, migrations, route files,
 config files, and refactor/test work on the same seam are serialization signals,
 not spare slots to fill.
+Shared document hotspots such as dense markdown list blocks, status ledgers,
+registries, changelogs, and config tables are also serialization signals.
 
 Orchestrator can be invoked with explicit tickets, a tracker filter, a project,
 a milestone, a label, one pass, or an `until clear` target. `Clear` means every
@@ -360,6 +363,10 @@ If the user explicitly chooses issue-assigned agents and an implementation-ready
 issue is missing only the configured worker environment metadata, Orchestrator
 can repair that metadata without treating dependencies as a label blocker. It
 still must not start blocked work.
+If the issue body contradicts `ready-for-agent` with a `ready-for-human`
+rationale, missing required body sections, or unresolved setup, credential,
+provider, or security decisions, the body wins. The ticket goes back to triage
+or human input before delegation.
 
 If Agent Orchestrator needs to send fixes, review feedback, failed-check
 details, or PR process instructions back to that agent, it must reply into the
@@ -452,7 +459,7 @@ sequenceDiagram
   R->>Q: Freshness, findings, CodeRabbit recommendation, PR readiness, refactor candidates, and reviewed head SHA
   Q->>G: Repair stuck draft PR or mark ready for review
   Q->>G: Request CodeRabbit if required by risk or complexity
-  Q->>T: Apply or clear Code review passed
+  Q->>T: Apply or clear configured review evidence label
   Q->>T: Changes Requested or Ready to Merge
   Q->>G: On green, rebase if needed, merge, post-merge check
   Q->>T: Move to Done and remove ready-for-agent
@@ -497,14 +504,16 @@ Default rule:
 - Create PR can attach or mark the PR ready-for-review when its local gates
   pass, verify the code-host PR is non-draft, and report the review-state
   handoff. Its local gate must match configured CI scopes, thresholds, cache
-  policy, generated-artifact checks, and secret-scan range.
+  policy, generated-artifact checks, and secret-scan range. Separate coverage,
+  smoke, generated-artifact, or secret-scan threshold jobs count as required PR
+  evidence when config or CI defines them outside the full local gate.
 - Agent Review can post findings and verdicts.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
   integrate gate when config grants merge authority. It diagnoses stuck draft
   PRs without treating draft state as a review request, repairs blockers, verifies
-  the code-host PR is non-draft, and applies or removes `Code review passed`
-  based on current PR head SHA evidence. When it moves a ticket to `Done`, it
+  the code-host PR is non-draft, and applies or removes the configured review
+  evidence label based on current PR head SHA evidence. When it moves a ticket to `Done`, it
   verifies the full issue scope is complete and removes `ready-for-agent`. If a
   code-host integration auto-moved a partial or multi-PR issue to `Done`,
   Orchestrator reopens or narrows it according to config before continuing.
@@ -521,8 +530,8 @@ Every handoff should say:
 - current state and next owner
 - checks run
 - whether code review covers the current diff
-- whether `Code review passed` is applied, removed, or requested for the current
-  PR head SHA
+- whether the configured review evidence label is applied, removed, or requested
+  for the current PR head SHA
 - whether CodeRabbit is skipped, complete, auto-review pending, or still required
   for the current diff, including auto-review mode and the command or PR
   description marker used when known
