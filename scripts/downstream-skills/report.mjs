@@ -28,6 +28,18 @@ function printResult(result) {
   if (result.branchName) {
     console.log(`  branch: ${result.branchName}`);
   }
+  if (result.baseRef) {
+    console.log(`  base: ${result.baseRef}`);
+  }
+  if (result.worktreePath) {
+    console.log(`  worktree: ${result.worktreePath}`);
+  }
+  if (result.worktreeCleanup) {
+    console.log(`  worktree cleanup: ${result.worktreeCleanup}`);
+  }
+  if (result.branchCleanup) {
+    console.log(`  branch cleanup: ${result.branchCleanup}`);
+  }
   if (result.commit) {
     console.log(`  commit: ${result.commit}`);
   }
@@ -40,7 +52,16 @@ function printResult(result) {
   if (result.error) {
     console.log(`  error: ${result.error}`);
   }
+  if (result.worktreeCleanupError) {
+    console.log(`  worktree cleanup error: ${result.worktreeCleanupError}`);
+  }
+  if (result.branchCleanupError) {
+    console.log(`  branch cleanup error: ${result.branchCleanupError}`);
+  }
   if (result.after?.length) {
     console.log(`  changes: ${result.after.length}`);
+  }
+  if (result.sourceBefore?.length) {
+    console.log(`  source checkout changes: ${result.sourceBefore.length}`);
   }
 }

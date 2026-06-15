@@ -59,15 +59,25 @@ that reference `zaks-io/skills`:
 pnpm skills:downstream
 ```
 
-Apply updates to clean downstream worktrees:
+Apply updates to clean downstream repos:
 
 ```sh
 pnpm skills:downstream:update
 ```
 
-The coordinator skips dirty repos by default and reports which repos changed,
-failed, or need manual cleanup. It can also create branches, commits, pushes,
-and GitHub PRs when explicitly requested:
+The coordinator reports which repos changed, failed, or need manual cleanup.
+Mutating runs create temporary `git worktree` checkouts by default. The worktree
+branches from `main` by default, with `origin/main` as a fallback, so the source
+checkout can be dirty without becoming the update base or being modified.
+Changed apply-only worktrees are kept for inspection; committed, pushed,
+PR-created, and unchanged worktrees are removed unless `--keep-worktree` is
+passed. Use `--base-ref <ref>` to choose another base and
+`--worktree-root <path>` to choose the scratch location. Use `--in-place` only
+when direct checkout mutation is intentional; dirty in-place checkouts are
+skipped unless `--allow-dirty` is passed.
+
+It can also create branches, commits, pushes, and GitHub PRs when explicitly
+requested:
 
 ```sh
 pnpm skills:downstream:update -- --check --trust-check-commands --commit

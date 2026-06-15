@@ -39,8 +39,31 @@ test("parseArgs makes PR fanout explicit and mutation-safe", () => {
   assert.equal(options.pr, true);
   assert.equal(options.check, true);
   assert.equal(options.trustCheckCommands, true);
-  assert.throws(() => parseArgs(["--commit", "--allow-dirty"]), /--commit/);
+  assert.equal(options.baseRef, "main");
+  assert.equal(options.inPlace, false);
+  assert.equal(options.keepWorktree, false);
+  assert.match(options.worktreeRoot, /ziw-skills-worktrees$/);
+  assert.doesNotThrow(() => parseArgs(["--commit", "--allow-dirty"]));
+  assert.throws(() => parseArgs(["--commit", "--allow-dirty", "--in-place"]), /--commit/);
   assert.throws(() => parseArgs(["--check"]), /trust-check-commands/);
+});
+
+test("parseArgs accepts explicit worktree controls", () => {
+  const options = parseArgs([
+    "--apply",
+    "--in-place",
+    "--keep-worktree",
+    "--base-ref",
+    "origin/main",
+    "--worktree-root",
+    "~/tmp/skills-worktrees",
+  ]);
+
+  assert.equal(options.apply, true);
+  assert.equal(options.inPlace, true);
+  assert.equal(options.keepWorktree, true);
+  assert.equal(options.baseRef, "origin/main");
+  assert.equal(options.worktreeRoot, path.join(os.homedir(), "tmp/skills-worktrees"));
 });
 
 test("parseArgs accepts max depth zero", () => {

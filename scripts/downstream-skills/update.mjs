@@ -3,6 +3,12 @@ import path from "node:path";
 import { buildTargets, extractFullLocalGate } from "./discovery.mjs";
 import { DEFAULT_SOURCE } from "./options.mjs";
 import { gitStatus, outputTail, run } from "./process.mjs";
+import {
+  createUpdateWorktree,
+  deleteUpdateBranch,
+  ensureBranch,
+  removeUpdateWorktree,
+} from "./worktrees.mjs";
 
 export function updateTargets(options) {
   return buildTargets(options).map((target) => updateTarget(target, options));
@@ -17,45 +23,77 @@ function updateTarget(target, options) {
   if (before === null) {
     return { ...target, status: "not-git-repo" };
   }
-  if (before.length > 0 && !options.allowDirty) {
+  if (before.length > 0 && !options.allowDirty && (!options.apply || options.inPlace)) {
     return { ...target, status: "skipped-dirty", before };
   }
   if (!options.apply) {
     return { ...target, status: "dry-run", before };
   }
 
+  return options.inPlace
+    ? updateTargetInPlace(target, options, before)
+    : updateTargetInWorktree(target, options, before);
+}
+
+function updateTargetInPlace(target, options, before) {
   const branched = options.commit ? ensureBranch(target.repoRoot, options.branchPrefix) : null;
   if (branched && branched.status !== "ok") {
     return branchFailure(target, branched);
   }
 
-  const result = runProjectUpdate(target, before);
-  if (result.status !== "updated") {
-    return withBranch(result, branched);
+  return updateInCheckout(target, options, target.repoRoot, before, branched?.branchName ?? null);
+}
+
+function updateTargetInWorktree(target, options, sourceBefore) {
+  const worktree = createUpdateWorktree(target.repoRoot, options);
+  if (worktree.status !== "ok") {
+    return worktreeFailure(target, worktree);
   }
 
-  const checked = options.check ? runConfiguredCheck(result, target.repoRoot) : result;
+  const before = gitStatus(worktree.worktreePath) ?? [];
+  const result = updateInCheckout(
+    {
+      ...target,
+      baseRef: worktree.baseRef,
+      sourceBefore,
+      worktreePath: worktree.worktreePath,
+    },
+    options,
+    worktree.worktreePath,
+    before,
+    worktree.branchName,
+  );
+  return maybeRemoveWorktree(result, target.repoRoot, options);
+}
+
+function updateInCheckout(target, options, checkoutRoot, before, branchName) {
+  const result = runProjectUpdate(target, checkoutRoot, before);
+  if (result.status !== "updated") {
+    return withBranch(result, branchName);
+  }
+
+  const checked = options.check ? runConfiguredCheck(result, checkoutRoot) : result;
   if (options.check && checked.checkStatus !== "passed") {
-    return withBranch(checked, branched);
+    return withBranch(checked, branchName);
   }
   if (!options.commit) {
-    return checked;
+    return withBranch(checked, branchName);
   }
 
-  const committed = commitUpdate(checked, target.repoRoot, branched.branchName);
+  const committed = commitUpdate(checked, checkoutRoot, branchName);
   if (!options.push || committed.status !== "committed") {
     return committed;
   }
 
-  const pushed = pushBranch(committed, target.repoRoot, branched.branchName);
+  const pushed = pushBranch(committed, checkoutRoot, branchName);
   return options.pr && pushed.status === "pushed"
-    ? createPr(pushed, target.repoRoot, options.source)
+    ? createPr(pushed, checkoutRoot, options.source)
     : pushed;
 }
 
-function runProjectUpdate(target, before) {
-  const update = run("npx", ["skills", "update", "-p", "-y"], target.repoRoot);
-  const after = gitStatus(target.repoRoot) ?? [];
+function runProjectUpdate(target, checkoutRoot, before) {
+  const update = run("npx", ["skills", "update", "-p", "-y"], checkoutRoot);
+  const after = gitStatus(checkoutRoot) ?? [];
   const changed = statusLinesChanged(before, after);
   return {
     ...target,
@@ -84,22 +122,6 @@ function runConfiguredCheck(result, repoRoot) {
     checkOutput: outputTail(check),
     checkStatus: check.status === 0 ? "passed" : "failed",
   };
-}
-
-function ensureBranch(repoRoot, branchPrefix) {
-  const branchName = `${branchPrefix}-${new Date().toISOString().slice(0, 10)}`;
-  const current = run("git", ["branch", "--show-current"], repoRoot).stdout.trim();
-  if (current === branchName) {
-    return { status: "ok", branchName };
-  }
-
-  const exists = run("git", ["rev-parse", "--verify", branchName], repoRoot).status === 0;
-  const switched = exists
-    ? run("git", ["switch", branchName], repoRoot)
-    : run("git", ["switch", "-c", branchName], repoRoot);
-  return switched.status === 0
-    ? { status: "ok", branchName }
-    : { status: "failed", branchName, error: outputTail(switched) };
 }
 
 function commitUpdate(result, repoRoot, branchName) {
@@ -181,8 +203,56 @@ function branchFailure(target, branch) {
   };
 }
 
-function withBranch(result, branch) {
-  return branch ? { ...result, branchName: branch.branchName } : result;
+function worktreeFailure(target, worktree) {
+  return {
+    ...target,
+    baseRef: worktree.baseRef,
+    branchName: worktree.branchName,
+    error: worktree.error,
+    status: "worktree-failed",
+    worktreePath: worktree.worktreePath,
+  };
+}
+
+function maybeRemoveWorktree(result, sourceRepoRoot, options) {
+  if (options.keepWorktree) {
+    return { ...result, worktreeCleanup: "kept" };
+  }
+
+  if (!shouldRemoveWorktree(result.status)) {
+    return { ...result, worktreeCleanup: "kept" };
+  }
+
+  const removed = removeUpdateWorktree(sourceRepoRoot, result.worktreePath);
+  if (removed.status !== "removed") {
+    return {
+      ...result,
+      worktreeCleanup: "failed",
+      worktreeCleanupError: removed.error,
+    };
+  }
+
+  if (result.status !== "unchanged") {
+    return { ...result, worktreeCleanup: "removed" };
+  }
+
+  const deleted = deleteUpdateBranch(sourceRepoRoot, result.branchName);
+  return deleted.status === "deleted"
+    ? { ...result, branchCleanup: "deleted", worktreeCleanup: "removed" }
+    : {
+        ...result,
+        branchCleanup: "failed",
+        branchCleanupError: deleted.error,
+        worktreeCleanup: "removed",
+      };
+}
+
+function shouldRemoveWorktree(status) {
+  return ["unchanged", "committed", "pushed", "pr-created"].includes(status);
+}
+
+function withBranch(result, branchName) {
+  return branchName ? { ...result, branchName } : result;
 }
 
 export function statusLinesChanged(before, after) {

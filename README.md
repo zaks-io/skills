@@ -47,11 +47,20 @@ From this source repo, discover downstream consumers before updating them:
 pnpm skills:downstream
 ```
 
-Apply the mechanical project-skill refresh across clean downstream worktrees:
+Apply the mechanical project-skill refresh across clean downstream repos:
 
 ```sh
 pnpm skills:downstream:update
 ```
+
+Apply mode creates a temporary `git worktree` for each target by default. The
+worktree branches from `main` by default, with `origin/main` as a fallback, so a
+dirty source checkout does not block the safe worktree flow and is not used as
+the update base. Changed apply-only worktrees are kept for inspection;
+committed, pushed, PR-created, and unchanged worktrees are removed unless
+`--keep-worktree` is passed. Use `--base-ref <ref>` to choose another base and
+`--worktree-root <path>` to choose the scratch location. Use `--in-place` only
+when you intentionally want to mutate the target checkout directly.
 
 Create local update commits after checks:
 

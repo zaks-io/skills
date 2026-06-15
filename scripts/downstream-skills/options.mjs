@@ -1,6 +1,8 @@
 import os from "node:os";
 import path from "node:path";
 
+import { DEFAULT_BASE_REF, DEFAULT_WORKTREE_ROOT } from "./worktrees.mjs";
+
 export const DEFAULT_SOURCE = "zaks-io/skills";
 export const DEFAULT_ROOT = path.join(os.homedir(), "src");
 
@@ -10,14 +12,20 @@ export const usage = () => `Usage:
 
 Options:
   --apply           Run npx skills update -p -y in eligible repos.
+                    Uses temporary git worktrees by default.
   --check           Run the repo Full local gate from docs/agents/workflow/config.md.
                     This executes trusted repo-configured shell commands.
   --trust-check-commands
                     Required with --check; confirms target repo configs are trusted.
-  --commit          Create/switch a branch, stage, and commit generated updates.
+  --commit          Create a branch, stage, and commit generated updates.
   --push            Push committed update branches. Implies --commit.
   --pr              Create GitHub PRs with gh after push. Implies --push.
   --allow-dirty     Update repos with existing local changes.
+  --in-place        Mutate target repo checkouts directly instead of temp worktrees.
+  --keep-worktree   Keep temporary worktrees instead of automatic cleanup.
+  --worktree-root <path>
+                    Directory for temporary git worktrees. Defaults to ${DEFAULT_WORKTREE_ROOT}.
+  --base-ref <ref>  Ref used as the worktree base. Defaults to ${DEFAULT_BASE_REF}.
   --root <path>     Discovery root. Defaults to ~/src.
   --repo <path>     Limit to one repo. Repeat for multiple repos.
   --source <source> Match skills-lock.json entries by source. Defaults to zaks-io/skills.
@@ -32,10 +40,13 @@ export function parseArgs(argv) {
   const options = {
     allowDirty: false,
     apply: false,
+    baseRef: DEFAULT_BASE_REF,
     branchPrefix: "codex/update-workflow-skills",
     check: false,
     commit: false,
+    inPlace: false,
     json: false,
+    keepWorktree: false,
     maxDepth: 4,
     pr: false,
     push: false,
@@ -43,6 +54,7 @@ export function parseArgs(argv) {
     root: DEFAULT_ROOT,
     source: DEFAULT_SOURCE,
     trustCheckCommands: false,
+    worktreeRoot: DEFAULT_WORKTREE_ROOT,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -74,6 +86,8 @@ function applyFlag(options, arg) {
     "--push": "push",
     "--pr": "pr",
     "--allow-dirty": "allowDirty",
+    "--in-place": "inPlace",
+    "--keep-worktree": "keepWorktree",
     "--json": "json",
     "--trust-check-commands": "trustCheckCommands",
   };
@@ -86,7 +100,15 @@ function applyFlag(options, arg) {
 }
 
 function applyValuedOption(options, arg, value, markUsed) {
-  const valid = new Set(["--root", "--repo", "--source", "--branch-prefix", "--max-depth"]);
+  const valid = new Set([
+    "--root",
+    "--repo",
+    "--source",
+    "--branch-prefix",
+    "--base-ref",
+    "--max-depth",
+    "--worktree-root",
+  ]);
   if (!valid.has(arg)) {
     return false;
   }
@@ -103,6 +125,10 @@ function applyValuedOption(options, arg, value, markUsed) {
     options.source = value;
   } else if (arg === "--branch-prefix") {
     options.branchPrefix = value;
+  } else if (arg === "--base-ref") {
+    options.baseRef = value;
+  } else if (arg === "--worktree-root") {
+    options.worktreeRoot = expandHome(value);
   } else {
     options.maxDepth = parseMaxDepth(value);
   }
@@ -119,8 +145,8 @@ function normalizeOptions(options) {
   if (options.commit) {
     options.apply = true;
   }
-  if (options.commit && options.allowDirty) {
-    throw new Error("--commit cannot be combined with --allow-dirty");
+  if (options.commit && options.allowDirty && options.inPlace) {
+    throw new Error("--commit cannot be combined with --allow-dirty in --in-place mode");
   }
   if (options.check && !options.trustCheckCommands) {
     throw new Error("--check requires --trust-check-commands");
