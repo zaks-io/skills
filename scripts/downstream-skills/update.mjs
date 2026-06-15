@@ -1,0 +1,192 @@
+import path from "node:path";
+
+import { buildTargets, extractFullLocalGate } from "./discovery.mjs";
+import { DEFAULT_SOURCE } from "./options.mjs";
+import { gitStatus, outputTail, run } from "./process.mjs";
+
+export function updateTargets(options) {
+  return buildTargets(options).map((target) => updateTarget(target, options));
+}
+
+function updateTarget(target, options) {
+  if (target.status !== "candidate") {
+    return target;
+  }
+
+  const before = gitStatus(target.repoRoot);
+  if (before === null) {
+    return { ...target, status: "not-git-repo" };
+  }
+  if (before.length > 0 && !options.allowDirty) {
+    return { ...target, status: "skipped-dirty", before };
+  }
+  if (!options.apply) {
+    return { ...target, status: "dry-run", before };
+  }
+
+  const branched = options.commit ? ensureBranch(target.repoRoot, options.branchPrefix) : null;
+  if (branched && branched.status !== "ok") {
+    return branchFailure(target, branched);
+  }
+
+  const result = runProjectUpdate(target, before);
+  if (result.status !== "updated") {
+    return withBranch(result, branched);
+  }
+
+  const checked = options.check ? runConfiguredCheck(result, target.repoRoot) : result;
+  if (options.check && checked.checkStatus !== "passed") {
+    return withBranch(checked, branched);
+  }
+  if (!options.commit) {
+    return checked;
+  }
+
+  const committed = commitUpdate(checked, target.repoRoot, branched.branchName);
+  if (!options.push || committed.status !== "committed") {
+    return committed;
+  }
+
+  const pushed = pushBranch(committed, target.repoRoot, branched.branchName);
+  return options.pr && pushed.status === "pushed"
+    ? createPr(pushed, target.repoRoot, options.source)
+    : pushed;
+}
+
+function runProjectUpdate(target, before) {
+  const update = run("npx", ["skills", "update", "-p", "-y"], target.repoRoot);
+  const after = gitStatus(target.repoRoot) ?? [];
+  const changed = statusLinesChanged(before, after);
+  return {
+    ...target,
+    after,
+    before,
+    changed,
+    status: update.status === 0 ? (changed ? "updated" : "unchanged") : "update-failed",
+    updateExitCode: update.status,
+    updateOutput: outputTail(update),
+  };
+}
+
+function runConfiguredCheck(result, repoRoot) {
+  const gate = extractFullLocalGate(path.join(repoRoot, "docs/agents/workflow/config.md"));
+  if (!gate) {
+    return { ...result, checkStatus: "missing-full-local-gate" };
+  }
+
+  // Repo-configured gates are trusted repo commands; only use --check on repos
+  // whose workflow config you are willing to execute with full shell behavior.
+  const check = run(gate, [], repoRoot, { shell: true });
+  return {
+    ...result,
+    checkCommand: gate,
+    checkExitCode: check.status,
+    checkOutput: outputTail(check),
+    checkStatus: check.status === 0 ? "passed" : "failed",
+  };
+}
+
+function ensureBranch(repoRoot, branchPrefix) {
+  const branchName = `${branchPrefix}-${new Date().toISOString().slice(0, 10)}`;
+  const current = run("git", ["branch", "--show-current"], repoRoot).stdout.trim();
+  if (current === branchName) {
+    return { status: "ok", branchName };
+  }
+
+  const exists = run("git", ["rev-parse", "--verify", branchName], repoRoot).status === 0;
+  const switched = exists
+    ? run("git", ["switch", branchName], repoRoot)
+    : run("git", ["switch", "-c", branchName], repoRoot);
+  return switched.status === 0
+    ? { status: "ok", branchName }
+    : { status: "failed", branchName, error: outputTail(switched) };
+}
+
+function commitUpdate(result, repoRoot, branchName) {
+  const add = run("git", ["add", "-A"], repoRoot);
+  if (add.status !== 0) {
+    return { ...result, branchName, status: "commit-failed", error: outputTail(add) };
+  }
+
+  const commit = run("git", ["commit", "-m", "chore: update workflow skills"], repoRoot);
+  if (commit.status !== 0) {
+    return { ...result, branchName, status: "commit-failed", error: outputTail(commit) };
+  }
+
+  const hash = run("git", ["rev-parse", "--short", "HEAD"], repoRoot).stdout.trim();
+  return { ...result, branchName, commit: hash, status: "committed" };
+}
+
+function pushBranch(result, repoRoot, branchName) {
+  const push = run("git", ["push", "-u", "origin", branchName], repoRoot);
+  return push.status === 0
+    ? { ...result, status: "pushed" }
+    : { ...result, status: "push-failed", error: outputTail(push) };
+}
+
+function createPr(result, repoRoot, source) {
+  const pr = run(
+    "gh",
+    [
+      "pr",
+      "create",
+      "--title",
+      prTitle(),
+      "--body",
+      prBody(result, source),
+      "--head",
+      result.branchName,
+    ],
+    repoRoot,
+  );
+  const url = extractPrUrl(pr.stdout);
+  return pr.status === 0
+    ? { ...result, prUrl: url ?? "", status: "pr-created" }
+    : { ...result, status: "pr-failed", error: outputTail(pr) };
+}
+
+function prTitle() {
+  return "chore: update workflow skills";
+}
+
+export function prBody(result, source = DEFAULT_SOURCE) {
+  return [
+    "## Summary",
+    "",
+    `- Refresh project-scoped workflow skills from \`${source}\`.`,
+    "- Generated by `npx skills update -p -y`.",
+    "",
+    "## Review automation",
+    "",
+    "- @coderabbitai ignore",
+    "- CodeRabbit disabled for this mechanical generated dependency update.",
+    "",
+    "## Test plan",
+    "",
+    result.checkCommand ? `- \`${result.checkCommand}\`` : "- Not run by coordinator",
+  ].join("\n");
+}
+
+export function extractPrUrl(output) {
+  const lines = output.trim().split("\n").filter(Boolean);
+  return lines.find((line) => line.startsWith("http")) ?? lines[0];
+}
+
+function branchFailure(target, branch) {
+  return {
+    ...target,
+    branchName: branch.branchName,
+    status: "branch-failed",
+    error: branch.error,
+  };
+}
+
+function withBranch(result, branch) {
+  return branch ? { ...result, branchName: branch.branchName } : result;
+}
+
+export function statusLinesChanged(before, after) {
+  const beforeSet = new Set(before);
+  const afterSet = new Set(after);
+  return beforeSet.size !== afterSet.size || [...afterSet].some((line) => !beforeSet.has(line));
+}

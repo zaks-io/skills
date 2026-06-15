@@ -18,6 +18,13 @@ Agents should query external systems to refresh live state, not to rediscover
 these values. If a value cannot be verified during setup, record it as an
 explicit unknown with the source that should verify it.
 
+Shared workflow skills may be distributed as project skills, plugin or
+marketplace, managed settings, user/global-only, or mixed mode. Record which
+mode this repo actually uses. Project-scoped generated `ziw-*` copies are valid
+when repo, remote, or cloud workers need the skills from a fresh clone; treat
+them as vendored generated dependencies from `zaks-io/skills`, update them
+mechanically, and do not hand-edit them in downstream repos.
+
 Setup is a verification pass, not a best-effort note-taking pass. Every populated
 config value that can change agent behavior must have current evidence from the
 repo, tracker, code host, CI, agent integration, environment config, or explicit
@@ -100,6 +107,9 @@ Verify all populated workflow fields that setup writes or preserves:
   or explicit user instruction
 - Claude, Codex, editor, and repo-local adapter paths by resolving files,
   symlinks, imports, and generated skill metadata from a clean path
+- shared workflow skill distribution mode, source, lockfile, refresh command,
+  project paths, symlink layout, plugin marketplace, and whether generated skill
+  directories are committed dependencies, ignored local cache, or absent
 - environment safety, deployment paths, hosted checks, preview rules, credential
   rules, and production approval rules from deployment config, CI, runbooks, or
   explicit user instruction
@@ -187,6 +197,11 @@ Record:
   when the tracker exposes them
 - agent access rules for local Codex, remote worker agents, Claude, and any
   repo-approved worker
+- workflow skill distribution policy: project skills, plugin or marketplace,
+  managed settings, user/global-only, or mixed; include installer source,
+  lockfile, pinned tag or commit when required, refresh command, project skill
+  paths, symlink layout, and whether generated local copies are committed
+  dependencies or ignored cache
 - issue-assigned agent notes when available: project-specific environment labels
   or fields, worker environment approval labels, delegation tool or field,
   verified agent IDs, direct-agent reply targets, continuation comment rules, and
@@ -326,6 +341,13 @@ Adapters should say to read `docs/agents/workflow/config.md` before using the
 workflow skills. Keep them short and use
 [references/agent-workflow.md](references/agent-workflow.md) as the adapter
 contract.
+
+If runtime-generated shared `ziw-*` skill files exist under `.agents/skills/`,
+`.claude/skills/`, `.codex/skills/`, or `skills/`, decide whether those files
+are a committed dependency, symlink fanout, ignored local cache, absent, or
+repo-authored project-specific skills. For committed dependencies, record the
+source and lockfile and commit mechanical updates. Never hand-edit downstream
+generated copies.
 
 For Claude Code, configure the target repo's Claude Code integration, not this
 skills repo. Treat that integration as the source of truth for Claude-facing

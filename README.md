@@ -19,7 +19,58 @@ That gives agents the things they usually guess badly:
 
 ## Install
 
-Install all skills globally:
+Prerequisites:
+
+- Node 24 and `pnpm@10.19.0`
+- `gitleaks` for `pnpm security:secrets` and `pnpm ci:check`
+- `gh` for downstream fanout PR creation with `--pr`
+
+Install all skills into the current project for all supported agents:
+
+```sh
+npx skills add zaks-io/skills --all -y
+```
+
+This is the default mode for repos whose remote or cloud workers must get the
+workflow skills from a fresh clone. Commit the generated project skill
+directories and `skills-lock.json` as a mechanical dependency update.
+
+Refresh project-installed skills:
+
+```sh
+npx skills update -p -y
+```
+
+From this source repo, discover downstream consumers before updating them:
+
+```sh
+pnpm skills:downstream
+```
+
+Apply the mechanical project-skill refresh across clean downstream worktrees:
+
+```sh
+pnpm skills:downstream:update
+```
+
+Create local update commits after checks:
+
+```sh
+pnpm skills:downstream:update -- --check --trust-check-commands --commit
+```
+
+`--check` runs the target repo's configured full local gate from
+`docs/agents/workflow/config.md` with shell behavior. Use it only for downstream
+repos whose workflow config you trust, and pass `--trust-check-commands` to make
+that explicit.
+
+Push branches and open PRs when you want the full fanout:
+
+```sh
+pnpm skills:downstream:update -- --check --trust-check-commands --pr
+```
+
+Install all skills globally for one local user:
 
 ```sh
 npx skills add zaks-io/skills --all -g
@@ -36,6 +87,26 @@ Install one skill:
 ```sh
 npx skills add zaks-io/skills --skill ziw-setup --agent '*' -g -y
 ```
+
+## Distribution
+
+Use the narrowest distribution mode that still reaches the agents that work the
+repo:
+
+- Project skills: commit `.agents/skills`, `.claude/skills`, `.codex/skills`, or
+  the target agent's project skill path when repo or cloud workers need the
+  skills from a fresh clone. Treat these as vendored generated dependencies from
+  `zaks-io/skills`; update them through `npx skills update -p -y` and commit the
+  lockfile and generated diff.
+- Plugins or marketplaces: prefer these for clients that support versioned
+  cross-project distribution, especially Claude Code plugin users. This repo
+  already includes `.claude-plugin/plugin.json` for that path.
+- Global/user installs: use for personal local convenience only. They do not
+  configure remote workers or teammates who clone a downstream repo.
+
+Do not hand-edit downstream generated `ziw-*` skill copies. Change the source in
+this repo, run the configured updater in each target repo, and keep the update PR
+mechanical.
 
 ## Claude Code Plugin
 

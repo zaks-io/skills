@@ -25,11 +25,15 @@ content.
 - `skills/ziw-code-review/references/`: review support material.
 - `docs/agent-workflow.md`: technical workflow contract, state model, and role
   split.
+- `docs/skill-distribution.md`: source-backed policy for project skills,
+  plugins, global installs, lockfiles, and downstream refresh PRs.
 - `docs/skill-portfolio.md`: publishable skill surface, trim criteria, and
   keep/remove rationale.
 - `docs/agents/workflow/config.md`: repo-local workflow lookup table. Read it
   before running `ziw-*` workflow skills in this repo.
 - `scripts/check-skills.mjs`: structural validation and repo invariants.
+- `scripts/update-downstream-skills.mjs`: discovers downstream `skills-lock.json`
+  consumers, runs project-scope skill updates, and reports repos needing PRs.
 - `scripts/workflow-contract.mjs`: pure workflow decision helpers covered by
   `node --test`.
 - `README.md`: user-facing overview, quick start, and install commands.

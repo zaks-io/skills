@@ -224,6 +224,18 @@ Last updated: YYYY-MM-DD
 ## Agent Access
 
 - Local Codex:
+- Workflow skill distribution: project skills, plugin or marketplace, managed
+  settings, user/global-only, or mixed
+- Workflow skill source: `zaks-io/skills`, a pinned tag, a pinned commit SHA,
+  plugin marketplace entry, managed setting, or repo-local project-specific
+  skills
+- Workflow skill lockfile: `skills-lock.json`, plugin marketplace lock, managed
+  setting, or none
+- Workflow skill refresh command:
+- Project skill paths: relative repo paths such as `.agents/skills/`,
+  `.claude/skills/`, or `node_modules/@org/skills/`
+- Generated shared skill copies: committed dependency, symlink fanout, ignored
+  local cache, absent, or repo-authored project-specific skills
 - Issue-assigned agents: none, or project-specific routing/continuation notes
 - Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
 - Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
