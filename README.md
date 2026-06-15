@@ -65,7 +65,7 @@ when you intentionally want to mutate the target checkout directly.
 Create local update commits after checks:
 
 ```sh
-pnpm skills:downstream:update -- --check --trust-check-commands --commit
+pnpm skills:downstream:update --check --trust-check-commands --commit
 ```
 
 `--check` runs the target repo's configured full local gate from
@@ -76,7 +76,7 @@ that explicit.
 Push branches and open PRs when you want the full fanout:
 
 ```sh
-pnpm skills:downstream:update -- --check --trust-check-commands --pr
+pnpm skills:downstream:update --check --trust-check-commands --pr
 ```
 
 Install all skills globally for one local user:

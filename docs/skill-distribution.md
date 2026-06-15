@@ -80,9 +80,9 @@ It can also create branches, commits, pushes, and GitHub PRs when explicitly
 requested:
 
 ```sh
-pnpm skills:downstream:update -- --check --trust-check-commands --commit
-pnpm skills:downstream:update -- --check --trust-check-commands --pr
-pnpm skills:downstream:update -- --repo ~/src/agent-paste --check --trust-check-commands --commit
+pnpm skills:downstream:update --check --trust-check-commands --commit
+pnpm skills:downstream:update --check --trust-check-commands --pr
+pnpm skills:downstream:update --repo ~/src/agent-paste --check --trust-check-commands --commit
 ```
 
 For downstream repos with `skills-lock.json`:

@@ -8,7 +8,7 @@ export const DEFAULT_ROOT = path.join(os.homedir(), "src");
 
 export const usage = () => `Usage:
   pnpm skills:downstream [--root <path>] [--source <owner/repo>] [--repo <path> ...]
-  pnpm skills:downstream:update -- [--check --trust-check-commands] [--commit] [--push] [--pr] [--repo <path> ...]
+  pnpm skills:downstream:update [--check --trust-check-commands] [--commit] [--push] [--pr] [--repo <path> ...]
 
 Options:
   --apply           Run npx skills update -p -y in eligible repos.
