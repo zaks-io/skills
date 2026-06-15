@@ -59,30 +59,33 @@ that reference `zaks-io/skills`:
 pnpm skills:downstream
 ```
 
-Apply updates to clean downstream repos:
+Open update PRs for downstream repos:
 
 ```sh
 pnpm skills:downstream:update
 ```
 
-The coordinator reports which repos changed, failed, or need manual cleanup.
-Mutating runs create temporary `git worktree` checkouts by default. The worktree
-branches from `main` by default, with `origin/main` as a fallback, so the source
-checkout can be dirty without becoming the update base or being modified.
-Changed apply-only worktrees are kept for inspection; committed, pushed,
-PR-created, and unchanged worktrees are removed unless `--keep-worktree` is
-passed. Use `--base-ref <ref>` to choose another base and
+The coordinator reports which repos changed, failed, or already had matching
+PRs. The update command creates temporary `git worktree` checkouts, commits the
+generated skill refresh on deterministic daily branches, pushes those branches,
+and opens or reuses GitHub PRs. PR bodies include `@coderabbitai ignore` so
+CodeRabbit does not spend review quota on the mechanical refresh.
+
+The worktree branches from `main` by default, with `origin/main` as a fallback,
+so the source checkout can be dirty without becoming the update base or being
+modified. Changed apply-only worktrees are kept for inspection; committed,
+pushed, PR-created, and unchanged worktrees are removed unless
+`--keep-worktree` is passed. Use `--base-ref <ref>` to choose another base and
 `--worktree-root <path>` to choose the scratch location. Use `--in-place` only
 when direct checkout mutation is intentional; dirty in-place checkouts are
 skipped unless `--allow-dirty` is passed.
 
-It can also create branches, commits, pushes, and GitHub PRs when explicitly
-requested:
+Use the lower-level script entrypoint for local-only branches or commits:
 
 ```sh
-pnpm skills:downstream:update --check --trust-check-commands --commit
-pnpm skills:downstream:update --check --trust-check-commands --pr
-pnpm skills:downstream:update --repo ~/src/agent-paste --check --trust-check-commands --commit
+node scripts/update-downstream-skills.mjs --apply --commit
+node scripts/update-downstream-skills.mjs --apply --check --trust-check-commands --commit
+node scripts/update-downstream-skills.mjs --apply --repo ~/src/agent-paste --commit
 ```
 
 For downstream repos with `skills-lock.json`:

@@ -47,14 +47,18 @@ From this source repo, discover downstream consumers before updating them:
 pnpm skills:downstream
 ```
 
-Apply the mechanical project-skill refresh across clean downstream repos:
+Open mechanical project-skill refresh PRs across downstream repos:
 
 ```sh
 pnpm skills:downstream:update
 ```
 
-Apply mode creates a temporary `git worktree` for each target by default. The
-worktree branches from `main` by default, with `origin/main` as a fallback, so a
+The update command creates a temporary `git worktree` for each target, commits
+generated changes on a deterministic daily update branch, pushes the branch, and
+opens or reuses the GitHub PR. The PR body includes `@coderabbitai ignore` so
+CodeRabbit does not spend review quota on the mechanical refresh.
+
+Worktrees branch from `main` by default, with `origin/main` as a fallback, so a
 dirty source checkout does not block the safe worktree flow and is not used as
 the update base. Changed apply-only worktrees are kept for inspection;
 committed, pushed, PR-created, and unchanged worktrees are removed unless
@@ -65,7 +69,7 @@ when you intentionally want to mutate the target checkout directly.
 Create local update commits after checks:
 
 ```sh
-pnpm skills:downstream:update --check --trust-check-commands --commit
+node scripts/update-downstream-skills.mjs --apply --check --trust-check-commands --commit
 ```
 
 `--check` runs the target repo's configured full local gate from
@@ -76,7 +80,7 @@ that explicit.
 Push branches and open PRs when you want the full fanout:
 
 ```sh
-pnpm skills:downstream:update --check --trust-check-commands --pr
+pnpm skills:downstream:update --check --trust-check-commands
 ```
 
 Install all skills globally for one local user:

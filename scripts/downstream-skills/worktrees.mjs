@@ -32,20 +32,26 @@ export function createUpdateWorktree(repoRoot, options) {
     };
   }
 
-  const branchName = uniqueBranchName(repoRoot, options.branchPrefix);
+  const branchName = branchNameForDate(options.branchPrefix);
+  const branchAlreadyExists = branchExists(repoRoot, branchName);
   const worktreePath = path.join(
     options.worktreeRoot,
     `${repoSlug(repoRoot)}-${Date.now().toString(36)}-${randomSuffix()}`,
   );
 
   mkdirSync(options.worktreeRoot, { recursive: true });
-  const added = run(
-    "git",
-    ["worktree", "add", "-b", branchName, worktreePath, base.baseRef],
-    repoRoot,
-  );
+  const args = branchAlreadyExists
+    ? ["worktree", "add", worktreePath, branchName]
+    : ["worktree", "add", "-b", branchName, worktreePath, base.baseRef];
+  const added = run("git", args, repoRoot);
   return added.status === 0
-    ? { status: "ok", baseRef: base.baseRef, branchName, worktreePath }
+    ? {
+        status: "ok",
+        baseRef: base.baseRef,
+        branchName,
+        reusedBranch: branchAlreadyExists,
+        worktreePath,
+      }
     : {
         status: "failed",
         baseRef: base.baseRef,
@@ -79,14 +85,6 @@ function resolveBaseRef(repoRoot, requestedRef) {
         status: "failed",
         error: `Base ref not found: ${candidates.join(" or ")}`,
       };
-}
-
-function uniqueBranchName(repoRoot, branchPrefix) {
-  const baseName = branchNameForDate(branchPrefix);
-  if (!branchExists(repoRoot, baseName)) {
-    return baseName;
-  }
-  return `${baseName}-${randomSuffix()}`;
 }
 
 function branchNameForDate(branchPrefix) {

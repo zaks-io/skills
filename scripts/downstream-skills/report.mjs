@@ -34,6 +34,9 @@ function printResult(result) {
   if (result.worktreePath) {
     console.log(`  worktree: ${result.worktreePath}`);
   }
+  if (result.reusedBranch) {
+    console.log("  reused branch: true");
+  }
   if (result.worktreeCleanup) {
     console.log(`  worktree cleanup: ${result.worktreeCleanup}`);
   }
@@ -45,6 +48,9 @@ function printResult(result) {
   }
   if (result.prUrl) {
     console.log(`  pr: ${result.prUrl}`);
+  }
+  if (result.pushHooks) {
+    console.log(`  push hooks: ${result.pushHooks}`);
   }
   if (result.checkStatus) {
     console.log(`  check: ${result.checkStatus} (${result.checkCommand ?? "none"})`);

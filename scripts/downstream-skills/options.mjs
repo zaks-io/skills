@@ -8,7 +8,8 @@ export const DEFAULT_ROOT = path.join(os.homedir(), "src");
 
 export const usage = () => `Usage:
   pnpm skills:downstream [--root <path>] [--source <owner/repo>] [--repo <path> ...]
-  pnpm skills:downstream:update [--check --trust-check-commands] [--commit] [--push] [--pr] [--repo <path> ...]
+  pnpm skills:downstream:update [--check --trust-check-commands] [--repo <path> ...]
+  node scripts/update-downstream-skills.mjs --apply [--commit|--push|--pr]
 
 Options:
   --apply           Run npx skills update -p -y in eligible repos.
@@ -20,6 +21,8 @@ Options:
   --commit          Create a branch, stage, and commit generated updates.
   --push            Push committed update branches. Implies --commit.
   --pr              Create GitHub PRs with gh after push. Implies --push.
+  --verify-push-hooks
+                    Run downstream pre-push hooks. Default PR fanout skips them and relies on PR CI.
   --allow-dirty     Update repos with existing local changes.
   --in-place        Mutate target repo checkouts directly instead of temp worktrees.
   --keep-worktree   Keep temporary worktrees instead of automatic cleanup.
@@ -52,6 +55,7 @@ export function parseArgs(argv) {
     push: false,
     repos: [],
     root: DEFAULT_ROOT,
+    skipPushHooks: true,
     source: DEFAULT_SOURCE,
     trustCheckCommands: false,
     worktreeRoot: DEFAULT_WORKTREE_ROOT,
@@ -90,6 +94,7 @@ function applyFlag(options, arg) {
     "--keep-worktree": "keepWorktree",
     "--json": "json",
     "--trust-check-commands": "trustCheckCommands",
+    "--verify-push-hooks": "verifyPushHooks",
   };
   const key = flagMap[arg];
   if (!key) {
@@ -147,6 +152,9 @@ function normalizeOptions(options) {
   }
   if (options.commit && options.allowDirty && options.inPlace) {
     throw new Error("--commit cannot be combined with --allow-dirty in --in-place mode");
+  }
+  if (options.verifyPushHooks) {
+    options.skipPushHooks = false;
   }
   if (options.check && !options.trustCheckCommands) {
     throw new Error("--check requires --trust-check-commands");

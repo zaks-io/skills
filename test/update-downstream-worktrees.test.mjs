@@ -100,6 +100,77 @@ test("updateTargets keeps changed apply-only worktrees for inspection", () => {
   }
 });
 
+test("updateTargets opens PRs while skipping downstream pre-push hooks", () => {
+  const root = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+    installFailingPrePushHook(root, repo);
+
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    installFakeGh(bin, "https://example.com/pull/1");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const result = updateTargets(
+      worktreeOptions(root, {
+        commit: true,
+        pr: true,
+        push: true,
+      }),
+    )[0];
+
+    assert.equal(result.status, "pr-created");
+    assert.equal(result.pushHooks, "skipped");
+    assert.equal(result.prUrl, "https://example.com/pull/1");
+    assert.equal(existsSync(result.worktreePath), false);
+    assert.equal(gitShowStatus(repo, `origin/${result.branchName}:generated-skill.txt`), 0);
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("updateTargets publishes an existing update branch on rerun", () => {
+  const root = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+    const branchName = dailyBranchName("codex/test-skills");
+    git(repo, "switch", "-c", branchName);
+    writeFileSync(path.join(repo, "generated-skill.txt"), "generated\n");
+    git(repo, "add", "generated-skill.txt");
+    git(repo, "commit", "-m", "chore: update workflow skills");
+    const commit = gitOutput(repo, "rev-parse", "--short", "HEAD");
+    git(repo, "switch", "main");
+
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    installFakeGh(bin, "https://example.com/pull/2");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const result = updateTargets(
+      worktreeOptions(root, {
+        commit: true,
+        pr: true,
+        push: true,
+      }),
+    )[0];
+
+    assert.equal(result.status, "pr-created");
+    assert.equal(result.branchName, branchName);
+    assert.equal(result.reusedBranch, true);
+    assert.equal(result.commit, commit);
+    assert.equal(result.prUrl, "https://example.com/pull/2");
+    assert.equal(existsSync(result.worktreePath), false);
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function createConsumerRepo(root) {
   const repo = path.join(root, "consumer");
   mkdirSync(repo, { recursive: true });
@@ -125,10 +196,27 @@ function worktreeOptions(root, overrides) {
     push: false,
     repos: [],
     root,
+    skipPushHooks: true,
     source: "zaks-io/skills",
     worktreeRoot: path.join(root, "worktrees"),
     ...overrides,
   };
+}
+
+function addBareOrigin(root, repo) {
+  const remote = path.join(root, "remote.git");
+  git(root, "init", "--bare", remote);
+  git(repo, "remote", "add", "origin", remote);
+  git(repo, "push", "-u", "origin", "main");
+}
+
+function installFailingPrePushHook(root, repo) {
+  const hooks = path.join(root, "hooks");
+  mkdirSync(hooks, { recursive: true });
+  const hook = path.join(hooks, "pre-push");
+  writeFileSync(hook, "#!/bin/sh\nexit 1\n");
+  chmodSync(hook, 0o755);
+  git(repo, "config", "core.hooksPath", hooks);
 }
 
 function ziwLockfile() {
@@ -161,9 +249,30 @@ function gitShowStatus(cwd, rev) {
   }
 }
 
+function dailyBranchName(branchPrefix) {
+  return `${branchPrefix}-${new Date().toISOString().slice(0, 10)}`;
+}
+
 function installFakeNpx(bin, body) {
   mkdirSync(bin, { recursive: true });
   const executable = path.join(bin, "npx");
   writeFileSync(executable, `#!/bin/sh\n${body}`);
+  chmodSync(executable, 0o755);
+}
+
+function installFakeGh(bin, url) {
+  mkdirSync(bin, { recursive: true });
+  const executable = path.join(bin, "gh");
+  writeFileSync(
+    executable,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then exit 0; fi',
+      `if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "${url}"; exit 0; fi`,
+      'echo "unexpected gh call: $*" >&2',
+      "exit 1",
+      "",
+    ].join("\n"),
+  );
   chmodSync(executable, 0o755);
 }

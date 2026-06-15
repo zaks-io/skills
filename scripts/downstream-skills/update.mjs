@@ -55,6 +55,7 @@ function updateTargetInWorktree(target, options, sourceBefore) {
     {
       ...target,
       baseRef: worktree.baseRef,
+      reusedBranch: worktree.reusedBranch,
       sourceBefore,
       worktreePath: worktree.worktreePath,
     },
@@ -69,7 +70,8 @@ function updateTargetInWorktree(target, options, sourceBefore) {
 function updateInCheckout(target, options, checkoutRoot, before, branchName) {
   const result = runProjectUpdate(target, checkoutRoot, before);
   if (result.status !== "updated") {
-    return withBranch(result, branchName);
+    const branchResult = existingBranchResult(result, checkoutRoot, branchName);
+    return publishResult(branchResult, options, checkoutRoot, branchName);
   }
 
   const checked = options.check ? runConfiguredCheck(result, checkoutRoot) : result;
@@ -81,14 +83,7 @@ function updateInCheckout(target, options, checkoutRoot, before, branchName) {
   }
 
   const committed = commitUpdate(checked, checkoutRoot, branchName);
-  if (!options.push || committed.status !== "committed") {
-    return committed;
-  }
-
-  const pushed = pushBranch(committed, checkoutRoot, branchName);
-  return options.pr && pushed.status === "pushed"
-    ? createPr(pushed, checkoutRoot, options.source)
-    : pushed;
+  return publishResult(committed, options, checkoutRoot, branchName);
 }
 
 function runProjectUpdate(target, checkoutRoot, before) {
@@ -139,14 +134,57 @@ function commitUpdate(result, repoRoot, branchName) {
   return { ...result, branchName, commit: hash, status: "committed" };
 }
 
-function pushBranch(result, repoRoot, branchName) {
-  const push = run("git", ["push", "-u", "origin", branchName], repoRoot);
+function publishResult(result, options, repoRoot, branchName) {
+  if (!options.push || result.status !== "committed") {
+    return result;
+  }
+
+  const pushed = pushBranch(result, repoRoot, branchName, options);
+  return options.pr && pushed.status === "pushed"
+    ? createPr(pushed, repoRoot, options.source)
+    : pushed;
+}
+
+function existingBranchResult(result, repoRoot, branchName) {
+  if (!result.baseRef || !branchName || !branchHasDiff(repoRoot, result.baseRef)) {
+    return withBranch(result, branchName);
+  }
+
+  const hash = run("git", ["rev-parse", "--short", "HEAD"], repoRoot).stdout.trim();
+  return {
+    ...withBranch(result, branchName),
+    commit: hash,
+    status: "committed",
+  };
+}
+
+function branchHasDiff(repoRoot, baseRef) {
+  return run("git", ["diff", "--quiet", `${baseRef}...HEAD`], repoRoot).status === 1;
+}
+
+function pushBranch(result, repoRoot, branchName, options) {
+  const args = ["push", "-u", "origin", branchName];
+  const skipPushHooks = options.skipPushHooks !== false;
+  if (skipPushHooks) {
+    args.splice(1, 0, "--no-verify");
+  }
+
+  const push = run("git", args, repoRoot);
   return push.status === 0
-    ? { ...result, status: "pushed" }
+    ? {
+        ...result,
+        pushHooks: skipPushHooks ? "skipped" : "verified",
+        status: "pushed",
+      }
     : { ...result, status: "push-failed", error: outputTail(push) };
 }
 
 function createPr(result, repoRoot, source) {
+  const existing = existingPrUrl(repoRoot, result.branchName);
+  if (existing) {
+    return { ...result, prUrl: existing, status: "pr-existing" };
+  }
+
   const pr = run(
     "gh",
     [
@@ -165,6 +203,15 @@ function createPr(result, repoRoot, source) {
   return pr.status === 0
     ? { ...result, prUrl: url ?? "", status: "pr-created" }
     : { ...result, status: "pr-failed", error: outputTail(pr) };
+}
+
+function existingPrUrl(repoRoot, branchName) {
+  const pr = run(
+    "gh",
+    ["pr", "list", "--head", branchName, "--state", "open", "--json", "url", "--jq", ".[0].url"],
+    repoRoot,
+  );
+  return pr.status === 0 ? pr.stdout.trim() : "";
 }
 
 function prTitle() {
@@ -248,7 +295,7 @@ function maybeRemoveWorktree(result, sourceRepoRoot, options) {
 }
 
 function shouldRemoveWorktree(status) {
-  return ["unchanged", "committed", "pushed", "pr-created"].includes(status);
+  return ["unchanged", "committed", "pushed", "pr-created", "pr-existing"].includes(status);
 }
 
 function withBranch(result, branchName) {

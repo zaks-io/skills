@@ -13,7 +13,7 @@
     "security:secrets": "gitleaks detect --no-git --source . --redact --no-banner",
     "security:secrets:history": "gitleaks detect --source . --redact --no-banner",
     "skills:downstream": "node scripts/update-downstream-skills.mjs",
-    "skills:downstream:update": "node scripts/update-downstream-skills.mjs --apply",
+    "skills:downstream:update": "node scripts/update-downstream-skills.mjs --pr",
     "test": "node --test",
     "validate:skills": "npx --yes skills@1.5.11 add . --list"
   },

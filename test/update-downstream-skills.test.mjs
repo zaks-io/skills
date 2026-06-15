@@ -42,8 +42,10 @@ test("parseArgs makes PR fanout explicit and mutation-safe", () => {
   assert.equal(options.baseRef, "main");
   assert.equal(options.inPlace, false);
   assert.equal(options.keepWorktree, false);
+  assert.equal(options.skipPushHooks, true);
   assert.match(options.worktreeRoot, /ziw-skills-worktrees$/);
   assert.doesNotThrow(() => parseArgs(["--commit", "--allow-dirty"]));
+  assert.equal(parseArgs(["--pr", "--verify-push-hooks"]).skipPushHooks, false);
   assert.throws(() => parseArgs(["--commit", "--allow-dirty", "--in-place"]), /--commit/);
   assert.throws(() => parseArgs(["--check"]), /trust-check-commands/);
 });
