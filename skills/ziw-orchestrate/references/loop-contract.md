@@ -43,9 +43,18 @@ Each tick:
    checkpoint. Refresh local Git refs, HEAD, worktree list, and
    `git status --short --branch` when a local checkout is in play. Do not carry
    diffs, logs, or issue histories across ticks.
-2. Rebuild the queue from systems of record. Delegate the inventory read to an
-   isolated triage worker when the runtime has one; keep only the compact queue
-   (ID, state, readiness, blockers, PR, owner, next action) in the main context.
+2. Rebuild the queue from systems of record. When the synced skill directory
+   includes `scripts/tick-snapshot.mjs`, run
+   `node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo>` first: one
+   call returns baseline health, the open-PR footprint, per-PR head SHAs,
+   mergeable state, unresolved review-thread counts, check rollups, and
+   review verdicts as JSON. Reason over that snapshot instead of assembling
+   the same state from many tool calls; it needs an authenticated `gh`, and
+   with `LINEAR_API_KEY` set plus `--linear-team <KEY>` it also returns the
+   open issue queue. Use tracker tooling for issue bodies, comments, and
+   blocker relations. Delegate the inventory read to an isolated triage
+   worker when the runtime has one; keep only the compact queue (ID, state,
+   readiness, blockers, PR, owner, next action) in the main context.
 3. Reconcile the ledger against refreshed tracker and PR state. Trust external
    state; drop stale ledger entries; re-dispatch or escalate stuck workers.
 4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped

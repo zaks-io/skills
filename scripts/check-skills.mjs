@@ -16,7 +16,7 @@ const manualOnlySkills = new Set([
 const implicitInvocationSkills = new Set(["ziw-code-review"]);
 const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
-const scriptAllowedSkills = new Set();
+const scriptAllowedSkills = new Set(["ziw-orchestrate"]);
 const triggerTerms = {
   "ziw-implement": ["implement", "issue", "pr"],
   "ziw-orchestrate": ["orchestrate", "issue", "tracker"],
