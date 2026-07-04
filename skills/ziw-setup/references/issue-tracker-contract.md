@@ -174,6 +174,9 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
   whether Orchestrator may start it now.
 - Human setup, credentials, product judgment, provider approval, customer input,
   and ADR decisions use `ready-for-human` or `needs-info`.
+- `ready-for-human` and other human-attention states are truthful claims that
+  the only remaining work is the named human action. Unresolved agent-fixable
+  review findings keep the ticket with the agent; fix them before escalating.
 - Dependency order should be encoded with tracker relationships when the
   provider supports them. By default, if ticket A needs ticket B first, A is
   blocked by B and B blocks A. Use the smallest direct graph that lets

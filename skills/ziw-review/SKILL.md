@@ -117,7 +117,9 @@ For each PR:
    the `ziw-code-review` output.
 9. Report `Ready to Merge` only when review is clean, required checks pass, the
    PR is non-draft and ready-for-review, and required CodeRabbit escalation is
-   complete or recorded as skipped by policy.
+   complete or recorded as skipped by policy. Clean includes the full
+   hosted-review result for the current head: verdicts, review bodies, and
+   inline comments from human and bot reviewers.
 10. Send feedback to Agent Orchestrator so it can move tracker state, update PR
     draft state, apply or remove the configured review evidence label, and nudge
     the original implementer.

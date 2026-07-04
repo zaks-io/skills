@@ -719,6 +719,16 @@ blocked fixes, apply the configured code-host PR label, such as
 `needs-human-merge` or `needs-human-input`, in addition to tracker state. The
 human queue must be visible from the PR list, not only from tracker comments.
 
+Human-attention states are claims that the only remaining work is a human
+action. Before applying `ready-for-human`, `needs-human-merge`, or the
+human-attention queue, enumerate every unresolved review source for the
+current head: hosted review verdicts and their inline comments, bot reviewers
+such as CodeRabbit or Bugbot, unresolved PR threads, check annotations, and
+tracker comments. A review summary body without its inline comments is not the
+full hosted-review result. Route every unresolved agent-fixable finding back
+to the original worker first; escalate only what remains and name the exact
+human action.
+
 Do not leave a PR in draft just because the implementation worker opened it as
 draft or because no one asked Orchestrator to unstick it. Orchestrator owns
 finding the draft blocker, taking the safe next action, and moving the PR to
@@ -927,6 +937,9 @@ loop.
   equivalent when human review, approval, credentials, product input, or security
   judgment is the next owner after evidence-backed workflow actions have been
   tried.
+- Never mark a ticket `ready-for-human` or a PR `needs-human-merge` while
+  unresolved agent-fixable findings remain on the current head. Blocked by
+  human means the only remaining work is the named human action.
 - Never start a new worker for review fixes when the original worker can
   continue.
 - Never let two workers push the same branch. One branch has one owning worker

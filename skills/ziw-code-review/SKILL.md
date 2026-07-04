@@ -103,7 +103,10 @@ Do not spend time on style nits or broad product refactors.
 Default to `SKIP` after a clean code review.
 
 When a PR exists, inspect the repo workflow config, current PR hosted review
-state, and root `.coderabbit.yaml` from the reviewed head when present. Report
+state, and root `.coderabbit.yaml` from the reviewed head when present. Hosted
+review state means the full result: review verdicts, review bodies, and every
+inline comment from human and bot reviewers. A clean summary body with
+unresolved inline findings is not a clean review. Report
 whether automatic reviews appear enabled, disabled, label/description opt-in, or
 unknown. Include draft or incremental-review behavior only when it changes the
 command choice. The project config is the short handoff source; `.coderabbit.yaml`
