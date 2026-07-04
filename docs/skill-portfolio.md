@@ -20,7 +20,7 @@ stale, not invoked in real runs, or duplicating another role's authority.
 
 ## Current Decision
 
-Keep the eight current publishable skills for now. Do not add another
+Keep the seven current publishable skills for now. Do not add another
 publishable skill until telemetry proves the current surface is insufficient.
 
 | Skill             | Decision              | Why                                                                                                                                                                     |
@@ -30,16 +30,16 @@ publishable skill until telemetry proves the current surface is insufficient.
 | `ziw-triage`      | Keep, watch size      | Owns Issue Tracker cleanup for current work, stale state, readiness, dependency, and review-debt intake. Merging it into Orchestrator would make the work loop heavier. |
 | `ziw-orchestrate` | Keep, trim internals  | Owns the single active work loop. Its interface is right, but detailed gates should move into shared contracts and tests.                                               |
 | `ziw-implement`   | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                        |
-| `ziw-review`      | Keep, measure use     | Owns independent latest-committed PR review and main-drift review from Clean Context. Demote later if main-drift review is not used.                                    |
-| `ziw-code-review` | Keep                  | Shared bug-focused review gate. Clean Context and implicit invocation make it different from Agent Review.                                                              |
+| `ziw-code-review` | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.  |
 | `ziw-pr`          | Keep, measure overlap | Shared shipping gate for branch-to-PR work. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.                |
 
 ## Removed Or Demoted
 
-| Skill or workflow   | Decision                       | Why                                                                                                                                                      |
-| ------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ziw-remote-ticket` | Demoted from publishable skill | Remote Cursor ticket handling is provider-specific delegation glue. It now lives in `.agents/remote-cursor-ticket.md` instead of public skill discovery. |
-| Coverage audit loop | Not present                    | Public research favors one active loop. Add a separate loop only if measured evidence shows the Orchestrator plus Agent Review cannot cover the need.    |
+| Skill or workflow   | Decision                       | Why                                                                                                                                                                                                                                            |
+| ------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ziw-remote-ticket` | Demoted from publishable skill | Remote Cursor ticket handling is provider-specific delegation glue. It now lives in `.agents/remote-cursor-ticket.md` instead of public skill discovery.                                                                                       |
+| `ziw-review`        | Merged into `ziw-code-review`  | It was a thin scheduler around the same review: fetch state, checkpoint, delegate to `ziw-code-review`, file issues. Two review skills confused callers; the checkpoint and issue-filing rules now live in `ziw-code-review` independent mode. |
+| Coverage audit loop | Not present                    | Public research favors one active loop. Add a separate loop only if measured evidence shows the Orchestrator plus Agent Review cannot cover the need.                                                                                          |
 
 ## Measurement Before Trimming
 
@@ -48,7 +48,7 @@ Collect these before deleting or merging a current skill:
 - invocation count by skill and caller
 - average token or runtime cost when available
 - blocked or failed runs by skill
-- review rework caught by `ziw-code-review` or `ziw-review`
+- review rework caught by `ziw-code-review`
 - PRs created directly through `ziw-pr` versus through `ziw-implement`
 - stale tracker repairs handled by `ziw-triage` versus Orchestrator
 - provider-specific instructions that should move under `.agents/`

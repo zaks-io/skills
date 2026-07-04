@@ -151,8 +151,8 @@ diffs or source.
   `issue-assigned` remote agent such as Cursor). The worker writes code,
   self-reviews with `ziw-code-review`, and opens its own PR with
   `ziw-pr`.
-- Review is a called step: `ziw-review` in a clean subagent or
-  worktree. Orchestrator never reads the diff to review it itself.
+- Review is a called step: `ziw-code-review` in independent mode in a clean
+  subagent or worktree. Orchestrator never reads the diff to review it itself.
 - Merge is a called step: the integrate gate below. It is the only action that
   writes to the default branch.
 
@@ -498,7 +498,7 @@ Review worker prompt:
 ```text
 Use the isolated review worker for this runtime.
 Claude Code: zaks-io-skills:ziw-reviewer.
-Codex or Agent Skills: $ziw-review or $ziw-code-review.
+Codex or Agent Skills: $ziw-code-review.
 Repo: <path>
 PR/branch/range: <target>
 Base: <base branch or range>
@@ -745,7 +745,7 @@ label such as `needs-human-merge`, and mark it for the human-attention queue.
 
 "Green" is defined by config, not assumed. Default gate, all required:
 
-- `ziw-review` verdict is clean (`Ready to Merge`)
+- independent `ziw-code-review` verdict is clean (`Ready to Merge`)
 - configured required CI checks pass
 - no unresolved blocking review comments
 - the PR is not in the configured high-risk set requiring human merge, unless
@@ -765,7 +765,7 @@ When the gate passes:
    any value is stale or missing, update the local checkout and rerun the
    affected gate instead of merging.
 2. If the default branch moved since the PR branch last updated, rebase or update
-   the branch, then rerun required checks and `ziw-review`. Do not
+   the branch, then rerun required checks and `ziw-code-review`. Do not
    merge a stale branch on the assumption it still applies, and do not preserve
    `Ready to Merge` state without fresh evidence. Record a `merge-conflict`
    friction entry if the rebase needed manual resolution and escalate instead of
@@ -925,7 +925,7 @@ loop.
 ## Guardrails
 
 - Never implement, review diffs, or merge by hand when a delegated worker,
-  `ziw-review`, or the integrate gate is the right owner.
+  independent `ziw-code-review`, or the integrate gate is the right owner.
 - Never assign blocked work to a worker.
 - Never use a real implementation issue as a capability probe.
 - Never add `ready-for-agent` unless the issue satisfies the body contract.

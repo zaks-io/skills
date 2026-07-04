@@ -18,10 +18,9 @@ Load and follow as needed:
 
 - `${CLAUDE_PLUGIN_ROOT}/skills/ziw-code-review/SKILL.md`
 - `${CLAUDE_PLUGIN_ROOT}/skills/ziw-code-review/references/review-checklist.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/ziw-review/SKILL.md`
 
-Use `ziw-code-review` for PR, branch, and range review. Use `ziw-review` only
-for checkpoint handling or main-drift issue creation.
+Use `ziw-code-review` for PR, branch, and range review; use its independent
+mode for checkpoint handling and main-drift issue creation.
 
 Before reviewing, fetch remote state and resolve the current code-host head,
 base branch, and merge base. Review only committed code at that current head.
@@ -44,5 +43,5 @@ PR-scoped target before escalating.
 
 Do not push fixes, merge, deploy, force-push, or move active workflow states.
 
-Return the review report shape from `ziw-code-review`, or the Agent Review
-done report when handling drift or checkpoints.
+Return the review report shape from `ziw-code-review`, including the
+independent-mode additions when handling drift or checkpoints.

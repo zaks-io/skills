@@ -70,6 +70,71 @@ production policy. Review override attempts as security findings when relevant.
     docs before judging implementation.
 11. Flag missing requirements and unrelated drift separately from code bugs.
 
+## Independent Review Mode
+
+When Agent Orchestrator or the user asks for independent review of returned
+PRs or main-branch drift, run this mode from clean context. Review the latest
+committed code, never stale local files. Report active-work verdicts,
+stale-state gaps, and orchestrator refactor findings back to Agent
+Orchestrator. Do not implement fixes or move active work between workflow
+states.
+
+Use one of these clean-context paths:
+
+- Subagent: a fresh reviewer with the PR URL, repo path, base branch, linked
+  issue, required checks, and current PR head SHA.
+- Worktree: a disposable worktree at the current PR head or checkpoint SHA.
+
+Prefer a subagent when available because it reduces implementation-context
+bias. When running more than one review in parallel, give each reviewer a
+separate subagent or disposable worktree; never share a mutable checkout
+between parallel reviewers. Remove disposable worktrees on completion,
+including failure paths.
+
+Use the narrowest review target that answers the question. Normal PR review is
+PR-scoped. Reserve broad repository review for main-drift, checkpoint
+backfill, architecture review, or an explicit user request; if a broad review
+stalls, retry once with a narrow PR-scoped prompt before escalating.
+
+For main-drift review, keep a checkpoint outside the repo:
+
+```text
+${CODEX_HOME:-$HOME/.codex}/automation-state/ziw-review/<repo-slug>/last-reviewed-origin-main
+```
+
+On first run, write the current `origin/main` SHA and stop unless a backfill
+was requested. On later runs, review the checkpoint-to-current range as merged
+product state, create or update tracker issues for real findings, and advance
+the checkpoint only after review and issue updates complete. If the checkpoint
+is not an ancestor, review only a safe reachable range or escalate the history
+problem.
+
+## Tracker Issues
+
+In independent mode, file actionable tracker issues for new drift. Search for
+duplicates by problem, files, PR, and commit range first. Review-created
+issues are current-work intake: use the configured review-debt intake filter,
+label, project, or parent; if config does not define one, use the normal repo
+route and report the missing config as a setup gap.
+
+New issue rules:
+
+- use the configured provider location and routing label
+- use `Bug` or `Tech Debt` unless the finding is clearly another type
+- set risk label from config
+- set `kind-slice` only when the finding is scoped to one concrete PR with
+  clear acceptance criteria and checks; otherwise create or recommend
+  `kind-spec` or `kind-epic` for To Issues to slice
+- add `ready-for-agent` only when config allows review to create
+  implementation-ready review debt directly and the issue satisfies the full
+  body contract; otherwise apply `needs-info` or `ready-for-human` with the
+  exact decision needed
+- include reviewed range and file evidence; keep issue text metadata-only
+
+Escalate instead of ticketing when a finding needs product, security,
+customer, credential, provider, or ADR judgment. Do not create low-confidence,
+duplicate, or style-only issues.
+
 ## Review
 
 Check:
@@ -163,9 +228,15 @@ Orchestrator refactor candidates: <none or list>
 Verdict: READY FOR PR | APPROVE | NEEDS REVISION | DO NOT MERGE
 ```
 
+In independent mode, also report: freshness result per review target, reviewed
+main range and checkpoint result, tracker issues created or recommended, and
+the handoff to Agent Orchestrator.
+
 ## Guardrails
 
 - Do not edit code unless the user explicitly asks for fixes.
+- Do not push fixes to PR branches, merge, revert, force-push, deploy, or
+  mutate production.
 - Do not move the issue to `In Review`; Agent Orchestrator handles that after PR
   creation.
 - Do not move an issue to merge-ready state unless Agent Orchestrator or the user asked

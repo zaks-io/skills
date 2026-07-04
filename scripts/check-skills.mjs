@@ -8,20 +8,18 @@ const errors = [];
 const manualOnlySkills = new Set([
   "ziw-implement",
   "ziw-orchestrate",
-  "ziw-review",
   "ziw-pr",
   "ziw-to-issues",
   "ziw-triage",
   "ziw-setup",
 ]);
 const implicitInvocationSkills = new Set(["ziw-code-review"]);
-const cleanContextSkills = new Set(["ziw-review", "ziw-code-review"]);
+const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set();
 const triggerTerms = {
   "ziw-implement": ["implement", "issue", "pr"],
   "ziw-orchestrate": ["orchestrate", "issue", "tracker"],
-  "ziw-review": ["review", "pr"],
   "ziw-code-review": ["review", "code"],
   "ziw-pr": ["pr", "pull request"],
   "ziw-to-issues": ["spec", "ticket", "dependency"],

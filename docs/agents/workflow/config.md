@@ -88,7 +88,7 @@ Last updated: 2026-06-14
 - Risk labels: `risk-normal`, `risk-security-sensitive`, `risk-schema`, `risk-cross-cutting`
 - Risk label policy: dimensions, not severity levels; use `risk-security-sensitive` for trust boundaries, credentials, production, or secret handling; use `risk-cross-cutting` for shared workflow contracts and multi-skill changes
 - Review evidence labels: `code-review-passed`
-- Review evidence label policy: latest linked PR head SHA passed `ziw-code-review`/`ziw-review`; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
+- Review evidence label policy: latest linked PR head SHA passed `ziw-code-review`; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
 - Type labels: `Bug`, `Feature`, `Improvement`, `Tech Debt`, `Spike`, `Hotfix`
 - Area labels: none configured
 - Priority policy: default `No priority`; set High/Urgent only for broken install, security-sensitive workflow bugs, or release-blocking skill regressions
@@ -133,7 +133,7 @@ Last updated: 2026-06-14
 - Orchestrator recurring mechanism: none configured
 - Issue Triage mutation authority: may repair labels, body shape, blockers, and verified stale states for scoped SKI issues
 - Implement authority: local code edits on scoped branches/worktrees; no production mutation
-- Review authority: `ziw-code-review` and `ziw-review` may review committed code and create review-debt findings; they do not implement fixes
+- Review authority: `ziw-code-review` may review committed code and create review-debt findings; they do not implement fixes
 - Merge authority: human
 - Claim record: Linear assignee/comments plus GitHub branch/PR evidence
 - Orchestrator local state: non-authoritative scratch only
@@ -171,7 +171,7 @@ Last updated: 2026-06-14
 - Codex automations terminology: cron automation or heartbeat automation; none configured
 - Review model policy: use strongest available reasoning for orchestration and review synthesis; cheaper paths only for mechanical inventory when configured
 - Agent Orchestrator: `$ziw-orchestrate`
-- Agent Review: `$ziw-review`
+- Agent Review: `$ziw-code-review` (independent mode)
 - Agent Implement: `$ziw-implement`
 
 ## Pull Requests
@@ -180,7 +180,7 @@ Last updated: 2026-06-14
 - PR body: Summary, Changes, Risk, Test plan, linked Linear issue when present
 - Required checks: `pnpm ci:check` locally; GitHub CI jobs `Validate skills`, `Static security checks`, `Secret scan`
 - Branch protection: `main` is not protected as of 2026-06-14; config still requires human merge authority
-- Code review: `ziw-code-review` before PR handoff; `ziw-review` for independent PR/head review
+- Code review: `ziw-code-review` before PR handoff and for independent PR/head review
 - CodeRabbit config source: none; root `.coderabbit.yaml` absent
 - CodeRabbit bot handle: `@coderabbitai`
 - CodeRabbit auto-review: unknown; resolve current hosted review state before posting commands

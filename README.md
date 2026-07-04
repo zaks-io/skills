@@ -169,7 +169,7 @@ owner.
 When the runtime supports subagents, sessions, branches, or worktrees,
 Orchestrator should keep the parent thread small and delegate context-heavy work
 to `$ziw-triage`, `$ziw-implement`,
-`$ziw-review`, and `$ziw-code-review`.
+and `$ziw-code-review`.
 
 For local development, validate the plugin shape when Claude Code is available:
 
@@ -236,7 +236,6 @@ Use direct skills when you want one specific action:
 $ziw-implement <issue>
 $ziw-code-review <branch|pr|range>
 $ziw-pr
-$ziw-review <pr|range>
 ```
 
 ## The Operating Model
@@ -413,10 +412,9 @@ glue should stay under `.agents/` unless it proves portable.
   becoming the coder or reviewer.
 - `ziw-implement`: take one startable issue through implementation,
   checks, review, and PR creation.
-- `ziw-review`: independent latest-committed PR review and main-drift review from
-  clean context.
-- `ziw-code-review`: helper review gate for branches, PRs, explicit working
-  trees, and main drift.
+- `ziw-code-review`: shared review gate for branches, PRs, and explicit
+  working trees, plus independent latest-committed PR review, checkpointed
+  main-drift review, and review-debt issue filing from clean context.
 - `ziw-pr`: helper shipping gate that checks, reviews, commits,
   pushes, creates or updates the PR, and hands tracker state to Orchestrator.
 

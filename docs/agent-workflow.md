@@ -326,8 +326,7 @@ and delegate large context loads to isolated workers when available. Claude Code
 uses the plugin subagents `ziw-triager`, `ziw-implementer`, and
 `ziw-reviewer`. Codex and other Agent Skills runtimes should use the
 matching skill names, such as `$ziw-triage`,
-`$ziw-implement`, `$ziw-review`, and
-`$ziw-code-review`, inside isolated sessions, branches, worktrees, or
+`$ziw-implement`, and `$ziw-code-review`, inside isolated sessions, branches, worktrees, or
 subagents when the runtime supports them.
 
 Repo config should record only project-specific details that are annoying to
@@ -407,7 +406,7 @@ flowchart TD
   IssueTriage["ziw-triage\nmetadata, readiness, verified state repair"]
   Orchestrator["ziw-orchestrate\nstate authority, friction intake"]
   Worker["Implementation worker\nlocal or issue-assigned; runs create-pr"]
-  AgentReview["ziw-review\nindependent review and drift"]
+  AgentReview["ziw-code-review (independent mode)\nindependent review and drift"]
   CodeReview["ziw-code-review\nreview gate"]
   Integrate["integrate step\nauto-merge gate on green"]
 
@@ -560,7 +559,7 @@ These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
 - Side-effecting workflows use manual invocation.
-- `ziw-code-review` and `ziw-review` use clean context where the agent tooling
+- `ziw-code-review` uses clean context where the agent tooling
   supports it and review current committed code unless a working-tree review was
   explicitly requested.
 - Tool-specific permissions belong outside the shared skill contract.

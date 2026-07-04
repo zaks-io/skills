@@ -250,7 +250,7 @@ large context loads to isolated workers when available. Claude Code uses plugin
 subagents such as `ziw-triager`, `ziw-implementer`, and
 `ziw-reviewer`. Codex and other Agent Skills runtimes should use matching
 skill names such as `$ziw-triage`, `$ziw-implement`,
-`$ziw-review`, and `$ziw-code-review` inside isolated sessions,
+and `$ziw-code-review` inside isolated sessions,
 branches, worktrees, or subagents when available.
 
 ## State Authority
@@ -333,10 +333,10 @@ and name the core skills:
 - `ziw-to-issues` for turning a spec, PRD, or epic into `kind-slice` tickets
 - `ziw-orchestrate` for the orchestration loop
 - `ziw-implement` for one startable issue through PR creation
-- `ziw-review` for independent latest-committed PR and main drift review
 - `ziw-triage` for current tracker cleanup, readiness repair, and
   optional Linear Backlog or intake backfill when explicitly requested
-- `ziw-code-review` as the shared review gate
+- `ziw-code-review` as the shared review gate, including independent
+  latest-committed PR review and main-drift review
 - `ziw-pr` for PR creation
 
 Do not duplicate this whole workflow into adapter docs.

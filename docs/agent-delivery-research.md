@@ -67,7 +67,6 @@ Core user-facing roles:
 - `ziw-triage`
 - `ziw-orchestrate`
 - `ziw-implement`
-- `ziw-review`
 
 Helper gates:
 

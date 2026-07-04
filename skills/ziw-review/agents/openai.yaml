@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review"
-  short_description: "Run independent reviews"
-  default_prompt: "Use $ziw-review to fetch latest state, review current committed PR code with $ziw-code-review from a clean subagent or worktree, then review main drift for orchestrator refactor findings."
-policy:
-  allow_implicit_invocation: false

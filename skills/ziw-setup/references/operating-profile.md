@@ -123,7 +123,8 @@ issue risk labels and the change shape.
 | MEDIUM    | normal feature / business logic                                                                             | skip unless review is uncertain           | orchestrator may auto-merge when green                        |
 | HIGH      | auth, secrets, payments, destructive data, schema/migration, queues/jobs, public contracts, broad refactors | required: run after local review is clean | human merge unless config grants the tier to the orchestrator |
 
-"Green" is the configured merge-ready set: clean `ziw-review` verdict,
+"Green" is the configured merge-ready set: clean independent
+`ziw-code-review` verdict,
 required CI checks pass, no unresolved blocking review comments, PR non-draft and
 ready-for-review, the configured review evidence label current for the PR head,
 and required CodeRabbit escalation complete or recorded as skipped by policy.

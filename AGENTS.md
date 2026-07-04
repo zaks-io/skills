@@ -54,8 +54,8 @@ content.
 - Claude Code sub-agents live only in root `agents/`, load skill files through
   `${CLAUDE_PLUGIN_ROOT}`, and use `model: inherit`. Keep them limited to
   context-heavy delegation roles, not every workflow skill.
-- `ziw-code-review` is the implicit review gate. `ziw-review` and
-  `ziw-code-review` should run from clean context.
+- `ziw-code-review` is the implicit review gate and runs from clean context,
+  both as the pre-PR gate and in independent/checkpoint mode.
 - Do not add per-skill scripts unless `scripts/check-skills.mjs` is updated to
   allow that skill.
 - Update `docs/skill-portfolio.md` whenever adding, removing, demoting, or
