@@ -161,6 +161,12 @@ Record:
   lint, typecheck, tests, smoke, generated artifacts, cache policy, CI env
   passthrough rules, and the exact coverage or secret-scan scopes that hosted
   checks enforce
+- gate parity: the repo's CI required job should invoke the same single verify
+  entrypoint the local hooks run, so a check added to CI is a check added
+  locally by construction. Record the entrypoint command and the CI job that
+  calls it. Flag any test, lint, coverage, format, or scan step that CI runs
+  outside that entrypoint as a `config-gap` to fix in the repo, not a
+  difference to document in prose
 - issue tracker provider, provider location, project or board, routing label,
   triage scope, orphan policy, statuses, labels, kind label set
   (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,

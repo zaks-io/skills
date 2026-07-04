@@ -177,3 +177,5 @@ values, not this file:
   and run in each remote or cloud worker environment (installers often skip
   under a generic `CI=true`), and the exact pre-push commands the environment
   enforces
+- gate parity: the single verify entrypoint and the CI required job that
+  invokes it; any hosted check outside that entrypoint is drift to fix
