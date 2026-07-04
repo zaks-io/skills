@@ -590,14 +590,10 @@ the agent-session thread that explicitly supersedes the earlier guidance.
 Conflicting instruction layers across dispatch notes, session replies, and
 top-level comments make the worker follow the wrong one.
 
-For Linear issue-assigned agents, delegate by setting the issue `delegate` field
-to the configured agent user (for Cursor, the `Cursor` agent user); the human
-stays assignee. Do not confuse a human assignee with an issue-assigned coding
-agent. Continue an existing session by replying into the agent-session thread
-(the integration's thread-root comment) using its `parentId`; a top-level issue
-comment does not reach the session. Record the returned session handle, such as
-the `cursor.com/agents/bc-<id>` URL, in the ledger. See the operating profile
-referenced above for the verified mechanic.
+For Linear issue-assigned agents, use the delegate and continuation mechanic
+from the operating profile referenced above. Do not confuse a human assignee
+with an issue-assigned coding agent, and record the returned session handle in
+the ledger.
 
 ## PR Review And Integrate
 

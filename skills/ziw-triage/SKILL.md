@@ -374,26 +374,13 @@ neutral and mark the issue for human triage.
 
 ## Estimates
 
-Use the configured estimate policy. If config does not name an estimate field or
-body heading, an allowed scale, and triage authority to estimate, do not add or
-rewrite estimates.
-
-When estimates are configured:
-
-- set missing estimates only when current issue scope is clear enough and config
-  grants Issue Triage that authority
-- use the configured tracker field, label, or body heading
-- use only the configured scale
-- preserve existing human estimates unless config allows repair and current
-  scope evidence proves the estimate is stale or outside the allowed scale
-- split, route to To Issues, or mark for human planning when a ticket is larger
-  than the configured maximum
-- treat estimates as implementation effort or size, not priority, risk,
-  scheduling, or merge authority
-
-Missing estimates block `ready-for-agent` only when config says estimates are
-required before handoff. Otherwise leave the estimate empty and keep triage
-focused on body completeness, labels, blockers, and verified state.
+Follow the Estimate Rules in
+[../ziw-setup/references/issue-tracker-contract.md](../ziw-setup/references/issue-tracker-contract.md).
+Set missing estimates only when current scope is clear and config grants Issue
+Triage that authority. Missing estimates block `ready-for-agent` only when
+config requires estimates before handoff; otherwise leave the estimate empty
+and keep triage focused on body completeness, labels, blockers, and verified
+state.
 
 ## First Run
 

@@ -169,24 +169,13 @@ green preview does not prove the production deploy.
 
 ## Estimates
 
-Use the repo-configured estimate policy. If config does not name an estimate
-field or body heading, an allowed scale, and agent authority to estimate, omit
-estimates.
-
-When estimates are configured:
-
-- estimate each `kind-slice` after splitting work to one PR
-- write the estimate to the configured tracker field, label, or body heading
-- use only the configured scale
-- preserve an existing human estimate unless config allows repair and current
-  scope evidence proves it is stale or outside the allowed scale
-- split or route to human planning when a slice would exceed the configured
-  maximum
-- do not treat estimate as priority, risk, deadline, or merge authority
-
-If estimates are required before `ready-for-agent` and a value is unknowable
-from the plan, leave the exact question, apply `needs-info` or
-`ready-for-human`, and do not mark the ticket ready.
+Follow the Estimate Rules in
+[../ziw-setup/references/issue-tracker-contract.md](../ziw-setup/references/issue-tracker-contract.md):
+estimate each `kind-slice` after splitting to one PR, using only the
+configured field and scale, and omit estimates when config defines none. If
+estimates are required before `ready-for-agent` and a value is unknowable from
+the plan, leave the exact question, apply `needs-info` or `ready-for-human`,
+and do not mark the ticket ready.
 
 ## Labels And Readiness
 
