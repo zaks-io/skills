@@ -393,8 +393,8 @@ for the issue. Orchestrator does not become the implementer or reviewer.
 
 At the start of each pass, classify every issue in scope:
 
-- `needs-triage`: missing body contract, labels, route, dependencies, or stale
-  state repair
+- `needs-triage`: missing body contract, labels, route, configured required
+  estimate, dependencies, or stale state repair
 - `startable`: ready for agent, unblocked, complete enough to verify, and not
   already claimed
 - `active`: delegated, in progress, in review, changes requested, ready to

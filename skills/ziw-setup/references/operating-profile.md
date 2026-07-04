@@ -88,6 +88,7 @@ Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
 | `ready-for-agent`                               | no human refinement needed          | refuse; route to triage/To Issues                                              |
 | worker environment label (e.g. `remote-cursor`) | environment approved                | apply if approval criteria met, else refuse                                    |
 | repo-route label (e.g. `<org>/<repo>`)          | tells the agent which repo to clone | heal inline if team maps unambiguously to one repo; else escalate `needs-info` |
+| configured required estimate                    | project wants sized agent handoff   | route to triage or To Issues                                                   |
 | unblocked                                       | safe to start                       | defer; never start blocked work                                                |
 | complete agent-ready body                       | agent can verify                    | refuse; route to triage                                                        |
 | no active claim, no open PR                     | not already in flight               | skip; advance the existing work instead                                        |

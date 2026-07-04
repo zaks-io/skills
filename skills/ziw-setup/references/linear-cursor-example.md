@@ -62,6 +62,13 @@ Last updated: 2026-06-01
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Review evidence labels: code-review-passed
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
+- Estimate field: Linear estimate points
+- Estimate scale: 1, 2, 3, 5, 8; split or route to human when a slice would
+  exceed 8
+- Estimate policy: To Issues and Issue Triage set estimates on `kind-slice`
+  tickets when scope evidence is enough; estimates are required before
+  `ready-for-agent`; missing required estimates use `needs-info` or
+  `ready-for-human`
 - Friction intake provider: Linear
 - Friction intake location: private team "Skills" project "Agent Friction"
   (team id <team-uuid>, project id <project-uuid>)
@@ -77,7 +84,8 @@ Last updated: 2026-06-01
 - Friction intake redaction policy: metadata and IDs only; no secrets, private
   logs, signed URLs, customer data, or diffs
 - Startable work criteria: kind-slice, Todo, ready-for-agent, remote-cursor,
-  repo-route label, complete body, no active blockers, no active claim, no open PR
+  repo-route label, configured required estimate, complete body, no active
+  blockers, no active claim, no open PR
 - Dependency policy: use Linear blocker relationships; if issue A needs issue B
   first, A is blocked by B and B blocks A. Keep blocked-but-ready slices in Todo,
   not Linear Backlog.

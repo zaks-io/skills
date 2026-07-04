@@ -6,8 +6,9 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 
 - To Issues: turns a spec, PRD, or epic ticket into dependency-ordered one-PR
   `kind-slice` tickets. Adopts hand-created tickets instead of duplicating them,
-  applies the agent-ready body and labels, and emits a dependency graph and file
-  footprint. Creates tickets; it does not implement or move active work.
+  applies the agent-ready body, labels, and configured estimates, and emits a
+  dependency graph and file footprint. Creates tickets; it does not implement or
+  move active work.
 - Agent Orchestrator: runs the work loop. Keeps tracked work moving, delegates
   startable `kind-slice` work, calls review and integrate as steps, heals
   unambiguous tracker mistakes, logs friction, owns the authority to mutate
@@ -21,11 +22,12 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   orchestrator refactor findings to Agent Orchestrator, and files actionable
   tracker issues without moving active work between workflow states.
 - Issue Triage: the bulk reconciler. Periodically updates configured current
-  tracker issues, labels, kinds, priorities, dependencies, orphans, stale
-  verified states, and agent-ready issue bodies before Agent Orchestrator selects
-  work; its default goal is to make all Todo tickets ready for agents and keep
-  tracker state truthful. It does not review Linear Backlog unless asked. When
-  something is unclear, it asks the user or leaves exact human next actions.
+  tracker issues, labels, kinds, priorities, estimates when configured,
+  dependencies, orphans, stale verified states, and agent-ready issue bodies
+  before Agent Orchestrator selects work; its default goal is to make all Todo
+  tickets ready for agents and keep tracker state truthful. It does not review
+  Linear Backlog unless asked. When something is unclear, it asks the user or
+  leaves exact human next actions.
 
 ## Ticket Kinds
 
@@ -53,11 +55,13 @@ domain behavior, and performance work without benchmarks.
 ## Flow
 
 1. To Issues turns a spec, PRD, or epic ticket into `kind-slice` tickets, applies
-   the body contract and labels, and emits the dependency graph and footprint.
-2. Issue Triage normalizes current tracker metadata, kinds, readiness, and
-   verified stale status.
+   the body contract, labels, and configured estimates, and emits the dependency
+   graph and footprint.
+2. Issue Triage normalizes current tracker metadata, kinds, readiness,
+   configured estimates, and verified stale status.
 3. Agent Orchestrator selects startable work from the configured tracker:
-   `kind-slice`, `ready-for-agent`, complete body, and no active blockers.
+   `kind-slice`, `ready-for-agent`, configured required estimate, complete body,
+   and no active blockers.
 4. Agent Orchestrator claims the issue and delegates implementation using a
    supported worker path.
 5. The implementation worker accepts the issue, implements the scoped change,
@@ -194,9 +198,9 @@ For issue-assigned delegation:
   tracker's live assignee list into config.
 - The config should record only project-specific details that are annoying to
   rediscover, such as supported worker delegation paths, routing labels, routing
-  fields, readiness label policy, worker environment label policy, startable work
-  criteria, direct-agent reply targets, or non-default continuation comment
-  rules.
+  fields, readiness label policy, worker environment label policy, estimate
+  policy, startable work criteria, direct-agent reply targets, or non-default
+  continuation comment rules.
 - Worker environment labels, such as `remote-worker` or `remote-cursor`, are
   approval metadata. Apply or preserve them when the issue route and environment
   approval criteria are verified. Do not require dependencies to be clear just to

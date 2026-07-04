@@ -116,9 +116,10 @@ config-gap finding when the conflict affects the workflow.
 - To Issues: the front door that turns a spec, PRD, or epic ticket into
   dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
   instead of duplicating them, applies the agent-ready body contract and labels,
-  puts ready slices in the configured ready state, and emits a dependency graph
-  and predicted file footprint. Creates tickets; it does not implement, review,
-  or move active work.
+  includes estimates when config defines an estimate policy, puts ready slices in
+  the configured ready state, and emits a dependency graph and predicted file
+  footprint. Creates tickets; it does not implement, review, or move active
+  work.
 - Agent Orchestrator: reads external state, starts or nudges workers, calls
   review and integrate as steps, records friction intake, and owns the authority
   to mutate active workflow status in the issue tracker.
@@ -331,10 +332,10 @@ subagents when the runtime supports them.
 
 Repo config should record only project-specific details that are annoying to
 rediscover, such as supported worker delegation paths, routing labels, routing
-fields, readiness label policy, worker environment label policy, startable work
-criteria, direct-agent reply targets, or non-default continuation comment rules.
-The tracker remains the source of truth for which agents are currently
-assignable.
+fields, readiness label policy, worker environment label policy, estimate
+policy, startable work criteria, direct-agent reply targets, or non-default
+continuation comment rules. The tracker remains the source of truth for which
+agents are currently assignable.
 
 Readiness and worker environment labels describe separate things. By default,
 `ready-for-agent` means the ticket needs no further human refinement before
@@ -490,14 +491,15 @@ verification requires reopening or narrowing the ticket.
 Default rule:
 
 - To Issues can create and adopt `kind-slice` tickets, set kind/type/risk/
-  readiness labels, encode dependencies, and write the agent-ready body. It does
-  not move active work. Ready slices go in the configured ready state even when
-  dependency blockers remain.
+  readiness labels, set configured estimates, encode dependencies, and write the
+  agent-ready body. It does not move active work. Ready slices go in the
+  configured ready state even when dependency blockers remain.
 - Issue Triage can edit labels, kinds, readiness, body shape, dependencies,
-  metadata, stale review-evidence labels, and verified stale states. It does not
-  review Linear Backlog unless asked, and it does not park dependency-ready
-  slices in Linear Backlog after requested Linear Backlog cleanup. When it
-  verifies a ticket is `Done`, it removes `ready-for-agent`.
+  estimates when configured, metadata, stale review-evidence labels, and
+  verified stale states. It does not review Linear Backlog unless asked, and it
+  does not park dependency-ready slices in Linear Backlog after requested Linear
+  Backlog cleanup. When it verifies a ticket is `Done`, it removes
+  `ready-for-agent`.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.

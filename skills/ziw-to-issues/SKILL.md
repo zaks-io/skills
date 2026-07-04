@@ -1,6 +1,6 @@
 ---
 name: ziw-to-issues
-description: Use to turn a spec, PRD, or epic ticket into dependency-ordered one-PR implementation tickets, adopting any hand-created tickets, applying the agent-ready body contract and kind labels, and emitting a dependency graph and predicted file footprint.
+description: Use to turn a spec, PRD, or epic ticket into dependency-ordered one-PR implementation tickets, adopting any hand-created tickets, applying the agent-ready body contract, configured estimates, and kind labels, and emitting a dependency graph and predicted file footprint.
 argument-hint: "[spec-doc|prd-ticket|epic-ticket|project]"
 disable-model-invocation: true
 ---
@@ -33,6 +33,7 @@ Confirm before creating or editing tickets:
 - status names, the configured ready state, and intake states
 - kind label set and its single-select policy
 - readiness, risk, type, and area labels and their policies
+- estimate field, scale, and requiredness policy
 - agent-ready issue body contract
 - dependency and blocker fields
 - file footprint convention from config
@@ -115,6 +116,7 @@ contract:
 - required checks
 - security, privacy, data, and operational invariants
 - dependencies or blockers
+- estimate when config stores estimates in the body
 
 If a required field is unknowable from the plan, add the heading, mark the ticket
 `needs-info`, leave the specific question, and do not mark it ready. Do not
@@ -153,16 +155,39 @@ Prefer checks such as multi-instance readback, concurrent first use, real driver
 queries, env passthrough, or provider-shape verification over prose-only
 assertions. Do not make a mock of the integrated seam the only proof.
 
+## Estimates
+
+Use the repo-configured estimate policy. If config does not name an estimate
+field or body heading, an allowed scale, and agent authority to estimate, omit
+estimates.
+
+When estimates are configured:
+
+- estimate each `kind-slice` after splitting work to one PR
+- write the estimate to the configured tracker field, label, or body heading
+- use only the configured scale
+- preserve an existing human estimate unless config allows repair and current
+  scope evidence proves it is stale or outside the allowed scale
+- split or route to human planning when a slice would exceed the configured
+  maximum
+- do not treat estimate as priority, risk, deadline, or merge authority
+
+If estimates are required before `ready-for-agent` and a value is unknowable
+from the plan, leave the exact question, apply `needs-info` or
+`ready-for-human`, and do not mark the ticket ready.
+
 ## Labels And Readiness
 
 For each `kind-slice`:
 
 - apply one type and one risk label from config
 - apply routing and area labels from config
+- apply the configured estimate when the estimate policy grants To Issues that
+  authority
 - apply the configured worker environment label only when the environment
   approval criteria are met; dependency state is not a reason to withhold it
 - apply `ready-for-agent` only when the slice is scoped to one PR, routed,
-  type and risk labeled, and complete enough to verify
+  type and risk labeled, estimated if required, and complete enough to verify
 - do not apply `ready-for-agent` when the body itself says human setup,
   credentials, provider decisions, or security judgment are still required
 - place ready `kind-slice` issues in the configured ready state, usually `Todo`,
@@ -238,6 +263,7 @@ Report:
 - source plan and target location
 - slices created, slices adopted, and duplicates converged
 - kind labels set and any kind contradictions healed
+- estimates set, preserved, omitted by policy, or left with exact questions
 - tickets marked `ready-for-agent`, `needs-info`, or `ready-for-human`
 - dependency graph and any cycles or required serializations
 - file footprints recorded and overlaps flagged

@@ -81,7 +81,7 @@ Last updated: 2026-06-14
 - Worker environment labels: `remote-cursor` exists, but is not enabled for this repo
 - Worker environment label policy:
   - `remote-cursor`: approved to run in remote Cursor only after repo-route label and delegation path are verified; not a readiness, dependency, or scheduling signal
-- Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, complete body, no active blockers, no active claim or open PR; issue-assigned work also requires `zaks-io/skills` route label and verified worker path
+- Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, complete body, configured required estimate when enabled, no active blockers, no active claim or open PR; issue-assigned work also requires `zaks-io/skills` route label and verified worker path
 - Done cleanup: remove `ready-for-agent` when moving an issue to `Done`
 - Agent suitability policy: default agent work includes docs, tests, CI/lint updates, small local refactors, scoped bugs with reproduction, and isolated skill wording changes; human planning required for auth, secrets, PII, payments, production, destructive data, broad refactors, cross-repo work, unclear workflow policy, or performance work without benchmarks
 - Kind labels: `kind-spec`, `kind-epic`, `kind-slice`
@@ -92,13 +92,18 @@ Last updated: 2026-06-14
 - Type labels: `Bug`, `Feature`, `Improvement`, `Tech Debt`, `Spike`, `Hotfix`
 - Area labels: none configured
 - Priority policy: default `No priority`; set High/Urgent only for broken install, security-sensitive workflow bugs, or release-blocking skill regressions
+- Estimate field: none configured
+- Estimate scale: none configured
+- Estimate policy: omit estimates in this repo until setup verifies a tracker
+  estimate field or body heading and explicit scale; missing estimates do not
+  block `ready-for-agent`
 - Dependency policy: dependency-ready `kind-slice` tickets stay in `Todo`; blockers decide startability, not Linear Backlog placement
 - Dependency graph mechanism: Linear blocker relationships when available; otherwise body `Dependencies or blockers`
 - Dependency relationship direction: if ticket A needs ticket B first, A is blocked by B and B blocks A
 - Auto-Done integration policy: if GitHub links move a Linear issue to `Done`, Orchestrator or triage must verify the full issue scope is complete; reopen or narrow partial-scope tickets
 - File footprint convention: To Issues records likely files/packages/artifacts in the issue body
 - Review-debt footprint convention: Agent Review records likely files/packages/artifacts before Orchestrator dispatches review-created tickets
-- Agent-ready issue body: outcome, context docs, likely files/packages/artifacts, in scope, out of scope, acceptance criteria, required checks, safety invariants, dependencies or blockers
+- Agent-ready issue body: outcome, context docs, likely files/packages/artifacts, in scope, out of scope, acceptance criteria, required checks, safety invariants, dependencies or blockers; estimates omitted unless a future setup refresh configures an estimate policy
 - Labels are signals, not authority: workflow state lives in Linear statuses and verified external evidence
 
 ## Work Coordination

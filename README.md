@@ -12,6 +12,7 @@ That gives agents the things they usually guess badly:
 - where tracked work lives
 - which tracker IDs, names, and query fields actually return that work
 - which labels mean implementation-ready and which statuses mean startable
+- whether tickets should carry estimates, and which field or scale to use
 - who can move tickets
 - how remote issue-assigned workers are delegated
 - what local, development, preview, and production mean for this repo
@@ -339,9 +340,9 @@ evidence and keep going instead of escalating them.
 
 To Issues is the front door. It turns a spec, PRD, or epic ticket into
 dependency-ordered `kind-slice` tickets, adopts any tickets you made by hand
-instead of duplicating them, applies the body contract and labels, and emits a
-dependency graph and predicted file footprint. Run it whenever you want the
-tickets to match the plan; re-running converges.
+instead of duplicating them, applies the body contract, labels, and configured
+estimates, and emits a dependency graph and predicted file footprint. Run it
+whenever you want the tickets to match the plan; re-running converges.
 
 Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
 runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
@@ -400,12 +401,13 @@ glue should stay under `.agents/` unless it proves portable.
   repo and tracker state.
 - `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered
   one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
-  contract and labels, and emit a dependency graph and file footprint.
+  contract, labels, and configured estimates, and emit a dependency graph and
+  file footprint.
 - `ziw-triage`: update current tracker labels, kinds, readiness, stale
-  verified states, orphans, body shape, and dependencies so Todo tickets are
-  clean and agent-ready. It follows the repo-configured label treatment policy,
-  skips Linear Backlog unless asked, and asks or lists exact human next actions when
-  something is unclear.
+  verified states, orphans, body shape, estimates when configured, and
+  dependencies so Todo tickets are clean and agent-ready. It follows the
+  repo-configured label treatment policy, skips Linear Backlog unless asked, and
+  asks or lists exact human next actions when something is unclear.
 - `ziw-orchestrate`: run the work loop, dispatching startable
   `kind-slice` tickets and calling review and integrate as steps, without
   becoming the coder or reviewer.

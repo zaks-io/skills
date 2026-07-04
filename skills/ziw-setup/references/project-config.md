@@ -103,7 +103,9 @@ Last updated: YYYY-MM-DD
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
-- Startable work criteria: kind-slice, ready state, ready-for-agent, complete body, repo-route label when issue-assigned, no active blockers, no active claim or open PR
+- Startable work criteria: kind-slice, ready state, ready-for-agent, complete
+  body, configured required estimate, repo-route label when issue-assigned, no
+  active blockers, no active claim or open PR
 - Done cleanup: remove ready-for-agent or the repo-configured readiness label
   when moving an issue to Done
 - Agent suitability policy: default agent work includes docs, tests, build/CI,
@@ -121,6 +123,13 @@ Last updated: YYYY-MM-DD
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
 - Priority policy:
+- Estimate field: tracker estimate field, estimate label family, configured body
+  heading, or none
+- Estimate scale: numeric points, T-shirt sizes, hours, custom allowed values,
+  or none
+- Estimate policy: whether To Issues and Issue Triage may set estimates,
+  whether estimates are optional or required before `ready-for-agent`, and what
+  to do when an estimate is missing or above the configured maximum
 - Dependency policy: dependency-ready `kind-slice` tickets stay in the configured
   ready state, usually `Todo`; blockers decide startability, not Linear Backlog
   placement
@@ -138,7 +147,8 @@ Last updated: YYYY-MM-DD
   files/packages for review-created `kind-slice` tickets before Orchestrator can
   dispatch them
 - Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
-  scope, acceptance criteria, required checks, safety invariants, dependencies
+  scope, acceptance criteria, required checks, safety invariants, dependencies,
+  and estimate when body-backed estimates are configured
 - Hard config literal policy: where exact provider resource IDs, secret names,
   label slugs, environment values, and other worker-critical literals are
   recorded so worker prompts do not depend on old issue comments

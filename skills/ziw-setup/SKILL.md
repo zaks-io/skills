@@ -97,8 +97,8 @@ Verify all populated workflow fields that setup writes or preserves:
   commands from scripts, CI workflows, makefiles, justfiles, runbooks, or direct
   safe command execution
 - issue tracker provider, location, team/project/board/roadmap, statuses,
-  labels, priorities, relationships, issue templates, and query contracts with
-  read-only tracker tool calls when tools are available
+  labels, priorities, estimate fields, relationships, issue templates, and query
+  contracts with read-only tracker tool calls when tools are available
 - code host default branch, branch protections, PR conventions, linked checks,
   and open PR query shape through git metadata, code host tools, or workflow
   files
@@ -157,9 +157,10 @@ Record:
   (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
   readiness label policy, worker environment label policy when present, startable
   work criteria (including `kind-slice` only), readiness-label query policy that
-  excludes the configured done state, priority policy, dependency policy,
-  dependency graph mechanism, file footprint convention, issue body contract,
-  agent-suitability policy for work types and risk,
+  excludes the configured done state, priority policy, estimate field, estimate
+  scale, estimate policy, dependency policy, dependency graph mechanism, file
+  footprint convention, issue body contract, agent-suitability policy for work
+  types and risk,
   Issue Triage verified-state reconciliation authority, requested ready-state
   promotion authority, explicit Linear Backlog promotion gate, and which workflow
   role owns active status transitions
@@ -193,8 +194,8 @@ Record:
   they mirror this config or redirect agents back to it
 - verified tracker metadata: lookup tool or query used, verification date, and
   exact provider IDs, URLs, or keys for teams, projects, boards, repos,
-  milestones, roadmaps, statuses, labels, priorities, and relationship types
-  when the tracker exposes them
+  milestones, roadmaps, statuses, labels, priorities, estimate fields and
+  allowed values, and relationship types when the tracker exposes them
 - agent access rules for local Codex, remote worker agents, Claude, and any
   repo-approved worker
 - workflow skill distribution policy: project skills, plugin or marketplace,

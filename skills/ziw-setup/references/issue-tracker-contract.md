@@ -72,9 +72,31 @@ contains:
 - required checks
 - security, privacy, data, or operational invariants
 - dependencies or blockers
+- estimate when repo config stores estimates in the body
 
 If the work requires multiple PRs, keep it as a container or split it into
 multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
+
+## Estimate Rules
+
+Repo config decides whether estimates exist and where they live. A repo may use
+a tracker estimate field, estimate labels, a body heading, or no estimates.
+
+- Do not create or infer estimates when config has no estimate field, scale, and
+  policy.
+- When config grants agents authority to estimate, To Issues and Issue Triage
+  include estimates on `kind-slice` tickets using the configured field, label, or
+  body heading.
+- Missing estimates block `ready-for-agent` only when config says estimates are
+  required for ready handoff. Otherwise leave the estimate empty and do not use
+  it as a readiness blocker.
+- Use only the configured scale. If a slice exceeds the configured maximum, split
+  it or route it to human planning instead of inventing a larger value.
+- Preserve existing human estimates unless config explicitly allows repair and
+  current scope evidence proves the estimate is stale or outside the allowed
+  scale.
+- Treat estimates as implementation effort or size, not priority, risk,
+  deadline, or merge authority.
 
 ## Label Treatment Rules
 
