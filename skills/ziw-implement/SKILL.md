@@ -110,9 +110,11 @@ Run the issue's required checks first, then the configured full local gate unles
 a narrower gate is justified. Use focused checks while iterating.
 
 Before claiming completion, map each acceptance criterion, safety invariant, and
-required test named by the issue to concrete evidence: a test, check, doc change,
-or explicit manual verification result. A nearby test for a different criterion
-does not count.
+required test named by the issue or the dispatch prompt to concrete evidence: a
+test, check, doc change, or explicit manual verification result. A nearby test
+for a different criterion does not count. Constraints carried forward from a
+prior slice or named in the dispatch prompt are acceptance-critical: close each
+one with a test or explicit evidence, not by passing the note along.
 
 Use exact configured or CI-equivalent commands for the full gate. Do not accept a
 self-reported green status, a package-local substitute, or a non-threshold

@@ -90,6 +90,11 @@ Check:
   evidence, brittle state transitions, missing workflow config, manual repair
   loops, or review-debt intake gaps
 
+When the diff claims prior review findings were addressed, verify each claimed
+resolution has a corresponding code or test change on the current head.
+Resolved threads and "Addressed" markers are claims, not evidence, especially
+on risk-security-sensitive slices.
+
 Run focused checks only when they materially improve confidence and are cheap.
 Do not spend time on style nits or broad product refactors.
 

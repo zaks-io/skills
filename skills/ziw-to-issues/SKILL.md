@@ -15,6 +15,11 @@ the user created by hand.
 To Issues creates and shapes tickets. It does not implement, review, or move
 active work. Spec or epic tickets are input containers, not work to ship.
 
+Flows that file tickets outside To Issues, such as review sweeps or eval
+sessions, must either run this intake pass or leave readiness labels off so
+the gap stays visible. A hand-filed ticket carrying `ready-for-agent` without
+intake metadata is a dispatch hazard.
+
 ## Inputs
 
 - A spec doc, PRD ticket, epic ticket, plan, or project to turn into issues.
@@ -155,6 +160,13 @@ Prefer checks such as multi-instance readback, concurrent first use, real driver
 queries, env passthrough, or provider-shape verification over prose-only
 assertions. Do not make a mock of the integrated seam the only proof.
 
+For slices that drop or narrow schema on retained data, put the deploy order in
+the acceptance criteria: pre-deploy data cleanup must land before the schema
+change deploys when the platform validates the new schema against existing
+rows, and bulk migrations must use a resumable batched runner, not a single
+transaction. Name the production deploy status that proves the change landed; a
+green preview does not prove the production deploy.
+
 ## Estimates
 
 Use the repo-configured estimate policy. If config does not name an estimate
@@ -214,6 +226,10 @@ run safe work in parallel.
 - Serialize slices that must not run concurrently even without a direct data
   dependency, such as shared schema or migration ordering, using the configured
   dependency mechanism.
+- When several slices converge on the same core files or regenerate the same
+  shared artifact, sequence the convergent slice to land first or immediately
+  adjacent to its siblings, or serialize the cohort. Same-base siblings all
+  conflict the moment one merges.
 - Encoding a dependency never removes `ready-for-agent`, the configured ready
   state, or a worker environment label.
 

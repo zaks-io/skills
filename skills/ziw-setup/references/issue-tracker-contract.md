@@ -114,6 +114,9 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
   parked, or not shaped correctly.
 - `ready-for-agent` must be removed when an issue moves to the configured `Done`
   state. Done work is complete, not waiting for agent handoff.
+- Only the To Issues intake pass, or a triage pass applying the same body
+  contract, may set `ready-for-agent`. Flows that file tickets without intake
+  must leave readiness labels off so the gap stays visible.
 - Queries for `ready-for-agent`, `ready-for-human`, or equivalent readiness
   attention labels must also exclude the configured `Done` state by default.
   Stale labels on Done tickets are cleanup drift, not current work queue input.

@@ -243,6 +243,14 @@ provider actions. Close PRs only when they pass the PR Closure Guard below. If
 outside-scope PRs or previews consume capacity and Orchestrator lacks authority
 to change them, report that capacity blocker instead of starting more work.
 
+When the footprint is saturated by green PRs that lack only human merge
+authority, do not keep waking to re-report the same state. Post the exact merge
+queue once (PR URLs, tickets, evidence) to the human-attention channel, label
+each queued PR with the configured code-host attention label such as
+`needs-human-merge` so the queue is visible from the PR list itself, mark the
+scope blocked on merge authority, and stop or stretch the loop until the queue
+drains.
+
 Optimize for delivery-slot turnover, not worker count. A low active footprint is
 usually better than wider fanout when preview deploys, check polling, branch
 updates after default-branch movement, and review waits dominate wall-clock. Even
@@ -268,6 +276,10 @@ this tick.
 - Treat shared document hotspots as collisions too: changelog-style lists,
   caveat lists, status ledgers, registries, config tables, and dense markdown
   list blocks that multiple slices would edit concurrently.
+- When several same-base slices each regenerate a shared artifact or converge
+  on the same core files, run them one at a time or merge the cohort
+  back-to-back before the others drift. The first merge invalidates every
+  sibling cut from the old base.
 - If a startable ticket has no predicted footprint, route it to triage or To
   Issues for footprint repair before fanning it out. A single explicitly requested
   ticket may still run when no active work can collide with it.
@@ -320,7 +332,10 @@ location from `docs/agents/workflow/config.md`:
 If config uses a slug or display name that returns empty results but a verified
 ID is available, use the ID and patch the config after the orchestration repair.
 If neither the configured name nor an ID resolves, stop for `ziw-setup`
-refresh instead of guessing.
+refresh instead of guessing. Apply the same rule to any config unknown that
+live evidence verifies: when a successful dispatch proves a delegation field or
+agent ID that config marks unverified, patch the config or route one setup
+refresh instead of re-logging the same unknown every tick.
 
 The tracker verifies nothing. Readiness, environment approval, and blocked state
 are claims written as labels and status by upstream skills. Orchestrator trusts
@@ -389,6 +404,17 @@ Use the worker delegation paths supported by `docs/agents/workflow/config.md`:
 Orchestrator may use both paths when config allows it, choosing the safest path
 for the issue. Orchestrator does not become the implementer or reviewer.
 
+## Baseline Health
+
+At the start of a run or delivery scope, and after a long gap between ticks,
+verify the default branch is green for the configured required checks before
+dispatching implementation work. If the baseline is red, fix or route the
+baseline break first; dispatching against a red base forces every returned PR
+into a rebase-and-rerun cycle. Treat config-named known-red jobs (an
+`expected-red-until-<ticket>` note) as expected noise, and judge branch health
+by the required job's conclusion, not an umbrella workflow that contains a
+known-broken sibling job.
+
 ## Scope Clearing
 
 At the start of each pass, classify every issue in scope:
@@ -434,6 +460,12 @@ sibling PR evidence before dispatch. If the upstream work removed a named API,
 renamed a config mechanism, or already delivered the ticket's core outcome,
 narrow the body or route the ticket to triage instead of sending a worker to
 implement stale mechanics.
+
+Before dispatching any ticket, read its full body and latest comments, not just
+the inventory row. A compact queue can show `ready-for-agent` while the body
+lists live blockers, and a comment thread can already hold a verified
+not-a-bug or resolution verdict. A ticket whose thread proves the work is
+unnecessary is a triage repair, not a dispatch.
 
 ## Worker Prompts
 
@@ -553,6 +585,11 @@ can be found, stop with the missing continuation path instead of assuming the
 agent will see it. Do not start a new assignment for PR fixes while the original
 session can continue.
 
+When scope or instructions change mid-session, send one authoritative reply in
+the agent-session thread that explicitly supersedes the earlier guidance.
+Conflicting instruction layers across dispatch notes, session replies, and
+top-level comments make the worker follow the wrong one.
+
 For Linear issue-assigned agents, delegate by setting the issue `delegate` field
 to the configured agent user (for Cursor, the `Cursor` agent user); the human
 stays assignee. Do not confuse a human assignee with an issue-assigned coding
@@ -669,6 +706,19 @@ are called steps, not inlined work:
     escalation is complete or recorded as skipped by policy.
 22. Call integrate when the auto-merge gate is satisfied.
 
+Merge preflight must enumerate every unresolved review thread on the PR with
+severity, using the code host's thread-level view, before deciding merge
+readiness; a partial comment count can green-light a real bug. If a code-host
+review verdict such as `CHANGES_REQUESTED` predates the current head and its
+findings are resolved on the current head, dismiss or re-request that review
+through the configured mechanism instead of leaving stale verdict metadata to
+block the merge.
+
+When a PR needs human attention, such as merge authority, a decision, or
+blocked fixes, apply the configured code-host PR label, such as
+`needs-human-merge` or `needs-human-input`, in addition to tracker state. The
+human queue must be visible from the PR list, not only from tracker comments.
+
 Do not leave a PR in draft just because the implementation worker opened it as
 draft or because no one asked Orchestrator to unstick it. Orchestrator owns
 finding the draft blocker, taking the safe next action, and moving the PR to
@@ -680,7 +730,8 @@ Ready-for-review means non-draft.
 
 Integrate is the only step that writes to the default branch. Run it only when
 the configured merge authority grants Orchestrator merge rights. Otherwise stop
-with the PR ready for human merge and mark it for the human-attention queue.
+with the PR ready for human merge, apply the configured code-host attention
+label such as `needs-human-merge`, and mark it for the human-attention queue.
 
 "Green" is defined by config, not assumed. Default gate, all required:
 
@@ -712,6 +763,10 @@ When the gate passes:
 3. Merge through the configured mechanism, such as squash, merge commit, or
    rebase merge. If the code host rejects the configured method, stop, log
    `config-gap`, and refresh setup instead of retrying with a guessed method.
+   If branch policy rejects a direct merge despite green checks, use the
+   host's auto-merge when config allows it and record the policy for the next
+   setup refresh. Confirm the merge completed from refreshed code-host state,
+   not from the merge command's output; some CLIs print nothing on success.
 4. Refresh local Git refs and update the local default branch to the merged head
    before any post-merge check, next PR decision, or issue `Done` transition.
 5. Run configured post-merge preparation before judging the default branch:
@@ -779,6 +834,14 @@ Each entry is one compact comment, metadata only. Use exactly one canonical
 category in the `category` field; put resolution state or "not a real break" in
 `what` or `signal`, not in the category. Do not combine multiple friction events
 in one comment. Aggregation belongs in a rollup comment.
+
+Use only the categories listed below; do not invent new ones. When none fits,
+pick the closest and put the distinction in `what`. Do not post status notes,
+dispatch ledgers, success notes, or `cost: 0 / signal: none` entries; the log
+records friction only. Post the run rollup after the run's final action, not
+while work is still settling. When an upstream fix for a repeated entry has
+landed, later occurrences reference the fix as recurrence evidence instead of
+re-filing the discovery.
 
 ```text
 tick: <id or timestamp>
@@ -866,6 +929,8 @@ loop.
   tried.
 - Never start a new worker for review fixes when the original worker can
   continue.
+- Never let two workers push the same branch. One branch has one owning worker
+  session; record branch ownership in the ledger.
 - Never dispatch new implementation work when the configured active PR/preview
   cap is full or preview headroom is unknown.
 - Never merge a stale branch without rerunning checks and review after updating

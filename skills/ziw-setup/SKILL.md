@@ -148,6 +148,15 @@ Record:
 - a compact verification summary: date, scope, evidence sources, safe commands or
   read-only tool calls used, and unverified values
 - repo identity, default branch, branch prefix, and PR conventions
+- default-branch baseline health: current required-check state, known-red jobs
+  with an `expected-red-until-<ticket>` note, and which job conclusion the
+  post-merge check judges when an umbrella workflow contains a known-broken
+  sibling job
+- remote worker environment enforcement: whether repo hooks and gates actually
+  install and run in each remote or cloud worker environment (installers often
+  skip under a generic `CI=true`) and the exact pre-push gate that environment
+  enforces; prompt-level instructions are not a substitute for an
+  environment-enforced gate
 - package manager and command table: install, full gate, focused checks, build,
   lint, typecheck, tests, smoke, generated artifacts, cache policy, CI env
   passthrough rules, and the exact coverage or secret-scan scopes that hosted
@@ -170,6 +179,8 @@ Record:
 - code-host issue sync policy, including whether Linear advances ticket states
   from linked GitHub PR status and whether agents should assume synced state when
   both linked entities exist
+- code-host PR attention labels the orchestrator applies when a PR needs human
+  merge or input, such as `needs-human-merge` and `needs-human-input`
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
 - default worker path and capacity policy when the user or repo has a stable
   preference
@@ -179,7 +190,9 @@ Record:
   active PR/preview cap, cap count policy, preview-provider cap, stuck-worker
   timeout, attempt cap before the thrash circuit breaker, required checks that
   define green for the integrate gate, auto-merge risk tiers, merge method,
-  post-merge preparation and check, auto-Done integration behavior,
+  post-merge preparation and check, the production deploy status check on the
+  default-branch HEAD when the repo deploys on push, auto-Done integration
+  behavior,
   single-ticket one-off mutation policy, verified-ready ticket-set policy,
   completely-blocked stop policy, friction intake provider, location, mode,
   visibility, agent create authority, review cadence, cleanup policy, and

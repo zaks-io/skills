@@ -46,6 +46,10 @@ Cursor; a different provider records its own equivalent in config.
 - Record the returned session handle in the ledger when the agent provides one.
   Cursor returns a `cursor.com/agents/bc-<id>` URL in its comments; the `bcId`
   is the durable session handle.
+- Shortly after delegating, verify the provider spawned exactly one session for
+  the dispatch. Some providers spawn duplicate sessions minutes apart from a
+  single delegate set; stop or close the duplicate before either opens a PR and
+  treat only the canonical session's PR as real.
 
 ### Continue (the make-or-break step)
 
@@ -60,6 +64,10 @@ session, reply **into the agent-session thread**, not at top level.
   the agent to push.
 - If no agent-session thread exists yet, the agent has not picked up the issue.
   Wait, re-check, or escalate; do not assume a top-level comment will be seen.
+- A mid-session scope change is one authoritative in-thread reply that
+  explicitly supersedes earlier instructions. Never layer conflicting guidance
+  across dispatch notes, session replies, and top-level comments; the worker
+  will follow the wrong one.
 
 ### Liveness
 
@@ -67,6 +75,12 @@ Config should name the worker signals that prove an issue-assigned agent is
 alive: agent-session thread reply, branch creation, branch push, PR creation, or
 check activity. The stuck-worker timeout is measured from the latest of those
 signals, not just from the initial delegation timestamp.
+
+Tracker-thread silence plus no branch is not proof of death. When the provider
+exposes a session dashboard or status API, check it before declaring a session
+dead; a quiet remote agent is often still working. Default the stuck-worker
+timeout for issue-assigned remote agents generously (30+ minutes from the last
+signal) unless config tunes it.
 
 When a session is quiet past the timeout, send one direct nudge to the
 continuation target before starting another worker, unless config or current
@@ -124,6 +138,14 @@ Rules that do not change with tier:
   a PR when repo policy allows.
 - Missing CodeRabbit auth, rate limits, or credits is a recorded skip unless the
   user explicitly required it.
+- When the required external review for a HIGH-risk PR is unavailable (rate
+  limit, credits, outage), do not merge on a single local review. Route to
+  human merge or run a second independent local review pass, and record the
+  substitution.
+- When the repo deploys on push, the production deploy status on the
+  default-branch HEAD is part of the post-merge gate. A green PR preview does
+  not prove a green production deploy, especially for schema changes validated
+  against production data the preview branch does not have.
 
 ## Resolving This Into Config
 
@@ -140,7 +162,17 @@ values, not this file:
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy
 - the repo-route label family used for delegation
 - auto-merge risk tiers the orchestrator may merge vs route to human merge
+- code-host PR attention labels the orchestrator applies when a PR needs human
+  action (default `needs-human-merge`, `needs-human-input`)
 - review evidence label slug or ID, plus the evidence comment shape that records
   PR URL and reviewed head SHA
 - merge method, required checks that define green, plus any post-merge
   preparation needed before local post-merge checks are trustworthy
+- default-branch baseline health note: current required-check state and any
+  known-red jobs with the ticket that will fix them (`expected-red-until-<id>`)
+- the production deploy status check on the default-branch HEAD when the repo
+  deploys on push
+- remote worker environment gate: whether repo hooks and gates actually install
+  and run in each remote or cloud worker environment (installers often skip
+  under a generic `CI=true`), and the exact pre-push commands the environment
+  enforces
