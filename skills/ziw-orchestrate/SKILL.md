@@ -597,147 +597,44 @@ the ledger.
 
 ## PR Review And Integrate
 
-For each returned PR, Orchestrator owns the state machine. Review and integrate
-are called steps, not inlined work:
+For each returned PR, Orchestrator owns the state machine. Review and
+integrate are called steps, not inlined work. Walk
+[references/integrate-checklist.md](references/integrate-checklist.md) for
+each PR; it is the full order of operations. The invariants:
 
-1. Refresh PR draft status, branch head, required checks, review comments, and
-   linked issue state from the code host and tracker. If the tracker/code-host
-   integration syncs linked PRs and tickets, assume the synced state is real when
-   both linked entities exist; manually repair only after both systems have been
-   refreshed.
-   Require evidence-complete handoff before treating a returned PR as ready for
-   review or merge: current PR head SHA, base SHA, merge base, exact checks,
-   hosted check state, review verdict, CodeRabbit decision, and non-draft state
-   unless a blocker says why the PR must remain draft.
-2. If the PR is draft, diagnose draft state before asking for review: inspect
-   repo draft policy, PR body, check state, unresolved review comments, linked
-   issue state, handoff notes, configured review evidence label state, and the
-   original worker session. A draft-only stall is an orchestration repair, not a code
-   review request.
-3. For a draft PR, identify the exact blocker. If checks are still running or
-   failing, rerun or route the check failure. If author fixes, missing metadata,
-   or human prep are required, reply to the original worker's continuation target
-   or mark the ticket for human attention. If no explicit draft blocker remains,
-   mark the PR ready-for-review and verify it is non-draft.
-4. Confirm code review happened when feasible and covers the current PR head
-   before applying the configured review evidence label, moving to
-   `Ready to Merge`, or calling integrate. Request Agent Review only when review evidence is the actual
-   blocker, not merely because the PR is draft.
-5. When the next action requires review evidence, first verify the review target
-   is stable enough to spend a review pass: the PR head matches the code host,
-   the original worker is not still pushing to that head, and required checks are
-   complete or at least attached to the current head. If the head moved, checks
-   are empty or pending after a push, or the worker session is still actively
-   iterating, defer review until the next tick instead of producing unusable
-   review evidence. If a review pass was already wasted, log the cost with an
-   existing friction category, usually `stuck-worker` for live worker churn or
-   `config-gap` for missing check-state expectations.
-6. When the review target is stable, ask Agent Review to run `ziw-code-review`
-   in a subagent or disposable worktree. Parallel reviews must use isolated
-   worktrees or sessions, never one shared mutable checkout.
-7. If Agent Review ran, read the review verdict and CodeRabbit recommendation
-   from the review artifact. If multiple current review artifacts disagree on
-   blocking findings, reconcile conservatively: treat the PR as blocked until a
-   focused re-review resolves the exact findings or the risky diff is fixed.
-8. If the PR head changed since the configured review evidence label was
-   applied, or the label lacks reviewed head SHA evidence, remove the label
-   before continuing.
-9. If the latest review has blocking findings, remove the configured review
-   evidence label and post actionable findings as PR review comments when
-   configured.
-10. Move the issue to `Changes Requested` when author fixes are needed.
-11. Send feedback as a direct reply to Agent Implement or the original worker's
-    continuation target when available. Do not use a top-level issue comment for a
-    remote Cursor agent unless config verifies that route. Record a `review-thrash`
-    friction entry when a ticket returns to review more than the configured number
-    of times.
-12. Keep fixes on the same branch and PR.
-13. After fixes, ask Agent Review to rerun review and required checks.
-14. When Agent Review is clean for the current PR head, apply the configured
-    review evidence label to the issue and record the PR URL, reviewed head SHA,
-    review artifact, and reviewer path in a tracker comment or configured
-    evidence field.
-15. Before changing draft state, refresh code-host PR state and the current PR
-    head. Before applying the configured review evidence label, moving tracker
-    state to `Ready to Merge`, or calling integrate, refresh local Git refs and code-host
-    PR state. Verify the local branch or worktree HEAD, PR head SHA, and default
-    branch HEAD still match the review and check evidence. If they do not match,
-    rerun review and checks for the current head instead of approving or merging
-    from stale local state.
-    If the base branch moved since the review or `Ready to Merge` evidence was
-    recorded, treat merge readiness as expired until the branch is updated and
-    checks plus review cover the new head.
-16. If review is clean, required checks pass or are not required, and the PR is
-    still draft, move the PR to ready-for-review unless the user or repo config
-    explicitly says to keep it draft. Then refresh the code-host PR state and
-    verify it is non-draft. This is a code-host PR state change, separate from
-    tracker status. A kept-draft PR is pre-review; do not call it
-    ready-for-review.
-17. Resolve CodeRabbit state from the workflow config and root `.coderabbit.yaml`
-    at the reviewed PR head when present. Track whether `reviews.auto_review` is
-    enabled, disabled, opt-in by label or description keyword, or unknown. Note
-    draft or incremental-review behavior only when it changes the command
-    choice. Also refresh current PR-hosted review state for the PR head before
-    posting any CodeRabbit command.
-18. If CodeRabbit is recommended for the current diff, request it after local
-    review is clean and the PR is non-draft unless repo policy says otherwise.
-    If auto-review mode is unknown, stop and resolve it first; do not post a
-    blind comment. If auto-review is enabled, pending, or already current for the
-    PR head, record that state and wait instead of spending another review. Only
-    after auto-review is resolved as disabled or explicit opt-in is still needed,
-    and no hosted review is pending/current, use a top-level PR comment:
-    `@coderabbitai review` for incremental review, or `@coderabbitai full review`
-    when no complete review covers the current PR head. Do not run CodeRabbit CLI
-    for an existing PR or remote worker PR.
-19. If optional CodeRabbit should be skipped for this PR, add
-    `@coderabbitai ignore` to the PR description when repo policy allows. This
-    is the per-PR auto-review skip; do not post it as a comment. Treat missing
-    auth, rate limits, or credits as a recorded skip unless the user explicitly
-    required CodeRabbit.
-20. Act only on high-priority CodeRabbit findings: P0/P1, security, data loss,
-    correctness regression, production blocker, or a user-requested finding.
-21. Move to `Ready to Merge` only when Agent Review is clean, required checks
-    pass, the PR is non-draft and ready-for-review, the configured review
-    evidence label is current for the PR head, and required CodeRabbit
-    escalation is complete or recorded as skipped by policy.
-22. Call integrate when the auto-merge gate is satisfied.
-
-Merge preflight must enumerate every unresolved review thread on the PR with
-severity, using the code host's thread-level view, before deciding merge
-readiness; a partial comment count can green-light a real bug. If a code-host
-review verdict such as `CHANGES_REQUESTED` predates the current head and its
-findings are resolved on the current head, dismiss or re-request that review
-through the configured mechanism instead of leaving stale verdict metadata to
-block the merge.
-
-When a PR needs human attention, such as merge authority, a decision, or
-blocked fixes, apply the configured code-host PR label, such as
-`needs-human-merge` or `needs-human-input`, in addition to tracker state. The
-human queue must be visible from the PR list, not only from tracker comments.
-
-Human-attention states are claims that the only remaining work is a human
-action. Before applying `ready-for-human`, `needs-human-merge`, or the
-human-attention queue, enumerate every unresolved review source for the
-current head: hosted review verdicts and their inline comments, bot reviewers
-such as CodeRabbit or Bugbot, unresolved PR threads, check annotations, and
-tracker comments. A review summary body without its inline comments is not the
-full hosted-review result. Route every unresolved agent-fixable finding back
-to the original worker first; escalate only what remains and name the exact
-human action.
-
-Do not leave a PR in draft just because the implementation worker opened it as
-draft or because no one asked Orchestrator to unstick it. Orchestrator owns
-finding the draft blocker, taking the safe next action, and moving the PR to
-ready-for-review when no blocker remains. If Orchestrator lacks permission to
-mark it ready-for-review, stop with the exact required code-host action.
-Ready-for-review means non-draft.
+- Require an evidence-complete handoff (current PR head SHA, base SHA, merge
+  base, exact checks, hosted check state, review verdict, CodeRabbit decision,
+  draft state) before treating a returned PR as ready for review or merge.
+- Draft state is an orchestration repair, not a code review request.
+  Orchestrator finds the draft blocker and moves the PR to ready-for-review
+  when no blocker remains; if it lacks permission, stop with the exact
+  required code-host action. Ready-for-review means non-draft.
+- Spend review passes only on stable heads. Review and check evidence expires
+  when the PR head or base branch moves.
+- Review feedback goes to the original worker's continuation target, on the
+  same branch and PR.
+- Merge preflight enumerates every unresolved review thread with severity from
+  the code host's thread-level view, and dismisses or re-requests stale
+  code-host review verdicts that predate the current head.
+- When a PR needs human attention, apply the configured code-host PR label,
+  such as `needs-human-merge` or `needs-human-input`, in addition to tracker
+  state; the human queue must be visible from the PR list.
+- Human-attention states are claims that the only remaining work is a human
+  action. Enumerate every unresolved review source for the current head
+  (hosted review verdicts and their inline comments, bot reviewers such as
+  CodeRabbit or Bugbot, unresolved PR threads, check annotations, tracker
+  comments) and route every agent-fixable finding back to the original worker
+  first; escalate only what remains and name the exact human action. A review
+  summary body without its inline comments is not the full hosted-review
+  result.
 
 ### Integrate Gate
 
 Integrate is the only step that writes to the default branch. Run it only when
-the configured merge authority grants Orchestrator merge rights. Otherwise stop
-with the PR ready for human merge, apply the configured code-host attention
-label such as `needs-human-merge`, and mark it for the human-attention queue.
+the configured merge authority grants Orchestrator merge rights. Otherwise
+stop with the PR ready for human merge, apply the configured code-host
+attention label such as `needs-human-merge`, and mark it for the
+human-attention queue.
 
 "Green" is defined by config, not assumed. Default gate, all required:
 
@@ -747,51 +644,9 @@ label such as `needs-human-merge`, and mark it for the human-attention queue.
 - the PR is not in the configured high-risk set requiring human merge, unless
   config grants Orchestrator authority for that risk tier
 
-If config says hosted checks are unavailable or unknown but the code host exposes
-required, recently attached, or clearly relevant checks on the PR, treat that as
-a setup drift signal. Log `config-gap`, use the live code-host checks as the
-minimum safety evidence for this PR, and route setup refresh to record the real
-gate. Do not merge by relying on stale "no CI" config.
-
-When the gate passes:
-
-1. Refresh local Git refs and code-host PR state immediately before merging.
-   Verify the local observation of the PR head, default branch HEAD, merge base,
-   required checks, review verdict, and draft state matches the code host. If
-   any value is stale or missing, update the local checkout and rerun the
-   affected gate instead of merging.
-2. If the default branch moved since the PR branch last updated, rebase or update
-   the branch, then rerun required checks and `ziw-code-review`. Do not
-   merge a stale branch on the assumption it still applies, and do not preserve
-   `Ready to Merge` state without fresh evidence. Record a `merge-conflict`
-   friction entry if the rebase needed manual resolution and escalate instead of
-   guessing on a real conflict.
-3. Merge through the configured mechanism, such as squash, merge commit, or
-   rebase merge. If the code host rejects the configured method, stop, log
-   `config-gap`, and refresh setup instead of retrying with a guessed method.
-   If branch policy rejects a direct merge despite green checks, use the
-   host's auto-merge when config allows it and record the policy for the next
-   setup refresh. Confirm the merge completed from refreshed code-host state,
-   not from the merge command's output; some CLIs print nothing on success.
-4. Refresh local Git refs and update the local default branch to the merged head
-   before any post-merge check, next PR decision, or issue `Done` transition.
-5. Run configured post-merge preparation before judging the default branch:
-   update dependencies when the lockfile or workspace graph changed, rebuild or
-   regenerate artifacts when config says they can be stale, and use the
-   configured runner for tests or checks. Do not infer the runner from file
-   names. Then run the configured post-merge check when config names one.
-   Mergeable does not prove correct after merge. If a prep step clears a stale
-   local artifact failure, log `config-gap`; if the checked default branch still
-   fails, record `post-merge-break` and escalate.
-6. Move the issue to `Done` only after the merge and post-merge check succeed and
-   the full issue scope is complete. For Linear + GitHub, assume the linked PR can
-   auto-advance the ticket state; do not duplicate that transition unless
-   refreshed state still needs repair. If a code-host integration auto-moved the
-   issue to `Done` after the first linked PR but acceptance criteria remain, reopen
-   or narrow the issue according to config, record the residual scope, and log
-   `config-gap`. In the same tracker update for true Done, remove
-   `ready-for-agent` or the repo-configured readiness label from the done ticket.
-   Done work is no longer waiting for agent handoff.
+The merge procedure itself, including branch update after base drift, merge
+verification from code-host state, post-merge preparation and checks, and the
+`Done` transition, is the Merge section of the integrate checklist reference.
 
 Never merge or deploy production without explicit approval. A label alone is
 never permission to merge.
