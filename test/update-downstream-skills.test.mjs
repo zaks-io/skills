@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -15,6 +23,7 @@ import { expandHome, parseArgs } from "../scripts/downstream-skills/options.mjs"
 import {
   extractPrUrl,
   prBody,
+  pruneDanglingSkillSymlinks,
   statusLinesChanged,
   updateTargets,
 } from "../scripts/downstream-skills/update.mjs";
@@ -198,6 +207,35 @@ test("generated PR body disables optional CodeRabbit review", () => {
   assert.match(body, /CodeRabbit disabled/);
   assert.match(body, /pnpm ci:check/);
 });
+
+test("pruneDanglingSkillSymlinks removes only broken runtime skill links", () => {
+  const repo = mkdtempSync(path.join(os.tmpdir(), "ziw-prune-"));
+  try {
+    mkdirSync(path.join(repo, ".agents/skills/ziw-pr"), { recursive: true });
+    mkdirSync(path.join(repo, ".claude/skills"), { recursive: true });
+    mkdirSync(path.join(repo, ".codex/skills"), { recursive: true });
+    symlinkSync("../../.agents/skills/ziw-pr", path.join(repo, ".claude/skills/ziw-pr"));
+    symlinkSync("../../.agents/skills/ziw-review", path.join(repo, ".claude/skills/ziw-review"));
+    symlinkSync("../../.agents/skills/ziw-review", path.join(repo, ".codex/skills/ziw-review"));
+
+    const pruned = pruneDanglingSkillSymlinks(repo);
+
+    assert.deepEqual(pruned.sort(), [".claude/skills/ziw-review", ".codex/skills/ziw-review"]);
+    assert.equal(existsSync(path.join(repo, ".claude/skills/ziw-pr")), true);
+    assert.equal(lstatExists(path.join(repo, ".claude/skills/ziw-review")), false);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+function lstatExists(target) {
+  try {
+    lstatSync(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 test("extractPrUrl returns one output line", () => {
   assert.equal(extractPrUrl("noise\nhttps://example.com/pr/1\nmore\n"), "https://example.com/pr/1");

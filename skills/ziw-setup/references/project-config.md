@@ -116,10 +116,10 @@ Last updated: YYYY-MM-DD
 - Kind labels: kind-spec, kind-epic, kind-slice (single-select; skills enforce exclusivity; only kind-slice is dispatchable)
 - Risk labels: risk-normal, risk-security-sensitive, risk-schema, risk-cross-cutting
 - Risk label policy: use the default risk labels as dimensions, not severity levels; add repo-specific risk labels only when they change routing, checks, approvals, or reviewer assignment
-- Review evidence labels: exact configured label slugs or IDs, such as
-  `code-review-passed`
+- Review evidence labels: exact configured label slugs or IDs (repo-specific;
+  record the real slug here, not an example)
 - Review evidence label policy:
-  - code-review-passed: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
+  - <review-evidence-label>: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
 - Priority policy:
@@ -164,7 +164,13 @@ Last updated: YYYY-MM-DD
   that have not yet produced a PR
 - Cap count policy: count each open PR once, add active previews that are not
   clearly linked to an already counted PR, then add unreturned implementation
-  dispatches. Obey any stricter preview-provider or worker-session limit
+  dispatches. Exclude bot dependency PRs (dependabot, renovate) from the cap;
+  track them as a separate drain count. Obey any stricter preview-provider or
+  worker-session limit
+- Partitioned-scope cap semantics: when the queue is split across concurrent
+  orchestrator runs, record whether the cap is shared repo-wide or per scope,
+  and how each run counts the other's PRs and dispatches. Unset means one
+  repo-wide cap shared by all runs
 - Dispatch footprint policy: before fanning out startable work, compare predicted
   file or package footprints against active PRs, active worker branches, and other
   selected candidates, including shared document hotspots. Hold collisions or

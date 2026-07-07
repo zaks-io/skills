@@ -51,8 +51,9 @@ Each tick:
    review verdicts as JSON. Reason over that snapshot instead of assembling
    the same state from many tool calls; it needs an authenticated `gh`, and
    with `LINEAR_API_KEY` set plus `--linear-team <KEY>` it also returns the
-   open issue queue. Use tracker tooling for issue bodies, comments, and
-   blocker relations. Delegate the inventory read to an isolated triage
+   open issue queue with unresolved `blockedBy` identifiers per issue. Never
+   dispatch an issue whose snapshot or tracker state shows an incomplete
+   blocker. Use tracker tooling for issue bodies and comments. Delegate the inventory read to an isolated triage
    worker when the runtime has one; keep only the compact queue (ID, state,
    readiness, blockers, PR, owner, next action) in the main context.
 3. Reconcile the ledger against refreshed tracker and PR state. Trust external
@@ -60,6 +61,10 @@ Each tick:
 4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped
    previews, and implementation dispatches that have not yet produced a PR.
    Count repo/project preview capacity, not only the requested issue filter.
+   Count only agent- or human-delegated product PRs against the delivery cap;
+   track bot dependency PRs (dependabot, renovate) as a separate drain count.
+   Bot PRs are merge/close work to advance, not delegation slots — they must
+   not starve new dispatch.
 5. Act on at most a bounded slice of work this tick: advance returned PRs, active
    previews, and stuck draft PRs first. Optimize delivery-slot turnover over
    worker count: merge green PRs, route fixes, update branches after main moves,

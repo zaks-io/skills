@@ -63,6 +63,10 @@ When starting:
 - assign yourself or record the delegate when supported
 - comment with the short plan
 - use or create a branch containing the issue ID
+- when told to create a worktree, hard-fail if the target path already exists
+  or belongs to another session (orchestrator checkout, another worker's
+  worktree). Never build in a worktree you did not create; report the
+  collision instead of reusing it
 
 If invoked directly by the user for one issue, treat that as single-ticket
 orchestration authority for that issue unless the user says code-only or config

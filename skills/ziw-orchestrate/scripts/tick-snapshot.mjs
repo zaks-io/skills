@@ -69,7 +69,7 @@ query($owner: String!, $name: String!, $limit: Int!) {
       totalCount
       nodes {
         number title url isDraft updatedAt
-        author { login }
+        author { login __typename }
         headRefName headRefOid baseRefName
         mergeable mergeStateStatus reviewDecision
         labels(first: 20) { nodes { name } }
@@ -136,6 +136,7 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
   title: pr.title,
   url: pr.url,
   author: pr.author?.login ?? null,
+  isBot: pr.author?.__typename === "Bot",
   isDraft: pr.isDraft,
   updatedAt: pr.updatedAt,
   headRefName: pr.headRefName,
@@ -165,6 +166,7 @@ query($team: String!) {
       state { name type }
       labels { nodes { name } }
       assignee { displayName }
+      inverseRelations(first: 20) { nodes { type issue { identifier state { type } } } }
     }
   }
 }`;
@@ -190,6 +192,9 @@ query($team: String!) {
         priority: issue.priority,
         labels: (issue.labels?.nodes ?? []).map((label) => label.name),
         assignee: issue.assignee?.displayName ?? null,
+        blockedBy: (issue.inverseRelations?.nodes ?? [])
+          .filter((rel) => rel.type === "blocks" && rel.issue?.state?.type !== "completed")
+          .map((rel) => rel.issue.identifier),
         updatedAt: issue.updatedAt,
       })),
     };
@@ -204,7 +209,11 @@ process.stdout.write(
       generatedAt: new Date().toISOString(),
       repo,
       baseline,
-      footprint: { openPrCount: repoData.pullRequests?.totalCount ?? prs.length },
+      footprint: {
+        openPrCount: repoData.pullRequests?.totalCount ?? prs.length,
+        productPrCount: prs.filter((pr) => !pr.isBot).length,
+        botPrCount: prs.filter((pr) => pr.isBot).length,
+      },
       prs,
       linear,
     },

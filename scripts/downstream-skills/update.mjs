@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import { buildTargets, extractFullLocalGate } from "./discovery.mjs";
@@ -88,6 +89,7 @@ function updateInCheckout(target, options, checkoutRoot, before, branchName) {
 
 function runProjectUpdate(target, checkoutRoot, before) {
   const update = run("npx", ["skills", "update", "-p", "-y"], checkoutRoot);
+  const prunedSymlinks = pruneDanglingSkillSymlinks(checkoutRoot);
   const after = gitStatus(checkoutRoot) ?? [];
   const changed = statusLinesChanged(before, after);
   return {
@@ -95,10 +97,35 @@ function runProjectUpdate(target, checkoutRoot, before) {
     after,
     before,
     changed,
+    prunedSymlinks,
     status: update.status === 0 ? (changed ? "updated" : "unchanged") : "update-failed",
     updateExitCode: update.status,
     updateOutput: outputTail(update),
   };
+}
+
+// `npx skills update` removes dropped skills from the lockfile and .agents/skills
+// but leaves runtime symlinks (.claude/skills, .codex/skills) dangling.
+export function pruneDanglingSkillSymlinks(checkoutRoot) {
+  const pruned = [];
+  for (const runtimeDir of [".claude/skills", ".codex/skills"]) {
+    const dir = path.join(checkoutRoot, runtimeDir);
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isSymbolicLink()) continue;
+      const linkPath = path.join(dir, entry.name);
+      if (!fs.existsSync(linkPath)) {
+        fs.unlinkSync(linkPath);
+        pruned.push(path.join(runtimeDir, entry.name));
+      }
+    }
+  }
+  return pruned;
 }
 
 function runConfiguredCheck(result, repoRoot) {

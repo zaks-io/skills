@@ -197,8 +197,9 @@ non-draft.
 
 Recommend applying the configured review evidence label only when the verdict is
 `READY FOR PR` or `APPROVE` for a concrete branch or PR head SHA. Recommend
-clearing it when there are blocking findings or the reviewed head is not the
-current PR head.
+clearing it when there are blocking findings, the reviewed head is not the
+current PR head, or the evidence itself (PR URL and reviewed head SHA) is
+missing or stale. A label without current evidence is a claim, not proof.
 
 ## Output
 
