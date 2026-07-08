@@ -524,12 +524,17 @@ Default rule:
   readiness labels, set configured estimates, encode dependencies, and write the
   agent-ready body. It does not move active work. Ready slices go in the
   configured ready state even when dependency blockers remain.
-- Issue Triage can edit labels, kinds, readiness, body shape, dependencies,
-  estimates when configured, metadata, stale review-evidence labels, and
-  verified stale states. It does not review Linear Backlog unless asked, and it
-  does not park dependency-ready slices in Linear Backlog after requested Linear
-  Backlog cleanup. When it verifies a ticket is `Done`, it removes
-  `ready-for-agent`.
+- Issue Triage runs the workflow scripts, inspects their output, and edits
+  tracker labels, kinds, readiness, body shape, dependencies, estimates when
+  configured, and metadata so the configured ready state, usually `Todo`, is a
+  clean handoff queue for Orchestrator. Default triage snapshots include the
+  ready state, configured intake such as `Triage`, and direct blockers of those
+  tickets, not unrelated Backlog or Duplicate work. It uses tracker/MCP tools for
+  targeted ticket reads and mutations, not rediscovering queue state the scripts
+  already computed. It does not review Linear Backlog unless asked, and it does
+  not park dependency-ready slices in Linear Backlog after requested Linear
+  Backlog cleanup. It does not do ad hoc code, GitHub, CI, deploy, production,
+  alert, or log exploration outside the scripts.
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.

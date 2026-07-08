@@ -23,15 +23,15 @@ stale, not invoked in real runs, or duplicating another role's authority.
 Keep the seven current publishable skills for now. Do not add another
 publishable skill until telemetry proves the current surface is insufficient.
 
-| Skill             | Decision              | Why                                                                                                                                                                     |
-| ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ziw-setup`       | Keep                  | Owns Repo Config creation and refresh. Other roles should not rediscover commands, tracker IDs, environment rules, or agent access.                                     |
-| `ziw-to-issues`   | Keep                  | Owns spec or epic conversion into dependency-ordered Slice Tickets. This is separate from tracker cleanup and implementation.                                           |
-| `ziw-triage`      | Keep, watch size      | Owns Issue Tracker cleanup for current work, stale state, readiness, dependency, and review-debt intake. Merging it into Orchestrator would make the work loop heavier. |
-| `ziw-orchestrate` | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.             |
-| `ziw-implement`   | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                        |
-| `ziw-code-review` | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.  |
-| `ziw-pr`          | Keep, measure overlap | Shared shipping gate for branch-to-PR work. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.                |
+| Skill             | Decision              | Why                                                                                                                                                                                      |
+| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ziw-setup`       | Keep                  | Owns Repo Config creation and refresh. Other roles should not rediscover commands, tracker IDs, environment rules, or agent access.                                                      |
+| `ziw-to-issues`   | Keep                  | Owns spec or epic conversion into dependency-ordered Slice Tickets. This is separate from tracker cleanup and implementation.                                                            |
+| `ziw-triage`      | Keep, watch size      | Owns script-driven Issue Tracker backlog cleanup, readiness, dependency, and review-debt intake before Orchestrator runs. Merging it into Orchestrator would make the work loop heavier. |
+| `ziw-orchestrate` | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.                              |
+| `ziw-implement`   | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                                         |
+| `ziw-code-review` | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.                   |
+| `ziw-pr`          | Keep, measure overlap | Shared shipping gate for branch-to-PR work. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.                                 |
 
 ## Removed Or Demoted
 

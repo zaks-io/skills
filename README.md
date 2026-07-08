@@ -299,16 +299,23 @@ good default agent work. Auth, PII, secrets, payments, production, destructive
 data, broad refactors, cross-repo changes, unclear domain behavior, and
 performance work without benchmarks require human planning first.
 
-Issue Triage defaults to current work: `Todo` tickets plus active or PR-linked
-tickets whose tracker state may be stale. It makes Todo tickets ready for
-agents, fixes metadata, and marks verified merged work done. It does not review
-Linear `Backlog` unless asked. Linear `Backlog` means work you do not want agents
-working yet: uncommitted ideas, intentionally parked scope, or tickets that are
-not shaped correctly. Dependency blockers should be encoded separately, not used
-to remove readiness or park ready work in Linear Backlog. Agent Orchestrator owns
-active-work state moves except for these narrow verified-state repairs. It reads
-the issue tracker, checks PR and CI state, starts workers, asks for review, and
-moves tickets when the external state says that is safe.
+Issue Triage grooms the configured ready state, usually `Todo`, plus configured
+intake, usually `Triage`, into a clean handoff queue for Orchestrator. The
+snapshot also includes direct blockers of those tickets so the dependency graph
+stays correct without reading unrelated parked work. It runs the configured
+workflow scripts, inspects their output, and fixes tickets: labels, kind,
+readiness, body shape, estimates when configured, dependency relationships,
+stale readiness, and exact next owners. It does not review unrelated Linear
+`Backlog` or Duplicate tickets unless asked. Linear `Backlog` means work you do
+not want agents working yet: uncommitted ideas, intentionally parked scope, or
+tickets that are not shaped correctly. Dependency blockers should be encoded
+separately, not used to remove readiness or park ready work in Linear Backlog.
+
+Triage is not exploration. It should not manually inspect code, GitHub, CI,
+deploys, logs, alerts, or repo health outside the approved workflow scripts.
+Tracker/MCP tools are for specific ticket reads and mutations, not for
+rediscovering queue state. Agent Orchestrator owns active delivery, PR/check
+state, worker starts, reviews, integration, and completion.
 
 A one-off user request for a single ticket is still orchestration, just scoped to
 that ticket. The agent should claim, implement, review, integrate when allowed,

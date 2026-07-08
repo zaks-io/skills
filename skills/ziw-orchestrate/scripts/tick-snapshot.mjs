@@ -4,7 +4,7 @@
 // snapshot instead of dozens of tool round-trips.
 //
 // Usage:
-//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY]
+//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY] [--linear-states Todo,Triage]
 //
 // GitHub state comes from the `gh` CLI (must be installed and authenticated).
 // Linear state is included only when --linear-team is given and either
@@ -22,6 +22,12 @@ const argValue = (flag) => {
   const i = args.indexOf(flag);
   return i >= 0 ? args[i + 1] : undefined;
 };
+const argValues = (flag) =>
+  args.flatMap((arg, index) => {
+    if (arg === flag) return args[index + 1] ? [args[index + 1]] : [];
+    if (arg.startsWith(`${flag}=`)) return [arg.slice(flag.length + 1)];
+    return [];
+  });
 
 const fail = (message) => {
   console.error(`tick-snapshot: ${message}`);
@@ -165,6 +171,14 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
 }));
 
 const linearTeam = argValue("--linear-team");
+const linearStates = [
+  ...new Set(
+    [...argValues("--linear-state"), ...argValues("--linear-states")]
+      .flatMap((value) => String(value).split(","))
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ),
+];
 let linear = {
   skipped: "no --linear-team or Linear credential; use tracker tooling",
 };
@@ -189,22 +203,36 @@ query($team: String!) {
       query: LINEAR_QUERY,
       variables: { team: linearTeam },
     });
+    const issues = body.data.issues.nodes.map((issue) => ({
+      identifier: issue.identifier,
+      title: issue.title,
+      url: issue.url,
+      state: issue.state?.name,
+      stateType: issue.state?.type,
+      priority: issue.priority,
+      labels: (issue.labels?.nodes ?? []).map((label) => label.name),
+      assignee: issue.assignee?.displayName ?? null,
+      blockedBy: (issue.inverseRelations?.nodes ?? [])
+        .filter((rel) => rel.type === "blocks" && rel.issue?.state?.type !== "completed")
+        .map((rel) => rel.issue.identifier),
+      updatedAt: issue.updatedAt,
+    }));
+    const filteredIssues =
+      linearStates.length > 0
+        ? (() => {
+            const stateSet = new Set(linearStates);
+            const primary = issues.filter((issue) => stateSet.has(issue.state));
+            const directBlockers = new Set(primary.flatMap((issue) => issue.blockedBy));
+            return issues.filter(
+              (issue) => stateSet.has(issue.state) || directBlockers.has(issue.identifier),
+            );
+          })()
+        : issues;
     linear = {
       team: linearTeam,
-      issues: body.data.issues.nodes.map((issue) => ({
-        identifier: issue.identifier,
-        title: issue.title,
-        url: issue.url,
-        state: issue.state?.name,
-        stateType: issue.state?.type,
-        priority: issue.priority,
-        labels: (issue.labels?.nodes ?? []).map((label) => label.name),
-        assignee: issue.assignee?.displayName ?? null,
-        blockedBy: (issue.inverseRelations?.nodes ?? [])
-          .filter((rel) => rel.type === "blocks" && rel.issue?.state?.type !== "completed")
-          .map((rel) => rel.issue.identifier),
-        updatedAt: issue.updatedAt,
-      })),
+      statesFilter: linearStates,
+      includesDirectBlockers: linearStates.length > 0,
+      issues: filteredIssues,
     };
   } catch (error) {
     linear = { error: `Linear query failed: ${error.message}; use tracker tooling` };
