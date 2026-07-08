@@ -394,10 +394,11 @@ open PRs.
 Agent Review and integrate are steps the orchestrator calls, not loops. Agent
 Review fetches latest state, runs `ziw-code-review` from clean context against
 current committed code, and returns freshness, refactor candidates, and a
-verdict; integrate is the auto-merge gate that defines green, rebases on moved
-main, merges with the configured method, and runs a post-merge check. Worker and
-PR local gates must match configured CI scopes, thresholds, cache policy,
-generated-artifact checks, and secret-scan range.
+verdict; integrate is the auto-merge gate that defines green, updates moved
+GitHub PR branches with `gh pr update-branch <pr>`, delegates only merge
+conflicts, merges with the configured method, and runs a post-merge check.
+Worker and PR local gates must match configured CI scopes, thresholds, cache
+policy, generated-artifact checks, and secret-scan range.
 
 The research behind this operating model is captured in
 [docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short

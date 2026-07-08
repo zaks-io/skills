@@ -74,8 +74,10 @@ file carries the order of operations.
     they do not match, rerun review and checks for the current head instead of
     approving or merging from stale local state. If the base branch moved
     since the review or `Ready to Merge` evidence was recorded, treat merge
-    readiness as expired until the branch is updated and checks plus review
-    cover the new head.
+    readiness as expired. For GitHub PRs, refresh PR state, run
+    `gh pr update-branch <pr>`, then rerun checks and review on the updated
+    head. Do not delegate this routine update; delegate only when the command or
+    code host reports a merge conflict or equivalent manual conflict state.
 15. If review is clean, required checks pass or are not required, and the PR
     is still draft, move the PR to ready-for-review unless the user or repo
     config explicitly says to keep it draft. Then refresh the code-host PR
@@ -135,12 +137,14 @@ When the integrate gate passes:
    base, required checks, review verdict, and draft state matches the code
    host. If any value is stale or missing, update the local checkout and rerun
    the affected gate instead of merging.
-2. If the default branch moved since the PR branch last updated, rebase or
-   update the branch, then rerun required checks and `ziw-code-review`. Do not
-   merge a stale branch on the assumption it still applies, and do not
-   preserve `Ready to Merge` state without fresh evidence. Record a
-   `merge-conflict` friction entry if the rebase needed manual resolution and
-   escalate instead of guessing on a real conflict.
+2. If the default branch moved since the PR branch last updated, refresh PR
+   state, run `gh pr update-branch <pr>` for GitHub PRs, then rerun required
+   checks and `ziw-code-review`. Do not merge a stale branch on the assumption
+   it still applies, and do not preserve `Ready to Merge` state without fresh
+   evidence. Do not send routine branch updates to the implementation worker.
+   Record a `merge-conflict` friction entry and delegate or escalate only when
+   the update command or code host reports a merge conflict or equivalent manual
+   conflict state.
 3. Merge through the configured mechanism, such as squash, merge commit, or
    rebase merge. If the code host rejects the configured method, stop, log
    `config-gap`, and refresh setup instead of retrying with a guessed method.

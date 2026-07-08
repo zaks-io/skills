@@ -15,6 +15,9 @@ and delegates context-heavy work.
 - Triage workers repair issue shape, dependencies, routing, readiness, and
   startable queue truth.
 - Integrate handles merge authority and default-branch writes.
+- Orchestrator handles routine GitHub PR branch updates with
+  `gh pr update-branch <pr>`. Send branch-update work to a worker only when the
+  update reports a merge conflict or equivalent manual conflict state.
 
 Orchestrator reads tracker/PR metadata. It does not read diffs to review them
 and does not patch source as part of orchestration.
