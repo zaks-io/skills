@@ -50,12 +50,20 @@ Each tick:
    mergeable state, unresolved review-thread counts, check rollups, and
    review verdicts as JSON. Reason over that snapshot instead of assembling
    the same state from many tool calls; it needs an authenticated `gh`, and
-   with `LINEAR_API_KEY` set plus `--linear-team <KEY>` it also returns the
-   open issue queue with unresolved `blockedBy` identifiers per issue. Never
-   dispatch an issue whose snapshot or tracker state shows an incomplete
-   blocker. Use tracker tooling for issue bodies and comments. Delegate the inventory read to an isolated triage
-   worker when the runtime has one; keep only the compact queue (ID, state,
-   readiness, blockers, PR, owner, next action) in the main context.
+   with `--linear-team <KEY>` plus either a `linear-graphql.mjs setup` credential
+   or `LINEAR_API_KEY`, it also returns the open issue queue with unresolved
+   `blockedBy` identifiers per issue. Then run
+   `node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> --config <config.json> --state <queue-state.json>`
+   when compact queue/config JSON is available. The planner deterministically
+   returns active footprint, capacity action, collision-safe dispatch selection,
+   Linear DAG roots/starts, ready-state promotions, hosted-review actions, and
+   human-merge PR label decisions. Use
+   `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot.json> --config <config.json>`
+   when only the Linear dependency frontier is needed. Never dispatch an issue
+   whose snapshot or tracker state shows an incomplete blocker. Use tracker
+   tooling for issue bodies and comments. Delegate the inventory read to an
+   isolated triage worker when the runtime has one; keep only the compact queue
+   (ID, state, readiness, blockers, PR, owner, next action) in the main context.
 3. Reconcile the ledger against refreshed tracker and PR state. Trust external
    state; drop stale ledger entries; re-dispatch or escalate stuck workers.
 4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped

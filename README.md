@@ -421,7 +421,7 @@ glue should stay under `.agents/` unless it proves portable.
   dependencies so Todo tickets are clean and agent-ready. It follows the
   repo-configured label treatment policy, skips Linear Backlog unless asked, and
   asks or lists exact human next actions when something is unclear.
-- `ziw-orchestrate`: run the work loop, dispatching startable
+- `ziw-orchestrate`: run the script-backed work loop, dispatching startable
   `kind-slice` tickets and calling review and integrate as steps, without
   becoming the coder or reviewer.
 - `ziw-implement`: take one startable issue through implementation,

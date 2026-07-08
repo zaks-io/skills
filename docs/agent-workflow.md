@@ -90,7 +90,18 @@ aggregation.
 `scripts/workflow-contract.mjs` holds pure decision helpers for brittle workflow
 rules that should not stay as prose only: Done-ticket readiness exclusion,
 review-evidence freshness, active PR/preview footprint counting, capacity
-behavior, and untrusted instruction handling.
+behavior, dispatch collision checks, hosted-review routing, human-merge PR label
+gates, and untrusted instruction handling.
+
+`skills/ziw-orchestrate/scripts/tick-snapshot.mjs` gathers compact code-host
+state for a tick. `skills/ziw-orchestrate/scripts/linear-graphql.mjs` provides a
+small macOS encrypted credential wrapper for batch Linear GraphQL reads.
+`skills/ziw-orchestrate/scripts/tick-plan.mjs` turns compact snapshot, config,
+and queue JSON into deterministic next-action decisions. The orchestrator should
+use those scripts instead of re-reading PR lists, draft state, check rollups, and
+footprint decisions into model context every tick.
+`skills/ziw-orchestrate/scripts/linear-dag-start.mjs` calculates the root/frontier
+of a Linear dependency graph from the same compact issue JSON.
 
 When adding a workflow rule that can be expressed as inputs and an expected
 action, add it there and cover it in `test/workflow-contract.test.mjs`. Keep

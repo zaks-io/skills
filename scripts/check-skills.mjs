@@ -35,6 +35,7 @@ const researchFile = path.join(docsDir, "agent-delivery-research.md");
 const skillPortfolioFile = path.join(docsDir, "skill-portfolio.md");
 const workflowContractFile = path.join(root, "scripts", "workflow-contract.mjs");
 const workflowContractTestFile = path.join(root, "test", "workflow-contract.test.mjs");
+const hotSkillLineLimits = new Map([["ziw-orchestrate", 260]]);
 const expectedClaudeAgents = new Set(["ziw-implementer", "ziw-reviewer", "ziw-triager"]);
 const unsupportedClaudeAgentFields = ["hooks", "mcpServers", "permissionMode"];
 
@@ -156,6 +157,10 @@ for (const name of skillNames) {
   const skillFile = path.join(skillsDir, name, "SKILL.md");
   const skillText = readText(skillFile);
   const skillScriptsDir = path.join(skillsDir, name, "scripts");
+  const hotSkillLineLimit = hotSkillLineLimits.get(name);
+  if (hotSkillLineLimit && skillText.split(/\r?\n/).length > hotSkillLineLimit) {
+    fail(`${relative(skillFile)} must stay at or below ${hotSkillLineLimit} lines`);
+  }
   const h1Count = (skillText.match(/^#\s+/gm) ?? []).length;
   if (h1Count !== 1) {
     fail(`${relative(skillFile)} must have exactly one top-level heading`);

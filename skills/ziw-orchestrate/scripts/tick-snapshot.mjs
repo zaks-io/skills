@@ -7,12 +7,15 @@
 //   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY]
 //
 // GitHub state comes from the `gh` CLI (must be installed and authenticated).
-// Linear state is included only when LINEAR_API_KEY is set and --linear-team
-// is given; otherwise the tracker section reports skipped and the caller uses
-// its tracker tooling as usual. Blocker relations and issue bodies stay on
-// the tracker tools; this snapshot is workflow metadata only.
+// Linear state is included only when --linear-team is given and either
+// LINEAR_API_KEY exists or linear-graphql.mjs setup has stored a local macOS
+// credential; otherwise the tracker section reports skipped and the caller uses
+// its tracker tooling as usual. Blocker relations and issue bodies stay on the
+// tracker tools; this snapshot is workflow metadata only.
 
 import { execFileSync } from "node:child_process";
+
+import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs";
 
 const args = process.argv.slice(2);
 const argValue = (flag) => {
@@ -156,8 +159,10 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
 }));
 
 const linearTeam = argValue("--linear-team");
-let linear = { skipped: "no LINEAR_API_KEY or --linear-team; use tracker tooling" };
-if (process.env.LINEAR_API_KEY && linearTeam) {
+let linear = {
+  skipped: "no --linear-team or Linear credential; use tracker tooling",
+};
+if (linearTeam && hasLinearCredential()) {
   const LINEAR_QUERY = `
 query($team: String!) {
   issues(first: 100, filter: {
@@ -174,16 +179,10 @@ query($team: String!) {
   }
 }`;
   try {
-    const response = await fetch("https://api.linear.app/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: process.env.LINEAR_API_KEY,
-      },
-      body: JSON.stringify({ query: LINEAR_QUERY, variables: { team: linearTeam } }),
+    const body = await linearGraphqlRequest({
+      query: LINEAR_QUERY,
+      variables: { team: linearTeam },
     });
-    const body = await response.json();
-    if (body.errors) throw new Error(body.errors.map((e) => e.message).join("; "));
     linear = {
       team: linearTeam,
       issues: body.data.issues.nodes.map((issue) => ({
