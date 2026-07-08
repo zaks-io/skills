@@ -18,7 +18,9 @@ Load and follow:
 
 Read `docs/agents/workflow/config.md` first. Confirm provider location, status
 names, readiness labels, routing labels, worker environment labels, dependency
-policy, and issue body contract before mutating the tracker.
+policy, and issue body contract before mutating the tracker. A ticket is not
+agent-ready when it has multiple primary outcomes or missing in-scope and
+out-of-scope boundaries.
 
 Default to current ready and active work. When the user asks for backlog review,
 backlog cleanup, first-run backfill, or intake cleanup, include that scope and

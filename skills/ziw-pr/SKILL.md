@@ -41,6 +41,9 @@ Find or create tracking before naming the PR:
    in the configured provider location with the repo routing label.
 4. Capture original intent: title, scope, out of scope, acceptance criteria,
    required checks, and linked docs.
+5. Compare the current diff to that intent. A PR may satisfy the assigned issue
+   and directly required mechanics; it must not quietly deliver adjacent tickets,
+   optional polish, broad refactors, or behavior named out of scope.
 
 Skip issue tracker only when tools are unavailable or config lacks enough information.
 Record the skip in the final report.
@@ -56,6 +59,10 @@ Record the skip in the final report.
   duplicate.
 - Include all staged and unstaged repo changes by default, except secrets.
 - If the diff is unrelated work mixed together, stop and ask how to split.
+- If the diff contains work outside the tracked issue boundary, split, revert,
+  or ask before creating or updating the PR. Do not use one PR to close multiple
+  tickets unless the user explicitly requested a multi-ticket PR and config
+  allows it.
 
 ## Checks
 
@@ -99,18 +106,21 @@ review, run `ziw-code-review`. Fix P0/P1 findings and obvious mechanical
 P2 findings. Ask before broad architecture, product, security, or data-behavior
 changes.
 
-Use CodeRabbit per the merge-safety rules in
+Use the configured hosted bot review provider per the merge-safety rules in
 [../ziw-setup/references/operating-profile.md](../ziw-setup/references/operating-profile.md)
-and the `ziw-code-review` recommendation: only for high-risk changes or when
-the user asks. Do not post CodeRabbit commands or run its CLI until the
-auto-review mode (root `.coderabbit.yaml` `reviews.auto_review`) and the
-current hosted review state are resolved; if a hosted review is enabled,
-pending, or complete for the current PR head, wait instead of requesting
-another, and never use the CLI for an existing PR. Use `@coderabbitai ignore`
-in the PR description only when repo policy allows skipping optional
-auto-review. Record the decision, or `unresolved` when the state is unknown,
-in the handoff so Agent Orchestrator can decide any post-PR escalation.
-Missing auth, rate limits, or credits are a recorded skip, not a blocker.
+and the `ziw-code-review` recommendation. CodeRabbit and Cursor Bugbot are both
+valid providers when repo config enables them. Use hosted bot review only for
+high-risk changes or when the user asks.
+
+Do not post hosted-review commands or run a provider CLI until the provider,
+auto-review mode, trigger policy, and current hosted review state are resolved.
+If a hosted review is enabled, pending, or complete for the current PR head, wait
+instead of requesting another. Never use CodeRabbit CLI for an existing PR, and
+do not apply CodeRabbit commands to Cursor Bugbot. Use `@coderabbitai ignore` in
+the PR description only when CodeRabbit policy allows skipping optional
+auto-review. For Cursor Bugbot, use only the repo-configured trigger or
+automatic review policy; report `unresolved` if the trigger is unknown. Missing
+auth, rate limits, or credits are a recorded skip, not a blocker.
 
 ## Commit
 
@@ -130,9 +140,9 @@ required review gate has not passed. Ready-for-review means non-draft.
 If an existing PR is draft, mark it ready-for-review when the current diff has a
 clean code review, required local checks pass, and the user did not ask to keep
 it draft. Refresh the code-host PR state afterward and verify it is non-draft. If
-CodeRabbit `PR REVIEW` is recommended for a high-risk or complex open PR, report
-that post-PR escalation in the handoff; do not use draft state as a holding pen
-after local review is clean.
+hosted bot review `PR REVIEW` is recommended for a high-risk or complex open
+PR, report that post-PR escalation in the handoff; do not use draft state as a
+holding pen after local review is clean.
 
 If the user or repo config requires a draft PR, report the PR as a draft
 pre-review handoff. Do not call it ready-for-review until it is marked non-draft
@@ -186,11 +196,12 @@ When an issue exists:
 - when the repo uses Linear + GitHub and the PR is linked to the ticket, assume
   the integration sync is active and may advance Linear state from PR status; do
   not duplicate manual state changes unless config delegates that authority
-- comment with checks run, code review verdict, CodeRabbit decision,
+- comment with checks run, code review verdict, hosted bot review decision,
   PR draft or ready-for-review state, current PR head SHA, base SHA, merge base,
   configured review evidence label recommendation with reviewed head SHA,
-  acceptance criteria status, hosted check state, and differences from original
-  intent
+  configured code-host human-merge PR label eligibility or blocker,
+  acceptance criteria status, scope-boundary status, hosted check state, and
+  differences from original intent
 - never move to `Done`; merge is not complete
 
 Do not move workflow state unless the repo config or user explicitly delegates
@@ -205,9 +216,10 @@ PR:     <url>
 Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
-Review: local <verdict>; CodeRabbit <skipped|CLI|PR review|auto pending>
+Review: local <verdict>; hosted bot <provider skipped|CLI|PR review|auto pending|unresolved>
 Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
 PR state: <draft|ready-for-review>
+Scope: <matches issue|split needed|untracked, with reason>
 Issue:  <issue, handoff status, created, or skipped>
 ```
 

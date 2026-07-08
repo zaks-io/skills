@@ -98,12 +98,17 @@ Cut work into thin, independently shippable, one-PR vertical slices.
 
 - Each slice delivers a verifiable end-to-end behavior, not a layer.
 - Each slice is scoped to one PR.
+- Each slice has one primary outcome. Do not bundle "while you are there"
+  cleanup, polish, adjacent bug fixes, future-proofing, or sibling ticket work
+  into the same `kind-slice`.
 - Prefer a tracer-bullet first slice that proves the path end to end, then
   slices that widen it.
 - Do not make a `kind-slice` whose Done state requires multiple PRs. Split
   scaffold, CI gate, data migration, preview flip, and final wiring into separate
   slices or keep them under a `kind-epic` container so a first linked PR cannot
   falsely close the whole scope.
+- When adjacent outcomes are useful but not required for this PR, create sibling
+  slices, link them, and name them in this ticket's out-of-scope section.
 - Leave vague ideas un-ticketed until scope is clear; record them as open
   questions rather than guessing scope.
 
@@ -122,6 +127,18 @@ contract:
 - security, privacy, data, and operational invariants
 - dependencies or blockers
 - estimate when config stores estimates in the body
+
+The `in scope` and `out of scope` fields are a hard boundary, not placeholders.
+Write them so an implementation worker can tell when to stop:
+
+- `in scope` names only the behavior, files, docs, tests, and workflow state this
+  PR may change.
+- `out of scope` names tempting adjacent work, sibling ticket IDs when known,
+  optional polish, broad refactors, production actions, and follow-up behavior
+  the worker must not deliver.
+- If out-of-scope cannot be written because the slice boundary is unclear, mark
+  the ticket `needs-info` or keep it under a container. Do not mark it
+  `ready-for-agent`.
 
 If a required field is unknowable from the plan, add the heading, mark the ticket
 `needs-info`, leave the specific question, and do not mark it ready. Do not
@@ -188,7 +205,8 @@ For each `kind-slice`:
 - apply the configured worker environment label only when the environment
   approval criteria are met; dependency state is not a reason to withhold it
 - apply `ready-for-agent` only when the slice is scoped to one PR, routed,
-  type and risk labeled, estimated if required, and complete enough to verify
+  type and risk labeled, estimated if required, has a concrete in-scope and
+  out-of-scope boundary, and is complete enough to verify
 - do not apply `ready-for-agent` when the body itself says human setup,
   credentials, provider decisions, or security judgment are still required
 - place ready `kind-slice` issues in the configured ready state, usually `Todo`,

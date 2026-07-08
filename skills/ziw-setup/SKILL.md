@@ -134,6 +134,8 @@ Inspect files that exist:
 - existing agent label docs, such as `docs/agents/triage-labels.md`
 - code host branch, default branch, PR, preview, and deploy workflows
 - root `.coderabbit.yaml` when present, especially `reviews.auto_review`
+- hosted review provider docs or app settings when CodeRabbit, Cursor Bugbot,
+  or another PR review bot is enabled
 - issue tracker provider, provider location, projects or boards, statuses,
   labels, issue templates, and existing issue examples by querying tracker tools
   when available
@@ -186,7 +188,9 @@ Record:
   from linked GitHub PR status and whether agents should assume synced state when
   both linked entities exist
 - code-host PR attention labels the orchestrator applies when a PR needs human
-  merge or input, such as `needs-human-merge` and `needs-human-input`
+  merge or input; `needs-human-merge` must mean the PR is merge-ready except for
+  required human merge authority, while labels such as `needs-human-input` cover
+  non-merge-ready questions or approvals
 - supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
 - default worker path and capacity policy when the user or repo has a stable
   preference
@@ -235,8 +239,9 @@ Record:
   verified-state reconciliation, requested ready-state promotion, Orchestrator-owned
   active tracker transitions, the orchestrator integrate gate and friction intake,
   clean-context review delegation, and the implementation pipeline
-- review gates: code review, Agent Review, CodeRabbit escalation, root
-  CodeRabbit auto-review mode, required CI, preview checks
+- review gates: code review, Agent Review, hosted bot review escalation,
+  configured provider such as CodeRabbit or Cursor Bugbot, provider auto-review
+  mode and trigger policy, required CI, preview checks
 - environment safety: local, development, preview, and production capabilities;
   production deploy path; preview deploy path; credential rules; allowed hosted
   checks; and explicit approval requirements

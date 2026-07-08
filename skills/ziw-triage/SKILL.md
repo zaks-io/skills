@@ -209,8 +209,8 @@ Apply obvious mechanical updates in batches:
 - apply configured worker environment labels or fields when the repo-configured
   environment policy says that issue may run there; dependency state is not a
   reason to refuse the environment label
-- remove `ready-for-agent` from vague, duplicate, parent, human-owned, or
-  body-incomplete issues
+- remove `ready-for-agent` from vague, duplicate, parent, human-owned,
+  multi-outcome, boundary-incomplete, or body-incomplete issues
 - encode blockers before ready-state promotion; recommend the configured blocked
   state only for active work that has already started and should stop
 - apply configured review, merge-ready, or blocked states only when the repo
@@ -219,6 +219,10 @@ Apply obvious mechanical updates in batches:
 - remove the configured review evidence label when the linked PR head changed,
   blocking findings exist, the linked PR changed, or reviewed head SHA evidence
   is missing
+- remove the configured code-host human-merge PR label when the PR is draft,
+  closed, merged, no longer has current clean review evidence, required checks
+  are not confirmed passing, required hosted review is pending, or unresolved
+  blocking review threads remain
 - mark duplicates only when the duplicate relationship is clear and preserve the
   canonical issue
 
@@ -252,9 +256,12 @@ useful existing text and add missing headings without inventing facts.
 An issue can receive `ready-for-agent` only when it is:
 
 - scoped to one PR
+- scoped to one primary outcome, with no sibling ticket work hidden in the Done
+  state
 - assigned to the configured project or route
 - labeled with one clear type and risk
 - estimated when config requires estimates before handoff
+- explicit about in-scope and out-of-scope work
 - complete enough for Agent Implement to verify
 
 By default, `ready-for-agent` means the ticket needs no further human refinement
@@ -275,6 +282,13 @@ Required body content:
 - security, privacy, data, and operational invariants
 - dependencies or blockers
 - estimate when config stores estimates in the body
+
+The scope fields must be concrete. `In scope` lists only the behavior, files,
+docs, tests, and workflow state this PR may change. `Out of scope` lists adjacent
+outcomes, sibling tickets, optional polish, broad refactors, production actions,
+and follow-up behavior the worker must not deliver. If those boundaries are
+missing or contradictory, withhold `ready-for-agent` and leave the exact
+clarifying question.
 
 If any required field is unknowable, add the missing heading, ask the specific
 question when the user is available, label the issue `needs-info` or

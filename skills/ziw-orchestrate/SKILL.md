@@ -170,6 +170,11 @@ Refresh the systems of record before acting:
 - local Git refs, worktrees, HEAD, and `git status --short --branch` from the
   repo when a local checkout is in play
 
+Draft PRs are code-host PR state. Treat every open code-host PR, draft or
+ready-for-review, as active work even when the issue tracker has not linked or
+advanced the ticket yet. Tracker sync gaps around draft PRs are setup or
+orchestration repair work, not evidence that the worker has not returned.
+
 When config says the tracker is Linear and the code host is GitHub, assume linked
 PRs and tickets are synced when both exist. GitHub PR status may automatically
 advance Linear ticket state, so refresh both before making a manual tracker state
@@ -228,6 +233,10 @@ dispatching:
   until they are verified closed
 - implementation dispatches that have not yet produced a PR or been stopped
 
+If a dispatch has produced a draft PR, drop it from pending-dispatch accounting
+only after the draft PR is counted as active PR work. Do not start another worker
+for the same ticket because the PR is draft or missing from tracker sync.
+
 Do not double-count a PR and its normal linked preview as two delivery slots.
 Count each open PR once, add active previews that are not clearly linked to an
 already counted PR, then add unreturned implementation dispatches. If config
@@ -247,9 +256,12 @@ When the footprint is saturated by green PRs that lack only human merge
 authority, do not keep waking to re-report the same state. Post the exact merge
 queue once (PR URLs, tickets, evidence) to the human-attention channel, label
 each queued PR with the configured code-host attention label such as
-`needs-human-merge` so the queue is visible from the PR list itself, mark the
-scope blocked on merge authority, and stop or stretch the loop until the queue
-drains.
+`needs-human-merge` only after the current PR head has clean review evidence,
+required checks are passing, required hosted review is complete or skipped by
+policy, the PR is non-draft, and no unresolved blocking review thread remains.
+The label means merge-ready except for required human merge authority, not
+general attention. Mark the scope blocked on merge authority, and stop or
+stretch the loop until the queue drains.
 
 Optimize for delivery-slot turnover, not worker count. A low active footprint is
 usually better than wider fanout when preview deploys, check polling, branch
@@ -347,6 +359,12 @@ Body evidence can override a readiness label. If an issue carries
 names unresolved setup, credential, or provider choices, do not dispatch it.
 Heal the label or route it to triage and log the config or ambiguous-ticket
 friction.
+
+Scope evidence can also override a readiness label. If a ticket combines
+multiple independent outcomes, lacks concrete in-scope or out-of-scope text, or
+appears able to close sibling tickets in one PR, do not dispatch it. Route it to
+triage or To Issues to narrow the slice, record the exact boundary gap, and keep
+the delivery scope truthful.
 
 Only `kind-slice` tickets are dispatchable. A `kind-spec` or `kind-epic`
 container reaching dispatch is a hard refuse: never delegate it, even if it
@@ -449,8 +467,8 @@ delivery footprint, drain active PRs and previews before dispatching, reconcile
 review debt, find startable `kind-slice` work, select by dependency/risk/file
 contention, and record friction. Use model judgment to choose any
 evidence-backed workflow action needed to keep tickets moving, including worker
-dispatch, review, integrate, draft repair, CodeRabbit escalation, check rerun,
-direct worker nudge, metadata repair, or human-review marking. Build worker
+dispatch, review, integrate, draft repair, hosted bot review escalation, check rerun,
+direct worker nudge, metadata repair, or human-merge marking. Build worker
 prompts from config, issue body, linked docs, required checks, branch/worktree,
 and `ziw-implement`; record dispatches in the ledger and tracker with an
 idempotency key.
@@ -488,6 +506,7 @@ Repo: <path>
 Issue: <id-or-url>
 Branch/worktree: <branch-or-create-policy>
 Scope: <one sentence from issue>
+Non-goals: <out-of-scope line from issue, including sibling tickets; do not deliver adjacent work>
 Required checks: <commands or config reference>
 Constraints: preserve unrelated changes; no production deploy; no secrets.
 Return the workflow handoff only.
@@ -534,6 +553,8 @@ Before starting issue-assigned work, run a read-only preflight:
 - resolve the issue by configured tracker ID, not only by a human-friendly team
   or project name
 - verify status, readiness labels, routing labels, priority, and issue body
+- verify the issue has one primary outcome and concrete in-scope and
+  out-of-scope boundaries
 - verify the configured repo-route label (such as `<org>/<repo>`) is present.
   The assigned agent needs it to resolve which repository to clone, so it is a
   hard precondition for delegation, not optional metadata. If the route is
@@ -603,8 +624,9 @@ integrate are called steps, not inlined work. Walk
 each PR; it is the full order of operations. The invariants:
 
 - Require an evidence-complete handoff (current PR head SHA, base SHA, merge
-  base, exact checks, hosted check state, review verdict, CodeRabbit decision,
-  draft state) before treating a returned PR as ready for review or merge.
+  base, exact checks, hosted check state, review verdict, hosted bot review
+  decision, draft state) before treating a returned PR as ready for review or
+  merge.
 - Draft state is an orchestration repair, not a code review request.
   Orchestrator finds the draft blocker and moves the PR to ready-for-review
   when no blocker remains; if it lacks permission, stop with the exact
@@ -616,9 +638,14 @@ each PR; it is the full order of operations. The invariants:
 - Merge preflight enumerates every unresolved review thread with severity from
   the code host's thread-level view, and dismisses or re-requests stale
   code-host review verdicts that predate the current head.
-- When a PR needs human attention, apply the configured code-host PR label,
-  such as `needs-human-merge` or `needs-human-input`, in addition to tracker
-  state; the human queue must be visible from the PR list.
+- When a PR is merge-ready except for required human merge authority, apply the
+  configured code-host PR label, such as `needs-human-merge`, in addition to
+  tracker state; the human merge queue must be visible from the PR list. Apply
+  it only after current clean code review evidence exists for the PR head,
+  required checks pass, the PR is non-draft, required hosted review is complete
+  or policy-skipped, and no unresolved blocking review thread remains. Clear it
+  when any of those facts becomes false. Use a separate configured label such as
+  `needs-human-input` for PRs that need input but are not merge-ready.
 - Human-attention states are claims that the only remaining work is a human
   action. Enumerate every unresolved review source for the current head
   (hosted review verdicts and their inline comments, bot reviewers such as
@@ -634,7 +661,10 @@ Integrate is the only step that writes to the default branch. Run it only when
 the configured merge authority grants Orchestrator merge rights. Otherwise
 stop with the PR ready for human merge, apply the configured code-host
 attention label such as `needs-human-merge`, and mark it for the
-human-attention queue.
+human-attention queue. Apply that label only when the current PR head has clean
+review evidence and the rest of the green gate below is satisfied; clear it on a
+new commit, draft transition, failed or pending required check, blocking review
+finding, unresolved review thread, or missing/stale review evidence.
 
 "Green" is defined by config, not assumed. Default gate, all required:
 
@@ -817,9 +847,11 @@ Report:
   exact reason
 - configured review evidence labels applied, preserved, or removed with reviewed
   head SHA evidence
+- configured code-host human-merge PR labels applied, preserved, removed, or
+  withheld with merge-ready evidence or blocker
 - `ready-for-agent` or repo-configured readiness labels removed from tickets
   moved to `Done`
-- CodeRabbit escalations requested, completed, skipped, or still required
+- hosted bot review escalations requested, completed, skipped, or still required
 - workers launched or messaged, direct reply targets used, and any stuck workers
   re-dispatched or escalated
 - issue updates made

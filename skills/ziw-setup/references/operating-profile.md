@@ -117,7 +117,7 @@ One decision for "is this PR safe to advance and merge," so the loop does not
 reconcile three separate descriptions at runtime. Risk tier comes from the PR /
 issue risk labels and the change shape.
 
-| Risk tier | Examples                                                                                                    | CodeRabbit                                | Merge authority                                               |
+| Risk tier | Examples                                                                                                    | Hosted bot review                         | Merge authority                                               |
 | --------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------- |
 | LOW       | docs, tests, copy, isolated UI                                                                              | skip                                      | orchestrator may auto-merge when green                        |
 | MEDIUM    | normal feature / business logic                                                                             | skip unless review is uncertain           | orchestrator may auto-merge when green                        |
@@ -127,18 +127,24 @@ issue risk labels and the change shape.
 `ziw-code-review` verdict,
 required CI checks pass, no unresolved blocking review comments, PR non-draft and
 ready-for-review, the configured review evidence label current for the PR head,
-and required CodeRabbit escalation complete or recorded as skipped by policy.
+and required hosted bot review escalation complete or recorded as skipped by
+policy.
 
 Rules that do not change with tier:
 
 - A label is never permission to merge.
 - Never merge a stale branch; rebase, rerun checks and review, then merge.
 - Never merge or deploy production without explicit approval.
-- Read root `.coderabbit.yaml` for `reviews.auto_review`; use
+- Use the configured hosted bot review provider, such as CodeRabbit or Cursor
+  Bugbot. Resolve provider auto-review mode, trigger policy, and current hosted
+  review state before posting commands.
+- For CodeRabbit, read root `.coderabbit.yaml` for `reviews.auto_review`; use
   `@coderabbitai ignore` in the PR description to skip optional auto-review for
   a PR when repo policy allows.
-- Missing CodeRabbit auth, rate limits, or credits is a recorded skip unless the
-  user explicitly required it.
+- For Cursor Bugbot, use only the repo-configured trigger or automatic review
+  policy. If the trigger or actor is unknown, record the gap instead of guessing.
+- Missing hosted review auth, rate limits, or credits is a recorded skip unless
+  the user explicitly required it.
 - When the required external review for a HIGH-risk PR is unavailable (rate
   limit, credits, outage), do not merge on a single local review. Route to
   human merge or run a second independent local review pass, and record the
@@ -164,7 +170,9 @@ values, not this file:
 - the repo-route label family used for delegation
 - auto-merge risk tiers the orchestrator may merge vs route to human merge
 - code-host PR attention labels the orchestrator applies when a PR needs human
-  action (default `needs-human-merge`, `needs-human-input`)
+  action. Default `needs-human-merge` means merge-ready except for required
+  human merge authority; `needs-human-input` or equivalent covers PRs that need
+  human input but are not merge-ready
 - review evidence label slug or ID, plus the evidence comment shape that records
   PR URL and reviewed head SHA
 - merge method, required checks that define green, plus any post-merge

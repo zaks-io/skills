@@ -259,6 +259,13 @@ review gate. Agents resolve it by exact configured slug or ID and remove it when
 the PR head changes, blocking findings appear, the linked PR changes, or evidence
 is stale.
 
+The configured code-host human-merge PR label, such as `needs-human-merge`,
+means the PR is ready to merge except for required human merge authority. Agents
+apply it only after current clean code review evidence, passing required checks,
+a non-draft PR, complete or policy-skipped hosted review, matching issue scope,
+and no unresolved blocking review thread; they clear it when any of those facts
+changes.
+
 By default, `ready-for-agent` means the ticket needs no further human refinement
 before handoff to an implementation agent. Worker environment labels such as
 `remote-cursor` mean the issue is approved for that configured environment. Those
@@ -279,6 +286,12 @@ containers that To Issues reads as input and are never dispatched; `kind-slice`
 is a one-PR ticket and the only kind a worker runs. Multi-PR work should stay
 under a container and be split into separate slices so a first linked PR cannot
 falsely close the whole scope.
+
+Every ready `kind-slice` needs a hard boundary: one primary outcome, concrete
+`in scope`, and concrete `out of scope`. The out-of-scope field should name
+adjacent tickets, optional polish, broad refactors, production actions, and
+follow-up behavior the worker must not deliver. If that boundary is unclear,
+the ticket is not ready for agent handoff.
 
 Agent suitability is based on work type and risk, not agent brand. Docs, tests,
 build or CI updates, small refactors, scoped bugs, and isolated UI changes are
@@ -319,16 +332,17 @@ moving, Orchestrator should identify and take any safe workflow action needed to
 move it forward. It can start local subagents in isolated branches or worktrees,
 assign a tracker-exposed coding agent to a ticket, request another code review,
 rerun checks, diagnose draft PRs that have stalled, move unblocked draft PRs to
-ready-for-review, apply or remove
-the configured review evidence label, request CodeRabbit for risky or complex
-diffs, reply directly to the original worker, mark tickets for human review or
-missing information, or stop on a real blocker. The repo config records supported worker
-delegation paths such as
-`local-worktree`, `issue-assigned`, or both, plus only the project-specific
-routing or direct-agent continuation details that are annoying to rediscover.
-For CodeRabbit, the repo config records a compact summary of root
-`.coderabbit.yaml` auto-review behavior and the per-PR command policy, including
-when agents may add `@coderabbitai ignore` to skip optional automatic review.
+ready-for-review, apply or remove the configured review evidence label, request
+configured hosted bot review such as CodeRabbit or Cursor Bugbot for risky or
+complex diffs, reply directly to the original worker, mark tickets for human
+review or missing information, or stop on a real blocker. The repo config
+records supported worker delegation paths such as `local-worktree`,
+`issue-assigned`, or both, plus only the project-specific routing or
+direct-agent continuation details that are annoying to rediscover. For hosted
+bot review, the repo config records the provider, auto-review state, trigger
+policy, and exact command policy. CodeRabbit can use root `.coderabbit.yaml` and
+`@coderabbitai ignore`; Cursor Bugbot is an alternative provider and must use
+the repo-configured trigger or automatic review policy.
 
 When you hand Orchestrator a large ticket set that has already been triaged or
 verified as ready to implement, that set is the delivery scope. Routine
@@ -400,8 +414,8 @@ glue should stay under `.agents/` unless it proves portable.
   repo and tracker state.
 - `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered
   one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
-  contract, labels, and configured estimates, and emit a dependency graph and
-  file footprint.
+  contract with explicit non-goals, labels, and configured estimates, and emit a
+  dependency graph and file footprint.
 - `ziw-triage`: update current tracker labels, kinds, readiness, stale
   verified states, orphans, body shape, estimates when configured, and
   dependencies so Todo tickets are clean and agent-ready. It follows the

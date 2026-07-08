@@ -32,6 +32,8 @@ Read first when present:
 - `AGENTS.md`
 - `CONTEXT.md`
 - root `.coderabbit.yaml` when CodeRabbit policy or auto-review state matters
+- configured hosted bot review provider docs or config when Cursor Bugbot or
+  another PR review bot is enabled
 - project status, roadmap, specs, ADRs, and runbooks relevant to touched files
 - linked tracker issue body, comments, labels, dependencies, and acceptance
   criteria
@@ -141,6 +143,8 @@ Check:
 
 - issue and PR scope
 - acceptance criteria
+- scope drift: adjacent tickets, optional polish, broad refactors, production
+  actions, or new surfaces delivered without issue or user authority
 - auth, authorization, tenant or workspace boundaries
 - authenticated-actor binding for user, owner, bootstrap, invitation, or claim
   flows
@@ -163,19 +167,29 @@ on risk-security-sensitive slices.
 Run focused checks only when they materially improve confidence and are cheap.
 Do not spend time on style nits or broad product refactors.
 
-## CodeRabbit
+Treat overbuild as a real review finding when it changes behavior, public
+contracts, workflow state, dependencies, generated artifacts, migrations, or
+shared architecture outside the assigned issue. Passing checks do not make
+unrequested work acceptable; recommend splitting or reverting the drift before
+handoff.
+
+## Hosted Bot Review
 
 Default to `SKIP` after a clean code review.
 
 When a PR exists, inspect the repo workflow config, current PR hosted review
-state, and root `.coderabbit.yaml` from the reviewed head when present. Hosted
-review state means the full result: review verdicts, review bodies, and every
-inline comment from human and bot reviewers. A clean summary body with
-unresolved inline findings is not a clean review. Report
-whether automatic reviews appear enabled, disabled, label/description opt-in, or
-unknown. Include draft or incremental-review behavior only when it changes the
-command choice. The project config is the short handoff source; `.coderabbit.yaml`
-is the root source for `reviews.auto_review`.
+provider, current PR hosted review state, and provider config from the reviewed
+head when present. Supported hosted bot review providers include CodeRabbit and
+Cursor Bugbot when repo config enables them. Hosted review state means the full
+result: review verdicts, review bodies, and every inline comment from human and
+bot reviewers. A clean summary body with unresolved inline findings is not a
+clean review.
+
+Report whether automatic reviews appear enabled, disabled, label/description
+opt-in, provider-specific, or unknown. Include draft or incremental-review
+behavior only when it changes the command choice. The project config is the
+short handoff source. For CodeRabbit, root `.coderabbit.yaml` is the source for
+`reviews.auto_review`.
 
 Recommend `PR REVIEW` only for high-risk or genuinely complex work: auth,
 authorization, secrets, payments, destructive data, migrations, background jobs,
@@ -184,22 +198,36 @@ existing PR, do not recommend `CLI`. If auto-review mode is unknown, or a
 push-triggered hosted review is enabled or pending for the current PR head,
 report `auto-review unknown` or `auto-review pending` and recommend no command.
 Treat missing auth, rate limits, or credits as skipped unless the user explicitly
-requested CodeRabbit.
+requested that provider.
 
 Recommend `CLI` only when the user explicitly requested local CodeRabbit before
 a PR exists. Do not use CLI as a fallback after a PR push or when the PR-hosted
-review path exists.
+review path exists. Do not apply CodeRabbit CLI behavior to Cursor Bugbot unless
+repo config explicitly defines such a CLI.
 
-For draft PRs, include whether CodeRabbit should run after the PR is marked
-ready-for-review. Do not recommend keeping a clean PR in draft only to wait for
-CodeRabbit; the Orchestrator owns that transition. Ready-for-review means
-non-draft.
+For CodeRabbit, use top-level PR comments such as `@coderabbitai review` or
+`@coderabbitai full review`, and `@coderabbitai ignore` in the PR description
+only when repo policy allows skipping optional automatic review. For Cursor
+Bugbot, use the repo-configured trigger or automatic review policy. If the
+Bugbot trigger, app permission, or actor is unknown, report it as unresolved
+instead of guessing a command.
+
+For draft PRs, include whether the configured hosted bot review should run after
+the PR is marked ready-for-review. Do not recommend keeping a clean PR in draft
+only to wait for hosted bot review; the Orchestrator owns that transition.
+Ready-for-review means non-draft.
 
 Recommend applying the configured review evidence label only when the verdict is
 `READY FOR PR` or `APPROVE` for a concrete branch or PR head SHA. Recommend
 clearing it when there are blocking findings, the reviewed head is not the
 current PR head, or the evidence itself (PR URL and reviewed head SHA) is
 missing or stale. A label without current evidence is a claim, not proof.
+
+Do not treat a clean review alone as permission to apply the configured
+code-host human-merge PR label such as `needs-human-merge`. That label requires
+the full merge-ready gate: current review evidence, passing required checks,
+non-draft PR, required hosted review complete or policy-skipped, matching issue
+scope, and no unresolved blocking review thread.
 
 ## Output
 
@@ -212,9 +240,10 @@ Diff: <N files, +X/-Y>
 Reviewed head: <sha or working tree>
 Base: <base sha or range start>
 Checks run: <commands or "not run">
-CodeRabbit recommendation: SKIP | WAIT | CLI | PR REVIEW, because <reason>
-CodeRabbit state: auto-review <enabled|disabled|opt-in|unknown>; hosted review <none|pending|complete|unknown>
-CodeRabbit command: <none|@coderabbitai review|@coderabbitai full review|@coderabbitai ignore|CLI>
+Hosted bot review provider: <none|CodeRabbit|Cursor Bugbot|other|unknown>
+Hosted bot review recommendation: SKIP | WAIT | CLI | PR REVIEW, because <reason>
+Hosted bot review state: auto-review <enabled|disabled|opt-in|provider-specific|unknown>; hosted review <none|pending|complete|unknown>
+Hosted bot review command: <none|configured PR command|@coderabbitai review|@coderabbitai full review|@coderabbitai ignore|CLI|unknown>
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
 Review evidence label: APPLY configured label | CLEAR | LEAVE UNCHANGED, because <reason>
 

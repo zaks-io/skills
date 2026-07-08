@@ -43,6 +43,11 @@ data migration, preview flip, and final wiring, To Issues splits those into
 separate slices under a container so the first linked PR cannot falsely close the
 whole scope.
 
+Every ready `kind-slice` needs one primary outcome and explicit `in scope` and
+`out of scope` sections. The out-of-scope section is the worker's stop list:
+adjacent tickets, optional polish, broad refactors, production actions, and
+follow-up behavior stay out of the PR.
+
 ## Agent Suitability
 
 Agent delegation should follow task type, risk, and verification quality. Good
@@ -69,14 +74,14 @@ domain behavior, and performance work without benchmarks.
    its own PR via `ziw-pr`.
 6. Agent Orchestrator calls Agent Review as a step.
 7. Agent Review fetches latest state, runs `ziw-code-review` in a clean context
-   against current committed code, and reports freshness, findings, CodeRabbit
-   recommendation, PR readiness, orchestrator refactor candidates, and reviewed
-   head SHA without modifying product code or moving issue state.
+   against current committed code, and reports freshness, findings, hosted bot
+   review recommendation, PR readiness, orchestrator refactor candidates, and
+   reviewed head SHA without modifying product code or moving issue state.
 8. Agent Orchestrator routes findings back to the worker, repairs stuck draft PRs
-   or marks them ready-for-review when allowed, requests CodeRabbit when the
-   current diff needs it, applies or removes the configured review evidence
-   label, or calls the integrate step to merge on green, move the issue to the
-   done state, and remove `ready-for-agent`.
+   or marks them ready-for-review when allowed, requests configured hosted bot
+   review when the current diff needs it, applies or removes the configured
+   review evidence label, or calls the integrate step to merge on green, move
+   the issue to the done state, and remove `ready-for-agent`.
 
 ## Loop Model
 
@@ -131,10 +136,10 @@ actions are examples, not a complete menu; when a ticket is not moving,
 Orchestrator should identify and take any safe workflow action needed to move it
 forward. Examples include delegating a `kind-slice` to a worker, nudging an
 existing worker, calling the review step, calling the integrate step, rerunning
-checks, routing review feedback, requesting CodeRabbit escalation when the review
-gate recommends it, diagnosing and repairing stuck draft PRs, marking unblocked
-draft PRs ready-for-review, healing or repairing tracker metadata, applying or
-removing review-evidence labels, logging friction, marking tickets for human
+checks, routing review feedback, requesting hosted bot review escalation when
+the review gate recommends it, diagnosing and repairing stuck draft PRs, marking
+unblocked draft PRs ready-for-review, healing or repairing tracker metadata,
+applying or removing review-evidence labels, logging friction, marking tickets for human
 review when the next step genuinely needs human input, moving active workflow
 state, or stopping on a real blocker.
 
@@ -149,6 +154,10 @@ Before selecting new startable work, Orchestrator checks the repo-level active
 delivery footprint against the configured active PR/preview cap. If open PRs or
 active previews already fill the cap, it must drain those first by advancing,
 merging, routing fixes, cleaning up previews, or escalating exact blockers.
+Draft PRs are open PRs for capacity and file-contention purposes. If a remote
+worker opens a draft PR before the tracker links it, the code host is still
+authoritative: count the draft, repair the sync or draft state, and do not
+spawn another worker for that ticket.
 Outside-scope PRs and previews still consume repo capacity; if Orchestrator lacks
 authority to change them, it reports a capacity blocker instead of dispatching
 more work. It must not close a draft, active, recently updated, or
@@ -233,17 +242,25 @@ For issue-assigned delegation:
   Orchestrator marks the PR ready-for-review, then refreshes the PR state and
   verifies it is non-draft. If it stays draft, it is pre-review, not
   ready-for-review.
-- CodeRabbit escalation follows the `ziw-code-review` recommendation. It
+- Hosted bot review escalation follows the `ziw-code-review` recommendation. It
   is required only for high-risk or genuinely complex diffs, or when the user
-  asks for it. Agent Orchestrator reads the root `.coderabbit.yaml` when present
-  and records the resolved auto-review mode from `reviews.auto_review`: enabled,
-  disabled, opt-in, or unknown. Manual review requests are top-level PR
-  comments. `@coderabbitai ignore` is a PR-description marker for skipping
-  automatic reviews on that PR, and is recorded as a policy skip when used.
+  asks for it. Supported configured providers include CodeRabbit and Cursor
+  Bugbot. Agent Orchestrator records the provider, auto-review mode, trigger
+  policy, current hosted review state, and exact command or unresolved gap. For
+  CodeRabbit, read root `.coderabbit.yaml` when present and use CodeRabbit
+  commands only under CodeRabbit policy. For Cursor Bugbot, use only the
+  repo-configured trigger or automatic review policy.
 - The configured review evidence label is not workflow state. Resolve it by
   exact configured slug or ID, apply it only with PR URL and reviewed head SHA
   evidence, and remove it when the PR head changes, blocking findings appear,
   the linked PR changes, or evidence is missing.
+- The configured code-host human-merge PR label, such as
+  `needs-human-merge`, is a merge-ready signal. Apply it only to open non-draft
+  PRs that are ready to merge except for required human merge authority: current
+  clean review evidence covers the PR head, required checks pass, required
+  hosted review is complete or skipped by policy, no unresolved blocking review
+  thread remains, and the diff still matches the linked issue scope. Clear it
+  when any of those facts changes.
 
 For local agent runtimes, keep the orchestrator parent thread small and delegate
 large context loads to isolated workers when available. Claude Code uses plugin
@@ -273,6 +290,8 @@ and writes the systems of record:
   comments
 - review evidence labels: configured issue tracker labels plus adjacent comments
   or fields that record PR URL and reviewed head SHA
+- code-host human-merge PR label: configured GitHub or code-host label for PRs
+  that are merge-ready except for required human merge authority
 - branch and PR state: configured code host
 - check and preview state: CI, preview, or hosted check provider
 - deployment state: deployment provider
@@ -313,16 +332,18 @@ config-gap finding when the conflict affects the workflow.
 Create PR can mark the PR ready-for-review when its local gates pass and verify
 the code-host PR is non-draft. Its local gate must match configured CI scopes,
 thresholds, cache policy, generated-artifact checks, and secret-scan range.
+It also checks the diff against the linked issue's scope boundary before handoff.
 When invoked directly for one ticket, Agent Implement can run single-ticket
 orchestration for that ticket only if config or the user grants mutation
 authority.
 Orchestrator diagnoses stuck draft PRs without treating draft state as a review
 request, repairs blockers, verifies the code-host PR is non-draft, and applies or
-removes the configured review evidence label based on current PR head SHA evidence. When
-Orchestrator moves a ticket to `Done`, it verifies the full issue scope is
-complete and removes `ready-for-agent`. If a code-host integration auto-moved a
-partial or multi-PR issue to `Done`, Orchestrator reopens or narrows it according
-to config before continuing.
+removes the configured review evidence label based on current PR head SHA
+evidence. When Orchestrator moves a ticket to `Done`, it verifies the full issue
+scope is complete, verifies sibling or out-of-scope work was not bundled in, and
+removes `ready-for-agent`. If a code-host integration auto-moved a partial or
+multi-PR issue to `Done`, Orchestrator reopens or narrows it according to config
+before continuing.
 
 ## Adapter Minimum
 

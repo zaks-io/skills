@@ -145,6 +145,11 @@ Last updated: 2026-06-01
 - Draft PR policy: Cursor opens a draft PR; orchestrator marks it ready-for-review
   after review is clean and required checks pass, then verifies non-draft
 - Ready-for-review owner: Agent Orchestrator
+- Hosted bot review provider: CodeRabbit or Cursor Bugbot per repo/user
+  preference; Cursor Bugbot is the natural alternative when Cursor PR review is
+  installed and verified
+- Hosted bot review trigger policy: resolve provider auto-review state and exact
+  trigger before posting commands
 - CodeRabbit config source: root `.coderabbit.yaml`
 - CodeRabbit bot handle: @coderabbitai
 - CodeRabbit auto-review: enabled for non-draft PRs unless root config says
@@ -154,6 +159,8 @@ Last updated: 2026-06-01
   asks. Use top-level PR comments for `@coderabbitai review` or
   `@coderabbitai full review`; add `@coderabbitai ignore` to the PR description
   to skip optional auto-review when rate limits or credits matter.
+- Cursor Bugbot command policy: use only verified app auto-review or
+  repo-configured trigger; do not reuse CodeRabbit commands.
 - Merge authority: see Work Coordination
 
 ## Environments

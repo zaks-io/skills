@@ -74,14 +74,14 @@ Last updated: 2026-06-14
 - Code-host issue sync policy: for Linear + GitHub, assume linked tickets and PRs are synced when both exist; refresh both before manual state repair
 - Readiness labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`
 - Readiness label policy:
-  - `ready-for-agent`: no further human refinement is needed before agent handoff; does not mean unblocked or startable; remove when the issue moves to `Done`
+  - `ready-for-agent`: no further human refinement is needed before agent handoff; requires one primary outcome plus concrete in-scope and out-of-scope boundaries; does not mean unblocked or startable; remove when the issue moves to `Done`
   - `needs-info`: exact missing decision or provider/config data is required
   - `ready-for-human`: human planning, review, approval, security judgment, or setup is required
 - Readiness-label query policy: exclude `Done` unless explicitly auditing Done cleanup
 - Worker environment labels: `remote-cursor` exists, but is not enabled for this repo
 - Worker environment label policy:
   - `remote-cursor`: approved to run in remote Cursor only after repo-route label and delegation path are verified; not a readiness, dependency, or scheduling signal
-- Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, complete body, configured required estimate when enabled, no active blockers, no active claim or open PR; issue-assigned work also requires `zaks-io/skills` route label and verified worker path
+- Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, complete body with explicit non-goals, configured required estimate when enabled, no active blockers, no active claim or open PR; issue-assigned work also requires `zaks-io/skills` route label and verified worker path
 - Done cleanup: remove `ready-for-agent` when moving an issue to `Done`
 - Agent suitability policy: default agent work includes docs, tests, CI/lint updates, small local refactors, scoped bugs with reproduction, and isolated skill wording changes; human planning required for auth, secrets, PII, payments, production, destructive data, broad refactors, cross-repo work, unclear workflow policy, or performance work without benchmarks
 - Kind labels: `kind-spec`, `kind-epic`, `kind-slice`
@@ -89,6 +89,8 @@ Last updated: 2026-06-14
 - Risk label policy: dimensions, not severity levels; use `risk-security-sensitive` for trust boundaries, credentials, production, or secret handling; use `risk-cross-cutting` for shared workflow contracts and multi-skill changes
 - Review evidence labels: `code-review-passed`
 - Review evidence label policy: latest linked PR head SHA passed `ziw-code-review`; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
+- Code-host human-merge PR label: `needs-human-merge`
+- Code-host human-merge PR label policy: GitHub PR label meaning merge-ready except for required human merge authority; apply only to open non-draft PRs after current clean code review evidence, passing required checks, complete or policy-skipped hosted review, matching issue scope, and zero unresolved blocking review threads; clear on new commits, draft transitions, failed or pending required checks, blocking findings, unresolved review threads, stale or missing review evidence, close, or merge
 - Type labels: `Bug`, `Feature`, `Improvement`, `Tech Debt`, `Spike`, `Hotfix`
 - Area labels: none configured
 - Priority policy: default `No priority`; set High/Urgent only for broken install, security-sensitive workflow bugs, or release-blocking skill regressions
@@ -103,7 +105,7 @@ Last updated: 2026-06-14
 - Auto-Done integration policy: if GitHub links move a Linear issue to `Done`, Orchestrator or triage must verify the full issue scope is complete; reopen or narrow partial-scope tickets
 - File footprint convention: To Issues records likely files/packages/artifacts in the issue body
 - Review-debt footprint convention: Agent Review records likely files/packages/artifacts before Orchestrator dispatches review-created tickets
-- Agent-ready issue body: outcome, context docs, likely files/packages/artifacts, in scope, out of scope, acceptance criteria, required checks, safety invariants, dependencies or blockers; estimates omitted unless a future setup refresh configures an estimate policy
+- Agent-ready issue body: outcome, context docs, likely files/packages/artifacts, in scope, out of scope, acceptance criteria, required checks, safety invariants, dependencies or blockers; `in scope` names what this PR may change, and `out of scope` names adjacent tickets, optional polish, broad refactors, production actions, and follow-up behavior the worker must not deliver; estimates omitted unless a future setup refresh configures an estimate policy
 - Labels are signals, not authority: workflow state lives in Linear statuses and verified external evidence
 
 ## Work Coordination
@@ -112,7 +114,7 @@ Last updated: 2026-06-14
 - Default worker path: local Codex worktree/session
 - Capacity policy: default active delivery cap 3; drain active PRs before dispatching more work
 - Active PR/preview cap: 3 active delivery slots
-- Cap count policy: count each open PR once, add active previews that are not clearly linked to an already counted PR, then add unreturned implementation dispatches
+- Cap count policy: count each open PR once, including draft PRs that have not synced to the tracker yet; add active previews that are not clearly linked to an already counted PR, then add unreturned implementation dispatches
 - Dispatch footprint policy: compare predicted files/packages against active PRs, active branches, and selected tickets; hold collisions or unknown footprints for triage
 - Capacity drain policy: when active delivery slots are at or over cap, advance, merge when authorized, route fixes, or escalate existing PRs before dispatching new implementation work
 - PR closure guard: close PRs only with refreshed code-host and tracker evidence of duplicate, explicitly canceled or abandoned, terminal, or policy-required work; never close draft or active PRs only to make room
@@ -181,11 +183,16 @@ Last updated: 2026-06-14
 - Required checks: `pnpm ci:check` locally; GitHub CI jobs `Validate skills`, `Static security checks`, `Secret scan`
 - Branch protection: `main` is not protected as of 2026-06-14; config still requires human merge authority
 - Code review: `ziw-code-review` before PR handoff and for independent PR/head review
+- Hosted bot review provider: optional CodeRabbit or Cursor Bugbot for high-risk/complex diffs or explicit user request; exact provider selected per PR by current availability and user/repo preference
+- Hosted bot review trigger policy: resolve current provider auto-review state and trigger policy before posting commands; do not guess Cursor Bugbot commands when app policy is unknown
+- Hosted bot review actor policy: external review bot trigger comments may require a human-authenticated `gh` session when provider ignores GitHub App bot accounts
 - CodeRabbit config source: none; root `.coderabbit.yaml` absent
 - CodeRabbit bot handle: `@coderabbitai`
 - CodeRabbit auto-review: unknown; resolve current hosted review state before posting commands
 - CodeRabbit command policy: local review first; use hosted CodeRabbit only for high-risk/complex diffs or explicit user request; never post review commands or use CLI until auto-review mode and current hosted review state are resolved
-- Draft PR policy: draft only while checks, requested human prep, or required author fixes are incomplete; draft state alone is not a code review request
+- Cursor Bugbot config source: unknown; no repo-local config found during setup refresh
+- Cursor Bugbot command policy: alternative hosted bot review provider; use only verified app auto-review or repo-configured trigger
+- Draft PR policy: draft only while checks, requested human prep, or required author fixes are incomplete; draft state alone is not a code review request; draft PRs still consume active delivery capacity and file-contention seams
 - Ready-for-review owner: Agent Orchestrator or PR owner after local gates and review are clean
 - Issue update: link PR and update SKI issue comments/labels with PR URL, reviewed head SHA, and check evidence when scoped
 - Merge authority: human
@@ -217,5 +224,7 @@ Last updated: 2026-06-14
 - [ ] Linear SKI team ID is not exposed by available tools; use query-safe team key `SKI` until a team metadata tool returns the ID.
 - [ ] No SKI project exists for friction intake. Current config uses team-level `Triage`; create a private project later if you want project-level filtering.
 - [ ] Daily Codex automation for friction review is not created.
-- [ ] CodeRabbit auto-review mode is unknown because there is no root `.coderabbit.yaml` and no open PR review state during setup.
+- [ ] Hosted bot review provider state is partly unknown: CodeRabbit auto-review
+      mode is unknown because there is no root `.coderabbit.yaml` and no open PR
+      review state during setup; Cursor Bugbot app/trigger state is not verified.
 - [ ] Issue-assigned agent path for this repo is not configured or probed.

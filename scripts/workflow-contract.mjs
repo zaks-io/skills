@@ -1,10 +1,17 @@
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
 const DEFAULT_READY_STATES = ["todo"];
 const DEFAULT_READINESS_LABELS = ["ready-for-agent", "ready-for-human"];
+const DEFAULT_HUMAN_MERGE_PR_LABEL = "needs-human-merge";
 const DEFAULT_READY_PROMOTION_SOURCE_STATES = ["triage", "intake"];
 const TERMINAL_PR_STATES = ["closed", "merged"];
 const INACTIVE_PREVIEW_STATES = ["inactive", "deleted", "closed", "failed"];
-const CLEAN_REVIEW_VERDICTS = ["approve", "approved", "ready for pr", "ready_to_merge"];
+const CLEAN_REVIEW_VERDICTS = [
+  "approve",
+  "approved",
+  "ready for pr",
+  "ready to merge",
+  "ready_to_merge",
+];
 
 const TRUSTED_POLICY_SOURCES = new Set([
   "agent_adapter",
@@ -38,7 +45,9 @@ const shaEquals = (left, right) => Boolean(left && right && normalize(left) === 
 const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boolean));
 
 export const workflowDecisionActions = Object.freeze({
+  applyHumanMergePrLabel: "APPLY_HUMAN_MERGE_PR_LABEL",
   applyReviewEvidence: "APPLY_REVIEW_EVIDENCE",
+  clearHumanMergePrLabel: "CLEAR_HUMAN_MERGE_PR_LABEL",
   clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
   deferForFileContention: "DEFER_FOR_FILE_CONTENTION",
   dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
@@ -205,6 +214,142 @@ export function reviewEvidenceDecision(evidence = {}) {
   return {
     action: workflowDecisionActions.leaveUnchanged,
     reason: "review evidence is current",
+  };
+}
+
+const hasNamedLabel = (labels, name) =>
+  Boolean(name) && toArray(labels).some((label) => labelName(label) === normalize(name));
+
+function currentReviewEvidence(state = {}) {
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  const reviewedHead = state.reviewedHeadSha ?? state.reviewHeadSha;
+  const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(
+    normalize(state.reviewVerdict ?? state.codeReviewVerdict),
+  );
+  const hasEvidence = Boolean(
+    state.reviewEvidenceCurrent ??
+    state.hasReviewEvidence ??
+    state.reviewEvidenceLabel ??
+    state.evidenceLabel,
+  );
+
+  return Boolean(
+    state.reviewEvidenceCurrent === true ||
+    (hasEvidence && cleanVerdict && shaEquals(reviewedHead, currentHead)),
+  );
+}
+
+function countEvidence(value) {
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === "number") return value;
+  return value ? 1 : 0;
+}
+
+function requiredChecksPassed(state = {}) {
+  return Boolean(
+    state.requiredChecksPassed ??
+    state.requiredChecksGreen ??
+    state.checksPassing ??
+    state.checksGreen ??
+    state.ciGreen,
+  );
+}
+
+function humanMergeRequired(state = {}, config = {}) {
+  if (state.humanMergeRequired === false) return false;
+  const authority = normalize(state.mergeAuthority ?? config.mergeAuthority);
+  return !["agent", "auto", "automated", "orchestrator"].includes(authority);
+}
+
+export function humanMergePrLabelDecision(state = {}, config = {}) {
+  const label =
+    state.humanMergePrLabel ??
+    state.humanReviewPrLabel ??
+    config.humanMergePrLabel ??
+    config.humanReviewPrLabel ??
+    config.codeHostHumanMergePrLabel ??
+    config.codeHostHumanMergeLabel ??
+    config.codeHostHumanReviewPrLabel ??
+    config.codeHostHumanReviewLabel ??
+    config.codeHostPrAttentionLabel ??
+    DEFAULT_HUMAN_MERGE_PR_LABEL;
+  const prLabels = [
+    ...toArray(state.prLabels),
+    ...toArray(state.pullRequestLabels),
+    ...toArray(state.labels),
+  ];
+  const labelApplied = Boolean(
+    state.humanMergePrLabelApplied ??
+    state.humanReviewPrLabelApplied ??
+    state.hasHumanMergePrLabel ??
+    state.hasHumanReviewPrLabel ??
+    hasNamedLabel(prLabels, label),
+  );
+  const prState = normalize(state.prState ?? state.state ?? state.status);
+  const terminal =
+    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
+  const open = state.open ?? !terminal;
+  const draft = Boolean(
+    state.draft === true ||
+    state.isDraft === true ||
+    prState === "draft" ||
+    normalize(state.draftState) === "draft",
+  );
+  const unresolvedReviewThreads = countEvidence(
+    state.unresolvedReviewThreads ?? state.unresolvedThreads,
+  );
+  const blockingFindings = Boolean(state.blockingFindings ?? state.changesRequested);
+  const hostedReviewBlocked = Boolean(
+    state.hostedReviewPending ||
+    state.codeRabbitPending ||
+    (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
+    (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
+  );
+
+  const invalidReason = !label
+    ? "no human-merge PR label is configured"
+    : !open || terminal
+      ? "PR is not open"
+      : draft
+        ? "draft PRs are pre-review and cannot be marked ready for human merge"
+        : !humanMergeRequired(state, config)
+          ? "configured merge authority does not require human merge"
+          : !currentReviewEvidence(state)
+            ? "current PR head lacks clean code review evidence"
+            : !requiredChecksPassed(state)
+              ? "required checks are not confirmed passing"
+              : blockingFindings
+                ? "blocking findings or changes requested remain"
+                : unresolvedReviewThreads > 0
+                  ? "unresolved review threads remain"
+                  : hostedReviewBlocked
+                    ? "required hosted review is pending or incomplete"
+                    : state.scopeMatches === false || state.diffMatchesScope === false
+                      ? "diff does not match the linked issue scope"
+                      : "";
+
+  if (invalidReason) {
+    return {
+      action: labelApplied
+        ? workflowDecisionActions.clearHumanMergePrLabel
+        : workflowDecisionActions.leaveUnchanged,
+      label,
+      reason: invalidReason,
+    };
+  }
+
+  if (!labelApplied) {
+    return {
+      action: workflowDecisionActions.applyHumanMergePrLabel,
+      label,
+      reason: "PR is merge-ready except for required human merge authority",
+    };
+  }
+
+  return {
+    action: workflowDecisionActions.leaveUnchanged,
+    label,
+    reason: "human-merge PR label is current",
   };
 }
 
@@ -406,13 +551,31 @@ export function dispatchSelectionDecision(state = {}, config = {}) {
   };
 }
 
-export function codeRabbitEscalationDecision(state = {}) {
+function hostedReviewProviderName(state = {}, config = {}) {
+  return String(
+    state.hostedReviewProvider ??
+      state.reviewProvider ??
+      state.provider ??
+      config.hostedReviewProvider ??
+      "CodeRabbit",
+  );
+}
+
+export function hostedReviewEscalationDecision(state = {}, config = {}) {
+  const provider = hostedReviewProviderName(state, config);
+  const providerKey = normalize(provider);
   const recommended = Boolean(state.recommended || state.required || state.highRisk);
   const hasPr = Boolean(state.prExists || state.prUrl);
   const currentHead = state.currentPrHeadSha;
   const hostedHead = state.hostedReviewHeadSha;
   const hostedCoversHead = shaEquals(hostedHead, currentHead);
   const autoReviewMode = normalize(state.autoReviewMode ?? state.autoReview);
+  const requiresAutoReviewResolution =
+    state.requiresAutoReviewResolution ??
+    config.requiresAutoReviewResolution ??
+    providerKey === "coderabbit";
+  const supportsLocalCli =
+    state.supportsLocalCli ?? config.supportsLocalCli ?? providerKey === "coderabbit";
   const autoReviewKnown = ["enabled", "disabled", "opt-in", "label", "description"].includes(
     autoReviewMode,
   );
@@ -420,14 +583,14 @@ export function codeRabbitEscalationDecision(state = {}) {
   if (!recommended) {
     return {
       action: workflowDecisionActions.leaveUnchanged,
-      reason: "CodeRabbit is not required for this diff",
+      reason: `${provider} hosted review is not required for this diff`,
     };
   }
 
-  if (hasPr && !autoReviewKnown) {
+  if (hasPr && requiresAutoReviewResolution && !autoReviewKnown) {
     return {
       action: workflowDecisionActions.resolveAutoReviewState,
-      reason: "resolve CodeRabbit auto-review mode before posting review commands",
+      reason: `resolve ${provider} auto-review mode before posting review commands`,
     };
   }
 
@@ -462,14 +625,14 @@ export function codeRabbitEscalationDecision(state = {}) {
 
     return {
       action: workflowDecisionActions.requestPrReview,
-      reason: "request hosted PR review with a top-level PR comment",
+      reason: `request ${provider} hosted PR review with the configured PR command`,
     };
   }
 
-  if (state.explicitLocalCliRequest && state.remoteWorker !== true) {
+  if (state.explicitLocalCliRequest && state.remoteWorker !== true && supportsLocalCli) {
     return {
       action: workflowDecisionActions.runLocalCli,
-      reason: "local CodeRabbit CLI was explicitly requested before a PR exists",
+      reason: `local ${provider} CLI was explicitly requested before a PR exists`,
     };
   }
 
@@ -477,6 +640,13 @@ export function codeRabbitEscalationDecision(state = {}) {
     action: workflowDecisionActions.leaveUnchanged,
     reason: "no PR-hosted review path exists yet",
   };
+}
+
+export function codeRabbitEscalationDecision(state = {}) {
+  return hostedReviewEscalationDecision(
+    { ...state, hostedReviewProvider: state.hostedReviewProvider ?? "CodeRabbit" },
+    { requiresAutoReviewResolution: true, supportsLocalCli: true },
+  );
 }
 
 export function classifyInstructionSource(instruction = {}) {

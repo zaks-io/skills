@@ -61,6 +61,9 @@ Each tick:
 4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped
    previews, and implementation dispatches that have not yet produced a PR.
    Count repo/project preview capacity, not only the requested issue filter.
+   Open PRs include drafts. Draft state is not hidden work, and a draft PR that
+   has not synced to the tracker still consumes capacity and must be advanced or
+   repaired before redispatching that ticket.
    Count only agent- or human-delegated product PRs against the delivery cap;
    track bot dependency PRs (dependabot, renovate) as a separate drain count.
    Bot PRs are merge/close work to advance, not delegation slots — they must

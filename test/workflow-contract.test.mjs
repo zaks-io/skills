@@ -7,6 +7,8 @@ import {
   capacityDecision,
   classifyInstructionSource,
   dispatchSelectionDecision,
+  humanMergePrLabelDecision,
+  hostedReviewEscalationDecision,
   readyStatePromotionDecision,
   reviewEvidenceDecision,
   shouldIncludeReadinessTicket,
@@ -145,6 +147,98 @@ test("review evidence is applied only when a clean review covers the current hea
   );
 });
 
+test("human merge PR label is applied only when the PR is merge-ready with current review", () => {
+  assert.deepEqual(
+    humanMergePrLabelDecision({
+      currentPrHeadSha: "abc123",
+      reviewedHeadSha: "ABC123",
+      reviewVerdict: "Ready to Merge",
+      hasReviewEvidence: true,
+      requiredChecksPassed: true,
+      prState: "open",
+    }),
+    {
+      action: workflowDecisionActions.applyHumanMergePrLabel,
+      label: "needs-human-merge",
+      reason: "PR is merge-ready except for required human merge authority",
+    },
+  );
+});
+
+test("human merge PR label is not applied without current code review evidence", () => {
+  assert.deepEqual(
+    humanMergePrLabelDecision({
+      currentPrHeadSha: "abc123",
+      requiredChecksPassed: true,
+      prState: "open",
+    }),
+    {
+      action: workflowDecisionActions.leaveUnchanged,
+      label: "needs-human-merge",
+      reason: "current PR head lacks clean code review evidence",
+    },
+  );
+});
+
+test("human merge PR label is cleared when a new commit invalidates review evidence", () => {
+  assert.deepEqual(
+    humanMergePrLabelDecision({
+      currentPrHeadSha: "def456",
+      hasReviewEvidence: true,
+      humanMergePrLabelApplied: true,
+      prState: "open",
+      requiredChecksPassed: true,
+      reviewedHeadSha: "abc123",
+      reviewVerdict: "APPROVE",
+    }),
+    {
+      action: workflowDecisionActions.clearHumanMergePrLabel,
+      label: "needs-human-merge",
+      reason: "current PR head lacks clean code review evidence",
+    },
+  );
+});
+
+test("human merge PR label is cleared from draft PRs", () => {
+  assert.deepEqual(
+    humanMergePrLabelDecision({
+      currentPrHeadSha: "abc123",
+      hasReviewEvidence: true,
+      humanMergePrLabelApplied: true,
+      isDraft: true,
+      prState: "open",
+      requiredChecksPassed: true,
+      reviewedHeadSha: "ABC123",
+      reviewVerdict: "APPROVE",
+    }),
+    {
+      action: workflowDecisionActions.clearHumanMergePrLabel,
+      label: "needs-human-merge",
+      reason: "draft PRs are pre-review and cannot be marked ready for human merge",
+    },
+  );
+});
+
+test("human merge PR label waits for required hosted bot review", () => {
+  assert.deepEqual(
+    humanMergePrLabelDecision({
+      currentPrHeadSha: "abc123",
+      hasReviewEvidence: true,
+      hostedReviewProvider: "Cursor Bugbot",
+      hostedReviewRequired: true,
+      prState: "open",
+      requiredChecksPassed: true,
+      reviewedHeadSha: "ABC123",
+      reviewVerdict: "APPROVE",
+    }),
+    {
+      action: workflowDecisionActions.leaveUnchanged,
+      label: "needs-human-merge",
+      reason: "required hosted review is pending or incomplete",
+    },
+  );
+});
+
 test("active delivery footprint does not double count linked PR previews", () => {
   assert.deepEqual(
     activeDeliveryFootprint({
@@ -160,6 +254,22 @@ test("active delivery footprint does not double count linked PR previews", () =>
       previews: 1,
       prs: 1,
       total: 3,
+    },
+  );
+});
+
+test("draft PRs count as active delivery work", () => {
+  assert.deepEqual(
+    activeDeliveryFootprint({
+      pullRequests: [{ id: "pr-draft", isDraft: true, state: "open" }],
+      previews: [],
+      dispatches: [],
+    }),
+    {
+      dispatches: 0,
+      previews: 0,
+      prs: 1,
+      total: 1,
     },
   );
 });
@@ -256,6 +366,37 @@ test("dispatch selection treats active PR footprints as occupied seams", () => {
   ]);
 });
 
+test("dispatch selection treats draft PR footprints as occupied seams", () => {
+  const decision = dispatchSelectionDecision(
+    {
+      pullRequests: [
+        {
+          id: "PR-156",
+          isDraft: true,
+          state: "open",
+          footprint: ["packages/preview-smoke"],
+        },
+      ],
+      startableTickets: [
+        { id: "AP-201", footprint: ["packages/preview-smoke/specs/session.test.ts"] },
+        { id: "AP-202", footprint: ["apps/api/src/routes/session.ts"] },
+      ],
+    },
+    { activePrPreviewCap: 3 },
+  );
+
+  assert.deepEqual(decision.selected, [
+    { id: "AP-202", footprint: ["apps/api/src/routes/session.ts"] },
+  ]);
+  assert.deepEqual(decision.deferred, [
+    {
+      id: "AP-201",
+      conflictsWith: "PR-156",
+      reason: "predicted file footprint collides with active or selected work",
+    },
+  ]);
+});
+
 test("dispatch selection asks for footprints before fanning out unknown work", () => {
   assert.deepEqual(
     dispatchSelectionDecision({
@@ -322,6 +463,37 @@ test("remote workers do not fall back to local CodeRabbit CLI before PR review",
       recommended: true,
       explicitLocalCliRequest: true,
       remoteWorker: true,
+    }),
+    {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "no PR-hosted review path exists yet",
+    },
+  );
+});
+
+test("Cursor Bugbot can be selected as the hosted review provider", () => {
+  assert.deepEqual(
+    hostedReviewEscalationDecision({
+      hostedReviewProvider: "Cursor Bugbot",
+      recommended: true,
+      prExists: true,
+      currentPrHeadSha: "abc123",
+      requiresAutoReviewResolution: false,
+    }),
+    {
+      action: workflowDecisionActions.requestPrReview,
+      reason: "request Cursor Bugbot hosted PR review with the configured PR command",
+    },
+  );
+});
+
+test("non-CodeRabbit hosted review providers do not inherit CodeRabbit CLI fallback", () => {
+  assert.deepEqual(
+    hostedReviewEscalationDecision({
+      explicitLocalCliRequest: true,
+      hostedReviewProvider: "Cursor Bugbot",
+      recommended: true,
+      remoteWorker: false,
     }),
     {
       action: workflowDecisionActions.leaveUnchanged,

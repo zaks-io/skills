@@ -94,7 +94,7 @@ Last updated: YYYY-MM-DD
   refresh both before manual state repair
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
-  - ready-for-agent: no further human refinement is needed before agent handoff; does not mean unblocked or startable; remove when the issue moves to Done
+  - ready-for-agent: no further human refinement is needed before agent handoff; requires one primary outcome plus concrete in-scope and out-of-scope boundaries; does not mean unblocked or startable; remove when the issue moves to Done
   - needs-info:
   - ready-for-human:
 - Readiness-label query policy: queries for ready-for-agent, ready-for-human,
@@ -104,8 +104,8 @@ Last updated: YYYY-MM-DD
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
 - Startable work criteria: kind-slice, ready state, ready-for-agent, complete
-  body, configured required estimate, repo-route label when issue-assigned, no
-  active blockers, no active claim or open PR
+  body with explicit non-goals, configured required estimate, repo-route label
+  when issue-assigned, no active blockers, no active claim or open PR
 - Done cleanup: remove ready-for-agent or the repo-configured readiness label
   when moving an issue to Done
 - Agent suitability policy: default agent work includes docs, tests, build/CI,
@@ -147,8 +147,11 @@ Last updated: YYYY-MM-DD
   files/packages for review-created `kind-slice` tickets before Orchestrator can
   dispatch them
 - Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
-  scope, acceptance criteria, required checks, safety invariants, dependencies,
-  and estimate when body-backed estimates are configured
+  in scope, out of scope, acceptance criteria, required checks, safety
+  invariants, dependencies, and estimate when body-backed estimates are
+  configured. In scope names what this PR may change; out of scope names
+  adjacent tickets, optional polish, broad refactors, production actions, and
+  follow-up behavior the worker must not deliver
 - Hard config literal policy: where exact provider resource IDs, secret names,
   label slugs, environment values, and other worker-critical literals are
   recorded so worker prompts do not depend on old issue comments
@@ -165,8 +168,9 @@ Last updated: YYYY-MM-DD
 - Cap count policy: count each open PR once, add active previews that are not
   clearly linked to an already counted PR, then add unreturned implementation
   dispatches. Exclude bot dependency PRs (dependabot, renovate) from the cap;
-  track them as a separate drain count. Obey any stricter preview-provider or
-  worker-session limit
+  track them as a separate drain count. Draft PRs are open PRs and count even
+  when tracker sync has not linked them yet. Obey any stricter preview-provider
+  or worker-session limit
 - Partitioned-scope cap semantics: when the queue is split across concurrent
   orchestrator runs, record whether the cap is shared repo-wide or per scope,
   and how each run counts the other's PRs and dispatches. Unset means one
@@ -194,6 +198,15 @@ Last updated: YYYY-MM-DD
 - Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
 - Required checks for merge: the CI checks that define green for the integrate gate
 - Auto-merge risk tiers: which risk tiers Orchestrator may auto-merge vs route to human merge
+- Code-host human-merge PR label: GitHub or code-host label for PRs that are
+  ready to merge except for required human merge authority, default
+  `needs-human-merge`
+- Code-host human-merge PR label policy: apply only to open non-draft PRs
+  after current clean code review evidence, passing required checks, complete or
+  policy-skipped hosted review, matching issue scope, and zero unresolved
+  blocking review threads; clear on new commits, draft transitions, failed or
+  pending required checks, blocking findings, unresolved review threads,
+  stale/missing review evidence, close, or merge
 - Merge method: squash, merge commit, rebase merge, or repo-specific command
 - Post-merge preparation: install, build, generated-artifact, or dependency refresh needed before local post-merge checks are trustworthy
 - Post-merge check: command or signal that confirms the default branch is healthy after merge, if any
@@ -280,6 +293,14 @@ Last updated: YYYY-MM-DD
 - PR body:
 - Required checks:
 - Code review:
+- Hosted bot review provider: none, CodeRabbit, Cursor Bugbot, or repo-specific
+  provider; record whether it is optional, required by risk tier, or only on
+  explicit user request
+- Hosted bot review trigger policy: automatic, top-level PR comment,
+  label/description opt-in, provider app UI, unknown, or not configured; include
+  the exact configured command only when verified
+- Hosted bot review actor policy: which account or token should post trigger
+  comments if the provider ignores app/bot accounts
 - CodeRabbit config source: root `.coderabbit.yaml`, none, or unknown
 - CodeRabbit bot handle: @coderabbitai unless repo config says otherwise
 - CodeRabbit auto-review: enabled, disabled, opt-in by label or description
@@ -289,11 +310,17 @@ Last updated: YYYY-MM-DD
   description when repo policy allows; never post review commands or use CLI
   until auto-review mode and current hosted review state are resolved; record
   auth, rate-limit, or credit skips
+- Cursor Bugbot config source: code-host app settings, repo docs, unknown, or
+  none
+- Cursor Bugbot command policy: use only the verified repo-configured trigger or
+  automatic review policy; if trigger or actor is unknown, record the gap rather
+  than guessing
 - Draft PR policy: draft only while checks, requested human prep, or required
   author fixes are incomplete; draft state alone is not a code review request.
   Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts
   ready-for-review, and verifies the code-host PR is non-draft unless this repo
-  says otherwise. A kept-draft PR is pre-review, not ready-for-review
+  says otherwise. A kept-draft PR is pre-review, not ready-for-review. Draft PRs
+  still consume active delivery capacity and file-contention seams
 - Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:
@@ -375,9 +402,11 @@ Every configured readiness or worker environment label needs a short treatment
 policy in this file. `ready-for-agent` should answer "does a human need to refine
 this ticket before I hand it to an implementation agent?" It must not be used as
 a dependency, status, or scheduling signal, and it must be removed when the
-ticket moves to Done. Worker environment labels such as `remote-cursor` should
-answer "is this issue allowed to run in that configured environment?" They must
-not be used as dependency, status, or scheduling signals.
+ticket moves to Done. It also requires a concrete scope boundary: one primary
+outcome, explicit in-scope work, and explicit non-goals. Worker environment
+labels such as `remote-cursor` should answer "is this issue allowed to run in
+that configured environment?" They must not be used as dependency, status, or
+scheduling signals.
 
 Dependency blockers should be represented as tracker blocker relationships when
 the provider supports them. Otherwise record ticket IDs and direction in the

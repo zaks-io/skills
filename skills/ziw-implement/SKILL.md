@@ -46,6 +46,7 @@ Start only when the issue:
 - belongs to the configured tracker location
 - is unblocked
 - is scoped to one PR
+- has one primary outcome, with concrete in-scope and out-of-scope boundaries
 - has `ready-for-agent`
 - has any project-configured worker environment label or field required for the
   selected delegation path
@@ -79,9 +80,21 @@ missing, report the exact transition Agent Orchestrator must perform.
 Stop on missing product, security, credential, provider, ADR, customer, or
 production approval decisions.
 
+Before editing, restate the issue's scope contract for yourself from the current
+issue body: outcome, in scope, out of scope, acceptance criteria, and required
+checks. If that contract combines multiple independent outcomes, omits
+non-goals, contradicts comments, or would let this PR close sibling tickets,
+stop for triage instead of choosing a broader interpretation.
+
 ## Implement
 
 - Stay inside the issue scope.
+- Use the issue's out-of-scope section as a stop list. Do not implement adjacent
+  ticket work, optional polish, broad refactors, production actions, or "while
+  you are there" cleanup unless it is directly required by an acceptance
+  criterion.
+- If the smallest correct fix exposes adjacent work, create or recommend a
+  follow-up issue and keep the current diff limited to the assigned ticket.
 - Preserve unrelated user changes.
 - Follow existing repo patterns and package boundaries.
 - Update tests, docs, generated artifacts, and status ledgers only when the
@@ -103,7 +116,7 @@ Treat implementation, code review, and PR creation as one pipeline:
    blocker that needs human input.
 7. Run `ziw-pr` to commit, push, create or update the PR, and update
    the issue tracker. Tell Create PR whether the latest code review covers the
-   current diff and whether any CodeRabbit escalation remains.
+   current diff and whether any hosted bot review escalation remains.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.
@@ -119,6 +132,11 @@ test, check, doc change, or explicit manual verification result. A nearby test
 for a different criterion does not count. Constraints carried forward from a
 prior slice or named in the dispatch prompt are acceptance-critical: close each
 one with a test or explicit evidence, not by passing the note along.
+
+Also map the diff back to the issue's out-of-scope section. If the branch
+contains work that belongs to another ticket or broadens the product/design
+surface beyond the assigned acceptance criteria, split it out or stop for human
+direction before review and PR creation.
 
 Use exact configured or CI-equivalent commands for the full gate. Do not accept a
 self-reported green status, a package-local substitute, or a non-threshold
@@ -200,12 +218,15 @@ Report:
 - issue ID and branch
 - PR URL or reason no PR exists
 - files changed
+- scope audit: assigned issue satisfied, out-of-scope work avoided, and
+  follow-up issues created or recommended
 - checks run and result
 - code review verdict
 - whether code review covers the current diff
 - PR head SHA, base SHA, and merge base used for the final checks and review
 - PR draft or ready-for-review state
 - configured review evidence label recommendation with reviewed head SHA
-- CodeRabbit decision or remaining escalation
+- configured code-host human-merge PR label eligibility or blocker
+- hosted bot review decision or remaining escalation
 - tracker comments and status handoff
 - blockers or follow-up issues

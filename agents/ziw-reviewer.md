@@ -30,7 +30,9 @@ state instead of reviewing. Do not include uncommitted local changes unless the
 orchestrator explicitly asked for a working-tree review.
 
 Read only the repo config, PR or range, linked issue, commits, and changed-file
-docs needed for the review. Favor findings that identify concrete orchestrator
+docs needed for the review. Treat overbuild as scope drift when the diff delivers
+adjacent ticket work, optional polish, broad refactors, or new surfaces outside
+the linked issue boundary. Favor findings that identify concrete orchestrator
 refactor opportunities: repeated workflow repairs, stale review evidence, brittle
 state transitions, missing config that forces orchestration guesses, or review
 debt intake gaps. Run focused checks only when they materially improve confidence

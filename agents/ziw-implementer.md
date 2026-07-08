@@ -27,18 +27,22 @@ needed for the assigned issue. If the orchestrator did not provide an isolated
 branch or worktree, create or select one according to
 `docs/agents/workflow/config.md` before editing.
 
-Do not broaden scope. Preserve unrelated changes. Do not deploy, mutate
-production, or expose secrets.
+Do not broaden scope. Treat the issue's out-of-scope section as a stop list. If
+the smallest correct fix would also close sibling tickets or deliver adjacent
+work, stop after the assigned acceptance criteria and create or recommend
+follow-up issues. Preserve unrelated changes. Do not deploy, mutate production,
+or expose secrets.
 
 Return only the compressed handoff:
 
 - issue ID and branch
 - PR URL or reason no PR exists
 - files changed
+- scope audit
 - checks run and result
 - PR head SHA, base SHA, merge base, and hosted check state
 - review verdict and whether it covers the current diff
-- CodeRabbit decision
+- Hosted bot review decision
 - PR draft or ready-for-review state
 - tracker handoff
 - blockers or follow-up issues

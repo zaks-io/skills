@@ -34,6 +34,8 @@ Confidence guide:
 - Does the diff deliver the requested behavior?
 - Are acceptance criteria or issue requirements missing?
 - Are unrelated refactors, formatting sweeps, or package changes mixed in?
+- Does the diff deliver adjacent ticket work, optional polish, future-proofing,
+  or new surfaces that the issue marked out of scope?
 - Did tests/docs/status ledgers change when the behavior contract changed?
 
 ### Auth, authorization, and secrets
@@ -145,15 +147,15 @@ Confidence guide:
 - Destructive or revocation tests assert database state but not the externally
   visible API behavior after invalidation, such as old URLs or handles failing.
 
-## CodeRabbit Escalation Rubric
+## Hosted Bot Review Escalation Rubric
 
 Recommend `SKIP` when the code review is clean and the PR is docs-only, tests-only, copy/UI-only, a mechanical rename, dependency metadata, or a small isolated bug fix with good tests.
 
-Recommend `CLI` when the PR is not open yet and the change is high risk enough to benefit from another model pass before publishing.
+Recommend `CLI` only when the configured provider supports a local CLI, the PR is not open yet, and the change is high risk enough to benefit from another model pass before publishing. CodeRabbit supports this path when explicitly requested. Do not infer a Cursor Bugbot CLI.
 
 Recommend `PR REVIEW` when the PR is already open, the diff is broad, or review comments need to land on GitHub threads.
 
-Use this command map for PR review recommendations:
+Use this CodeRabbit command map only when CodeRabbit is the configured provider:
 
 - Auto-review enabled and the PR is eligible: wait for the automatic review if
   it is already running or current; otherwise comment `@coderabbitai review` for
@@ -169,10 +171,15 @@ Use this command map for PR review recommendations:
 - Too many rapid commits: comment `@coderabbitai pause` while work is churning
   and `@coderabbitai resume` when the branch is ready for automatic reviews.
 
+For Cursor Bugbot or another hosted review provider, use only the verified
+repo-configured trigger or automatic review policy. If the trigger, actor, or
+app permission is unknown, report the provider as unresolved rather than
+guessing a command.
+
 For a draft PR with a clean local review, do not use draft state as the reason
-to delay CodeRabbit. Recommend ready-for-review when the local gate is clean,
-then recommend `PR REVIEW` only if the risk or complexity triggers below apply.
-Ready-for-review means non-draft.
+to delay hosted bot review. Recommend ready-for-review when the local gate is
+clean, then recommend `PR REVIEW` only if the risk or complexity triggers below
+apply. Ready-for-review means non-draft.
 
 Escalation triggers:
 
@@ -180,6 +187,9 @@ Escalation triggers:
 - Cross-cutting refactor or public API/schema/CLI contract change.
 - Code review found P0/P1 issues and fixes were non-trivial.
 - Reviewer uncertainty remains after reading the source and running focused checks.
-- User explicitly asks for CodeRabbit on this PR.
+- User explicitly asks for CodeRabbit, Cursor Bugbot, or another configured
+  hosted review provider on this PR.
 
-When CodeRabbit runs, only act on high-priority findings. High-priority means P0/P1, security, data loss, correctness regression, production blocker, or a finding the user specifically asks to address.
+When hosted bot review runs, only act on high-priority findings. High-priority
+means P0/P1, security, data loss, correctness regression, production blocker,
+or a finding the user specifically asks to address.

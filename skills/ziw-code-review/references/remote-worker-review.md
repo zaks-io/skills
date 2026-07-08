@@ -31,7 +31,7 @@ Read first:
 - docs/specs/README.md and docs/adr/README.md if present
 - Any repo-local skills relevant to touched files
 
-Review the diff against the base branch for correctness, security, data loss, race conditions, API/schema contract drift, missing enum/status handling, missing tests, and scope drift. Run focused checks if cheap. Do not call CodeRabbit.
+Review the diff against the base branch for correctness, security, data loss, race conditions, API/schema contract drift, missing enum/status handling, missing tests, and scope drift. Scope drift includes delivering adjacent tickets, optional polish, broad refactors, or new surfaces outside the issue boundary. Run focused checks if cheap. Do not call hosted bot review providers such as CodeRabbit or Cursor Bugbot from this worker.
 
 Use this review rubric:
 - Verify every finding with file:line evidence.
@@ -43,7 +43,8 @@ Return only:
 - Scope check: clean, drift, or missing requirements
 - Findings table with severity, confidence, file:line, evidence, impact, and suggested fix
 - Checks run
-- CodeRabbit recommendation: skip, CLI, or PR review; include auto-review mode
+- Hosted bot review recommendation: skip, CLI, or PR review; include provider
+  and auto-review mode
   and command or skip marker when known
 - Verdict: ready, needs revision, or do not merge
 ```
