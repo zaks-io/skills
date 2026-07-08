@@ -11,7 +11,17 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
+const DEFAULT_STARTABLE_STATES = ["todo"];
+const DEFAULT_STARTABLE_STATE_TYPES = ["unstarted"];
+const DEFAULT_READINESS_LABELS = ["ready-for-agent"];
+const DEFAULT_STARTABLE_KIND_LABELS = ["kind-slice"];
 const TERMINAL_STATE_TYPES = ["completed", "canceled"];
+const NON_IMPLEMENTATION_READY_LABELS = new Set([
+  "needs-info",
+  "needs-triage",
+  "ready-for-human",
+  "wontfix",
+]);
 const usage = "Usage: node linear-dag-start.mjs <snapshot-or-issues.json> [--config config.json]";
 
 const toArray = (value) => {
@@ -36,6 +46,7 @@ const compact = (values) => [
 const labelName = (label) => (typeof label === "string" ? label : label?.name);
 const issueStateName = (issue) =>
   issue?.state?.name ?? issue?.state ?? issue?.status ?? issue?.workflowState;
+const issueStateType = (issue) => issue?.stateType ?? issue?.state?.type;
 
 const issueId = (issue) =>
   String(issue?.identifier ?? issue?.key ?? issue?.id ?? issue?.url ?? "").trim();
@@ -62,6 +73,15 @@ const blockerRefs = (issue) =>
       .map(blockerId),
   );
 
+const footprintRefs = (issue) =>
+  compact([
+    ...toArray(issue?.footprint),
+    ...toArray(issue?.fileFootprint),
+    ...toArray(issue?.files),
+    ...toArray(issue?.paths),
+    ...toArray(issue?.packages),
+  ]);
+
 const isDoneIssue = (issue, config = {}) => {
   const doneStates = new Set(
     [...DEFAULT_DONE_STATES, ...toArray(config.doneStates), config.doneState]
@@ -69,25 +89,123 @@ const isDoneIssue = (issue, config = {}) => {
       .filter(Boolean),
   );
   const state = normalize(issueStateName(issue));
-  const stateType = normalize(issue?.stateType ?? issue?.state?.type);
+  const stateType = normalize(issueStateType(issue));
   return doneStates.has(state) || TERMINAL_STATE_TYPES.includes(stateType);
 };
+
+const labelsOf = (issue) => toArray(issue?.labels).map((label) => normalize(labelName(label)));
 
 const readinessMatches = (issue, config = {}) => {
   if (issue?.implementationReady || issue?.readyForImplementation) return true;
 
-  const readyStates = new Set(
-    [config.readyState, ...toArray(config.readyStates)].map(normalize).filter(Boolean),
-  );
+  const explicitLabels = [
+    config.implementationReadyLabel,
+    ...toArray(config.implementationReadyLabels),
+    config.agentReadinessLabel,
+    ...toArray(config.agentReadinessLabels),
+  ];
+  const usesExplicitLabels = explicitLabels.map(normalize).filter(Boolean).length > 0;
+  const candidateLabels = usesExplicitLabels
+    ? explicitLabels
+    : [config.readinessLabel, ...toArray(config.readinessLabels), ...DEFAULT_READINESS_LABELS];
   const readinessLabels = new Set(
-    [config.readinessLabel, ...toArray(config.readinessLabels)].map(normalize).filter(Boolean),
+    candidateLabels
+      .map(normalize)
+      .filter((label) => label && !NON_IMPLEMENTATION_READY_LABELS.has(label)),
   );
-  const state = normalize(issueStateName(issue));
-  const labels = toArray(issue?.labels).map((label) => normalize(labelName(label)));
+  const labels = labelsOf(issue);
 
-  if (readyStates.size === 0 && readinessLabels.size === 0) return true;
-  return readyStates.has(state) || labels.some((label) => readinessLabels.has(label));
+  if (readinessLabels.size === 0) return true;
+  return labels.some((label) => readinessLabels.has(label));
 };
+
+const startableStateMatches = (issue, config = {}) => {
+  const startableStates = new Set(
+    [
+      config.startableState,
+      ...toArray(config.startableStates),
+      config.readyState,
+      ...toArray(config.readyStates),
+      ...DEFAULT_STARTABLE_STATES,
+    ]
+      .map(normalize)
+      .filter(Boolean),
+  );
+  const startableStateTypes = new Set(
+    [
+      config.startableStateType,
+      ...toArray(config.startableStateTypes),
+      config.readyStateType,
+      ...toArray(config.readyStateTypes),
+      ...DEFAULT_STARTABLE_STATE_TYPES,
+    ]
+      .map(normalize)
+      .filter(Boolean),
+  );
+  return (
+    startableStates.has(normalize(issueStateName(issue))) ||
+    startableStateTypes.has(normalize(issueStateType(issue)))
+  );
+};
+
+const startableKindMatches = (issue, config = {}) => {
+  const defaultKindLabels =
+    config.startableKindLabel == null && config.startableKindLabels == null
+      ? DEFAULT_STARTABLE_KIND_LABELS
+      : [];
+  const kindLabels = new Set(
+    [config.startableKindLabel, ...toArray(config.startableKindLabels), ...defaultKindLabels]
+      .map(normalize)
+      .filter(Boolean),
+  );
+  const explicitKind = normalize(issue?.kind ?? issue?.kindLabel ?? issue?.kindName);
+  const labels = labelsOf(issue);
+
+  if (kindLabels.size === 0) return true;
+  return kindLabels.has(explicitKind) || labels.some((label) => kindLabels.has(label));
+};
+
+const hasActiveClaim = (issue) =>
+  Boolean(
+    issue?.activeClaim ??
+    issue?.claimed ??
+    issue?.delegated ??
+    issue?.assignedWorker ??
+    issue?.workerSession ??
+    issue?.agentSession ??
+    issue?.assignee,
+  );
+
+const isOpenPr = (pr) => {
+  if (typeof pr === "string") return true;
+  const state = normalize(pr?.state ?? pr?.status);
+  if (!state) return pr?.open !== false && pr?.closed !== true && pr?.merged !== true;
+  return !["closed", "merged"].includes(state);
+};
+
+const hasOpenPr = (issue) => {
+  if (issue?.openPr || issue?.hasOpenPr || issue?.openPullRequest) return true;
+  if (issue?.prOpen) return true;
+  if (isOpenPr({ state: issue?.prState, open: issue?.prOpen })) return Boolean(issue?.prState);
+  return [
+    ...toArray(issue?.openPrs),
+    ...toArray(issue?.openPullRequests),
+    ...toArray(issue?.pullRequests),
+    ...toArray(issue?.prs),
+  ].some(isOpenPr);
+};
+
+const startableBlockers = (node) =>
+  [
+    !node.unblocked && "blocked by dependency",
+    !node.startableState && "not in configured startable state",
+    !node.ready && "missing readiness label",
+    !node.startableKind && "not kind-slice",
+    node.activeClaim && "active claim exists",
+    node.openPr && "open PR exists",
+  ].filter(Boolean);
+
+const isStartableNode = (node) => startableBlockers(node).length === 0;
 
 export function extractLinearIssues(input = {}) {
   if (Array.isArray(input)) return input;
@@ -135,6 +253,7 @@ export function linearDagStart(issuesInput = [], config = {}) {
       state: issueStateName(issue) ?? null,
       stateType: issue.stateType ?? issue.state?.type ?? null,
       labels: toArray(issue.labels).map(labelName).filter(Boolean),
+      footprint: footprintRefs(issue),
       blockedBy,
       inScopeBlockedBy: compact(inScopeBlockedBy),
       externalBlockedBy: compact(externalBlockedBy),
@@ -142,6 +261,12 @@ export function linearDagStart(issuesInput = [], config = {}) {
       root: false,
       unblocked: false,
       ready: readinessMatches(issue, config),
+      startableState: startableStateMatches(issue, config),
+      startableKind: startableKindMatches(issue, config),
+      activeClaim: hasActiveClaim(issue),
+      openPr: hasOpenPr(issue),
+      startable: false,
+      startableBlockers: [],
       layer: null,
     });
   }
@@ -156,6 +281,8 @@ export function linearDagStart(issuesInput = [], config = {}) {
     node.blocks = compact(node.blocks).sort((a, b) => order.get(a) - order.get(b));
     node.root = node.inScopeBlockedBy.length === 0;
     node.unblocked = node.root && node.externalBlockedBy.length === 0;
+    node.startableBlockers = startableBlockers(node);
+    node.startable = isStartableNode(node);
   }
 
   const indegree = new Map(
@@ -186,14 +313,16 @@ export function linearDagStart(issuesInput = [], config = {}) {
     .filter((node) => indegree.get(node.id) > 0)
     .map((node) => node.id);
   const roots = [...nodes.values()].filter((node) => node.root).map((node) => node.id);
-  const starts = [...nodes.values()].filter((node) => node.unblocked).map((node) => node.id);
+  const frontier = [...nodes.values()].filter((node) => node.unblocked).map((node) => node.id);
+  const starts = [...nodes.values()].filter((node) => node.startable).map((node) => node.id);
   const readyStarts = [...nodes.values()]
-    .filter((node) => node.unblocked && node.ready)
+    .filter((node) => node.unblocked && node.ready && node.startableState)
     .map((node) => node.id);
 
   return {
     totalIssues: nodes.size,
     roots,
+    frontier,
     starts,
     readyStarts,
     layers,

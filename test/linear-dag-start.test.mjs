@@ -23,11 +23,22 @@ function writeJson(input) {
 
 test("linearDagStart returns DAG starts and topological layers", () => {
   const output = linearDagStart([
-    { identifier: "LIN-1" },
-    { identifier: "LIN-2", blockedBy: ["LIN-1"] },
-    { identifier: "LIN-3", blockedBy: ["LIN-2"] },
+    { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+    {
+      identifier: "LIN-2",
+      blockedBy: ["LIN-1"],
+      labels: ["kind-slice", "ready-for-agent"],
+      state: "Todo",
+    },
+    {
+      identifier: "LIN-3",
+      blockedBy: ["LIN-2"],
+      labels: ["kind-slice", "ready-for-agent"],
+      state: "Todo",
+    },
   ]);
 
+  assert.deepEqual(output.frontier, ["LIN-1"]);
   assert.deepEqual(output.starts, ["LIN-1"]);
   assert.deepEqual(output.readyStarts, ["LIN-1"]);
   assert.deepEqual(output.layers, [["LIN-1"], ["LIN-2"], ["LIN-3"]]);
@@ -36,26 +47,93 @@ test("linearDagStart returns DAG starts and topological layers", () => {
 
 test("linearDagStart separates scoped roots from externally blocked starts", () => {
   const output = linearDagStart([
-    { identifier: "LIN-1", blockedBy: ["EXT-1"] },
-    { identifier: "LIN-2", blockedBy: ["LIN-1"] },
+    {
+      identifier: "LIN-1",
+      blockedBy: ["EXT-1"],
+      labels: ["kind-slice", "ready-for-agent"],
+      state: "Todo",
+    },
+    {
+      identifier: "LIN-2",
+      blockedBy: ["LIN-1"],
+      labels: ["kind-slice", "ready-for-agent"],
+      state: "Todo",
+    },
   ]);
 
   assert.deepEqual(output.roots, ["LIN-1"]);
+  assert.deepEqual(output.frontier, []);
   assert.deepEqual(output.starts, []);
   assert.deepEqual(output.missingBlockers, [{ ticket: "LIN-1", blocker: "EXT-1" }]);
 });
 
-test("linearDagStart filters ready starts when config names readiness", () => {
+test("linearDagStart keeps graph frontier separate from startable starts", () => {
   const output = linearDagStart(
     [
-      { identifier: "LIN-1", labels: ["ready-for-agent"], state: "Todo" },
-      { identifier: "LIN-2", labels: ["needs-info"], state: "Todo" },
+      { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+      { identifier: "LIN-2", labels: ["kind-slice", "needs-info"], state: "Todo" },
+      { identifier: "LIN-3", labels: ["kind-epic", "ready-for-agent"], state: "Todo" },
+      { identifier: "LIN-4", labels: ["kind-slice", "ready-for-agent"], state: "Backlog" },
     ],
     { readinessLabels: ["ready-for-agent"] },
   );
 
-  assert.deepEqual(output.starts, ["LIN-1", "LIN-2"]);
-  assert.deepEqual(output.readyStarts, ["LIN-1"]);
+  assert.deepEqual(output.frontier, ["LIN-1", "LIN-2", "LIN-3", "LIN-4"]);
+  assert.deepEqual(output.starts, ["LIN-1"]);
+  assert.deepEqual(output.readyStarts, ["LIN-1", "LIN-3"]);
+  assert.deepEqual(
+    Object.fromEntries(output.nodes.map((node) => [node.id, node.startableBlockers])),
+    {
+      "LIN-1": [],
+      "LIN-2": ["missing readiness label"],
+      "LIN-3": ["not kind-slice"],
+      "LIN-4": ["not in configured startable state"],
+    },
+  );
+});
+
+test("linearDagStart ignores non-agent readiness labels from broad config", () => {
+  const output = linearDagStart(
+    [
+      { identifier: "LIN-1", labels: ["kind-slice", "ready-for-human"], state: "Todo" },
+      { identifier: "LIN-2", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+    ],
+    { readinessLabels: ["needs-info", "ready-for-agent", "ready-for-human"] },
+  );
+
+  assert.deepEqual(output.starts, ["LIN-2"]);
+  assert.deepEqual(
+    Object.fromEntries(output.nodes.map((node) => [node.id, node.startableBlockers])),
+    {
+      "LIN-1": ["missing readiness label"],
+      "LIN-2": [],
+    },
+  );
+});
+
+test("linearDagStart excludes claimed issues and open PRs from starts", () => {
+  const output = linearDagStart([
+    {
+      identifier: "LIN-1",
+      assignee: "Cursor",
+      labels: ["kind-slice", "ready-for-agent"],
+      stateType: "unstarted",
+    },
+    {
+      identifier: "LIN-2",
+      labels: ["kind-slice", "ready-for-agent"],
+      prOpen: true,
+      stateType: "unstarted",
+    },
+    {
+      identifier: "LIN-3",
+      labels: ["kind-slice", "ready-for-agent"],
+      stateType: "unstarted",
+    },
+  ]);
+
+  assert.deepEqual(output.frontier, ["LIN-1", "LIN-2", "LIN-3"]);
+  assert.deepEqual(output.starts, ["LIN-3"]);
 });
 
 test("linearDagStart reports dependency cycles", () => {
@@ -72,7 +150,15 @@ test("linearDagStart reports dependency cycles", () => {
 test("linear-dag-start CLI accepts tick-snapshot envelopes", () => {
   const input = writeJson({
     linear: {
-      issues: [{ identifier: "LIN-1" }, { identifier: "LIN-2", blockedBy: ["LIN-1"] }],
+      issues: [
+        { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], stateType: "unstarted" },
+        {
+          identifier: "LIN-2",
+          blockedBy: ["LIN-1"],
+          labels: ["kind-slice", "ready-for-agent"],
+          stateType: "unstarted",
+        },
+      ],
     },
   });
 

@@ -180,13 +180,32 @@ const state = {
 };
 
 const pullRequests = mergePrLists(snapshot.prs, state.pullRequests);
+const linearIssues = extractLinearIssues({
+  snapshot,
+  state: { tickets: state.tickets ?? state.linearIssues },
+});
+const linearDag = linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null;
+const linearStartableTickets =
+  linearDag?.nodes
+    .filter((node) => node.startable)
+    .map((node) => ({
+      id: node.id,
+      title: node.title,
+      url: node.url,
+      labels: node.labels,
+      state: node.state,
+      stateType: node.stateType,
+      footprint: node.footprint,
+    })) ?? [];
+const explicitStartableTickets = toArray(state.startableTickets);
 const planningState = {
   ...state,
   pullRequests,
   previews: toArray(state.previews),
   dispatches: toArray(state.dispatches ?? state.ledgerDispatches),
   activeWork: toArray(state.activeWork),
-  startableTickets: toArray(state.startableTickets),
+  startableTickets:
+    explicitStartableTickets.length > 0 ? explicitStartableTickets : linearStartableTickets,
 };
 
 const readyStatePromotions = toArray(state.tickets ?? snapshot.linear?.issues).map((ticket) => ({
@@ -202,12 +221,6 @@ const reviewEvidence = toArray(state.reviewEvidenceChecks).map((evidence) => ({
 const hostedReviews = pullRequests
   .map((pr) => hostedReviewDecisionForPr(state, config, pr))
   .filter(Boolean);
-const linearIssues = extractLinearIssues({
-  snapshot,
-  state: { tickets: state.tickets ?? state.linearIssues },
-});
-const linearDag = linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null;
-
 const capacity = capacityDecision(planningState, config);
 const dispatch = dispatchSelectionDecision(planningState, config);
 const humanMergeLabels = pullRequests.map((pr) => humanMergeDecisionForPr(state, config, pr));
@@ -245,6 +258,7 @@ process.stdout.write(
         startableTickets: planningState.startableTickets.length,
         selectedDispatches,
         deferredDispatches: dispatch.deferred?.length ?? 0,
+        linearDagFrontier: linearDag?.frontier.length ?? 0,
         linearDagStarts: linearDag?.starts.length ?? 0,
         linearDagReadyStarts: linearDag?.readyStarts.length ?? 0,
         humanMergeLabelsToApply: humanMergeLabels.filter(

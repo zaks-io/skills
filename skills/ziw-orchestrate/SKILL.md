@@ -116,10 +116,17 @@ node <skill-dir>/scripts/tick-plan.mjs /tmp/ziw-tick-snapshot.json \
 ```
 
 The planner is advisory but should be followed unless current evidence exposes a
-gap it cannot model. It returns active footprint, capacity action, collision-safe
-dispatch selection, Linear DAG starts, ready-state promotion decisions,
-hosted-review actions, and human-merge PR label actions. Do not spend tokens
-manually re-deriving those decisions when the JSON inputs are current.
+gap it cannot model. It returns active footprint, capacity action,
+collision-safe dispatch selection, Linear DAG `frontier` and dispatchable
+`starts`, ready-state promotion decisions, hosted-review actions, and
+human-merge PR label actions. Do not spend tokens manually re-deriving those
+decisions when the JSON inputs are current.
+
+`starts` is the Triage/Orchestrator label-state handoff: `kind-slice`,
+configured ready state, `ready-for-agent`, unblocked, unclaimed, and no open PR.
+Actual dispatch still requires the predicted file/package footprint. If a
+`starts` issue lacks footprint, route it back to triage or To Issues for
+handoff repair instead of dispatching blind.
 
 To inspect only the dependency frontier from Linear issue JSON:
 

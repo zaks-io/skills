@@ -206,6 +206,20 @@ Apply obvious mechanical updates in batches:
 - mark implementation-ready slices with `ready-for-agent` when the repo-configured
   readiness policy says no further human refinement is needed, even if dependency
   blockers remain
+- before finalizing readiness labels or ready-state promotion, run the configured
+  DAG-start check over the triage scope when `ziw-orchestrate` scripts are
+  available. For Linear, prefer
+  `node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo> --linear-team <KEY>`
+  when config names the team and the local Linear wrapper credential is set;
+  otherwise build compact tracker issue JSON from read-only tracker evidence.
+  Then run
+  `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot-or-issues.json> --config <config.json>`.
+  Use `starts` as the actually startable set, `frontier` as unblocked but not
+  necessarily dispatchable work, and each node's `startableBlockers` to repair
+  missing `kind-slice`, `ready-for-agent`, ready-state, blocker, claim, or PR
+  labels and statuses. A `starts` issue is still not dispatch-ready until the
+  agent-ready body includes the predicted file/package footprint; repair missing
+  footprints before handoff or report them as the exact remaining triage action
 - apply configured worker environment labels or fields when the repo-configured
   environment policy says that issue may run there; dependency state is not a
   reason to refuse the environment label
@@ -370,6 +384,13 @@ dependency tree for every implementation-ready `kind-slice` in scope.
 - Do not duplicate every transitive edge unless the tracker requires it. Encode
   the smallest clear graph that lets Orchestrator compute the ready frontier.
 - Break or escalate cycles. Do not guess through circular blockers.
+- Run `linear-dag-start.mjs` after dependency repair and before the final report
+  so the summary's newly startable, blocked-but-ready, and label-fix lists come
+  from the computed DAG, not only manual inspection.
+- Treat the final DAG result as the handoff contract with Orchestrator: Triage
+  owns fixing labels, ready state, dependency links, active-claim/open-PR drift,
+  and predicted footprints; Orchestrator consumes `starts` plus footprints for
+  capacity and collision-safe dispatch.
 - Report the roots, blocked ready slices, cycles, and missing human decisions in
   the run summary.
 

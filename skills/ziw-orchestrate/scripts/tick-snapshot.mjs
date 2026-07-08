@@ -112,6 +112,11 @@ const latestReviewByAuthor = (reviews) => {
   return Object.fromEntries(byAuthor);
 };
 
+const isDependencyBotAuthor = (login) => {
+  const normalized = String(login ?? "").toLowerCase();
+  return normalized.includes("dependabot") || normalized.includes("renovate");
+};
+
 const raw = gh([
   "api",
   "graphql",
@@ -142,6 +147,7 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
   open: true,
   author: pr.author?.login ?? null,
   isBot: pr.author?.__typename === "Bot",
+  isDependencyBot: isDependencyBotAuthor(pr.author?.login),
   isDraft: pr.isDraft,
   draftState: pr.isDraft ? "draft" : "ready-for-review",
   updatedAt: pr.updatedAt,
@@ -213,10 +219,11 @@ process.stdout.write(
       baseline,
       footprint: {
         openPrCount: repoData.pullRequests?.totalCount ?? prs.length,
-        productPrCount: prs.filter((pr) => !pr.isBot).length,
+        productPrCount: prs.filter((pr) => !pr.isDependencyBot).length,
         draftPrCount: prs.filter((pr) => pr.isDraft).length,
         readyForReviewPrCount: prs.filter((pr) => !pr.isDraft).length,
         botPrCount: prs.filter((pr) => pr.isBot).length,
+        dependencyBotPrCount: prs.filter((pr) => pr.isDependencyBot).length,
       },
       prs,
       linear,

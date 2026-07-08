@@ -123,8 +123,13 @@ test("tick-plan includes Linear DAG starts from snapshot issues", () => {
       repo: "zaks-io/example",
       linear: {
         issues: [
-          { identifier: "LIN-1", labels: ["ready-for-agent"] },
-          { identifier: "LIN-2", labels: ["ready-for-agent"], blockedBy: ["LIN-1"] },
+          { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+          {
+            identifier: "LIN-2",
+            labels: ["kind-slice", "ready-for-agent"],
+            state: "Todo",
+            blockedBy: ["LIN-1"],
+          },
         ],
       },
     },
@@ -133,5 +138,35 @@ test("tick-plan includes Linear DAG starts from snapshot issues", () => {
 
   assert.deepEqual(output.decisions.linearDag.starts, ["LIN-1"]);
   assert.deepEqual(output.decisions.linearDag.readyStarts, ["LIN-1"]);
+  assert.equal(output.counts.startableTickets, 1);
   assert.equal(output.counts.linearDagStarts, 1);
+});
+
+test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
+  const output = runPlan({
+    snapshot: {
+      repo: "zaks-io/example",
+      prs: [
+        {
+          number: 12,
+          state: "open",
+          headSha: "abc123",
+        },
+      ],
+      linear: {
+        issues: [
+          { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+          { identifier: "LIN-2", labels: ["kind-slice", "needs-info"], state: "Todo" },
+          { identifier: "LIN-3", labels: ["kind-slice", "ready-for-agent"], state: "Backlog" },
+        ],
+      },
+    },
+    config: { activePrPreviewCap: 3, readinessLabels: ["ready-for-agent"] },
+  });
+
+  assert.equal(output.nextAction, "REQUEST_FILE_FOOTPRINT");
+  assert.equal(output.counts.startableTickets, 1);
+  assert.deepEqual(output.decisions.dispatch.deferred, [
+    { id: "LIN-1", reason: "missing predicted file footprint" },
+  ]);
 });

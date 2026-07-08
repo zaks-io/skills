@@ -56,8 +56,8 @@ Each tick:
    `node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> --config <config.json> --state <queue-state.json>`
    when compact queue/config JSON is available. The planner deterministically
    returns active footprint, capacity action, collision-safe dispatch selection,
-   Linear DAG roots/starts, ready-state promotions, hosted-review actions, and
-   human-merge PR label decisions. Use
+   Linear DAG roots/frontier, dispatchable starts, ready-state promotions,
+   hosted-review actions, and human-merge PR label decisions. Use
    `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot.json> --config <config.json>`
    when only the Linear dependency frontier is needed. Never dispatch an issue
    whose snapshot or tracker state shows an incomplete blocker. Use tracker

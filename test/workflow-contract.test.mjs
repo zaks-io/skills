@@ -119,6 +119,28 @@ test("requested Linear Backlog cleanup does not promote unready work", () => {
   );
 });
 
+test("ready-state promotion ignores non-agent readiness labels from broad config", () => {
+  assert.deepEqual(
+    readyStatePromotionDecision(
+      {
+        id: "ZAK-5B",
+        labels: ["kind-slice", "ready-for-human"],
+        state: "Backlog",
+      },
+      {
+        readinessLabels: ["needs-info", "ready-for-agent", "ready-for-human"],
+        readyPromotionSourceStates: ["Backlog"],
+        readyState: "Todo",
+      },
+      { requestedReadyStatePromotion: true, requestedLinearBacklogReview: true },
+    ),
+    {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "ticket is not implementation-ready",
+    },
+  );
+});
+
 test("review evidence is cleared when the PR head no longer matches", () => {
   assert.deepEqual(
     reviewEvidenceDecision({
@@ -264,6 +286,23 @@ test("draft PRs count as active delivery work", () => {
       pullRequests: [{ id: "pr-draft", isDraft: true, state: "open" }],
       previews: [],
       dispatches: [],
+    }),
+    {
+      dispatches: 0,
+      previews: 0,
+      prs: 1,
+      total: 1,
+    },
+  );
+});
+
+test("dependency bot PRs do not consume active delivery capacity", () => {
+  assert.deepEqual(
+    activeDeliveryFootprint({
+      pullRequests: [
+        { author: "dependabot[bot]", id: "dep-1", state: "open" },
+        { author: "useotto-dev", id: "agent-1", isBot: true, state: "open" },
+      ],
     }),
     {
       dispatches: 0,

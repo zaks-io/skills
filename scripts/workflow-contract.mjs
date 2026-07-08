@@ -1,10 +1,17 @@
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
 const DEFAULT_READY_STATES = ["todo"];
 const DEFAULT_READINESS_LABELS = ["ready-for-agent", "ready-for-human"];
+const DEFAULT_IMPLEMENTATION_READY_LABELS = ["ready-for-agent"];
 const DEFAULT_HUMAN_MERGE_PR_LABEL = "needs-human-merge";
 const DEFAULT_READY_PROMOTION_SOURCE_STATES = ["triage", "intake"];
 const TERMINAL_PR_STATES = ["closed", "merged"];
 const INACTIVE_PREVIEW_STATES = ["inactive", "deleted", "closed", "failed"];
+const NON_IMPLEMENTATION_READY_LABELS = new Set([
+  "needs-info",
+  "needs-triage",
+  "ready-for-human",
+  "wontfix",
+]);
 const CLEAN_REVIEW_VERDICTS = [
   "approve",
   "approved",
@@ -43,6 +50,12 @@ const labelName = (label) => normalize(typeof label === "string" ? label : label
 const shaEquals = (left, right) => Boolean(left && right && normalize(left) === normalize(right));
 
 const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boolean));
+
+function isDependencyBotPr(pr = {}) {
+  if (pr.isDependencyBot === true || pr.dependencyBot === true) return true;
+  const author = normalize(pr.author ?? pr.authorLogin ?? pr.user ?? pr.login);
+  return author.includes("dependabot") || author.includes("renovate");
+}
 
 export const workflowDecisionActions = Object.freeze({
   applyHumanMergePrLabel: "APPLY_HUMAN_MERGE_PR_LABEL",
@@ -85,6 +98,34 @@ export function hasReadinessLabel(ticket, config = {}) {
   return toArray(ticket?.labels).some((label) => readinessLabels.has(labelName(label)));
 }
 
+function implementationReadyLabels(config = {}) {
+  const explicitLabels = [
+    config.implementationReadyLabel,
+    ...toArray(config.implementationReadyLabels),
+    config.agentReadinessLabel,
+    ...toArray(config.agentReadinessLabels),
+  ];
+  const candidateLabels =
+    explicitLabels.map(normalize).filter(Boolean).length > 0
+      ? explicitLabels
+      : [
+          ...DEFAULT_IMPLEMENTATION_READY_LABELS,
+          config.readinessLabel,
+          ...toArray(config.readinessLabels),
+        ];
+
+  return new Set(
+    candidateLabels
+      .map(normalize)
+      .filter((label) => label && !NON_IMPLEMENTATION_READY_LABELS.has(label)),
+  );
+}
+
+function hasImplementationReadyLabel(ticket, config = {}) {
+  const labels = implementationReadyLabels(config);
+  return toArray(ticket?.labels).some((label) => labels.has(labelName(label)));
+}
+
 export function shouldIncludeReadinessTicket(ticket, config = {}) {
   return hasReadinessLabel(ticket, config) && !isDoneTicket(ticket, config);
 }
@@ -119,7 +160,7 @@ export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
   const implementationReady = Boolean(
     ticket?.implementationReady ??
     ticket?.readyForImplementation ??
-    (isKindSlice(ticket) && hasReadinessLabel(ticket, config)),
+    (isKindSlice(ticket) && hasImplementationReadyLabel(ticket, config)),
   );
 
   if (!implementationReady) {
@@ -355,7 +396,10 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
 
 export function activeDeliveryFootprint(state = {}) {
   const openPrs = toArray(state.pullRequests).filter(
-    (pr) => pr?.open !== false && !TERMINAL_PR_STATES.includes(normalize(pr?.state ?? pr?.status)),
+    (pr) =>
+      pr?.open !== false &&
+      !isDependencyBotPr(pr) &&
+      !TERMINAL_PR_STATES.includes(normalize(pr?.state ?? pr?.status)),
   );
   const prKeys = new Set(
     openPrs
