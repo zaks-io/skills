@@ -190,7 +190,7 @@ query($team: String!) {
     state: { type: { nin: ["completed", "canceled"] } }
   }) {
     nodes {
-      identifier title url priority updatedAt
+      identifier title url priority estimate updatedAt
       state { name type }
       labels { nodes { name } }
       assignee { displayName }
@@ -210,6 +210,7 @@ query($team: String!) {
       state: issue.state?.name,
       stateType: issue.state?.type,
       priority: issue.priority,
+      estimate: issue.estimate ?? null,
       labels: (issue.labels?.nodes ?? []).map((label) => label.name),
       assignee: issue.assignee?.displayName ?? null,
       blockedBy: (issue.inverseRelations?.nodes ?? [])

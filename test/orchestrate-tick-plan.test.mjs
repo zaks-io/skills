@@ -142,6 +142,30 @@ test("tick-plan includes Linear DAG starts from snapshot issues", () => {
   assert.equal(output.counts.linearDagStarts, 1);
 });
 
+test("tick-plan keeps missing-estimate issues out of Linear DAG starts", () => {
+  const output = runPlan({
+    snapshot: {
+      repo: "zaks-io/example",
+      linear: {
+        issues: [
+          { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+          {
+            identifier: "LIN-2",
+            estimate: 2,
+            labels: ["kind-slice", "ready-for-agent"],
+            state: "Todo",
+          },
+        ],
+      },
+    },
+    config: { estimateRequired: true, readinessLabels: ["ready-for-agent"] },
+  });
+
+  assert.deepEqual(output.decisions.linearDag.starts, ["LIN-2"]);
+  assert.deepEqual(output.decisions.linearDag.missingEstimates, [{ ticket: "LIN-1" }]);
+  assert.equal(output.counts.startableTickets, 1);
+});
+
 test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
   const output = runPlan({
     snapshot: {

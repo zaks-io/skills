@@ -136,6 +136,62 @@ test("linearDagStart excludes claimed issues and open PRs from starts", () => {
   assert.deepEqual(output.starts, ["LIN-3"]);
 });
 
+test("linearDagStart blocks missing required estimates", () => {
+  const output = linearDagStart(
+    [
+      { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+      {
+        identifier: "LIN-2",
+        estimate: 0,
+        labels: ["kind-slice", "ready-for-agent"],
+        state: "Todo",
+      },
+      {
+        identifier: "LIN-3",
+        labels: ["kind-epic", "ready-for-agent"],
+        state: "Todo",
+      },
+    ],
+    { estimateRequired: true, readinessLabels: ["ready-for-agent"] },
+  );
+
+  assert.deepEqual(output.starts, ["LIN-2"]);
+  assert.deepEqual(output.missingEstimates, [{ ticket: "LIN-1" }]);
+  assert.deepEqual(
+    Object.fromEntries(
+      output.nodes.map((node) => [
+        node.id,
+        {
+          estimate: node.estimate,
+          hasEstimate: node.hasEstimate,
+          requiresEstimate: node.requiresEstimate,
+          blockers: node.startableBlockers,
+        },
+      ]),
+    ),
+    {
+      "LIN-1": {
+        estimate: null,
+        hasEstimate: false,
+        requiresEstimate: true,
+        blockers: ["missing required estimate"],
+      },
+      "LIN-2": {
+        estimate: 0,
+        hasEstimate: true,
+        requiresEstimate: true,
+        blockers: [],
+      },
+      "LIN-3": {
+        estimate: null,
+        hasEstimate: false,
+        requiresEstimate: false,
+        blockers: ["not kind-slice"],
+      },
+    },
+  );
+});
+
 test("linearDagStart reports dependency cycles", () => {
   const output = linearDagStart([
     { identifier: "LIN-1", blockedBy: ["LIN-2"] },

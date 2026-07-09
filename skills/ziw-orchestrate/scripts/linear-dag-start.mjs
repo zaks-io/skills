@@ -47,6 +47,14 @@ const labelName = (label) => (typeof label === "string" ? label : label?.name);
 const issueStateName = (issue) =>
   issue?.state?.name ?? issue?.state ?? issue?.status ?? issue?.workflowState;
 const issueStateType = (issue) => issue?.stateType ?? issue?.state?.type;
+const issueEstimate = (issue) =>
+  issue?.estimate ??
+  issue?.estimatePoints ??
+  issue?.points ??
+  issue?.size ??
+  issue?.effort ??
+  issue?.bodyEstimate ??
+  null;
 
 const issueId = (issue) =>
   String(issue?.identifier ?? issue?.key ?? issue?.id ?? issue?.url ?? "").trim();
@@ -81,6 +89,33 @@ const footprintRefs = (issue) =>
     ...toArray(issue?.paths),
     ...toArray(issue?.packages),
   ]);
+
+const requiredEstimateConfigValue = (config = {}) =>
+  config.estimateRequired ??
+  config.estimatesRequired ??
+  config.requireEstimate ??
+  config.requireEstimates ??
+  config.requiresEstimate ??
+  config.requiredEstimate ??
+  config.requiredEstimates ??
+  config.requiredEstimateBeforeReady ??
+  config.estimateRequiredBeforeReady ??
+  config.estimatesRequiredBeforeReady ??
+  config.requireEstimateBeforeReady ??
+  config.requireEstimatesBeforeReady ??
+  config.estimate?.requiredBeforeReady ??
+  config.estimate?.requiredForReady ??
+  config.estimate?.required ??
+  config.estimates?.requiredBeforeReady ??
+  config.estimates?.requiredForReady ??
+  config.estimates?.required ??
+  config.estimatePolicy?.requiredBeforeReady ??
+  config.estimatePolicy?.requiredForReady ??
+  config.estimatePolicy?.required;
+
+const requiresEstimate = (config = {}) => requiredEstimateConfigValue(config) === true;
+const hasEstimate = (issue) =>
+  issueEstimate(issue) != null && String(issueEstimate(issue)).trim() !== "";
 
 const isDoneIssue = (issue, config = {}) => {
   const doneStates = new Set(
@@ -201,6 +236,7 @@ const startableBlockers = (node) =>
     !node.startableState && "not in configured startable state",
     !node.ready && "missing readiness label",
     !node.startableKind && "not kind-slice",
+    node.requiresEstimate && !node.hasEstimate && "missing required estimate",
     node.activeClaim && "active claim exists",
     node.openPr && "open PR exists",
   ].filter(Boolean);
@@ -246,12 +282,17 @@ export function linearDagStart(issuesInput = [], config = {}) {
       else externalBlockedBy.push(blocker);
     }
 
+    const startableKind = startableKindMatches(issue, config);
+    const estimate = issueEstimate(issue);
     nodes.set(id, {
       id,
       title: issue.title ?? null,
       url: issue.url ?? null,
       state: issueStateName(issue) ?? null,
       stateType: issue.stateType ?? issue.state?.type ?? null,
+      estimate,
+      hasEstimate: hasEstimate(issue),
+      requiresEstimate: requiresEstimate(config) && startableKind,
       labels: toArray(issue.labels).map(labelName).filter(Boolean),
       footprint: footprintRefs(issue),
       blockedBy,
@@ -262,7 +303,7 @@ export function linearDagStart(issuesInput = [], config = {}) {
       unblocked: false,
       ready: readinessMatches(issue, config),
       startableState: startableStateMatches(issue, config),
-      startableKind: startableKindMatches(issue, config),
+      startableKind,
       activeClaim: hasActiveClaim(issue),
       openPr: hasOpenPr(issue),
       startable: false,
@@ -330,6 +371,9 @@ export function linearDagStart(issuesInput = [], config = {}) {
     missingBlockers: [...nodes.values()].flatMap((node) =>
       node.externalBlockedBy.map((blocker) => ({ ticket: node.id, blocker })),
     ),
+    missingEstimates: [...nodes.values()]
+      .filter((node) => node.requiresEstimate && !node.hasEstimate)
+      .map((node) => ({ ticket: node.id })),
     nodes: [...nodes.values()],
   };
 }

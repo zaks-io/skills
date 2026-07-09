@@ -195,6 +195,7 @@ const linearStartableTickets =
       labels: node.labels,
       state: node.state,
       stateType: node.stateType,
+      estimate: node.estimate,
       footprint: node.footprint,
     })) ?? [];
 const explicitStartableTickets = toArray(state.startableTickets);
