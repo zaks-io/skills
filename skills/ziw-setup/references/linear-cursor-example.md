@@ -145,6 +145,9 @@ Last updated: 2026-06-01
 - Draft PR policy: Cursor opens a draft PR; orchestrator marks it ready-for-review
   after review is clean and required checks pass, then verifies non-draft
 - Ready-for-review owner: Agent Orchestrator
+- Local GitHub review submission actor policy: use the repo-configured local
+  agent GitHub identity for explicit `ziw-code-review --submit`; submit
+  `COMMENT` reviews only
 - Hosted bot review provider: CodeRabbit or Cursor Bugbot per repo/user
   preference; Cursor Bugbot is the natural alternative when Cursor PR review is
   installed and verified

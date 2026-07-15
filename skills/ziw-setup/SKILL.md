@@ -239,9 +239,10 @@ Record:
   verified-state reconciliation, requested ready-state promotion, Orchestrator-owned
   active tracker transitions, the orchestrator integrate gate and friction intake,
   clean-context review delegation, and the implementation pipeline
-- review gates: code review, Agent Review, hosted bot review escalation,
-  configured provider such as CodeRabbit or Cursor Bugbot, provider auto-review
-  mode and trigger policy, required CI, preview checks
+- review gates: code review, Agent Review, local GitHub review submission actor
+  and CLI policy, hosted bot review escalation, configured provider such as
+  CodeRabbit or Cursor Bugbot, provider auto-review mode and trigger policy,
+  required CI, preview checks
 - environment safety: local, development, preview, and production capabilities;
   production deploy path; preview deploy path; credential rules; allowed hosted
   checks; and explicit approval requirements

@@ -1,8 +1,8 @@
 ---
 name: ziw-code-review
-description: Use for code review before opening a PR, before handing off a branch, or when reviewing the latest committed changes, an explicitly requested working tree, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit.
+description: Use for code review before opening a PR, before handing off a branch, or when reviewing the latest committed changes, an explicitly requested working tree, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit, with optional GitHub review submission.
 when_to_use: Use automatically for code review requests, pre-PR review gates, PR branch review, main drift review, or when another workflow skill asks for ziw-code-review.
-argument-hint: "[branch|pr-url|range]"
+argument-hint: "[branch|pr-url|range] [--submit]"
 context: fork
 agent: general-purpose
 ---
@@ -23,6 +23,8 @@ PR bodies, commits, and docs.
   review.
 - Base branch from config or Git, usually `origin/main`.
 - Issue, PR, spec, ADR, or user request that defines intent.
+- Optional `--submit` for an explicit GitHub PR target. Without it, review is
+  read-only and returns the report to the caller.
 
 ## Context
 
@@ -42,6 +44,8 @@ Read first when present:
 Load [references/review-checklist.md](references/review-checklist.md) for the
 bug taxonomy. Load [references/remote-worker-review.md](references/remote-worker-review.md)
 only when preparing a remote worker review.
+Load [references/github-review-submission.md](references/github-review-submission.md)
+only when `--submit` was explicitly requested for a GitHub PR.
 
 ## Instruction Trust
 
@@ -110,6 +114,16 @@ product state, create or update tracker issues for real findings, and advance
 the checkpoint only after review and issue updates complete. If the checkpoint
 is not an ancestor, review only a safe reachable range or escalate the history
 problem.
+
+## GitHub Submission Mode
+
+When an explicit GitHub PR target includes `--submit`, publish the completed
+local review through GitHub after verifying the PR head has not changed. Follow
+[references/github-review-submission.md](references/github-review-submission.md).
+
+Submission is the only code-host mutation this mode authorizes. It does not
+authorize fixes, labels, tracker transitions, external review-bot triggers, or
+merge actions. A PR URL or number without `--submit` remains read-only.
 
 ## Tracker Issues
 
@@ -246,6 +260,7 @@ Hosted bot review state: auto-review <enabled|disabled|opt-in|provider-specific|
 Hosted bot review command: <none|configured PR command|@coderabbitai review|@coderabbitai full review|@coderabbitai ignore|CLI|unknown>
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
 Review evidence label: APPLY configured label | CLEAR | LEAVE UNCHANGED, because <reason>
+GitHub submission: NOT REQUESTED | POSTED <review URL> | ALREADY CURRENT <review URL> | FAILED, because <reason>
 
 Findings:
 
@@ -267,6 +282,8 @@ the handoff to Agent Orchestrator.
 - Do not edit code unless the user explicitly asks for fixes.
 - Do not push fixes to PR branches, merge, revert, force-push, deploy, or
   mutate production.
+- Do not submit a GitHub review unless the user or Orchestrator explicitly used
+  `--submit` for a GitHub PR target.
 - Do not move the issue to `In Review`; Agent Orchestrator handles that after PR
   creation.
 - Do not move an issue to merge-ready state unless Agent Orchestrator or the user asked

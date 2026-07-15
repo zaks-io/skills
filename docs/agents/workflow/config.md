@@ -183,6 +183,7 @@ Last updated: 2026-06-14
 - Required checks: `pnpm ci:check` locally; GitHub CI jobs `Validate skills`, `Static security checks`, `Secret scan`
 - Branch protection: `main` is not protected as of 2026-06-14; config still requires human merge authority
 - Code review: `ziw-code-review` before PR handoff and for independent PR/head review
+- Local GitHub review submission actor policy: use `gh-useotto api` for explicit `--submit` review mode so reviews are attributed to `useotto-dev[bot]`; submit `COMMENT` reviews only
 - Hosted bot review provider: optional CodeRabbit or Cursor Bugbot for high-risk/complex diffs or explicit user request; exact provider selected per PR by current availability and user/repo preference
 - Hosted bot review trigger policy: resolve current provider auto-review state and trigger policy before posting commands; do not guess Cursor Bugbot commands when app policy is unknown
 - Hosted bot review actor policy: external review bot trigger comments may require a human-authenticated `gh` session when provider ignores GitHub App bot accounts

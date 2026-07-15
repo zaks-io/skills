@@ -147,7 +147,8 @@ context-heavy pieces to these isolated subagents:
 - `ziw-implementer`: one issue's implementation, checks, review, and PR
   handoff.
 - `ziw-reviewer`: clean-context review of latest committed PRs, branches,
-  ranges, main-drift findings, and orchestrator refactor candidates.
+  ranges, main-drift findings, and orchestrator refactor candidates. An explicit
+  PR `--submit` mode publishes the local verdict and inline findings to GitHub.
 
 Setup, PR creation, and code review details remain workflow skills that these
 subagents load only when needed.
@@ -436,11 +437,20 @@ glue should stay under `.agents/` unless it proves portable.
   checks, review, and PR creation.
 - `ziw-code-review`: shared review gate for branches, PRs, and explicit
   working trees, plus independent latest-committed PR review, checkpointed
-  main-drift review, and review-debt issue filing from clean context.
+  main-drift review, review-debt issue filing, and explicit current-head GitHub
+  review submission from clean context.
 - `ziw-pr`: helper shipping gate that checks, reviews, commits,
   pushes, creates or updates the PR, and hands tracker state to Orchestrator.
 
 ## Recommended Flow
+
+Review a PR entirely locally and publish the result as a GitHub review:
+
+```text
+$ziw-code-review https://github.com/owner/repo/pull/123 --submit
+```
+
+Without `--submit`, PR review remains read-only.
 
 1. Run `ziw-setup` once per repo, and rerun it when the workflow config may
    be stale.

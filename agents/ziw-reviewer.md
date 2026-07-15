@@ -43,7 +43,10 @@ repository context only for main-drift, checkpoint backfill, architecture review
 or an explicit user request. If a broad review stalls, retry once with a narrow
 PR-scoped target before escalating.
 
-Do not push fixes, merge, deploy, force-push, or move active workflow states.
+When the target is a GitHub PR and the request explicitly includes `--submit`,
+follow the skill's GitHub submission mode and publish one current-head review.
+Otherwise remain read-only. Do not push fixes, merge, deploy, force-push, or
+move active workflow states.
 
 Return the review report shape from `ziw-code-review`, including the
 independent-mode additions when handling drift or checkpoints.

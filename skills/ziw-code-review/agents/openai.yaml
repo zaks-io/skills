@@ -1,6 +1,6 @@
 interface:
   display_name: "Code Review"
   short_description: "Review code changes"
-  default_prompt: "Use $ziw-code-review to fetch latest state and review the current committed code on this branch before opening a PR."
+  default_prompt: "Use $ziw-code-review to fetch latest state and review the current committed code, or review a GitHub PR and submit the results when --submit is explicitly requested."
 policy:
   allow_implicit_invocation: true

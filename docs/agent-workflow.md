@@ -138,7 +138,8 @@ config-gap finding when the conflict affects the workflow.
   code review, PR creation, and handoff.
 - Agent Review: reviews latest committed PR heads and main drift from clean
   context, reports freshness, verdicts, and orchestrator refactor findings to
-  Orchestrator, and files or recommends follow-up issues.
+  Orchestrator, files or recommends follow-up issues, and can publish one
+  current-head GitHub review when explicitly invoked with `--submit`.
 - Issue Triage: the bulk reconciler. Updates tracker metadata, readiness,
   dependencies, current status, and issue body shape so Todo tickets are clean,
   ready for agents, and the tracker reflects external reality. It does not review
@@ -546,7 +547,11 @@ Default rule:
   evidence when config or CI defines them outside the full local gate. It also
   compares the diff to the linked issue's scope boundary and stops when adjacent
   ticket work was bundled in.
-- Agent Review can post findings and verdicts.
+- Agent Review can post findings and verdicts. For a GitHub PR explicitly
+  targeted with `--submit`, it posts one `COMMENT` review with the workflow
+  verdict in the body and attachable P0-P2 findings as inline threads. It checks
+  the PR head immediately before submission and does not duplicate a local
+  review already recorded for that head.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
   integrate gate when config grants merge authority. It diagnoses stuck draft

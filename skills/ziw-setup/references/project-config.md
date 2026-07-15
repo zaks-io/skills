@@ -293,6 +293,9 @@ Last updated: YYYY-MM-DD
 - PR body:
 - Required checks:
 - Code review:
+- Local GitHub review submission actor policy: CLI command and account used to
+  submit local review results; record `unknown` when write identity is not
+  verified
 - Hosted bot review provider: none, CodeRabbit, Cursor Bugbot, or repo-specific
   provider; record whether it is optional, required by risk tier, or only on
   explicit user request
