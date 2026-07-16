@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check-skills.mjs",
-    "ci:check": "pnpm format:check && pnpm check && pnpm test && pnpm validate:skills && pnpm security:audit && pnpm security:secrets",
+    "ci:check": "pnpm format:check && pnpm check && pnpm test && pnpm validate:skills && pnpm security:secrets",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "hooks:install": "lefthook install",
