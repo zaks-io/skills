@@ -45,7 +45,7 @@ test("linearDagStart returns DAG starts and topological layers", () => {
   assert.deepEqual(output.cycles, []);
 });
 
-test("linearDagStart separates scoped roots from externally blocked starts", () => {
+test("linearDagStart separates scoped roots from out-of-scope blockers", () => {
   const output = linearDagStart([
     {
       identifier: "LIN-1",
@@ -64,6 +64,7 @@ test("linearDagStart separates scoped roots from externally blocked starts", () 
   assert.deepEqual(output.roots, ["LIN-1"]);
   assert.deepEqual(output.frontier, []);
   assert.deepEqual(output.starts, []);
+  assert.deepEqual(output.outOfScopeBlockers, [{ ticket: "LIN-1", blocker: "EXT-1" }]);
   assert.deepEqual(output.missingBlockers, [{ ticket: "LIN-1", blocker: "EXT-1" }]);
 });
 

@@ -360,6 +360,10 @@ export function linearDagStart(issuesInput = [], config = {}) {
     .filter((node) => node.unblocked && node.ready && node.startableState)
     .map((node) => node.id);
 
+  const outOfScopeBlockers = [...nodes.values()].flatMap((node) =>
+    node.externalBlockedBy.map((blocker) => ({ ticket: node.id, blocker })),
+  );
+
   return {
     totalIssues: nodes.size,
     roots,
@@ -368,9 +372,10 @@ export function linearDagStart(issuesInput = [], config = {}) {
     readyStarts,
     layers,
     cycles,
-    missingBlockers: [...nodes.values()].flatMap((node) =>
-      node.externalBlockedBy.map((blocker) => ({ ticket: node.id, blocker })),
-    ),
+    outOfScopeBlockers,
+    // Backward-compatible alias. These relations exist in Linear; the blocker
+    // ticket is merely outside this bounded snapshot.
+    missingBlockers: outOfScopeBlockers,
     missingEstimates: [...nodes.values()]
       .filter((node) => node.requiresEstimate && !node.hasEstimate)
       .map((node) => ({ ticket: node.id })),

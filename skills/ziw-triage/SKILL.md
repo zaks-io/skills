@@ -335,7 +335,7 @@ Use the DAG result to fix the queue:
   claim, open-PR metadata, or body fields when safe
 - `startableBlockers`: convert each blocker into a ticket repair, a To Issues
   action, a human question, or an Orchestrator next action
-- cycles and missing blockers: encode the correct relationship if direct;
+- cycles and out-of-scope blockers: encode the correct relationship if direct;
   otherwise mark for human/To Issues
 
 ## Human Clarification

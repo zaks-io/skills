@@ -50,7 +50,7 @@ Each tick:
    mergeable state, unresolved review-thread counts, check rollups, and
    review verdicts as JSON. Reason over that snapshot instead of assembling
    the same state from many tool calls; it needs an authenticated `gh`, and
-   with `--linear-team <KEY>` plus either a `linear-graphql.mjs setup` credential
+   with `--linear-team <KEY|UUID|NAME>` plus either a `linear-graphql.mjs setup` credential
    or `LINEAR_API_KEY`, it also returns the open issue queue with unresolved
    `blockedBy` identifiers per issue. Then run
    `node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> --config <config.json> --state <queue-state.json>`
