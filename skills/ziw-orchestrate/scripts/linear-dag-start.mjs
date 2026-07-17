@@ -200,16 +200,18 @@ const startableKindMatches = (issue, config = {}) => {
   return kindLabels.has(explicitKind) || labels.some((label) => kindLabels.has(label));
 };
 
-const hasActiveClaim = (issue) =>
-  Boolean(
+const hasActiveClaim = (issue) => {
+  const claim =
     issue?.activeClaim ??
     issue?.claimed ??
     issue?.delegated ??
     issue?.assignedWorker ??
     issue?.workerSession ??
     issue?.agentSession ??
-    issue?.assignee,
-  );
+    issue?.assignee;
+
+  return Boolean(claim);
+};
 
 const isOpenPr = (pr) => {
   if (typeof pr === "string") return true;
