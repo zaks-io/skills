@@ -104,7 +104,7 @@ node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo> > /tmp/ziw-tick-sna
 ```
 
 For batch Linear reads, run `node <skill-dir>/scripts/linear-graphql.mjs setup`
-once on macOS, then include `--linear-team <KEY>`. `LINEAR_API_KEY` is still
+once on macOS, then include `--linear-team <KEY|UUID|NAME>`. `LINEAR_API_KEY` is still
 accepted as an override. Use tracker tools for full issue bodies and comments.
 
 Then compute deterministic decisions from compact JSON:

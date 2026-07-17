@@ -476,6 +476,7 @@ function normalizeFootprintPath(value) {
   return normalize(value)
     .replace(/\\/g, "/")
     .replace(/^\.\/+/, "")
+    .replace(/\/\*{1,2}$/, "")
     .replace(/\/+$/, "");
 }
 

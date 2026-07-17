@@ -405,6 +405,29 @@ test("dispatch selection treats active PR footprints as occupied seams", () => {
   ]);
 });
 
+test("dispatch selection treats trailing footprint globs as directory seams", () => {
+  assert.deepEqual(
+    dispatchSelectionDecision(
+      {
+        pullRequests: [
+          { id: "PR-1", state: "open", footprint: ["apps/control-panel/src/routes/**"] },
+        ],
+        startableTickets: [
+          { id: "SPL-1", footprint: ["apps/control-panel/src/routes/settings.tsx"] },
+        ],
+      },
+      { activePrPreviewCap: 3 },
+    ).deferred,
+    [
+      {
+        id: "SPL-1",
+        conflictsWith: "PR-1",
+        reason: "predicted file footprint collides with active or selected work",
+      },
+    ],
+  );
+});
+
 test("dispatch selection treats draft PR footprints as occupied seams", () => {
   const decision = dispatchSelectionDecision(
     {

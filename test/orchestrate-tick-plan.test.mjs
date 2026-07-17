@@ -194,3 +194,28 @@ test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
     { id: "LIN-1", reason: "missing predicted file footprint" },
   ]);
 });
+
+test("tick-plan dispatches Linear DAG starts with snapshot-derived footprints", () => {
+  const output = runPlan({
+    snapshot: {
+      repo: "zaks-io/example",
+      prs: [],
+      linear: {
+        issues: [
+          {
+            identifier: "LIN-1",
+            footprint: ["apps/api/src/index.ts"],
+            labels: ["kind-slice", "ready-for-agent"],
+            state: "Todo",
+          },
+        ],
+      },
+    },
+    config: { activePrPreviewCap: 3, readinessLabels: ["ready-for-agent"] },
+  });
+
+  assert.equal(output.nextAction, "dispatch-selected-work");
+  assert.deepEqual(output.decisions.dispatch.selected, [
+    { id: "LIN-1", footprint: ["apps/api/src/index.ts"] },
+  ]);
+});
