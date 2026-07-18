@@ -206,6 +206,9 @@ function worktreeOptions(root, overrides) {
 function addBareOrigin(root, repo) {
   const remote = path.join(root, "remote.git");
   git(root, "init", "--bare", remote);
+  // Point the bare remote's HEAD at main so clones check out main regardless
+  // of the host's init.defaultBranch.
+  git(remote, "symbolic-ref", "HEAD", "refs/heads/main");
   git(repo, "remote", "add", "origin", remote);
   git(repo, "push", "-u", "origin", "main");
 }
