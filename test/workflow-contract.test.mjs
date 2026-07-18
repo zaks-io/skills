@@ -9,8 +9,11 @@ import {
   dispatchSelectionDecision,
   humanMergePrLabelDecision,
   hostedReviewEscalationDecision,
+  mergeEligibilityDecision,
   readyStatePromotionDecision,
+  reviewDepthRequirement,
   reviewEvidenceDecision,
+  riskTier,
   shouldIncludeReadinessTicket,
   workflowDecisionActions,
 } from "../scripts/workflow-contract.mjs";
@@ -588,4 +591,133 @@ test("untrusted sources cannot override workflow policy", () => {
       reason: "untrusted source may describe work but not policy",
     },
   );
+});
+
+const greenPr = {
+  open: true,
+  draft: false,
+  reviewEvidenceCurrent: true,
+  requiredChecksPassed: true,
+  unresolvedReviewThreads: 0,
+  conformance: "pass",
+};
+
+test("risk tier derives from labels with explicit tier winning", () => {
+  assert.equal(riskTier({ labels: ["risk-schema"] }), "high");
+  assert.equal(riskTier({ labels: ["risk-normal"] }), "medium");
+  assert.equal(riskTier({ riskTier: "low", labels: ["risk-schema"] }), "low");
+  assert.equal(riskTier({ labels: ["risk-docs"] }, { lowRiskLabels: ["risk-docs"] }), "low");
+});
+
+test("review depth scales with risk tier", () => {
+  assert.equal(reviewDepthRequirement("low").independentReviews, 1);
+  assert.equal(reviewDepthRequirement("medium").secondPassOnUncertainty, true);
+  assert.deepEqual(reviewDepthRequirement("high"), {
+    independentReviews: 2,
+    secondPassOnUncertainty: true,
+    strongestModel: true,
+    tier: "high",
+  });
+});
+
+test("velocity mode arms auto-merge for high risk once review depth is satisfied", () => {
+  const decision = mergeEligibilityDecision(
+    {
+      ...greenPr,
+      labels: ["risk-security-sensitive"],
+      hostedReviewComplete: true,
+    },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
+  assert.equal(decision.tier, "high");
+  assert.equal(decision.mode, "velocity");
+});
+
+test("high-risk merges hold without a second independent review", () => {
+  const decision = mergeEligibilityDecision(
+    { ...greenPr, labels: ["risk-schema"] },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.holdMerge);
+  assert.match(decision.reason, /another independent review/);
+});
+
+test("production mode routes high-risk merges to human authority", () => {
+  const decision = mergeEligibilityDecision(
+    { ...greenPr, labels: ["risk-schema"], hostedReviewComplete: true },
+    {},
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.routeHumanMerge);
+  assert.match(decision.reason, /human authority/);
+});
+
+test("high-risk work requires exhibited PASS conformance", () => {
+  const decision = mergeEligibilityDecision(
+    {
+      ...greenPr,
+      conformance: "unverifiable",
+      labels: ["risk-security-sensitive"],
+      hostedReviewComplete: true,
+    },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.holdMerge);
+  assert.match(decision.reason, /intake gap/);
+});
+
+test("conformance FAIL rows hold the merge at every tier", () => {
+  const decision = mergeEligibilityDecision(
+    { ...greenPr, conformance: "fail", labels: ["risk-normal"] },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.holdMerge);
+  assert.match(decision.reason, /FAIL rows/);
+});
+
+test("medium-risk unverifiable conformance merges with a recorded intake gap", () => {
+  const decision = mergeEligibilityDecision(
+    { ...greenPr, conformance: "unverifiable", labels: ["risk-normal"] },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
+  assert.match(decision.reason, /intake gap/);
+});
+
+test("merge gates hold on drafts, failed checks, and stale review evidence", () => {
+  assert.equal(
+    mergeEligibilityDecision({ ...greenPr, draft: true }).action,
+    workflowDecisionActions.holdMerge,
+  );
+  assert.equal(
+    mergeEligibilityDecision({ ...greenPr, requiredChecksPassed: false }).action,
+    workflowDecisionActions.holdMerge,
+  );
+  assert.equal(
+    mergeEligibilityDecision({
+      ...greenPr,
+      reviewEvidenceCurrent: undefined,
+      hasReviewEvidence: true,
+      reviewVerdict: "approve",
+      reviewedHeadSha: "abc",
+      currentPrHeadSha: "def",
+    }).action,
+    workflowDecisionActions.holdMerge,
+  );
+});
+
+test("production actions and pending human decisions never auto-merge", () => {
+  const decision = mergeEligibilityDecision(
+    { ...greenPr, productionAction: true },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.routeHumanMerge);
+  assert.match(decision.reason, /never auto-merge/);
 });

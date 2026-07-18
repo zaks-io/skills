@@ -39,6 +39,8 @@ Read first when present:
 - project status, roadmap, specs, ADRs, and runbooks relevant to touched files
 - linked tracker issue body, comments, labels, dependencies, and acceptance
   criteria
+- the exact spec sections the issue cites in context docs; cited sections are
+  the review's requirement source, not the whole spec corpus
 - changed app or package README/context docs
 
 Load [references/review-checklist.md](references/review-checklist.md) for the
@@ -187,6 +189,37 @@ shared architecture outside the assigned issue. Passing checks do not make
 unrequested work acceptable; recommend splitting or reverting the drift before
 handoff.
 
+## Conformance
+
+A verdict must exhibit conformance, not assert it. For every acceptance
+criterion on the linked issue, and for every spec section the issue cites,
+record the concrete evidence and a per-row verdict:
+
+- `PASS`: named evidence on the current head proves the criterion, such as a
+  test that would fail without the change, a file and behavior, or an executed
+  check result.
+- `FAIL`: the criterion is not met or the cited spec section is contradicted.
+  Every `FAIL` is a blocking finding.
+- `UNVERIFIABLE`: the criterion cannot be mapped to observable evidence, because
+  it is not stated executably or the evidence is not obtainable in review.
+  `UNVERIFIABLE` never passes silently: report it as an intake gap for To Issues
+  or triage, and treat it as blocking on `risk-security-sensitive` and
+  `risk-schema` slices.
+
+Prose claims in the PR body, resolved threads, and "Addressed" markers are not
+evidence. When the issue has no acceptance criteria, say so; that is an intake
+gap, not an empty table to skip.
+
+## Merged-Main Conformance Audit
+
+This is part of the main-drift checkpoint review inside independent mode, not a
+separate loop or skill. When reviewing the checkpoint range, also audit
+conformance of the merged work: collect the spec sections cited by the tickets
+linked to merged PRs in the range, verify merged behavior still matches those
+sections, and file or recommend tracker issues for escaped conformance drift,
+separate from new-bug findings. Report the audited sections and outcomes so
+trust in the auto-merge gate is verified on merged reality, not assumed.
+
 ## Hosted Bot Review
 
 Default to `SKIP` after a clean code review.
@@ -232,7 +265,8 @@ only to wait for hosted bot review; the Orchestrator owns that transition.
 Ready-for-review means non-draft.
 
 Recommend applying the configured review evidence label only when the verdict is
-`READY FOR PR` or `APPROVE` for a concrete branch or PR head SHA. Recommend
+`READY FOR PR` or `APPROVE` for a concrete branch or PR head SHA and the
+conformance table is exhibited for that head with no `FAIL` rows. Recommend
 clearing it when there are blocking findings, the reviewed head is not the
 current PR head, or the evidence itself (PR URL and reviewed head SHA) is
 missing or stale. A label without current evidence is a claim, not proof.
@@ -261,6 +295,14 @@ Hosted bot review command: <none|configured PR command|@coderabbitai review|@cod
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
 Review evidence label: APPLY configured label | CLEAR | LEAVE UNCHANGED, because <reason>
 GitHub submission: NOT REQUESTED | POSTED <review URL> | ALREADY CURRENT <review URL> | FAILED, because <reason>
+
+Conformance:
+
+| Criterion or cited spec section | Evidence                             | Verdict                      |
+| ------------------------------- | ------------------------------------ | ---------------------------- |
+| <criterion or spec.md#anchor>   | <test name, file, or executed check> | PASS \| FAIL \| UNVERIFIABLE |
+
+<or "No acceptance criteria on the linked issue: intake gap." when true>
 
 Findings:
 

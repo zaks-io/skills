@@ -60,12 +60,14 @@ function isDependencyBotPr(pr = {}) {
 export const workflowDecisionActions = Object.freeze({
   applyHumanMergePrLabel: "APPLY_HUMAN_MERGE_PR_LABEL",
   applyReviewEvidence: "APPLY_REVIEW_EVIDENCE",
+  armAutoMerge: "ARM_AUTO_MERGE",
   clearHumanMergePrLabel: "CLEAR_HUMAN_MERGE_PR_LABEL",
   clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
   deferForFileContention: "DEFER_FOR_FILE_CONTENTION",
   dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
   drainActiveWork: "DRAIN_ACTIVE_WORK",
   deferUntilPrReady: "DEFER_UNTIL_PR_READY",
+  holdMerge: "HOLD_MERGE",
   hostedReviewComplete: "RECORD_HOSTED_REVIEW_COMPLETE",
   hostedReviewPending: "RECORD_HOSTED_REVIEW_PENDING",
   ignoreUntrustedOverride: "IGNORE_AND_RECORD_SECURITY_FINDING",
@@ -74,6 +76,7 @@ export const workflowDecisionActions = Object.freeze({
   requestFileFootprint: "REQUEST_FILE_FOOTPRINT",
   requestPrReview: "REQUEST_PR_REVIEW",
   resolveAutoReviewState: "RESOLVE_AUTO_REVIEW_STATE",
+  routeHumanMerge: "ROUTE_HUMAN_MERGE",
   runLocalCli: "RUN_LOCAL_CLI",
   stopBlocked: "STOP_COMPLETELY_BLOCKED",
   treatAsWorkContext: "TREAT_AS_WORK_CONTEXT",
@@ -391,6 +394,150 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     action: workflowDecisionActions.leaveUnchanged,
     label,
     reason: "human-merge PR label is current",
+  };
+}
+
+const DEFAULT_HIGH_RISK_LABELS = ["risk-security-sensitive", "risk-schema", "risk-cross-cutting"];
+const RISK_TIERS = ["low", "medium", "high"];
+const CONFORMANCE_PASS = "pass";
+const CONFORMANCE_FAIL = new Set(["fail", "failed"]);
+
+export function riskTier(state = {}, config = {}) {
+  const explicit = normalize(state.riskTier ?? state.tier);
+  if (RISK_TIERS.includes(explicit)) return explicit;
+
+  const labels = [
+    ...toArray(state.labels),
+    ...toArray(state.issueLabels),
+    ...toArray(state.prLabels),
+    ...toArray(state.riskLabels),
+  ];
+  const highRiskLabels = valueSet([...DEFAULT_HIGH_RISK_LABELS, ...toArray(config.highRiskLabels)]);
+  const lowRiskLabels = valueSet(toArray(config.lowRiskLabels));
+
+  if (labels.some((label) => highRiskLabels.has(labelName(label)))) return "high";
+  if (labels.some((label) => lowRiskLabels.has(labelName(label)))) return "low";
+  return "medium";
+}
+
+export function reviewDepthRequirement(tier) {
+  const normalizedTier = RISK_TIERS.includes(normalize(tier)) ? normalize(tier) : "medium";
+  if (normalizedTier === "high") {
+    return {
+      independentReviews: 2,
+      secondPassOnUncertainty: true,
+      strongestModel: true,
+      tier: normalizedTier,
+    };
+  }
+  if (normalizedTier === "medium") {
+    return {
+      independentReviews: 1,
+      secondPassOnUncertainty: true,
+      strongestModel: false,
+      tier: normalizedTier,
+    };
+  }
+  return {
+    independentReviews: 1,
+    secondPassOnUncertainty: false,
+    strongestModel: false,
+    tier: normalizedTier,
+  };
+}
+
+function independentReviewCount(state = {}) {
+  const explicit = state.independentReviewCount ?? state.independentReviews;
+  let count = countEvidence(explicit);
+  if (count === 0 && currentReviewEvidence(state)) count = 1;
+  const hostedHead = state.hostedReviewHeadSha;
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  const hostedCurrent = hostedHead == null || shaEquals(hostedHead, currentHead);
+  if (state.hostedReviewComplete && hostedCurrent) count += 1;
+  return count;
+}
+
+export function mergeEligibilityDecision(state = {}, config = {}) {
+  const tier = riskTier(state, config);
+  const mode =
+    normalize(state.deliveryMode ?? config.deliveryMode) === "velocity" ? "velocity" : "production";
+  const reviewDepth = reviewDepthRequirement(tier);
+  const base = { mode, reviewDepth, tier };
+
+  const hold = (reason) => ({ ...base, action: workflowDecisionActions.holdMerge, reason });
+  const routeHuman = (reason) => ({
+    ...base,
+    action: workflowDecisionActions.routeHumanMerge,
+    reason,
+  });
+
+  const prState = normalize(state.prState ?? state.state ?? state.status);
+  const terminal =
+    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
+  if (!(state.open ?? !terminal) || terminal) return hold("PR is not open");
+  if (state.draft === true || state.isDraft === true || prState === "draft") {
+    return hold("draft PRs are pre-review and cannot merge");
+  }
+
+  if (state.productionAction === true || state.humanDecisionPending === true) {
+    return routeHuman("production actions and unresolved human decisions never auto-merge");
+  }
+
+  if (!currentReviewEvidence(state))
+    return hold("current PR head lacks clean code review evidence");
+  if (!requiredChecksPassed(state)) return hold("required checks are not confirmed passing");
+  if (state.blockingFindings || state.changesRequested) {
+    return hold("blocking findings or changes requested remain");
+  }
+  if (countEvidence(state.unresolvedReviewThreads ?? state.unresolvedThreads) > 0) {
+    return hold("unresolved review threads remain");
+  }
+  if (
+    state.hostedReviewPending ||
+    (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped)
+  ) {
+    return hold("required hosted review is pending or incomplete");
+  }
+  if (state.scopeMatches === false || state.diffMatchesScope === false) {
+    return hold("diff does not match the linked issue scope");
+  }
+
+  const conformance = normalize(state.conformance ?? state.conformanceVerdict);
+  const requireConformance = config.requireConformanceEvidence !== false;
+  if (requireConformance) {
+    if (CONFORMANCE_FAIL.has(conformance)) {
+      return hold("conformance table has FAIL rows; route findings back to the worker");
+    }
+    if (conformance !== CONFORMANCE_PASS && tier === "high") {
+      return hold(
+        "high-risk work requires exhibited PASS conformance; unverifiable or missing rows are an intake gap",
+      );
+    }
+  }
+
+  if (independentReviewCount(state) < reviewDepth.independentReviews) {
+    return hold("review depth for this risk tier requires another independent review pass");
+  }
+
+  const grantedTiers = valueSet(
+    toArray(config.autoMergeRiskTiers).length > 0
+      ? config.autoMergeRiskTiers
+      : mode === "velocity"
+        ? RISK_TIERS
+        : ["low", "medium"],
+  );
+  if (!grantedTiers.has(tier)) {
+    return routeHuman(`${mode} mode routes ${tier}-risk merges to human authority`);
+  }
+
+  const conformanceNote =
+    requireConformance && conformance !== CONFORMANCE_PASS
+      ? "; conformance not fully verifiable, recorded as intake gap"
+      : "";
+  return {
+    ...base,
+    action: workflowDecisionActions.armAutoMerge,
+    reason: `merge-ready at ${tier} risk in ${mode} mode${conformanceNote}`,
   };
 }
 
