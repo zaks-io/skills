@@ -174,14 +174,17 @@ test("review evidence is applied only when a clean review covers the current hea
 
 test("human merge PR label is applied only when the PR is merge-ready with current review", () => {
   assert.deepEqual(
-    humanMergePrLabelDecision({
-      currentPrHeadSha: "abc123",
-      reviewedHeadSha: "ABC123",
-      reviewVerdict: "Ready to Merge",
-      hasReviewEvidence: true,
-      requiredChecksPassed: true,
-      prState: "open",
-    }),
+    humanMergePrLabelDecision(
+      {
+        currentPrHeadSha: "abc123",
+        reviewedHeadSha: "ABC123",
+        reviewVerdict: "Ready to Merge",
+        hasReviewEvidence: true,
+        requiredChecksPassed: true,
+        prState: "open",
+      },
+      { mergeAuthority: "human" },
+    ),
     {
       action: workflowDecisionActions.applyHumanMergePrLabel,
       label: "needs-human-merge",
@@ -192,11 +195,14 @@ test("human merge PR label is applied only when the PR is merge-ready with curre
 
 test("human merge PR label is not applied without current code review evidence", () => {
   assert.deepEqual(
-    humanMergePrLabelDecision({
-      currentPrHeadSha: "abc123",
-      requiredChecksPassed: true,
-      prState: "open",
-    }),
+    humanMergePrLabelDecision(
+      {
+        currentPrHeadSha: "abc123",
+        requiredChecksPassed: true,
+        prState: "open",
+      },
+      { mergeAuthority: "human" },
+    ),
     {
       action: workflowDecisionActions.leaveUnchanged,
       label: "needs-human-merge",
@@ -207,15 +213,18 @@ test("human merge PR label is not applied without current code review evidence",
 
 test("human merge PR label is cleared when a new commit invalidates review evidence", () => {
   assert.deepEqual(
-    humanMergePrLabelDecision({
-      currentPrHeadSha: "def456",
-      hasReviewEvidence: true,
-      humanMergePrLabelApplied: true,
-      prState: "open",
-      requiredChecksPassed: true,
-      reviewedHeadSha: "abc123",
-      reviewVerdict: "APPROVE",
-    }),
+    humanMergePrLabelDecision(
+      {
+        currentPrHeadSha: "def456",
+        hasReviewEvidence: true,
+        humanMergePrLabelApplied: true,
+        prState: "open",
+        requiredChecksPassed: true,
+        reviewedHeadSha: "abc123",
+        reviewVerdict: "APPROVE",
+      },
+      { mergeAuthority: "human" },
+    ),
     {
       action: workflowDecisionActions.clearHumanMergePrLabel,
       label: "needs-human-merge",
@@ -246,16 +255,19 @@ test("human merge PR label is cleared from draft PRs", () => {
 
 test("human merge PR label waits for required hosted bot review", () => {
   assert.deepEqual(
-    humanMergePrLabelDecision({
-      currentPrHeadSha: "abc123",
-      hasReviewEvidence: true,
-      hostedReviewProvider: "Cursor Bugbot",
-      hostedReviewRequired: true,
-      prState: "open",
-      requiredChecksPassed: true,
-      reviewedHeadSha: "ABC123",
-      reviewVerdict: "APPROVE",
-    }),
+    humanMergePrLabelDecision(
+      {
+        currentPrHeadSha: "abc123",
+        hasReviewEvidence: true,
+        hostedReviewProvider: "Cursor Bugbot",
+        hostedReviewRequired: true,
+        prState: "open",
+        requiredChecksPassed: true,
+        reviewedHeadSha: "ABC123",
+        reviewVerdict: "APPROVE",
+      },
+      { mergeAuthority: "human" },
+    ),
     {
       action: workflowDecisionActions.leaveUnchanged,
       label: "needs-human-merge",
@@ -854,4 +866,58 @@ test("a red PR with a production action holds instead of claiming merge-ready fo
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
+});
+
+test("changes requested holds the merge even when blockingFindings is explicitly false", () => {
+  const decision = mergeEligibilityDecision(
+    { ...greenPr, blockingFindings: false, changesRequested: true },
+    { deliveryMode: "velocity" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.holdMerge);
+  assert.match(decision.reason, /changes requested/);
+});
+
+test("both merge-path helpers agree on default authority for the same green PR", () => {
+  const state = { ...greenPr, prState: "open" };
+
+  const merge = mergeEligibilityDecision(state, {});
+  assert.equal(merge.action, workflowDecisionActions.armAutoMerge);
+
+  const label = humanMergePrLabelDecision(state, {});
+  assert.equal(label.action, workflowDecisionActions.leaveUnchanged);
+  assert.equal(label.reason, "configured merge authority does not require human merge");
+});
+
+test("default authority still routes high-risk work to human in production mode", () => {
+  const state = {
+    ...greenPr,
+    labels: ["risk-schema"],
+    hostedReviewComplete: true,
+    hostedReviewHeadSha: "abc123",
+    prState: "open",
+  };
+
+  const merge = mergeEligibilityDecision(state, {});
+  assert.equal(merge.action, workflowDecisionActions.routeHumanMerge);
+
+  const label = humanMergePrLabelDecision(state, {});
+  assert.equal(label.action, workflowDecisionActions.applyHumanMergePrLabel);
+});
+
+test("runtime state cannot override configured human merge authority", () => {
+  const decision = humanMergePrLabelDecision(
+    {
+      ...greenPr,
+      hasReviewEvidence: true,
+      humanMergeRequired: false,
+      mergeAuthority: "agent",
+      prState: "open",
+      reviewVerdict: "APPROVE",
+      reviewedHeadSha: "abc123",
+    },
+    { mergeAuthority: "human" },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.applyHumanMergePrLabel);
 });

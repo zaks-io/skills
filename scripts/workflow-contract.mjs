@@ -301,10 +301,27 @@ function requiredChecksPassed(state = {}) {
 
 const AGENT_MERGE_AUTHORITIES = ["agent", "auto", "automated", "orchestrator"];
 
+function resolvedDeliveryMode(config = {}) {
+  return normalize(config.deliveryMode) === "velocity" ? "velocity" : "production";
+}
+
+function grantedAutoMergeTiers(config = {}) {
+  return valueSet(
+    config.autoMergeRiskTiers != null
+      ? config.autoMergeRiskTiers
+      : resolvedDeliveryMode(config) === "velocity"
+        ? RISK_TIERS
+        : ["low", "medium"],
+  );
+}
+
+// Merge authority is repo config only; runtime state cannot grant or revoke it.
+// With no explicit authority, the delivery-mode tier grants decide, so both
+// merge-path helpers give one answer for the same PR.
 function humanMergeRequired(state = {}, config = {}) {
-  if (state.humanMergeRequired === false) return false;
-  const authority = normalize(state.mergeAuthority ?? config.mergeAuthority);
-  return !AGENT_MERGE_AUTHORITIES.includes(authority);
+  const authority = normalize(config.mergeAuthority);
+  if (authority) return !AGENT_MERGE_AUTHORITIES.includes(authority);
+  return !grantedAutoMergeTiers(config).has(riskTier(state, config));
 }
 
 function mergeReadinessFacts(state = {}) {
@@ -312,7 +329,7 @@ function mergeReadinessFacts(state = {}) {
   const terminal =
     state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
   return {
-    blockingFindings: Boolean(state.blockingFindings ?? state.changesRequested),
+    blockingFindings: Boolean(state.blockingFindings) || Boolean(state.changesRequested),
     checksPassed: requiredChecksPassed(state),
     draft: Boolean(
       state.draft === true ||
@@ -476,7 +493,7 @@ function independentReviewCount(state = {}) {
 export function mergeEligibilityDecision(state = {}, config = {}) {
   const tier = riskTier(state, config);
   // Delivery mode is repo policy: config-owned, never read from runtime state.
-  const mode = normalize(config.deliveryMode) === "velocity" ? "velocity" : "production";
+  const mode = resolvedDeliveryMode(config);
   const reviewDepth = reviewDepthRequirement(tier);
   const base = { mode, reviewDepth, tier };
 
@@ -499,6 +516,11 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   if (facts.hostedReviewBlocked) return hold("required hosted review is pending or incomplete");
   if (facts.scopeMismatch) return hold("diff does not match the linked issue scope");
 
+  // Trust boundary: state is orchestrator-assembled from freshly refreshed
+  // systems of record, so first-party boolean evidence (reviewEvidenceCurrent,
+  // a conformance verdict without conformanceHeadSha) is trusted as-is; SHA
+  // fields harden the check when present. Third-party signals such as hosted
+  // reviews always require a provable head SHA match.
   const conformance = normalize(state.conformance ?? state.conformanceVerdict);
   const requireConformance = config.requireConformanceEvidence !== false;
   const currentHead = state.currentPrHeadSha ?? state.headSha;
@@ -532,14 +554,7 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
     return routeHuman("configured merge authority requires human merge");
   }
 
-  const grantedTiers = valueSet(
-    config.autoMergeRiskTiers != null
-      ? config.autoMergeRiskTiers
-      : mode === "velocity"
-        ? RISK_TIERS
-        : ["low", "medium"],
-  );
-  if (!grantedTiers.has(tier)) {
+  if (!grantedAutoMergeTiers(config).has(tier)) {
     return routeHuman(`${mode} mode routes ${tier}-risk merges to human authority`);
   }
 

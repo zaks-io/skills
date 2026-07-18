@@ -239,3 +239,18 @@ test("tick-plan fails fast when input is missing", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /expected exactly one input/);
 });
+
+test("CLI exits non-zero with verification guidance when the DAG is empty", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ziw-dag-"));
+  const file = path.join(dir, "input.json");
+  writeFileSync(file, JSON.stringify({ issues: [] }), "utf8");
+
+  assert.throws(
+    () => execFileSync("node", [script, file], { encoding: "utf8" }),
+    (error) => {
+      assert.match(String(error.stderr), /zero live issues/);
+      assert.match(String(error.stderr), /tracker MCP/);
+      return true;
+    },
+  );
+});

@@ -54,6 +54,7 @@ test("tick-plan applies human merge label only with current review evidence", ()
         },
       ],
     },
+    config: { mergeAuthority: "human" },
   });
   const withEvidence = runPlan({
     snapshot: {
@@ -68,6 +69,7 @@ test("tick-plan applies human merge label only with current review evidence", ()
         },
       ],
     },
+    config: { mergeAuthority: "human" },
     state: {
       reviewEvidenceByPr: {
         12: {
@@ -218,4 +220,31 @@ test("tick-plan dispatches Linear DAG starts with snapshot-derived footprints", 
   assert.deepEqual(output.decisions.dispatch.selected, [
     { id: "LIN-1", footprint: ["apps/api/src/index.ts"] },
   ]);
+});
+
+test("tick-plan fails loud when a queried Linear queue has zero live issues", () => {
+  assert.throws(
+    () =>
+      runPlan({
+        snapshot: { repo: "zaks-io/example", linear: { issues: [] } },
+      }),
+    /zero live issues/,
+  );
+  assert.throws(
+    () =>
+      runPlan({
+        snapshot: {
+          repo: "zaks-io/example",
+          linear: { issues: [{ identifier: "LIN-1", state: "Done" }] },
+        },
+      }),
+    /zero live issues/,
+  );
+});
+
+test("tick-plan does not fail when no Linear queue was queried", () => {
+  const output = runPlan({
+    snapshot: { repo: "zaks-io/example", prs: [] },
+  });
+  assert.equal(output.counts.startableTickets, 0);
 });

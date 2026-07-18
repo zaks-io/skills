@@ -189,9 +189,15 @@ one stateless tick at a time while keeping its context thin.
 The loop is self-scheduling. It runs on the runtime's own recurring mechanism (a
 schedule, `/loop`, or wake-up timer in Claude Code; Codex automations, either
 cron automations or heartbeat automations) and never needs a human to re-trigger
-a pass. Each tick wakes light, rebuilds the queue from systems of record, acts on
-a bounded slice of work, persists only the ledger and checkpoint, and sleeps only
-when future external signal can still arrive. A long-running loop stays as light
+a pass. Each tick wakes light, rebuilds the queue from systems of record, takes
+every safe action currently available (draining active work first, then filling
+dispatch capacity with the full non-colliding startable set), persists only the
+ledger and checkpoint, and sleeps only
+when future external signal can still arrive. Dispatch is atomic with the
+claim: a dispatched ticket moves to the configured in-progress state in the
+same step. The loop adapts its wake-up interval: base cadence while signal is
+expected, backing off across consecutive quiet ticks, resetting on new signal.
+Rationing safe actions across ticks is a throughput bug, not caution. A long-running loop stays as light
 as a first run; it does not loop in-context until a delivery scope
 empties. The
 orchestrator skill bundles the tick contract in
