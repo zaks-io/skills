@@ -276,3 +276,37 @@ function installFakeGh(bin, url) {
   );
   chmodSync(executable, 0o755);
 }
+
+test("updateTargets branches from origin/main when local main is stale", () => {
+  const root = tempDir();
+  const otherRoot = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+
+    const other = path.join(otherRoot, "other");
+    git(otherRoot, "clone", path.join(root, "remote.git"), other);
+    git(other, "config", "user.name", "Test");
+    git(other, "config", "user.email", "test@example.com");
+    writeFileSync(path.join(other, "upstream.txt"), "upstream\n");
+    git(other, "add", "upstream.txt");
+    git(other, "commit", "-m", "upstream change");
+    git(other, "push", "origin", "main");
+
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const result = updateTargets(worktreeOptions(root, { commit: true }))[0];
+
+    assert.equal(result.status, "committed");
+    assert.equal(result.baseRef, "origin/main");
+    assert.equal(gitOutput(repo, "show", `${result.branchName}:upstream.txt`), "upstream");
+    assert.equal(gitOutput(repo, "show", `${result.branchName}:generated-skill.txt`), "generated");
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+    rmSync(otherRoot, { recursive: true, force: true });
+  }
+});

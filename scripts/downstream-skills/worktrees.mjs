@@ -76,8 +76,13 @@ export function deleteUpdateBranch(repoRoot, branchName) {
 }
 
 function resolveBaseRef(repoRoot, requestedRef) {
+  // A stale local main silently produces update branches that conflict with
+  // origin/main, so the default fetches and prefers the remote ref.
+  if (requestedRef === DEFAULT_BASE_REF) {
+    run("git", ["fetch", "origin", "main", "--quiet"], repoRoot);
+  }
   const candidates =
-    requestedRef === DEFAULT_BASE_REF ? [DEFAULT_BASE_REF, "origin/main"] : [requestedRef];
+    requestedRef === DEFAULT_BASE_REF ? ["origin/main", DEFAULT_BASE_REF] : [requestedRef];
   const baseRef = candidates.find((ref) => commitExists(repoRoot, ref));
   return baseRef
     ? { status: "ok", baseRef }
