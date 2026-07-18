@@ -64,7 +64,7 @@ An issue is ready for Agent Implement only when it is scoped to one PR and
 contains:
 
 - outcome
-- context docs
+- context docs, with spec citations when the work comes from a spec
 - likely files, packages, or artifacts
 - in scope
 - out of scope
@@ -79,6 +79,14 @@ behavior, files, docs, tests, and workflow state this PR may change.
 `Out of scope` names adjacent outcomes, sibling tickets, broad refactors,
 optional polish, production actions, and follow-up behavior the worker must not
 deliver. A ticket with vague or empty boundaries is not ready for agent handoff.
+
+Spec citations are the traceability unit between specs and slices. When a slice
+implements behavior defined in a repo spec, PRD, or ADR, the context docs
+section must cite the exact sections it implements as resolvable links, such as
+`docs/specs/<file>.md#<section-anchor>`. Acceptance criteria for cited behavior
+must be traceable to those sections. A spec-derived ticket whose citations are
+missing or do not resolve is not ready for agent handoff. Workers and reviewers
+read the cited sections, not the whole spec corpus.
 
 If the work requires multiple PRs, keep it as a container or split it into
 multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.

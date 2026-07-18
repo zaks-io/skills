@@ -91,7 +91,9 @@ aggregation.
 rules that should not stay as prose only: Done-ticket readiness exclusion,
 review-evidence freshness, active PR/preview footprint counting, capacity
 behavior, dispatch collision checks, hosted-review routing, human-merge PR label
-gates, and untrusted instruction handling.
+gates, merge eligibility (delivery mode, risk tier, review depth, and
+conformance evidence deciding auto-merge vs human merge vs hold), and untrusted
+instruction handling.
 
 `skills/ziw-orchestrate/scripts/tick-snapshot.mjs` gathers compact code-host
 state for a tick. `skills/ziw-orchestrate/scripts/linear-graphql.mjs` provides a
@@ -128,18 +130,23 @@ config-gap finding when the conflict affects the workflow.
   dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
   instead of duplicating them, applies the agent-ready body contract and labels,
   includes estimates when config defines an estimate policy, puts ready slices in
-  the configured ready state, and emits a dependency graph and predicted file
-  footprint. Creates tickets; it does not implement, review, or move active
-  work.
+  the configured ready state, and emits a dependency graph, predicted file
+  footprint, and, when slicing a spec, a coverage matrix mapping every
+  requirement-bearing spec section to slices, deferrals, or open questions.
+  Spec-derived slices cite the exact spec sections they implement. Creates
+  tickets; it does not implement, review, or move active work.
 - Agent Orchestrator: reads external state, starts or nudges workers, calls
   review and integrate as steps, records friction intake, and owns the authority
   to mutate active workflow status in the issue tracker.
 - Agent Implement: owns one delegated issue through implementation, checks,
   code review, PR creation, and handoff.
 - Agent Review: reviews latest committed PR heads and main drift from clean
-  context, reports freshness, verdicts, and orchestrator refactor findings to
-  Orchestrator, files or recommends follow-up issues, and can publish one
-  current-head GitHub review when explicitly invoked with `--submit`.
+  context, exhibits a per-criterion conformance table against the ticket's
+  acceptance criteria and cited spec sections, reports freshness, verdicts, and
+  orchestrator refactor findings to Orchestrator, files or recommends follow-up
+  issues, audits merged main-drift ranges against cited spec sections, and can
+  publish one current-head GitHub review when explicitly invoked with
+  `--submit`.
 - Issue Triage: the bulk reconciler. Updates tracker metadata, readiness,
   dependencies, current status, and issue body shape so Todo tickets are clean,
   ready for agents, and the tracker reflects external reality. It does not review
@@ -182,9 +189,15 @@ one stateless tick at a time while keeping its context thin.
 The loop is self-scheduling. It runs on the runtime's own recurring mechanism (a
 schedule, `/loop`, or wake-up timer in Claude Code; Codex automations, either
 cron automations or heartbeat automations) and never needs a human to re-trigger
-a pass. Each tick wakes light, rebuilds the queue from systems of record, acts on
-a bounded slice of work, persists only the ledger and checkpoint, and sleeps only
-when future external signal can still arrive. A long-running loop stays as light
+a pass. Each tick wakes light, rebuilds the queue from systems of record, takes
+every safe action currently available (draining active work first, then filling
+dispatch capacity with the full non-colliding startable set), persists only the
+ledger and checkpoint, and sleeps only
+when future external signal can still arrive. Dispatch is atomic with the
+claim: a dispatched ticket moves to the configured in-progress state in the
+same step. The loop adapts its wake-up interval: base cadence while signal is
+expected, backing off across consecutive quiet ticks, resetting on new signal.
+Rationing safe actions across ticks is a throughput bug, not caution. A long-running loop stays as light
 as a first run; it does not loop in-context until a delivery scope
 empties. The
 orchestrator skill bundles the tick contract in
@@ -232,6 +245,12 @@ reruns checks and review. It delegates branch-update work only when the update
 reports a merge conflict or equivalent manual conflict state. It merges through
 the configured code-host method only. If the host rejects that method, setup is
 stale and must be refreshed before another merge attempt.
+
+Merge authority follows the repo's configured delivery mode; risk controls
+review depth, not merge authority. The merge-eligibility helper in the
+executable contract decides auto-merge, human merge, or hold from delivery
+mode, risk tier, review depth, review evidence, and exhibited conformance.
+Production actions and unresolved human decisions never auto-merge in any mode.
 
 ## Ticket Kinds
 
@@ -586,6 +605,9 @@ Every handoff should say:
   current hosted review state is unknown
 - tracker updates made or requested
 - blockers and residual risk
+- a decision request (question, options, recommendation, what it blocks) when
+  the handoff escalates to the user; an escalation that hands the user a PR or
+  ticket to go study is invalid
 
 ## Environment Model
 

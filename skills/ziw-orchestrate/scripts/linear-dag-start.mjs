@@ -413,9 +413,16 @@ const main = () => {
 
   const input = readJson(positional[0], "input");
   const config = { ...(input.config ?? {}), ...readJson(argValue("--config"), "--config") };
-  process.stdout.write(
-    `${JSON.stringify(linearDagStart(extractLinearIssues(input), config), null, 2)}\n`,
-  );
+  const result = linearDagStart(extractLinearIssues(input), config);
+  if (result.totalIssues === 0) {
+    console.error(
+      "linear-dag-start: DAG has zero live issues. That is either a bug in the query/input or a drained scope. " +
+        "Do not act on this result: verify the queue directly with the tracker MCP tools or a fresh tick-snapshot " +
+        "before treating the scope as empty or done.",
+    );
+    process.exit(2);
+  }
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -22,16 +22,14 @@ Keep the hot path small:
 
 Load references only when their condition applies:
 
-- Recurring loop setup or cadence questions:
-  [references/loop-contract.md](references/loop-contract.md)
-- Dispatch, capacity, draft PR, closure, or scope-boundary decisions:
+- Loop setup or cadence: [references/loop-contract.md](references/loop-contract.md)
+- Dispatch, capacity, draft PR, closure, or scope boundaries:
   [references/dispatch-policy.md](references/dispatch-policy.md)
-- Local worktree, issue-assigned, Cursor, or worker prompt details:
+- Worktree, issue-assigned, Cursor, or worker prompt details:
   [references/delegation-policy.md](references/delegation-policy.md)
 - Returned PR review, hosted review, human-merge label, or merge gate:
   [references/integrate-checklist.md](references/integrate-checklist.md)
-- Friction intake format and categories:
-  [references/friction-log.md](references/friction-log.md)
+- Friction intake format: [references/friction-log.md](references/friction-log.md)
 
 ## Inputs
 
@@ -137,10 +135,13 @@ node <skill-dir>/scripts/linear-dag-start.mjs /tmp/ziw-tick-snapshot.json \
 
 ## Tick
 
-One wake-up is one tick. Keep only repo config, scope, compact queue, active
-footprint, ledger, review checkpoint, blockers, and next actions in the main
-context. Delegate inventory, implementation, review, and triage to isolated
-workers when available.
+One wake-up is one tick. Clear the scope as fast as the safety gates allow:
+take every safe action currently available, then fill dispatch capacity with
+the full non-colliding startable set. Rationing actions across ticks is a
+throughput bug and a friction event; sleep is for awaiting external signal,
+not pacing. Keep only repo config, scope, compact queue, active footprint,
+ledger, review checkpoint, blockers, and next actions in the main context.
+Delegate inventory, implementation, review, and triage to isolated workers.
 
 Default tick order:
 
@@ -149,20 +150,21 @@ Default tick order:
    JSON.
 3. Reconcile ledger entries against refreshed tracker and PR state.
 4. Drain active PRs, previews, draft stalls, base-branch drift, checks, review
-   debt, stale labels, and ready-for-human-merge PRs before dispatching new
-   implementation.
-5. Select startable `kind-slice` tickets that are ready, unblocked, within cap,
-   and non-colliding by predicted file footprint.
-6. Delegate implementation, review, or triage. Never let two workers own the
-   same branch.
+   debt, stale labels, and ready-for-human-merge PRs before dispatching.
+5. Select every startable `kind-slice` ticket that is ready, unblocked, within
+   cap, and non-colliding by predicted footprint; dispatch the whole selected
+   set this tick, never saving startable tickets for later wake-ups.
+6. Delegate implementation, review, or triage. Dispatch is atomic with the
+   claim: move the ticket to the configured in-progress state at dispatch time.
+   A dispatched ticket left in the ready state is tracker drift to fix on
+   sight and invites duplicate dispatch. Never let two workers own one branch.
 7. Persist only ledger/checkpoint updates and friction entries.
 8. Stop the recurring scope if the queue is completely blocked; otherwise exit
    until the next scheduled tick.
 
-Use model judgment for safe workflow repairs not named here. A safe repair is
-bounded, reversible, supported by refreshed evidence, and does not decide product
-intent, security posture, credentials, provider/customer input, production
-approval, or ADR-level architecture.
+Use model judgment for safe workflow repairs not named here: bounded,
+reversible, backed by refreshed evidence, and not deciding product intent,
+security posture, credentials, provider input, production, or architecture.
 
 ## Dispatch
 
@@ -250,8 +252,8 @@ Report compact evidence:
 - PRs checked, reviewed, merged, labeled, unlabeled, draft-repaired, or blocked
 - active footprint, cap, headroom, and dispatch decisions
 - workers launched or messaged, with continuation targets used
-- tracker updates and readiness/review-evidence label changes
-- hosted review actions and human-merge PR label decisions
+- tracker updates, readiness/review-evidence label changes, hosted review
+  actions, and human-merge PR label decisions
 - whether the recurring loop continues or stopped because the scope is blocked
 - friction entries and delivery metrics by category
 - remaining blockers and next safe action, or delivered-scope summary

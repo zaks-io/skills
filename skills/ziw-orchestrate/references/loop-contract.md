@@ -20,9 +20,20 @@ and report the exact command the user should schedule.
 
 ## One Tick
 
-A tick is a single, stateless-against-external-state pass. It does the smallest
-amount of work that advances the delivery scope, then exits. It does not loop
-in-context until the delivery scope is empty; that grows context without bound.
+A tick is a single, stateless-against-external-state pass. The loop's goal is to
+clear its scope as fast as the safety gates allow. Within a tick, take every
+safe action currently available: drain returned PRs and repairs, then fill
+dispatch capacity with the full non-colliding startable set. A tick exits when
+no safe action remains right now, not after one action per ticket. Rationing
+work across future ticks (one dispatch per wake-up, one action per ticket) is a
+throughput bug; leaving safe actions undone at tick exit for any reason other
+than the cap, a collision hold, or an exhausted budget is a friction event.
+
+What a tick must not do is loop in-context _waiting_: once every currently
+available action is taken and the remaining work is waiting on workers, checks,
+reviews, or providers, exit and let the next tick pick up the new signal.
+Waiting is what the schedule is for; context growth, not action count, is the
+thing being bounded.
 
 Each tick should use model judgment over refreshed evidence to choose the next
 safe action. The loop is intentionally light on context, not light on reasoning:
@@ -59,7 +70,11 @@ Each tick:
    Linear DAG roots/frontier, dispatchable starts, ready-state promotions,
    hosted-review actions, and human-merge PR label decisions. Use
    `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot.json> --config <config.json>`
-   when only the Linear dependency frontier is needed. Never dispatch an issue
+   when only the Linear dependency frontier is needed. Both DAG scripts fail
+   loud when they compute zero live issues: that exit means either a bug in
+   the query/scope or a drained queue, and either way the tick must verify the
+   queue directly with tracker MCP tools or a fresh snapshot before treating
+   the scope as empty or done. Never dispatch an issue
    whose snapshot or tracker state shows an incomplete blocker. Use tracker
    tooling for issue bodies and comments. Delegate the inventory read to an
    isolated triage worker when the runtime has one; keep only the compact queue
@@ -76,22 +91,25 @@ Each tick:
    track bot dependency PRs (dependabot, renovate) as a separate drain count.
    Bot PRs are merge/close work to advance, not delegation slots — they must
    not starve new dispatch.
-5. Act on at most a bounded slice of work this tick: advance returned PRs, active
-   previews, and stuck draft PRs first. Optimize delivery-slot turnover over
-   worker count: merge green PRs, route fixes, run `gh pr update-branch <pr>` on
-   GitHub PRs after main moves, and inspect previews before dispatching new
-   work. Do not delegate routine branch updates; delegate only after the update
-   reports a merge conflict or equivalent manual conflict state. Dispatch new
-   startable work only when the active PR/preview cap has headroom and active
-   work has no near term drain action. Before fanning out, compare predicted
-   file footprints against active PRs, active branches, and selected candidates;
+5. Act on everything actionable this tick, drain before dispatch: advance
+   returned PRs, active previews, and stuck draft PRs first. Optimize
+   delivery-slot turnover over worker count: merge green PRs, route fixes, run
+   `gh pr update-branch <pr>` on GitHub PRs after main moves, and inspect
+   previews before dispatching new work. Do not delegate routine branch
+   updates; delegate only after the update reports a merge conflict or
+   equivalent manual conflict state. Then fill remaining cap headroom in the
+   same tick with the full non-colliding startable set; do not save startable
+   tickets for a later wake-up. Before fanning out, compare predicted file
+   footprints against active PRs, active branches, and selected candidates;
    hold colliding or unknown-footprint tickets for triage or a later tick
    instead of spending spare slots. Draft state is an orchestration repair
    signal, not a code review request, and capacity pressure is not a reason to
    close a draft or in-progress PR.
 6. Delegate every context-heavy step (implement, review, triage) to an isolated
-   worker. Reduce each worker result into the compact queue and ledger before
-   continuing.
+   worker. Dispatching a ticket is one atomic step: claim it and move it to the
+   configured in-progress state at dispatch time, so the tracker never shows a
+   dispatched ticket still sitting in the ready state. Reduce each worker
+   result into the compact queue and ledger before continuing.
 7. Persist only the ledger and checkpoint. Append friction entries. If the queue
    is completely blocked, report blocked and stop the recurring run for this
    scope. Otherwise exit.
@@ -121,9 +139,17 @@ action per ticket.
 
 - Choose a cadence that matches how fast external state changes, not a fixed
   short interval. Polling faster than workers produce signal wastes ticks.
+- Adapt the interval to what the last tick found. After a tick that dispatched
+  workers or expects fast signal (checks running, reviews in flight), schedule
+  the next tick at the base interval, matched to how quickly that signal
+  actually lands. After a transient tick that found nothing actionable, back
+  off: roughly double the interval each consecutive quiet tick up to a
+  configured or sensible maximum. Any new signal or action taken resets the
+  interval to base. When the runtime supports choosing the next wake-up delay
+  per tick, set it explicitly each tick instead of keeping a fixed schedule.
 - A transient tick with no safe action is normal when workers, checks, reviews,
-  or providers are still expected to produce signal. Record a heartbeat and
-  sleep.
+  or providers are still expected to produce signal. Record a heartbeat, back
+  off the interval, and sleep.
 - Before rerunning a preview or hosted check, inspect the workflow state. A job
   that is still progressing is wait evidence, not failure evidence.
 - A completely blocked queue is not a transient tick. Stop the schedule, not just

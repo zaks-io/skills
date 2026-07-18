@@ -90,9 +90,13 @@ domain behavior, and performance work without benchmarks.
   (Claude Code schedule, `/loop`, or wake-up timer; Codex automations, either
   cron automations or heartbeat automations) and never needs a human to
   re-trigger a pass. Each tick wakes light, rebuilds the queue from systems of
-  record, refreshes the repo-level open PR and preview footprint, acts on a
-  bounded slice, persists only the ledger and checkpoint, and sleeps only when
-  future external signal can still arrive.
+  record, refreshes the repo-level open PR and preview footprint, takes every
+  safe action currently available (drain active work first, then fill dispatch
+  capacity with the full non-colliding startable set), persists only the ledger
+  and checkpoint, and sleeps only when future external signal can still arrive.
+  Dispatch claims the ticket and moves it to the configured in-progress state
+  in the same step. The wake-up interval adapts: base cadence while signal is
+  expected, backoff across consecutive quiet ticks, reset on new signal.
 - The active PR/preview cap protects delivery capacity, not worker count. Open
   PRs, active PR-scoped previews, and implementation dispatches that have not yet
   produced a PR consume capacity. When the cap is full, Orchestrator advances,

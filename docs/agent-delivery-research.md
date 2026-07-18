@@ -54,9 +54,16 @@ refresh Linear, GitHub, checks, and PR state, then delegate implementation or
 review. To Issues and Issue Triage prepare current work. Agent Review and
 integrate are called steps.
 
-There is no separate coverage-audit loop in this repo. If coverage auditing is
-needed later, add it as a measured capability with its own acceptance criteria
-and validation data.
+There is no separate coverage-audit loop in this repo. Coverage and conformance
+checking live inside the existing roles instead: To Issues emits a coverage
+matrix at slicing time so dropped spec requirements surface before
+implementation, the review gate exhibits a per-criterion conformance table
+before merge, and the main-drift checkpoint review inside `ziw-code-review`
+independent mode audits merged work against the spec sections its tickets
+cited. This keeps the one-loop model: the audit is a called step on the
+existing checkpoint, not a second loop. The decision trail is user-directed
+(2026-07-17): move the human from per-PR gate to sampled auditor so merge
+authority can follow delivery mode while trust is verified on merged reality.
 
 ### Skill Surface
 

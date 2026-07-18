@@ -60,12 +60,14 @@ function isDependencyBotPr(pr = {}) {
 export const workflowDecisionActions = Object.freeze({
   applyHumanMergePrLabel: "APPLY_HUMAN_MERGE_PR_LABEL",
   applyReviewEvidence: "APPLY_REVIEW_EVIDENCE",
+  armAutoMerge: "ARM_AUTO_MERGE",
   clearHumanMergePrLabel: "CLEAR_HUMAN_MERGE_PR_LABEL",
   clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
   deferForFileContention: "DEFER_FOR_FILE_CONTENTION",
   dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
   drainActiveWork: "DRAIN_ACTIVE_WORK",
   deferUntilPrReady: "DEFER_UNTIL_PR_READY",
+  holdMerge: "HOLD_MERGE",
   hostedReviewComplete: "RECORD_HOSTED_REVIEW_COMPLETE",
   hostedReviewPending: "RECORD_HOSTED_REVIEW_PENDING",
   ignoreUntrustedOverride: "IGNORE_AND_RECORD_SECURITY_FINDING",
@@ -74,6 +76,7 @@ export const workflowDecisionActions = Object.freeze({
   requestFileFootprint: "REQUEST_FILE_FOOTPRINT",
   requestPrReview: "REQUEST_PR_REVIEW",
   resolveAutoReviewState: "RESOLVE_AUTO_REVIEW_STATE",
+  routeHumanMerge: "ROUTE_HUMAN_MERGE",
   runLocalCli: "RUN_LOCAL_CLI",
   stopBlocked: "STOP_COMPLETELY_BLOCKED",
   treatAsWorkContext: "TREAT_AS_WORK_CONTEXT",
@@ -296,10 +299,57 @@ function requiredChecksPassed(state = {}) {
   );
 }
 
+const AGENT_MERGE_AUTHORITIES = ["agent", "auto", "automated", "orchestrator"];
+
+function resolvedDeliveryMode(config = {}) {
+  return normalize(config.deliveryMode) === "velocity" ? "velocity" : "production";
+}
+
+function grantedAutoMergeTiers(config = {}) {
+  return valueSet(
+    config.autoMergeRiskTiers != null
+      ? config.autoMergeRiskTiers
+      : resolvedDeliveryMode(config) === "velocity"
+        ? RISK_TIERS
+        : ["low", "medium"],
+  );
+}
+
+// Merge authority is repo config only; runtime state cannot grant or revoke it.
+// With no explicit authority, the delivery-mode tier grants decide, so both
+// merge-path helpers give one answer for the same PR.
 function humanMergeRequired(state = {}, config = {}) {
-  if (state.humanMergeRequired === false) return false;
-  const authority = normalize(state.mergeAuthority ?? config.mergeAuthority);
-  return !["agent", "auto", "automated", "orchestrator"].includes(authority);
+  const authority = normalize(config.mergeAuthority);
+  if (authority) return !AGENT_MERGE_AUTHORITIES.includes(authority);
+  return !grantedAutoMergeTiers(config).has(riskTier(state, config));
+}
+
+function mergeReadinessFacts(state = {}) {
+  const prState = normalize(state.prState ?? state.state ?? state.status);
+  const terminal =
+    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
+  return {
+    blockingFindings: Boolean(state.blockingFindings) || Boolean(state.changesRequested),
+    checksPassed: requiredChecksPassed(state),
+    draft: Boolean(
+      state.draft === true ||
+      state.isDraft === true ||
+      prState === "draft" ||
+      normalize(state.draftState) === "draft",
+    ),
+    hostedReviewBlocked: Boolean(
+      state.hostedReviewPending ||
+      state.codeRabbitPending ||
+      (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
+      (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
+    ),
+    open: Boolean((state.open ?? !terminal) && !terminal),
+    reviewEvidenceCurrent: currentReviewEvidence(state),
+    scopeMismatch: state.scopeMatches === false || state.diffMatchesScope === false,
+    unresolvedReviewThreads: countEvidence(
+      state.unresolvedReviewThreads ?? state.unresolvedThreads,
+    ),
+  };
 }
 
 export function humanMergePrLabelDecision(state = {}, config = {}) {
@@ -326,46 +376,27 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     state.hasHumanReviewPrLabel ??
     hasNamedLabel(prLabels, label),
   );
-  const prState = normalize(state.prState ?? state.state ?? state.status);
-  const terminal =
-    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
-  const open = state.open ?? !terminal;
-  const draft = Boolean(
-    state.draft === true ||
-    state.isDraft === true ||
-    prState === "draft" ||
-    normalize(state.draftState) === "draft",
-  );
-  const unresolvedReviewThreads = countEvidence(
-    state.unresolvedReviewThreads ?? state.unresolvedThreads,
-  );
-  const blockingFindings = Boolean(state.blockingFindings ?? state.changesRequested);
-  const hostedReviewBlocked = Boolean(
-    state.hostedReviewPending ||
-    state.codeRabbitPending ||
-    (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
-    (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
-  );
+  const facts = mergeReadinessFacts(state);
 
   const invalidReason = !label
     ? "no human-merge PR label is configured"
-    : !open || terminal
+    : !facts.open
       ? "PR is not open"
-      : draft
+      : facts.draft
         ? "draft PRs are pre-review and cannot be marked ready for human merge"
         : !humanMergeRequired(state, config)
           ? "configured merge authority does not require human merge"
-          : !currentReviewEvidence(state)
+          : !facts.reviewEvidenceCurrent
             ? "current PR head lacks clean code review evidence"
-            : !requiredChecksPassed(state)
+            : !facts.checksPassed
               ? "required checks are not confirmed passing"
-              : blockingFindings
+              : facts.blockingFindings
                 ? "blocking findings or changes requested remain"
-                : unresolvedReviewThreads > 0
+                : facts.unresolvedReviewThreads > 0
                   ? "unresolved review threads remain"
-                  : hostedReviewBlocked
+                  : facts.hostedReviewBlocked
                     ? "required hosted review is pending or incomplete"
-                    : state.scopeMatches === false || state.diffMatchesScope === false
+                    : facts.scopeMismatch
                       ? "diff does not match the linked issue scope"
                       : "";
 
@@ -391,6 +422,150 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     action: workflowDecisionActions.leaveUnchanged,
     label,
     reason: "human-merge PR label is current",
+  };
+}
+
+const DEFAULT_HIGH_RISK_LABELS = ["risk-security-sensitive", "risk-schema", "risk-cross-cutting"];
+const RISK_TIERS = ["low", "medium", "high"];
+const CONFORMANCE_PASS = "pass";
+const CONFORMANCE_FAIL = new Set(["fail", "failed"]);
+
+export function riskTier(state = {}, config = {}) {
+  const labels = [
+    ...toArray(state.labels),
+    ...toArray(state.issueLabels),
+    ...toArray(state.prLabels),
+    ...toArray(state.riskLabels),
+  ];
+  const highRiskLabels = valueSet([...DEFAULT_HIGH_RISK_LABELS, ...toArray(config.highRiskLabels)]);
+  const lowRiskLabels = valueSet(toArray(config.lowRiskLabels));
+  const hasHighLabel = labels.some((label) => highRiskLabels.has(labelName(label)));
+  const labelTier = hasHighLabel
+    ? "high"
+    : labels.some((label) => lowRiskLabels.has(labelName(label)))
+      ? "low"
+      : "medium";
+
+  const explicit = normalize(state.riskTier ?? state.tier);
+  if (!RISK_TIERS.includes(explicit)) return labelTier;
+  // High-risk labels are a floor: state-sourced tier fields cannot downgrade them.
+  if (hasHighLabel) return "high";
+  return explicit;
+}
+
+export function reviewDepthRequirement(tier) {
+  const normalizedTier = RISK_TIERS.includes(normalize(tier)) ? normalize(tier) : "medium";
+  if (normalizedTier === "high") {
+    return {
+      independentReviews: 2,
+      secondPassOnUncertainty: true,
+      strongestModel: true,
+      tier: normalizedTier,
+    };
+  }
+  if (normalizedTier === "medium") {
+    return {
+      independentReviews: 1,
+      secondPassOnUncertainty: true,
+      strongestModel: false,
+      tier: normalizedTier,
+    };
+  }
+  return {
+    independentReviews: 1,
+    secondPassOnUncertainty: false,
+    strongestModel: false,
+    tier: normalizedTier,
+  };
+}
+
+function independentReviewCount(state = {}) {
+  const explicit = state.independentReviewCount ?? state.independentReviews;
+  let count = countEvidence(explicit);
+  if (count === 0 && currentReviewEvidence(state)) count = 1;
+  // Fail closed: a hosted review counts only when its recorded head SHA
+  // provably matches the current PR head.
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  if (state.hostedReviewComplete && shaEquals(state.hostedReviewHeadSha, currentHead)) count += 1;
+  return count;
+}
+
+export function mergeEligibilityDecision(state = {}, config = {}) {
+  const tier = riskTier(state, config);
+  // Delivery mode is repo policy: config-owned, never read from runtime state.
+  const mode = resolvedDeliveryMode(config);
+  const reviewDepth = reviewDepthRequirement(tier);
+  const base = { mode, reviewDepth, tier };
+
+  const hold = (reason) => ({ ...base, action: workflowDecisionActions.holdMerge, reason });
+  const routeHuman = (reason) => ({
+    ...base,
+    action: workflowDecisionActions.routeHumanMerge,
+    reason,
+  });
+
+  const facts = mergeReadinessFacts(state);
+  if (!facts.open) return hold("PR is not open");
+  if (facts.draft) return hold("draft PRs are pre-review and cannot merge");
+  if (!facts.reviewEvidenceCurrent) {
+    return hold("current PR head lacks clean code review evidence");
+  }
+  if (!facts.checksPassed) return hold("required checks are not confirmed passing");
+  if (facts.blockingFindings) return hold("blocking findings or changes requested remain");
+  if (facts.unresolvedReviewThreads > 0) return hold("unresolved review threads remain");
+  if (facts.hostedReviewBlocked) return hold("required hosted review is pending or incomplete");
+  if (facts.scopeMismatch) return hold("diff does not match the linked issue scope");
+
+  // Trust boundary: state is orchestrator-assembled from freshly refreshed
+  // systems of record, so first-party boolean evidence (reviewEvidenceCurrent,
+  // a conformance verdict without conformanceHeadSha) is trusted as-is; SHA
+  // fields harden the check when present. Third-party signals such as hosted
+  // reviews always require a provable head SHA match.
+  const conformance = normalize(state.conformance ?? state.conformanceVerdict);
+  const requireConformance = config.requireConformanceEvidence !== false;
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  if (requireConformance) {
+    if (CONFORMANCE_FAIL.has(conformance)) {
+      return hold("conformance table has FAIL rows; route findings back to the worker");
+    }
+    if (!conformance) {
+      return hold("conformance table is not exhibited for the current PR head");
+    }
+    if (state.conformanceHeadSha != null && !shaEquals(state.conformanceHeadSha, currentHead)) {
+      return hold("conformance evidence does not cover the current PR head");
+    }
+    if (conformance !== CONFORMANCE_PASS && tier === "high") {
+      return hold(
+        "high-risk work requires exhibited PASS conformance; unverifiable rows are an intake gap",
+      );
+    }
+  }
+
+  if (independentReviewCount(state) < reviewDepth.independentReviews) {
+    return hold("review depth for this risk tier requires another independent review pass");
+  }
+
+  // The PR is merge-ready; from here only authority decides the route.
+  if (state.productionAction === true || state.humanDecisionPending === true) {
+    return routeHuman("production actions and unresolved human decisions never auto-merge");
+  }
+  const configuredAuthority = normalize(config.mergeAuthority);
+  if (configuredAuthority && !AGENT_MERGE_AUTHORITIES.includes(configuredAuthority)) {
+    return routeHuman("configured merge authority requires human merge");
+  }
+
+  if (!grantedAutoMergeTiers(config).has(tier)) {
+    return routeHuman(`${mode} mode routes ${tier}-risk merges to human authority`);
+  }
+
+  const conformanceNote =
+    requireConformance && conformance !== CONFORMANCE_PASS
+      ? "; conformance not fully verifiable, recorded as intake gap"
+      : "";
+  return {
+    ...base,
+    action: workflowDecisionActions.armAutoMerge,
+    reason: `merge-ready at ${tier} risk in ${mode} mode${conformanceNote}`,
   };
 }
 

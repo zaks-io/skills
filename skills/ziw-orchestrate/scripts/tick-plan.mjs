@@ -180,11 +180,20 @@ const state = {
 };
 
 const pullRequests = mergePrLists(snapshot.prs, state.pullRequests);
+const linearQueried =
+  snapshot.linear != null || state.tickets != null || state.linearIssues != null;
 const linearIssues = extractLinearIssues({
   snapshot,
   state: { tickets: state.tickets ?? state.linearIssues },
 });
 const linearDag = linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null;
+if (linearQueried && (linearDag?.totalIssues ?? 0) === 0) {
+  fail(
+    "Linear queue returned zero live issues. That is either a bug in the query/scope or a drained scope. " +
+      "Do not act on this plan: verify the queue directly with the tracker MCP tools or a fresh tick-snapshot " +
+      "before treating the scope as empty or done.",
+  );
+}
 const linearStartableTickets =
   linearDag?.nodes
     .filter((node) => node.startable)

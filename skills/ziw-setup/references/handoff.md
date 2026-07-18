@@ -3,6 +3,21 @@
 Use this shape when one workflow role leaves work for another role, the user,
 or a future run. Keep it short and factual.
 
+When the handoff escalates to the user, it must also carry a decision request.
+An escalation that hands the user a PR or ticket to go study is invalid; frame
+the decision or keep the work.
+
+```markdown
+## Decision Request
+
+- Question: <one sentence>
+- Options:
+  - <option A>: <tradeoff>
+  - <option B>: <tradeoff>
+- Recommendation: <option and why>
+- Blocks: <what waits on this decision; what proceeds without it>
+```
+
 ```markdown
 ## Handoff
 

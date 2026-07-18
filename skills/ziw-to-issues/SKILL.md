@@ -118,7 +118,7 @@ Give every `kind-slice` ticket the agent-ready body from the issue tracker
 contract:
 
 - outcome
-- context docs
+- context docs, with spec citations when the slice comes from a spec
 - likely files, packages, or artifacts
 - in scope
 - out of scope
@@ -143,6 +143,14 @@ Write them so an implementation worker can tell when to stop:
 If a required field is unknowable from the plan, add the heading, mark the ticket
 `needs-info`, leave the specific question, and do not mark it ready. Do not
 fabricate criteria to make a ticket look ready.
+
+When the slice implements behavior defined in a spec, PRD, or ADR, cite the
+exact sections it implements in context docs as resolvable links, such as
+`docs/specs/<file>.md#<section-anchor>`. Use the section anchor as the
+traceability unit; do not paraphrase spec behavior into the ticket without the
+citation, and do not cite a whole document when specific sections apply. Verify
+each cited anchor resolves. A spec-derived slice without resolvable citations is
+not `ready-for-agent`.
 
 Write acceptance criteria as proof obligations the implementer and reviewer can
 map one-for-one to evidence. If the requirement is structural, such as "derive,
@@ -256,6 +264,27 @@ colliding slices concurrently.
   or packages and the safe fan-out pairs, so Orchestrator does not discover
   obvious collisions only after workers are already in flight.
 
+## Coverage Matrix
+
+When the input is a spec, PRD, or a container that links one, emit a coverage
+matrix so dropped requirements are caught at slicing time instead of surfacing
+as drift after merge.
+
+- Map every spec section that states requirements to exactly one of: the slice
+  IDs that implement it, `deferred` with the reason and owning ticket, or an
+  open question left as `needs-info`.
+- Use the spec's section anchors as rows, the same anchors the slices cite in
+  context docs. Do not invent a separate requirement numbering.
+- Mark sections that state no requirements, such as overviews and narrative
+  context, as `not-applicable` explicitly. An anchor absent from the matrix is
+  an uncovered gap, not an implied skip.
+- Record the matrix on the container ticket body, or in the location repo config
+  names. Re-runs converge on the one existing matrix: update rows in place,
+  never emit a second matrix for the same spec.
+- The run is incomplete while any requirement-bearing section is unmapped.
+  Report unmapped sections as gaps; do not mark the container's slices ready
+  while the matrix has silent holes.
+
 ## Self-Healing
 
 Use model judgment over current evidence to repair stale or inconsistent ticket
@@ -290,5 +319,6 @@ Report:
 - tickets marked `ready-for-agent`, `needs-info`, or `ready-for-human`
 - dependency graph and any cycles or required serializations
 - file footprints recorded and overlaps flagged
+- coverage matrix location, rows mapped, and any uncovered or deferred sections
 - heals applied and intent gaps escalated, with exact questions left
 - what the user must answer before the remaining slices can become ready
