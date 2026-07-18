@@ -203,8 +203,11 @@ record the concrete evidence and a per-row verdict:
 - `UNVERIFIABLE`: the criterion cannot be mapped to observable evidence, because
   it is not stated executably or the evidence is not obtainable in review.
   `UNVERIFIABLE` never passes silently: report it as an intake gap for To Issues
-  or triage, and treat it as blocking on `risk-security-sensitive` and
-  `risk-schema` slices.
+  or triage, and treat it as blocking on high-risk-tier slices
+  (`risk-security-sensitive`, `risk-schema`, `risk-cross-cutting`, and any
+  configured high-risk label). A missing table is never a substitute for
+  `UNVERIFIABLE` rows: the merge gate holds when the table is not exhibited at
+  all.
 
 Prose claims in the PR body, resolved threads, and "Addressed" markers are not
 evidence. When the issue has no acceptance criteria, say so; that is an intake

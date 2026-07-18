@@ -285,6 +285,8 @@ as drift after merge.
   Report unmapped sections as gaps; do not mark the container's slices ready
   while the matrix has silent holes.
 
+## Self-Healing
+
 Use model judgment over current evidence to repair stale or inconsistent ticket
 structure, escalate missing intent or authority, never leave a silent dead end,
 and record every fix. For To Issues specifically:

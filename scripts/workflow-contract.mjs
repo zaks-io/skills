@@ -299,10 +299,40 @@ function requiredChecksPassed(state = {}) {
   );
 }
 
+const AGENT_MERGE_AUTHORITIES = ["agent", "auto", "automated", "orchestrator"];
+
 function humanMergeRequired(state = {}, config = {}) {
   if (state.humanMergeRequired === false) return false;
   const authority = normalize(state.mergeAuthority ?? config.mergeAuthority);
-  return !["agent", "auto", "automated", "orchestrator"].includes(authority);
+  return !AGENT_MERGE_AUTHORITIES.includes(authority);
+}
+
+function mergeReadinessFacts(state = {}) {
+  const prState = normalize(state.prState ?? state.state ?? state.status);
+  const terminal =
+    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
+  return {
+    blockingFindings: Boolean(state.blockingFindings ?? state.changesRequested),
+    checksPassed: requiredChecksPassed(state),
+    draft: Boolean(
+      state.draft === true ||
+      state.isDraft === true ||
+      prState === "draft" ||
+      normalize(state.draftState) === "draft",
+    ),
+    hostedReviewBlocked: Boolean(
+      state.hostedReviewPending ||
+      state.codeRabbitPending ||
+      (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
+      (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
+    ),
+    open: Boolean((state.open ?? !terminal) && !terminal),
+    reviewEvidenceCurrent: currentReviewEvidence(state),
+    scopeMismatch: state.scopeMatches === false || state.diffMatchesScope === false,
+    unresolvedReviewThreads: countEvidence(
+      state.unresolvedReviewThreads ?? state.unresolvedThreads,
+    ),
+  };
 }
 
 export function humanMergePrLabelDecision(state = {}, config = {}) {
@@ -329,46 +359,27 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     state.hasHumanReviewPrLabel ??
     hasNamedLabel(prLabels, label),
   );
-  const prState = normalize(state.prState ?? state.state ?? state.status);
-  const terminal =
-    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
-  const open = state.open ?? !terminal;
-  const draft = Boolean(
-    state.draft === true ||
-    state.isDraft === true ||
-    prState === "draft" ||
-    normalize(state.draftState) === "draft",
-  );
-  const unresolvedReviewThreads = countEvidence(
-    state.unresolvedReviewThreads ?? state.unresolvedThreads,
-  );
-  const blockingFindings = Boolean(state.blockingFindings ?? state.changesRequested);
-  const hostedReviewBlocked = Boolean(
-    state.hostedReviewPending ||
-    state.codeRabbitPending ||
-    (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
-    (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
-  );
+  const facts = mergeReadinessFacts(state);
 
   const invalidReason = !label
     ? "no human-merge PR label is configured"
-    : !open || terminal
+    : !facts.open
       ? "PR is not open"
-      : draft
+      : facts.draft
         ? "draft PRs are pre-review and cannot be marked ready for human merge"
         : !humanMergeRequired(state, config)
           ? "configured merge authority does not require human merge"
-          : !currentReviewEvidence(state)
+          : !facts.reviewEvidenceCurrent
             ? "current PR head lacks clean code review evidence"
-            : !requiredChecksPassed(state)
+            : !facts.checksPassed
               ? "required checks are not confirmed passing"
-              : blockingFindings
+              : facts.blockingFindings
                 ? "blocking findings or changes requested remain"
-                : unresolvedReviewThreads > 0
+                : facts.unresolvedReviewThreads > 0
                   ? "unresolved review threads remain"
-                  : hostedReviewBlocked
+                  : facts.hostedReviewBlocked
                     ? "required hosted review is pending or incomplete"
-                    : state.scopeMatches === false || state.diffMatchesScope === false
+                    : facts.scopeMismatch
                       ? "diff does not match the linked issue scope"
                       : "";
 
@@ -403,9 +414,6 @@ const CONFORMANCE_PASS = "pass";
 const CONFORMANCE_FAIL = new Set(["fail", "failed"]);
 
 export function riskTier(state = {}, config = {}) {
-  const explicit = normalize(state.riskTier ?? state.tier);
-  if (RISK_TIERS.includes(explicit)) return explicit;
-
   const labels = [
     ...toArray(state.labels),
     ...toArray(state.issueLabels),
@@ -414,10 +422,18 @@ export function riskTier(state = {}, config = {}) {
   ];
   const highRiskLabels = valueSet([...DEFAULT_HIGH_RISK_LABELS, ...toArray(config.highRiskLabels)]);
   const lowRiskLabels = valueSet(toArray(config.lowRiskLabels));
+  const hasHighLabel = labels.some((label) => highRiskLabels.has(labelName(label)));
+  const labelTier = hasHighLabel
+    ? "high"
+    : labels.some((label) => lowRiskLabels.has(labelName(label)))
+      ? "low"
+      : "medium";
 
-  if (labels.some((label) => highRiskLabels.has(labelName(label)))) return "high";
-  if (labels.some((label) => lowRiskLabels.has(labelName(label)))) return "low";
-  return "medium";
+  const explicit = normalize(state.riskTier ?? state.tier);
+  if (!RISK_TIERS.includes(explicit)) return labelTier;
+  // High-risk labels are a floor: state-sourced tier fields cannot downgrade them.
+  if (hasHighLabel) return "high";
+  return explicit;
 }
 
 export function reviewDepthRequirement(tier) {
@@ -450,17 +466,17 @@ function independentReviewCount(state = {}) {
   const explicit = state.independentReviewCount ?? state.independentReviews;
   let count = countEvidence(explicit);
   if (count === 0 && currentReviewEvidence(state)) count = 1;
-  const hostedHead = state.hostedReviewHeadSha;
+  // Fail closed: a hosted review counts only when its recorded head SHA
+  // provably matches the current PR head.
   const currentHead = state.currentPrHeadSha ?? state.headSha;
-  const hostedCurrent = hostedHead == null || shaEquals(hostedHead, currentHead);
-  if (state.hostedReviewComplete && hostedCurrent) count += 1;
+  if (state.hostedReviewComplete && shaEquals(state.hostedReviewHeadSha, currentHead)) count += 1;
   return count;
 }
 
 export function mergeEligibilityDecision(state = {}, config = {}) {
   const tier = riskTier(state, config);
-  const mode =
-    normalize(state.deliveryMode ?? config.deliveryMode) === "velocity" ? "velocity" : "production";
+  // Delivery mode is repo policy: config-owned, never read from runtime state.
+  const mode = normalize(config.deliveryMode) === "velocity" ? "velocity" : "production";
   const reviewDepth = reviewDepthRequirement(tier);
   const base = { mode, reviewDepth, tier };
 
@@ -471,46 +487,34 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
     reason,
   });
 
-  const prState = normalize(state.prState ?? state.state ?? state.status);
-  const terminal =
-    state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
-  if (!(state.open ?? !terminal) || terminal) return hold("PR is not open");
-  if (state.draft === true || state.isDraft === true || prState === "draft") {
-    return hold("draft PRs are pre-review and cannot merge");
-  }
-
-  if (state.productionAction === true || state.humanDecisionPending === true) {
-    return routeHuman("production actions and unresolved human decisions never auto-merge");
-  }
-
-  if (!currentReviewEvidence(state))
+  const facts = mergeReadinessFacts(state);
+  if (!facts.open) return hold("PR is not open");
+  if (facts.draft) return hold("draft PRs are pre-review and cannot merge");
+  if (!facts.reviewEvidenceCurrent) {
     return hold("current PR head lacks clean code review evidence");
-  if (!requiredChecksPassed(state)) return hold("required checks are not confirmed passing");
-  if (state.blockingFindings || state.changesRequested) {
-    return hold("blocking findings or changes requested remain");
   }
-  if (countEvidence(state.unresolvedReviewThreads ?? state.unresolvedThreads) > 0) {
-    return hold("unresolved review threads remain");
-  }
-  if (
-    state.hostedReviewPending ||
-    (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped)
-  ) {
-    return hold("required hosted review is pending or incomplete");
-  }
-  if (state.scopeMatches === false || state.diffMatchesScope === false) {
-    return hold("diff does not match the linked issue scope");
-  }
+  if (!facts.checksPassed) return hold("required checks are not confirmed passing");
+  if (facts.blockingFindings) return hold("blocking findings or changes requested remain");
+  if (facts.unresolvedReviewThreads > 0) return hold("unresolved review threads remain");
+  if (facts.hostedReviewBlocked) return hold("required hosted review is pending or incomplete");
+  if (facts.scopeMismatch) return hold("diff does not match the linked issue scope");
 
   const conformance = normalize(state.conformance ?? state.conformanceVerdict);
   const requireConformance = config.requireConformanceEvidence !== false;
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
   if (requireConformance) {
     if (CONFORMANCE_FAIL.has(conformance)) {
       return hold("conformance table has FAIL rows; route findings back to the worker");
     }
+    if (!conformance) {
+      return hold("conformance table is not exhibited for the current PR head");
+    }
+    if (state.conformanceHeadSha != null && !shaEquals(state.conformanceHeadSha, currentHead)) {
+      return hold("conformance evidence does not cover the current PR head");
+    }
     if (conformance !== CONFORMANCE_PASS && tier === "high") {
       return hold(
-        "high-risk work requires exhibited PASS conformance; unverifiable or missing rows are an intake gap",
+        "high-risk work requires exhibited PASS conformance; unverifiable rows are an intake gap",
       );
     }
   }
@@ -519,8 +523,17 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
     return hold("review depth for this risk tier requires another independent review pass");
   }
 
+  // The PR is merge-ready; from here only authority decides the route.
+  if (state.productionAction === true || state.humanDecisionPending === true) {
+    return routeHuman("production actions and unresolved human decisions never auto-merge");
+  }
+  const configuredAuthority = normalize(config.mergeAuthority);
+  if (configuredAuthority && !AGENT_MERGE_AUTHORITIES.includes(configuredAuthority)) {
+    return routeHuman("configured merge authority requires human merge");
+  }
+
   const grantedTiers = valueSet(
-    toArray(config.autoMergeRiskTiers).length > 0
+    config.autoMergeRiskTiers != null
       ? config.autoMergeRiskTiers
       : mode === "velocity"
         ? RISK_TIERS
