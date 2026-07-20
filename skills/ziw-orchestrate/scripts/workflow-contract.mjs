@@ -42,6 +42,8 @@ const toArray = (value) => {
   return Array.isArray(value) ? value : [value];
 };
 
+const firstDefined = (...values) => values.find((value) => value != null);
+
 const normalize = (value) =>
   String(value ?? "")
     .trim()
@@ -163,9 +165,11 @@ export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
     options.requestedLinearBacklogReview ?? config.requestedLinearBacklogReview,
   );
   const implementationReady = Boolean(
-    ticket?.implementationReady ??
-    ticket?.readyForImplementation ??
-    (isKindSlice(ticket) && hasImplementationReadyLabel(ticket, config)),
+    firstDefined(
+      ticket?.implementationReady,
+      ticket?.readyForImplementation,
+      isKindSlice(ticket) && hasImplementationReadyLabel(ticket, config),
+    ),
   );
 
   if (!implementationReady) {
@@ -273,15 +277,17 @@ function currentReviewEvidence(state = {}) {
     normalize(state.reviewVerdict ?? state.codeReviewVerdict),
   );
   const hasEvidence = Boolean(
-    state.reviewEvidenceCurrent ??
-    state.hasReviewEvidence ??
-    state.reviewEvidenceLabel ??
-    state.evidenceLabel,
+    firstDefined(
+      state.reviewEvidenceCurrent,
+      state.hasReviewEvidence,
+      state.reviewEvidenceLabel,
+      state.evidenceLabel,
+    ),
   );
 
-  return Boolean(
+  return (
     state.reviewEvidenceCurrent === true ||
-    (hasEvidence && cleanVerdict && shaEquals(reviewedHead, currentHead)),
+    (hasEvidence && cleanVerdict && shaEquals(reviewedHead, currentHead))
   );
 }
 
@@ -293,11 +299,13 @@ function countEvidence(value) {
 
 function requiredChecksPassed(state = {}) {
   return Boolean(
-    state.requiredChecksPassed ??
-    state.requiredChecksGreen ??
-    state.checksPassing ??
-    state.checksGreen ??
-    state.ciGreen,
+    firstDefined(
+      state.requiredChecksPassed,
+      state.requiredChecksGreen,
+      state.checksPassing,
+      state.checksGreen,
+      state.ciGreen,
+    ),
   );
 }
 
@@ -333,17 +341,20 @@ function mergeReadinessFacts(state = {}) {
   return {
     blockingFindings: Boolean(state.blockingFindings) || Boolean(state.changesRequested),
     checksPassed: requiredChecksPassed(state),
-    draft: Boolean(
+    draft:
       state.draft === true ||
       state.isDraft === true ||
       prState === "draft" ||
       normalize(state.draftState) === "draft",
-    ),
     hostedReviewBlocked: Boolean(
-      state.hostedReviewPending ||
-      state.codeRabbitPending ||
-      (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
-      (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
+      firstDefined(
+        state.hostedReviewPending || undefined,
+        state.codeRabbitPending || undefined,
+        state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped
+          ? true
+          : undefined,
+        state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped,
+      ),
     ),
     open: Boolean((state.open ?? !terminal) && !terminal),
     reviewEvidenceCurrent: currentReviewEvidence(state),
@@ -372,11 +383,13 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     ...toArray(state.labels),
   ];
   const labelApplied = Boolean(
-    state.humanMergePrLabelApplied ??
-    state.humanReviewPrLabelApplied ??
-    state.hasHumanMergePrLabel ??
-    state.hasHumanReviewPrLabel ??
-    hasNamedLabel(prLabels, label),
+    firstDefined(
+      state.humanMergePrLabelApplied,
+      state.humanReviewPrLabelApplied,
+      state.hasHumanMergePrLabel,
+      state.hasHumanReviewPrLabel,
+      hasNamedLabel(prLabels, label),
+    ),
   );
   const facts = mergeReadinessFacts(state);
 
