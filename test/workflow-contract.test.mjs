@@ -518,6 +518,22 @@ test("CodeRabbit waits when hosted review is already pending for the PR head", (
   );
 });
 
+test("current hosted review evidence wins when auto-review mode is unknown", () => {
+  assert.deepEqual(
+    codeRabbitEscalationDecision({
+      recommended: true,
+      prExists: true,
+      currentPrHeadSha: "abc123",
+      hostedReviewHeadSha: "ABC123",
+      hostedReviewComplete: true,
+    }),
+    {
+      action: workflowDecisionActions.hostedReviewComplete,
+      reason: "hosted review already covers the current PR head",
+    },
+  );
+});
+
 test("CodeRabbit command is blocked until auto-review mode is resolved", () => {
   assert.deepEqual(
     codeRabbitEscalationDecision({

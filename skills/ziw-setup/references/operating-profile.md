@@ -147,8 +147,7 @@ Delivery modes:
 head and no `FAIL` rows,
 required CI checks pass, no unresolved blocking review comments, PR non-draft and
 ready-for-review, the configured review evidence label current for the PR head,
-and required hosted bot review escalation complete or recorded as skipped by
-policy.
+and the required hosted-bot review complete or recorded as skipped by policy.
 
 Rules that do not change with tier or delivery mode:
 

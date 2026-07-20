@@ -115,6 +115,28 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
   assert.deepEqual(snapshot.issues[0].footprint, ["apps/api/src/index.ts"]);
 });
 
+test("loadLinearSnapshot ignores canceled blockers", async () => {
+  const request = async (input) => {
+    if (input.query.includes("teams(first")) {
+      return {
+        data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } },
+      };
+    }
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [issue({ identifier: "SPL-1", blockedBy: "SPL-2", blockerState: "canceled" })],
+        },
+      },
+    };
+  };
+
+  const snapshot = await loadLinearSnapshot({ request, selector: "SPL", states: ["Todo"] });
+
+  assert.deepEqual(snapshot.issues[0].blockedBy, []);
+});
+
 test("selectScopedLinearIssues does not silently expand beyond direct blockers", () => {
   const issues = [
     { identifier: "SPL-1", state: "Todo", blockedBy: ["SPL-2"] },
@@ -170,7 +192,13 @@ function normalizedIssue({ identifier, labels = [], stateType = "unstarted", ass
   return { identifier, labels, stateType, assignee };
 }
 
-function issue({ identifier, state = "Todo", description = "", blockedBy }) {
+function issue({
+  identifier,
+  state = "Todo",
+  description = "",
+  blockedBy,
+  blockerState = "started",
+}) {
   return {
     identifier,
     title: identifier,
@@ -188,7 +216,7 @@ function issue({ identifier, state = "Todo", description = "", blockedBy }) {
     inverseRelations: {
       pageInfo: { hasNextPage: false },
       nodes: blockedBy
-        ? [{ type: "blocks", issue: { identifier: blockedBy, state: { type: "started" } } }]
+        ? [{ type: "blocks", issue: { identifier: blockedBy, state: { type: blockerState } } }]
         : [],
     },
   };

@@ -147,7 +147,7 @@ pass, no known blocker remains, and the user did not ask to keep it draft.
 Refresh the code-host PR state afterward and verify it is non-draft. If
 hosted bot review `PR REVIEW` is recommended for a high-risk or complex open
 PR, report that post-PR escalation in the handoff; do not use draft state as a
-holding pen after local review is clean.
+holding pen after author QA is clean.
 
 If the user or repo config requires a draft PR, report the PR as a draft
 pre-review handoff. Do not call it ready-for-review until it is marked non-draft

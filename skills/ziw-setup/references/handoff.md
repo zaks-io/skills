@@ -14,6 +14,7 @@ the decision or keep the work.
 - Options:
   - <option A>: <tradeoff>
   - <option B>: <tradeoff>
+  - <option C, when it adds a distinct useful choice>: <tradeoff>
 - Recommendation: <option and why>
 - Blocks: <what waits on this decision; what proceeds without it>
 ```

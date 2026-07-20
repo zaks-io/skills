@@ -830,13 +830,6 @@ export function hostedReviewEscalationDecision(state = {}, config = {}) {
     };
   }
 
-  if (hasPr && requiresAutoReviewResolution && !autoReviewKnown) {
-    return {
-      action: workflowDecisionActions.resolveAutoReviewState,
-      reason: `resolve ${provider} auto-review mode before posting review commands`,
-    };
-  }
-
   if (state.hostedReviewComplete && hostedCoversHead) {
     return {
       action: workflowDecisionActions.hostedReviewComplete,
@@ -848,6 +841,13 @@ export function hostedReviewEscalationDecision(state = {}, config = {}) {
     return {
       action: workflowDecisionActions.hostedReviewPending,
       reason: "hosted review is already pending for the current PR head",
+    };
+  }
+
+  if (hasPr && requiresAutoReviewResolution && !autoReviewKnown) {
+    return {
+      action: workflowDecisionActions.resolveAutoReviewState,
+      reason: `resolve ${provider} auto-review mode before posting review commands`,
     };
   }
 

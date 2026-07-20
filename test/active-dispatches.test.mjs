@@ -102,6 +102,28 @@ test("unknown worktree merge state consumes capacity conservatively", () => {
   );
 });
 
+test("detached worktrees are not mistaken for a missing baseline branch", () => {
+  const dispatches = deriveActiveDispatches({
+    snapshot: {
+      baseline: { branch: null },
+      worktrees: [
+        {
+          path: "/tmp/detached-work",
+          branch: null,
+          headSha: "abc123",
+          dirty: null,
+          mergedIntoBaseline: null,
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(
+    dispatches.map(({ id, source }) => ({ id, source })),
+    [{ id: "/tmp/detached-work", source: "local-worktree-unmerged" }],
+  );
+});
+
 test("merged PR evidence matches exact heads without hiding a reused branch", () => {
   const mergedPullRequests = [{ headRefName: "main-6-work", headSha: "merged-head" }];
 

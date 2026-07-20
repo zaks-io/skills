@@ -196,7 +196,7 @@ export function reconcileActiveDelivery({ snapshot = {}, state = {}, pullRequest
   );
   for (const worktree of worktrees) {
     if (
-      normalize(worktree.branch) === normalize(snapshot.baseline?.branch) ||
+      (worktree.branch && normalize(worktree.branch) === normalize(snapshot.baseline?.branch)) ||
       !isUnmergedWorktree(worktree)
     ) {
       continue;

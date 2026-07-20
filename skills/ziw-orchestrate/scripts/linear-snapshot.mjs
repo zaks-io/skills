@@ -103,7 +103,9 @@ export function normalizeLinearIssue(issue) {
     footprint: extractLinearFootprint(issue.description),
     blockedBy: (issue.inverseRelations?.nodes ?? [])
       .filter(
-        (relation) => relation.type === "blocks" && relation.issue?.state?.type !== "completed",
+        (relation) =>
+          relation.type === "blocks" &&
+          !["completed", "canceled"].includes(relation.issue?.state?.type),
       )
       .map((relation) => relation.issue.identifier),
     updatedAt: issue.updatedAt,
