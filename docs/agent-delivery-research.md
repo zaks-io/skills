@@ -91,7 +91,7 @@ across downstream repos.
 ### Executable Workflow Contract
 
 Workflow rules that are easy to regress should not live only in prose. Keep pure
-decision logic in `scripts/workflow-contract.mjs` and cover it with `node --test`
+decision logic in `skills/ziw-orchestrate/scripts/workflow-contract.mjs` and cover it with `node --test`
 tests. Good candidates are queue exclusion, review-evidence freshness, active
 delivery footprint counting, capacity behavior, and untrusted instruction
 classification. Provider API calls and mutations stay in the skills and setup
@@ -167,7 +167,8 @@ Each orchestrator run should produce enough data to answer:
 - `docs/agent-delivery-research.md` records why the contract looks this way.
 - `docs/skill-portfolio.md` records the public skill surface and trim
   rationale.
-- `scripts/workflow-contract.mjs` and `test/workflow-contract.test.mjs` hold
+- `skills/ziw-orchestrate/scripts/workflow-contract.mjs` and
+  `test/workflow-contract.test.mjs` hold
   executable checks for brittle workflow decisions.
 - `skills/ziw-setup/references/*` must mirror the contract because setup
   uses those files to generate downstream repo config.

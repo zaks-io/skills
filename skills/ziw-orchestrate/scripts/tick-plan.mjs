@@ -29,7 +29,7 @@ import {
   humanMergePrLabelDecision,
   readyStatePromotionDecision,
   reviewEvidenceDecision,
-} from "../../../scripts/workflow-contract.mjs";
+} from "./workflow-contract.mjs";
 
 const args = process.argv.slice(2);
 const usage =

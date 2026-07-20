@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +14,26 @@ function runPlan(input) {
   writeFileSync(file, JSON.stringify(input), "utf8");
   return JSON.parse(execFileSync("node", [script, file], { encoding: "utf8" }));
 }
+
+test("published tick-plan is self-contained", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ziw-published-plan-"));
+  try {
+    const publishedSkill = path.join(dir, "ziw-orchestrate");
+    cpSync(path.join(root, "skills", "ziw-orchestrate"), publishedSkill, { recursive: true });
+    const input = path.join(dir, "input.json");
+    writeFileSync(input, JSON.stringify({ snapshot: { repo: "zaks-io/example", prs: [] } }));
+
+    const output = JSON.parse(
+      execFileSync("node", [path.join(publishedSkill, "scripts", "tick-plan.mjs"), input], {
+        encoding: "utf8",
+      }),
+    );
+
+    assert.equal(output.footprint.prs, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("tick-plan counts draft PRs before dispatching", () => {
   const output = runPlan({

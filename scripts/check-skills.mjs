@@ -33,7 +33,13 @@ const readmeFile = path.join(root, "README.md");
 const agentWorkflowFile = path.join(docsDir, "agent-workflow.md");
 const researchFile = path.join(docsDir, "agent-delivery-research.md");
 const skillPortfolioFile = path.join(docsDir, "skill-portfolio.md");
-const workflowContractFile = path.join(root, "scripts", "workflow-contract.mjs");
+const workflowContractFile = path.join(
+  root,
+  "skills",
+  "ziw-orchestrate",
+  "scripts",
+  "workflow-contract.mjs",
+);
 const workflowContractTestFile = path.join(root, "test", "workflow-contract.test.mjs");
 const skillLineLimit = 500;
 const skillWordLimit = 5_000;

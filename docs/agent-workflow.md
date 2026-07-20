@@ -94,7 +94,7 @@ aggregation.
 
 ## Executable Contract
 
-`scripts/workflow-contract.mjs` holds pure decision helpers for brittle workflow
+`skills/ziw-orchestrate/scripts/workflow-contract.mjs` holds pure decision helpers for brittle workflow
 rules that should not stay as prose only: Done-ticket readiness exclusion,
 review-evidence freshness, active PR/preview footprint counting, capacity
 behavior, dispatch collision checks, hosted-review routing, human-merge PR label
