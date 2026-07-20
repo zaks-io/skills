@@ -14,8 +14,8 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   unambiguous tracker mistakes, logs friction, owns the authority to mutate
   active workflow status in the configured issue tracker, performs only
   configured merge actions, and stops on human blockers.
-- Agent Implement: owns one delegated issue through implementation, code review,
-  iteration, PR creation, and handoff.
+- Agent Implement: owns one delegated issue through implementation, required
+  checks, judgment-based author QA, PR creation, and independent-review handoff.
 - Agent Review: a step the orchestrator calls. Reviews latest committed PR heads
   from a clean subagent or disposable worktree using `ziw-code-review`; also
   reviews main-branch drift from its checkpoint, reports freshness, verdicts, and
@@ -70,8 +70,10 @@ domain behavior, and performance work without benchmarks.
 4. Agent Orchestrator claims the issue and delegates implementation using a
    supported worker path.
 5. The implementation worker accepts the issue, implements the scoped change,
-   runs checks, self-reviews with code review, fixes blocking findings, and opens
-   its own PR via `ziw-pr`.
+   runs required checks, uses best judgment on whether author QA adds value,
+   fixes known blockers, opens its own PR via `ziw-pr`, and hands it back without
+   applying review evidence or merge-ready state. A new commit alone does not
+   require another author-QA pass.
 6. Agent Orchestrator calls Agent Review as a step.
 7. Agent Review fetches latest state, runs `ziw-code-review` in a clean context
    against current committed code, and reports freshness, findings, hosted bot
@@ -99,12 +101,14 @@ domain behavior, and performance work without benchmarks.
   expected, backoff across consecutive quiet ticks, reset on new signal.
 - The active PR/preview cap protects delivery capacity, not worker count. Open
   PRs, active PR-scoped previews, and implementation dispatches that have not yet
-  produced a PR consume capacity. When the cap is full, Orchestrator advances,
-  merges, routes fixes, cleans up previews, or escalates existing PRs/previews
-  before dispatching new work. It closes PRs only when refreshed code-host and
-  tracker evidence satisfies the PR closure guard; draft or in-progress PRs are
-  never closed just to make room. Age, draft status, and capacity pressure are
-  not abandonment evidence.
+  produced a PR consume capacity. Missing dispatches are synthesized from
+  repo-scoped active tracker claims and dirty, baseline-unmerged, or uncertain
+  non-default worktrees, then deduplicated against open PRs. When the cap is
+  full, Orchestrator advances, merges, routes fixes, cleans up previews, or
+  escalates existing PRs/previews before dispatching new work. It closes PRs
+  only when refreshed code-host and tracker evidence satisfies the PR closure
+  guard; draft or in-progress PRs are never closed just to make room. Age, draft
+  status, and capacity pressure are not abandonment evidence.
 - Capacity headroom is still gated by file footprint. Before fanning out
   startable work, Orchestrator compares predicted file or package footprints
   against active PRs, active worker branches, and selected candidates. It holds
@@ -339,7 +343,8 @@ thresholds, cache policy, generated-artifact checks, and secret-scan range.
 It also checks the diff against the linked issue's scope boundary before handoff.
 When invoked directly for one ticket, Agent Implement can run single-ticket
 orchestration for that ticket only if config or the user grants mutation
-authority.
+authority. That authority does not include applying or clearing review-evidence
+labels, moving the ticket to `Ready to Merge`, or applying merge-ready PR labels.
 Orchestrator diagnoses stuck draft PRs without treating draft state as a review
 request, repairs blockers, verifies the code-host PR is non-draft, and applies or
 removes the configured review evidence label based on current PR head SHA

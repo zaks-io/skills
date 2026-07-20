@@ -5,6 +5,7 @@ import {
   extractLinearFootprint,
   loadLinearSnapshot,
   resolveLinearTeam,
+  selectActiveLinearIssues,
   selectScopedLinearIssues,
 } from "../skills/ziw-orchestrate/scripts/linear-snapshot.mjs";
 
@@ -107,6 +108,10 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
     snapshot.issues.map((item) => item.identifier),
     ["SPL-1", "SPL-2"],
   );
+  assert.deepEqual(
+    snapshot.activeIssues.map((item) => item.identifier),
+    ["SPL-2"],
+  );
   assert.deepEqual(snapshot.issues[0].footprint, ["apps/api/src/index.ts"]);
 });
 
@@ -123,6 +128,48 @@ test("selectScopedLinearIssues does not silently expand beyond direct blockers",
   );
 });
 
+test("selectActiveLinearIssues scopes active claims to the repo route label", () => {
+  const issues = [
+    normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/splitch"], stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-2", labels: ["zaks-io/other"], stateType: "started" }),
+    normalizedIssue({
+      identifier: "SPL-3",
+      labels: ["zaks-io/splitch"],
+      stateType: "unstarted",
+      assignee: "Isaac",
+    }),
+  ];
+
+  assert.deepEqual(
+    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
+    ["SPL-1", "SPL-3"],
+  );
+});
+
+test("selectActiveLinearIssues falls back to team scope when route labels are unused", () => {
+  const issues = [
+    normalizedIssue({ identifier: "SPL-1", labels: ["kind-slice"], stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-2", labels: ["kind-slice"], assignee: "Isaac" }),
+  ];
+
+  assert.deepEqual(
+    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
+    ["SPL-1", "SPL-2"],
+  );
+});
+
+test("selectActiveLinearIssues returns no cross-repo claims when only another route is active", () => {
+  const issues = [
+    normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/other"], stateType: "started" }),
+  ];
+
+  assert.deepEqual(selectActiveLinearIssues(issues, "zaks-io/splitch"), []);
+});
+
+function normalizedIssue({ identifier, labels = [], stateType = "unstarted", assignee = null }) {
+  return { identifier, labels, stateType, assignee };
+}
+
 function issue({ identifier, state = "Todo", description = "", blockedBy }) {
   return {
     identifier,
@@ -132,7 +179,10 @@ function issue({ identifier, state = "Todo", description = "", blockedBy }) {
     priority: 0,
     estimate: 1,
     updatedAt: "2026-07-17T00:00:00.000Z",
-    state: { name: state, type: state === "Todo" ? "unstarted" : "started" },
+    state: {
+      name: state,
+      type: ["Todo", "Backlog", "Triage"].includes(state) ? "unstarted" : "started",
+    },
     labels: { nodes: [{ name: "kind-slice" }, { name: "ready-for-agent" }] },
     assignee: null,
     inverseRelations: {

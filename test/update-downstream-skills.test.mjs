@@ -258,3 +258,30 @@ function ziwLockfile() {
 function git(cwd, ...args) {
   execFileSync("git", args, { cwd, stdio: "ignore" });
 }
+
+test("buildTargets collapses linked worktrees onto the primary checkout", () => {
+  const root = tempDir();
+  try {
+    const repo = path.join(root, "repo");
+    mkdirSync(repo, { recursive: true });
+    writeJson(path.join(repo, "skills-lock.json"), ziwLockfile());
+    git(repo, "init", "-b", "main");
+    git(repo, "add", "skills-lock.json");
+    git(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init");
+    const linked = path.join(root, "repo-worktrees", "wt-1");
+    mkdirSync(path.dirname(linked), { recursive: true });
+    git(repo, "worktree", "add", "-b", "wt-1", linked);
+
+    const targets = buildTargets({
+      maxDepth: 3,
+      repos: [],
+      root,
+      source: "zaks-io/skills",
+    });
+
+    assert.equal(targets.length, 1);
+    assert.equal(path.basename(targets[0].repoRoot), "repo");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

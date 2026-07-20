@@ -1,6 +1,6 @@
 ---
 name: ziw-pr
-description: Use when opening, refreshing, or shipping the current branch as a pull request with local checks, code review, Conventional Commits, PR creation, and issue tracking.
+description: Use when opening, refreshing, or shipping the current branch as a pull request with local checks, judgment-based author QA, Conventional Commits, PR creation, and issue tracking.
 argument-hint: "[issue-id|branch|pr-url]"
 disable-model-invocation: true
 ---
@@ -100,11 +100,16 @@ rerun. Never use `--no-verify`.
 
 ## Code Review
 
-Before committing, check whether a fresh `ziw-code-review` artifact already
-covers the current diff. If no review has run, or the diff changed since the
-review, run `ziw-code-review`. Fix P0/P1 findings and obvious mechanical
-P2 findings. Ask before broad architecture, product, security, or data-behavior
-changes.
+Before committing, decide whether author QA would materially improve confidence.
+Use a fresh `ziw-code-review` for high-risk, broad, unfamiliar, weakly tested, or
+ambiguous changes, or when explicitly requested. Reuse current author-QA
+evidence when it still applies. Skip author QA for low-risk, mechanical,
+well-covered changes when required checks provide enough evidence. A changed
+diff or new commit alone is not a reason to run or repeat author QA, and Create
+PR must not duplicate Agent Implement's judgment without a concrete risk signal.
+If review runs, fix P0/P1 findings and obvious mechanical P2 findings. Ask before
+broad architecture, product, security, or data-behavior changes. When Create PR
+runs inside Agent Implement, this is author QA, not independent review evidence.
 
 Use the configured hosted bot review provider per the merge-safety rules in
 [../ziw-setup/references/operating-profile.md](../ziw-setup/references/operating-profile.md)
@@ -137,9 +142,9 @@ auth, rate limits, or credits are a recorded skip, not a blocker.
 Create or update a ready-for-review PR unless the user asked for draft or a
 required review gate has not passed. Ready-for-review means non-draft.
 
-If an existing PR is draft, mark it ready-for-review when the current diff has a
-clean code review, required local checks pass, and the user did not ask to keep
-it draft. Refresh the code-host PR state afterward and verify it is non-draft. If
+If an existing PR is draft, mark it ready-for-review when required local checks
+pass, no known blocker remains, and the user did not ask to keep it draft.
+Refresh the code-host PR state afterward and verify it is non-draft. If
 hosted bot review `PR REVIEW` is recommended for a high-risk or complex open
 PR, report that post-PR escalation in the handoff; do not use draft state as a
 holding pen after local review is clean.
@@ -196,13 +201,17 @@ When an issue exists:
 - when the repo uses Linear + GitHub and the PR is linked to the ticket, assume
   the integration sync is active and may advance Linear state from PR status; do
   not duplicate manual state changes unless config delegates that authority
-- comment with checks run, code review verdict, hosted bot review decision,
+- comment with checks run, author-QA decision or verdict, hosted bot review decision,
   PR draft or ready-for-review state, current PR head SHA, base SHA, merge base,
-  configured review evidence label recommendation with reviewed head SHA,
-  configured code-host human-merge PR label eligibility or blocker,
+  independent-review request or current independently reviewed head evidence,
   acceptance criteria status, scope-boundary status, hosted check state, and
   differences from original intent
 - never move to `Done`; merge is not complete
+
+Create PR does not own approval state. Author QA is not independent review
+evidence. Do not apply or clear review-evidence labels, move the issue to
+`Ready to Merge`, or apply merge-ready PR labels. Agent Review produces review
+evidence; Agent Orchestrator owns those tracker and PR mutations.
 
 Do not move workflow state unless the repo config or user explicitly delegates
 that authority to Create PR.
@@ -216,7 +225,7 @@ PR:     <url>
 Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
-Review: local <verdict>; hosted bot <provider skipped|CLI|PR review|auto pending|unresolved>
+Review: author QA <skipped with reason|verdict>; hosted bot <provider skipped|CLI|PR review|auto pending|unresolved>
 Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
 PR state: <draft|ready-for-review>
 Scope: <matches issue|split needed|untracked, with reason>

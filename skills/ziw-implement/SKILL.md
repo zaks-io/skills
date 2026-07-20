@@ -1,6 +1,6 @@
 ---
 name: ziw-implement
-description: Use for implementation when taking one tracker issue through the full implementation pipeline by claiming the issue, making scoped changes locally or remotely, verifying, running ziw-code-review, iterating until PR-ready, running ziw-pr, and updating issue tracking.
+description: Use for implementation when taking one tracker issue through the full implementation pipeline by claiming the issue, making scoped changes locally or remotely, verifying, using judgment about author QA, running ziw-pr, and handing off for independent review.
 argument-hint: "[issue-id-or-url]"
 disable-model-invocation: true
 ---
@@ -72,10 +72,12 @@ When starting:
 If invoked directly by the user for one issue, treat that as single-ticket
 orchestration authority for that issue unless the user says code-only or config
 forbids mutation. Move only that ticket through the configured states as evidence
-allows: claim or mark `In Progress`, create or update the PR, mark review state,
-and mark `Done` only after the merge, post-merge check, and full-scope
-verification are complete. Do not expand to other tickets. If authority is
-missing, report the exact transition Agent Orchestrator must perform.
+allows: claim or mark `In Progress`, create or update the PR, and request the
+configured review state. Implementation authority never includes independent
+review evidence or merge-ready transitions. Mark `Done` only after the merge,
+post-merge check, and full-scope verification are complete. Do not expand to
+other tickets. If authority is missing, report the exact transition Agent
+Orchestrator must perform.
 
 Stop on missing product, security, credential, provider, ADR, customer, or
 production approval decisions.
@@ -105,18 +107,22 @@ stop for triage instead of choosing a broader interpretation.
 
 ## Implementation Pipeline
 
-Treat implementation, code review, and PR creation as one pipeline:
+Treat implementation, verification, and PR creation as one pipeline:
 
 1. Implement the scoped change.
 2. Run focused checks while iterating.
 3. Run the issue's required checks.
-4. Run `ziw-code-review`.
-5. Fix blocking findings and rerun relevant checks.
-6. Repeat code review until the verdict is `READY FOR PR`, or stop on a
-   blocker that needs human input.
-7. Run `ziw-pr` to commit, push, create or update the PR, and update
-   the issue tracker. Tell Create PR whether the latest code review covers the
-   current diff and whether any hosted bot review escalation remains.
+4. Decide whether author QA would materially improve confidence. Use
+   `ziw-code-review` for high-risk, broad, unfamiliar, weakly tested, or
+   ambiguous changes, or when explicitly requested. Skip it for low-risk,
+   mechanical, well-covered changes when the required checks provide enough
+   evidence.
+5. If author QA runs, fix blocking findings and rerun relevant checks. Do not
+   automatically repeat review after every fix or commit; use judgment about
+   whether another pass would add evidence.
+6. Run `ziw-pr` to commit, push, create or update the PR, and update the issue
+   tracker. Tell Create PR whether author QA ran or was skipped, why, whether
+   any result covers the current diff, and whether hosted bot escalation remains.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.
@@ -183,13 +189,20 @@ config refresh instead of inventing placeholders.
 
 ## Review And PR
 
-Use `ziw-code-review` as the implementation quality gate. Then use
-`ziw-pr` as the shipping gate. `ziw-pr` may rerun code
-review, but Agent Implement should still run it before PR creation so review
-feedback is handled while the implementation context is fresh.
+Required checks are the implementation quality gate. Author QA is a
+judgment-based diagnostic, not a mandatory ceremony. Run `ziw-code-review` only
+when risk, uncertainty, scope, test evidence, or an explicit request makes it
+worthwhile. `ziw-pr` must not rerun it merely because a commit changed. Author
+QA is not independent review evidence. Only a separately dispatched Agent
+Review may produce the reviewed-head verdict that Agent Orchestrator uses for
+tracker review evidence and merge readiness.
 
-Do not leave the PR in draft after checks and code review pass unless the user
-or repo config explicitly asks for a draft handoff. If a draft handoff remains,
+Do not apply or clear review-evidence labels, move the issue to `Ready to Merge`,
+or apply merge-ready PR labels. End at a non-draft PR ready for independent
+review and return tracker control to Agent Orchestrator.
+
+Do not leave the PR in draft after required checks pass and no known blocker
+remains unless the user or repo config explicitly asks for a draft handoff. If a draft handoff remains,
 report it as pre-review and state exactly what must happen before Agent
 Orchestrator can mark it ready-for-review. Ready-for-review means non-draft.
 
@@ -221,12 +234,12 @@ Report:
 - scope audit: assigned issue satisfied, out-of-scope work avoided, and
   follow-up issues created or recommended
 - checks run and result
-- code review verdict
-- whether code review covers the current diff
+- author-QA decision: skipped with reason, or verdict
+- whether any author QA covers the current diff
 - PR head SHA, base SHA, and merge base used for the final checks and review
 - PR draft or ready-for-review state
-- configured review evidence label recommendation with reviewed head SHA
-- configured code-host human-merge PR label eligibility or blocker
+- independent review requested or pending; no implementer-created review evidence
+- tracker handoff requested, usually `In Review`, for Agent Orchestrator
 - hosted bot review decision or remaining escalation
 - tracker comments and status handoff
 - blockers or follow-up issues

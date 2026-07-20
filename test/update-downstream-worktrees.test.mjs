@@ -206,6 +206,9 @@ function worktreeOptions(root, overrides) {
 function addBareOrigin(root, repo) {
   const remote = path.join(root, "remote.git");
   git(root, "init", "--bare", remote);
+  // Point the bare remote's HEAD at main so clones check out main regardless
+  // of the host's init.defaultBranch.
+  git(remote, "symbolic-ref", "HEAD", "refs/heads/main");
   git(repo, "remote", "add", "origin", remote);
   git(repo, "push", "-u", "origin", "main");
 }
@@ -276,3 +279,88 @@ function installFakeGh(bin, url) {
   );
   chmodSync(executable, 0o755);
 }
+
+test("updateTargets branches from origin/main when local main is stale", () => {
+  const root = tempDir();
+  const otherRoot = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+
+    const other = path.join(otherRoot, "other");
+    git(otherRoot, "clone", path.join(root, "remote.git"), other);
+    git(other, "config", "user.name", "Test");
+    git(other, "config", "user.email", "test@example.com");
+    writeFileSync(path.join(other, "upstream.txt"), "upstream\n");
+    git(other, "add", "upstream.txt");
+    git(other, "commit", "-m", "upstream change");
+    git(other, "push", "origin", "main");
+
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const result = updateTargets(worktreeOptions(root, { commit: true }))[0];
+
+    assert.equal(result.status, "committed");
+    assert.equal(result.baseRef, "origin/main");
+    assert.equal(gitOutput(repo, "show", `${result.branchName}:upstream.txt`), "upstream");
+    assert.equal(gitOutput(repo, "show", `${result.branchName}:generated-skill.txt`), "generated");
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+    rmSync(otherRoot, { recursive: true, force: true });
+  }
+});
+
+test("updateTargets fails closed when origin/main cannot be refreshed", () => {
+  const root = tempDir();
+  try {
+    const repo = createConsumerRepo(root);
+    git(repo, "remote", "add", "origin", path.join(root, "missing-origin.git"));
+
+    const result = updateTargets(worktreeOptions(root, { commit: true }))[0];
+
+    assert.equal(result.status, "worktree-failed");
+    assert.match(result.error, /Cannot refresh origin\/main/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("updateTargets brings reused daily branches up to fresh origin/main", () => {
+  const root = tempDir();
+  const otherRoot = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+    const options = worktreeOptions(root, { commit: true });
+
+    const first = updateTargets(options)[0];
+    assert.equal(first.status, "committed");
+
+    const other = path.join(otherRoot, "other");
+    git(otherRoot, "clone", path.join(root, "remote.git"), other);
+    git(other, "config", "user.name", "Test");
+    git(other, "config", "user.email", "test@example.com");
+    writeFileSync(path.join(other, "upstream.txt"), "upstream\n");
+    git(other, "add", "upstream.txt");
+    git(other, "commit", "-m", "upstream change");
+    git(other, "push", "origin", "main");
+
+    const second = updateTargets(options)[0];
+
+    assert.equal(second.status, "committed");
+    assert.equal(second.reusedBranch, true);
+    assert.equal(gitOutput(repo, "show", `${second.branchName}:upstream.txt`), "upstream");
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+    rmSync(otherRoot, { recursive: true, force: true });
+  }
+});

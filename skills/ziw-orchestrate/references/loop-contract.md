@@ -79,10 +79,15 @@ Each tick:
    tooling for issue bodies and comments. Delegate the inventory read to an
    isolated triage worker when the runtime has one; keep only the compact queue
    (ID, state, readiness, blockers, PR, owner, next action) in the main context.
-3. Reconcile the ledger against refreshed tracker and PR state. Trust external
-   state; drop stale ledger entries; re-dispatch or escalate stuck workers.
+3. Reconcile the ledger against refreshed tracker, PR, and local-worktree state.
+   Synthesize missing dispatches from repo-scoped active tracker claims and
+   dirty, baseline-unmerged, or uncertain non-default worktrees. Deduplicate by
+   issue, branch, head, or worktree; drop stale ledger entries; re-dispatch or
+   escalate stuck workers. A failed worktree inventory is a snapshot failure,
+   not evidence of zero local workers.
 4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped
-   previews, and implementation dispatches that have not yet produced a PR.
+   previews, and reconciled implementation dispatches that have not yet
+   produced a PR.
    Count repo/project preview capacity, not only the requested issue filter.
    Open PRs include drafts. Draft state is not hidden work, and a draft PR that
    has not synced to the tracker still consumes capacity and must be advanced or

@@ -1,7 +1,7 @@
 ---
 name: ziw-code-review
-description: Use for code review before opening a PR, before handing off a branch, or when reviewing the latest committed changes, an explicitly requested working tree, a PR branch, or a main-branch commit range for correctness, security, scope, tests, and issue tracker fit, with optional GitHub review submission.
-when_to_use: Use automatically for code review requests, pre-PR review gates, PR branch review, main drift review, or when another workflow skill asks for ziw-code-review.
+description: Use for code review when explicitly requested, when Agent Review performs an independent review, or when an implementation or PR agent judges that author QA would materially improve confidence in committed changes, a working tree, a PR branch, or a main-branch range.
+when_to_use: Use automatically for explicit code review requests, independent Agent Review, main drift review, or when another workflow skill deliberately asks for ziw-code-review. Do not auto-trigger solely because a commit or PR changed.
 argument-hint: "[branch|pr-url|range] [--submit]"
 context: fork
 agent: general-purpose
@@ -10,8 +10,8 @@ agent: general-purpose
 # Code Review
 
 Run a bug-focused review from local files or a clean worktree. This is the
-shared review gate for implementation self-checks, PR reviews, worker handoffs,
-and main-branch drift checks.
+shared tool for judgment-based author QA, independent PR review, and main-branch
+drift checks.
 
 For Claude, this skill runs in a forked context to avoid implementation-context
 bias. Reconstruct intent from explicit arguments, repo config, tracker state,
@@ -25,6 +25,23 @@ PR bodies, commits, and docs.
 - Issue, PR, spec, ADR, or user request that defines intent.
 - Optional `--submit` for an explicit GitHub PR target. Without it, review is
   read-only and returns the report to the caller.
+
+## Review Ownership
+
+Choose the mode before reviewing:
+
+- **Author QA** when `ziw-implement`, `ziw-pr`, or the implementation author
+  invokes this skill before handoff. Author QA can block handoff, but it is not
+  independent review evidence. Its review-evidence recommendation is always
+  `LEAVE UNCHANGED`.
+- **Independent review** when the user, Agent Review, or Agent Orchestrator asks
+  for a clean-context review of returned work. It may recommend applying or
+  clearing review evidence for the reviewed head, but only Agent Orchestrator
+  performs tracker and merge-ready mutations.
+
+Both modes are read-only for workflow state. Do not apply or clear
+review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready
+PR labels.
 
 ## Context
 
@@ -267,12 +284,14 @@ the PR is marked ready-for-review. Do not recommend keeping a clean PR in draft
 only to wait for hosted bot review; the Orchestrator owns that transition.
 Ready-for-review means non-draft.
 
-Recommend applying the configured review evidence label only when the verdict is
-`READY FOR PR` or `APPROVE` for a concrete branch or PR head SHA and the
-conformance table is exhibited for that head with no `FAIL` rows. Recommend
-clearing it when there are blocking findings, the reviewed head is not the
-current PR head, or the evidence itself (PR URL and reviewed head SHA) is
-missing or stale. A label without current evidence is a claim, not proof.
+In Author QA mode, always recommend `LEAVE UNCHANGED` for review evidence. In
+independent review mode, recommend applying the configured review evidence
+label only when the verdict is `READY FOR PR` or `APPROVE` for a concrete
+branch or PR head SHA and the conformance table is exhibited for that head with
+no `FAIL` rows. Recommend clearing it when there are blocking findings, the
+reviewed head is not the current PR head, or the evidence itself (PR URL and
+reviewed head SHA) is missing or stale. A label without current evidence is a
+claim, not proof.
 
 Do not treat a clean review alone as permission to apply the configured
 code-host human-merge PR label such as `needs-human-merge`. That label requires
@@ -285,6 +304,7 @@ scope, and no unresolved blocking review thread.
 ```markdown
 ## REVIEW REPORT
 
+Review mode: AUTHOR QA | INDEPENDENT
 Scope check: CLEAN | DRIFT DETECTED | REQUIREMENTS MISSING
 Freshness: CURRENT | UPDATED BEFORE REVIEW | STALE, because <reason>
 Diff: <N files, +X/-Y>
@@ -331,8 +351,9 @@ the handoff to Agent Orchestrator.
   `--submit` for a GitHub PR target.
 - Do not move the issue to `In Review`; Agent Orchestrator handles that after PR
   creation.
-- Do not move an issue to merge-ready state unless Agent Orchestrator or the user asked
-  you to manage tracker state.
+- Never apply or clear review-evidence labels, move an issue to merge-ready
+  state, or apply merge-ready PR labels. Report recommendations to Agent
+  Orchestrator instead.
 - Do not broaden scope or decide product/security questions during review.
 - Create or recommend follow-up tracker issues for adjacent work.
 - Never include sensitive values in review output.

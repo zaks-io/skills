@@ -59,9 +59,10 @@ generated changes on a deterministic daily update branch, pushes the branch, and
 opens or reuses the GitHub PR. The PR body includes `@coderabbitai ignore` so
 CodeRabbit does not spend review quota on the mechanical refresh.
 
-Worktrees branch from `main` by default, with `origin/main` as a fallback, so a
-dirty source checkout does not block the safe worktree flow and is not used as
-the update base. Changed apply-only worktrees are kept for inspection;
+Worktrees branch from a freshly fetched `origin/main` by default, falling back
+to local `main` only when the repo has no remote, so a dirty or stale source
+checkout does not block the safe worktree flow and is never used as the update
+base. Changed apply-only worktrees are kept for inspection;
 committed, pushed, PR-created, and unchanged worktrees are removed unless
 `--keep-worktree` is passed. Use `--base-ref <ref>` to choose another base and
 `--worktree-root <path>` to choose the scratch location. Use `--in-place` only
@@ -144,8 +145,8 @@ Claude Code should keep the orchestrator in the main thread and delegate the
 context-heavy pieces to these isolated subagents:
 
 - `ziw-triager`: issue tracker inventory and metadata cleanup.
-- `ziw-implementer`: one issue's implementation, checks, review, and PR
-  handoff.
+- `ziw-implementer`: one issue's implementation, checks, judgment-based author
+  QA, and PR handoff.
 - `ziw-reviewer`: clean-context review of latest committed PRs, branches,
   ranges, main-drift findings, and orchestrator refactor candidates. An explicit
   PR `--submit` mode publishes the local verdict and inline findings to GitHub.
@@ -382,6 +383,11 @@ delegates heavy reads to isolated workers, so a long-running loop stays as light
 as a first run. Config records supported worker delegation paths such as
 `local-worktree`, `issue-assigned`, or both.
 
+The capacity snapshot does not trust the ledger alone. It also counts active
+tracker claims in the repo route-label domain and dirty or baseline-unmerged
+local worktrees, reconciles squash-merged heads, then deduplicates those signals
+against open PRs.
+
 If every scoped item is blocked and no orchestration action remains, the
 orchestrator stops the recurring loop for that scope instead of waking forever.
 The blocked report names each blocker, next owner, and what would make the scope
@@ -395,8 +401,10 @@ Before re-delegating, it checks for duplicate sessions, branches, or PRs tied to
 the same issue and resolves the duplicate from code-host evidence.
 
 A delegated worker, local or remote Cursor, owns implementation: it writes code,
-self-reviews with `ziw-code-review`, and opens its own PR with
-`ziw-pr`. The orchestrator coordinates; it does not write code or
+runs required checks, decides whether `ziw-code-review` author QA would add
+value, and opens its own PR with `ziw-pr`. A changed commit alone does not force
+another author-QA pass. The worker cannot apply review evidence or declare its
+own work merge-ready. The orchestrator coordinates; it does not write code or
 open PRs.
 
 Agent Review and integrate are steps the orchestrator calls, not loops. Agent

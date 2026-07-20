@@ -44,21 +44,37 @@ export function createUpdateWorktree(repoRoot, options) {
     ? ["worktree", "add", worktreePath, branchName]
     : ["worktree", "add", "-b", branchName, worktreePath, base.baseRef];
   const added = run("git", args, repoRoot);
-  return added.status === 0
-    ? {
-        status: "ok",
-        baseRef: base.baseRef,
-        branchName,
-        reusedBranch: branchAlreadyExists,
-        worktreePath,
-      }
-    : {
+  if (added.status !== 0) {
+    return {
+      status: "failed",
+      baseRef: base.baseRef,
+      branchName,
+      worktreePath,
+      error: outputTail(added),
+    };
+  }
+
+  if (branchAlreadyExists) {
+    const merged = run("git", ["merge", "--no-edit", base.baseRef], worktreePath);
+    if (merged.status !== 0) {
+      return {
         status: "failed",
         baseRef: base.baseRef,
         branchName,
+        reusedBranch: true,
         worktreePath,
-        error: outputTail(added),
+        error: `Cannot update existing branch from ${base.baseRef}: ${outputTail(merged)}`,
       };
+    }
+  }
+
+  return {
+    status: "ok",
+    baseRef: base.baseRef,
+    branchName,
+    reusedBranch: branchAlreadyExists,
+    worktreePath,
+  };
 }
 
 export function removeUpdateWorktree(repoRoot, worktreePath) {
@@ -76,8 +92,21 @@ export function deleteUpdateBranch(repoRoot, branchName) {
 }
 
 function resolveBaseRef(repoRoot, requestedRef) {
-  const candidates =
-    requestedRef === DEFAULT_BASE_REF ? [DEFAULT_BASE_REF, "origin/main"] : [requestedRef];
+  // A stale local main silently produces update branches that conflict with
+  // origin/main, so the default fetches and prefers the remote ref.
+  if (requestedRef === DEFAULT_BASE_REF) {
+    const origin = run("git", ["remote", "get-url", "origin"], repoRoot);
+    if (origin.status === 0) {
+      const fetched = run("git", ["fetch", "origin", "main", "--quiet"], repoRoot);
+      if (fetched.status !== 0) {
+        return { status: "failed", error: `Cannot refresh origin/main: ${outputTail(fetched)}` };
+      }
+      return commitExists(repoRoot, "origin/main")
+        ? { status: "ok", baseRef: "origin/main" }
+        : { status: "failed", error: "Fetched origin/main but the ref is unavailable" };
+    }
+  }
+  const candidates = [requestedRef];
   const baseRef = candidates.find((ref) => commitExists(repoRoot, ref));
   return baseRef
     ? { status: "ok", baseRef }

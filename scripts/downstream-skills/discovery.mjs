@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { gitRoot } from "./process.mjs";
+import { gitCommonDir, gitRoot, isPrimaryWorktree } from "./process.mjs";
 
 const SKIP_DIRS = new Set([
   ".claude",
@@ -75,6 +75,9 @@ export function buildTargets(options) {
       : discoverLockfiles(options.root, options.maxDepth);
   const targets = [];
   const seenRoots = new Set();
+  // Linked worktrees share one repository; updating them alongside the primary
+  // checkout makes multiple targets fight over the same update branch.
+  const byRepo = new Map();
 
   for (const lockfilePath of lockfiles) {
     const target = buildTarget(lockfilePath, options.source);
@@ -82,6 +85,19 @@ export function buildTargets(options) {
       continue;
     }
     seenRoots.add(target.repoRoot);
+
+    const repoKey = gitCommonDir(target.repoRoot) ?? target.repoRoot;
+    const existing = byRepo.get(repoKey);
+    if (!existing) {
+      byRepo.set(repoKey, target);
+      continue;
+    }
+    if (!isPrimaryWorktree(existing.repoRoot) && isPrimaryWorktree(target.repoRoot)) {
+      byRepo.set(repoKey, target);
+    }
+  }
+
+  for (const target of byRepo.values()) {
     targets.push(target);
   }
 

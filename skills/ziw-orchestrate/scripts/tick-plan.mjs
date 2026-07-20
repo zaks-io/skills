@@ -20,6 +20,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
 import {
   capacityDecision,
@@ -179,15 +180,29 @@ const state = {
   ...readJson(argValue("--state"), "--state"),
 };
 
-const pullRequests = mergePrLists(snapshot.prs, state.pullRequests);
+const initialPullRequests = mergePrLists(snapshot.prs, state.pullRequests);
+const delivery = reconcileActiveDelivery({
+  snapshot,
+  state,
+  pullRequests: initialPullRequests,
+});
+const pullRequests = delivery.pullRequests;
+const activeDispatches = delivery.dispatches;
 const linearQueried =
-  snapshot.linear != null || state.tickets != null || state.linearIssues != null;
+  (snapshot.linear?.skipped == null && Array.isArray(snapshot.linear?.issues)) ||
+  state.tickets != null ||
+  state.linearIssues != null;
 const linearIssues = extractLinearIssues({
   snapshot,
   state: { tickets: state.tickets ?? state.linearIssues },
 });
 const linearDag = linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null;
-if (linearQueried && (linearDag?.totalIssues ?? 0) === 0) {
+if (
+  linearQueried &&
+  (linearDag?.totalIssues ?? 0) === 0 &&
+  toArray(snapshot.linear?.activeIssues).length === 0 &&
+  toArray(state.activeLinearIssues).length === 0
+) {
   fail(
     "Linear queue returned zero live issues. That is either a bug in the query/scope or a drained scope. " +
       "Do not act on this plan: verify the queue directly with the tracker MCP tools or a fresh tick-snapshot " +
@@ -212,7 +227,7 @@ const planningState = {
   ...state,
   pullRequests,
   previews: toArray(state.previews),
-  dispatches: toArray(state.dispatches ?? state.ledgerDispatches),
+  dispatches: activeDispatches,
   activeWork: toArray(state.activeWork),
   startableTickets:
     explicitStartableTickets.length > 0 ? explicitStartableTickets : linearStartableTickets,
@@ -262,12 +277,24 @@ process.stdout.write(
         linearDag,
         hostedReviews,
         humanMergeLabels,
+        activeDispatches: activeDispatches.map((dispatch) => ({
+          id: dispatch.id,
+          issueId: dispatch.issueId,
+          source: dispatch.source,
+          branch: dispatch.branch ?? null,
+          worktree: dispatch.worktree ?? null,
+          footprint: toArray(dispatch.footprint),
+        })),
       },
       counts: {
-        openPrs: pullRequests.length,
+        openPrs: capacity.footprint.prs,
         startableTickets: planningState.startableTickets.length,
         selectedDispatches,
         deferredDispatches: dispatch.deferred?.length ?? 0,
+        activeDispatches: activeDispatches.length,
+        synthesizedDispatches: activeDispatches.filter(
+          (activeDispatch) => activeDispatch.source !== "ledger",
+        ).length,
         linearDagFrontier: linearDag?.frontier.length ?? 0,
         linearDagStarts: linearDag?.starts.length ?? 0,
         linearDagReadyStarts: linearDag?.readyStarts.length ?? 0,

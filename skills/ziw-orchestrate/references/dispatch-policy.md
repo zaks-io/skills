@@ -35,9 +35,13 @@ Count:
 - every open product PR, including draft PRs
 - active PR-scoped previews not clearly linked to an already counted PR
 - implementation dispatches that have not returned, stopped, or produced a PR
+- missing dispatches synthesized from repo-scoped active tracker claims and
+  dirty, baseline-unmerged, or uncertain non-default worktrees
 
-Do not double-count a PR and its normal linked preview. Track bot dependency PRs
-as separate drain work unless config says they consume product delivery slots.
+Deduplicate issue, branch, head, worktree, PR, and normal linked preview signals.
+Track bot dependency PRs as separate drain work unless config says they consume
+product delivery slots. If local worktree enumeration fails, stop the snapshot
+instead of assuming there are no local workers.
 
 When the footprint is at or above cap, do not dispatch new implementation work.
 Drain existing footprint first: advance draft PRs, rerun or route checks, request

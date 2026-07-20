@@ -100,7 +100,9 @@ Last updated: 2026-06-01
   PR
 - Cap count policy: count each open PR once, add active previews that are not
   clearly linked to an already counted PR, then add unreturned Cursor
-  dispatches. Do not double-count a normal linked PR+preview
+  dispatches. Reconcile missing dispatches from repo-scoped active Linear claims
+  and dirty, baseline-unmerged, or uncertain non-default worktrees. Do not
+  double-count a normal linked PR, preview, claim, and worktree
 - Capacity drain policy: when the cap is full, review, merge, close, or escalate
   existing PRs/previews before assigning more Cursor work
 - Stuck-worker timeout: no branch/PR/agent-thread reply within <N> min -> direct

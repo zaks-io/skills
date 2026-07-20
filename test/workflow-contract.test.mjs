@@ -342,6 +342,19 @@ test("capacity decision drains active work before dispatching more tickets", () 
   assert.equal(decision.action, workflowDecisionActions.drainActiveWork);
 });
 
+test("capacity decisions reject invalid delivery caps", () => {
+  for (const cap of ["many", -1, 1.5]) {
+    assert.throws(
+      () => capacityDecision({}, { activePrPreviewCap: cap }),
+      /active delivery cap must be a non-negative integer/,
+    );
+    assert.throws(
+      () => dispatchSelectionDecision({}, { activePrPreviewCap: cap }),
+      /active delivery cap must be a non-negative integer/,
+    );
+  }
+});
+
 test("dispatch selection spends spare capacity only on non-colliding footprints", () => {
   assert.deepEqual(
     dispatchSelectionDecision(

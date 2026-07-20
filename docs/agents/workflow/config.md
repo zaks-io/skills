@@ -114,7 +114,7 @@ Last updated: 2026-06-14
 - Default worker path: local Codex worktree/session
 - Capacity policy: default active delivery cap 3; drain active PRs before dispatching more work
 - Active PR/preview cap: 3 active delivery slots
-- Cap count policy: count each open PR once, including draft PRs that have not synced to the tracker yet; add active previews that are not clearly linked to an already counted PR, then add unreturned implementation dispatches
+- Cap count policy: count each open PR once, including draft PRs that have not synced to the tracker yet; add active previews that are not clearly linked to an already counted PR, then add unreturned implementation dispatches synthesized from the ledger, repo-scoped active tracker claims, and dirty, baseline-unmerged, or uncertain non-default worktrees; deduplicate those signals against open PRs
 - Dispatch footprint policy: compare predicted files/packages against active PRs, active branches, and selected tickets; hold collisions or unknown footprints for triage
 - Capacity drain policy: when active delivery slots are at or over cap, advance, merge when authorized, route fixes, or escalate existing PRs before dispatching new implementation work
 - PR closure guard: close PRs only with refreshed code-host and tracker evidence of duplicate, explicitly canceled or abandoned, terminal, or policy-required work; never close draft or active PRs only to make room

@@ -71,9 +71,9 @@ generated skill refresh on deterministic daily branches, pushes those branches,
 and opens or reuses GitHub PRs. PR bodies include `@coderabbitai ignore` so
 CodeRabbit does not spend review quota on the mechanical refresh.
 
-The worktree branches from `main` by default, with `origin/main` as a fallback,
-so the source checkout can be dirty without becoming the update base or being
-modified. Changed apply-only worktrees are kept for inspection; committed,
+The worktree branches from a freshly fetched `origin/main` by default, falling
+back to local `main` only when the repo has no remote, so the source checkout
+can be dirty or stale without becoming the update base or being modified. Changed apply-only worktrees are kept for inspection; committed,
 pushed, PR-created, and unchanged worktrees are removed unless
 `--keep-worktree` is passed. Use `--base-ref <ref>` to choose another base and
 `--worktree-root <path>` to choose the scratch location. Use `--in-place` only

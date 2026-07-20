@@ -610,8 +610,16 @@ export function activeDeliveryFootprint(state = {}) {
   };
 }
 
-export function capacityDecision(state = {}, config = {}) {
+function activeDeliveryCap(config = {}) {
   const cap = Number(config.activePrPreviewCap ?? config.cap ?? 3);
+  if (!Number.isInteger(cap) || cap < 0) {
+    throw new Error("active delivery cap must be a non-negative integer");
+  }
+  return cap;
+}
+
+export function capacityDecision(state = {}, config = {}) {
+  const cap = activeDeliveryCap(config);
   const footprint = activeDeliveryFootprint(state);
   const startableCount = toArray(state.startableTickets).length;
   const activeSignalExpected = Boolean(state.activeSignalExpected);
@@ -692,7 +700,7 @@ function activeFootprintItems(state = {}) {
 }
 
 export function dispatchSelectionDecision(state = {}, config = {}) {
-  const cap = Number(config.activePrPreviewCap ?? config.cap ?? 3);
+  const cap = activeDeliveryCap(config);
   const footprint = activeDeliveryFootprint(state);
   const headroom = Math.max(0, cap - footprint.total);
   const candidates = toArray(state.startableTickets);

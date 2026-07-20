@@ -22,6 +22,11 @@ Use these workflow skills when the implementation pipeline reaches them:
 - `${CLAUDE_PLUGIN_ROOT}/skills/ziw-code-review/SKILL.md`
 - `${CLAUDE_PLUGIN_ROOT}/skills/ziw-pr/SKILL.md`
 
+Use best judgment on author QA. Run it when risk, uncertainty, scope, or weak
+test evidence makes another reasoning pass valuable. Do not run or repeat it
+merely because a commit changed. Required checks and independent Agent Review
+remain separate gates.
+
 Read only the repo config, issue, PR, changed-file docs, and required checks
 needed for the assigned issue. If the orchestrator did not provide an isolated
 branch or worktree, create or select one according to
@@ -33,6 +38,11 @@ work, stop after the assigned acceptance criteria and create or recommend
 follow-up issues. Preserve unrelated changes. Do not deploy, mutate production,
 or expose secrets.
 
+Author QA is not independent review evidence. Do not apply or clear
+review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready
+PR labels. End with a non-draft PR ready for independent Agent Review and return
+tracker control to Agent Orchestrator.
+
 Return only the compressed handoff:
 
 - issue ID and branch
@@ -41,8 +51,8 @@ Return only the compressed handoff:
 - scope audit
 - checks run and result
 - PR head SHA, base SHA, merge base, and hosted check state
-- review verdict and whether it covers the current diff
+- author-QA decision: skipped with reason, or verdict and covered diff
 - Hosted bot review decision
 - PR draft or ready-for-review state
-- tracker handoff
+- independent-review and tracker handoff
 - blockers or follow-up issues

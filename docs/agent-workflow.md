@@ -61,6 +61,13 @@ dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegation
 for stuck-worker detection and duplicate suppression; it may be empty on any tick
 and is always reconciled against the tracker and code host.
 
+Capacity reconciliation synthesizes missing dispatches from active tracker
+claims in the repo route-label domain and from dirty or baseline-unmerged local
+worktrees. It retains worktrees without issue keys by branch or head identity,
+uses merged-PR head evidence for squash merges, ignores completed clean
+worktrees, and deduplicates all of that evidence against open PRs before planning
+new starts.
+
 The friction intake is retrospective and is intentionally not a system of
 record. Downstream config chooses the sink: append-only comments on a dedicated
 parked ticket, ticket-per-finding intake in a private tracker team or project,
@@ -139,7 +146,7 @@ config-gap finding when the conflict affects the workflow.
   review and integrate as steps, records friction intake, and owns the authority
   to mutate active workflow status in the issue tracker.
 - Agent Implement: owns one delegated issue through implementation, checks,
-  code review, PR creation, and handoff.
+  judgment-based author QA, PR creation, and independent-review handoff.
 - Agent Review: reviews latest committed PR heads and main drift from clean
   context, exhibits a per-criterion conformance table against the ticket's
   acceptance criteria and cited spec sections, reports freshness, verdicts, and
@@ -155,8 +162,9 @@ config-gap finding when the conflict affects the workflow.
   parked, or not shaped correctly. Triage never leaves dependency-ready tickets
   in Linear Backlog just because blockers remain. When something is unclear, it
   asks the user or leaves exact human next actions.
-- Create PR: turns the current branch into a PR after checks and code review.
-  This is the worker's shipping step, not a separate orchestration stage.
+- Create PR: turns the current branch into a PR after required checks and any
+  judgment-based author QA. This is the worker's shipping step, not a separate
+  orchestration stage.
 - Code Review: shared bug-focused review gate.
 
 Setup, To Issues, Issue Triage, Agent Orchestrator, Agent Implement, and Agent
@@ -474,7 +482,7 @@ flowchart TD
   Orchestrator -->|select kind-slice, claim, move states| Tracker
   Orchestrator -->|friction intake| Tracker
   Orchestrator -->|delegate| Worker
-  Worker -->|self-review + open PR| CodeReview
+  Worker -->|optional author QA| CodeReview
   Worker -->|PR and handoff| Orchestrator
   Orchestrator -->|call review step| AgentReview
   AgentReview -->|clean-context review| CodeReview
@@ -502,9 +510,9 @@ sequenceDiagram
   Q->>Q: Reconcile dispatch ledger; re-dispatch stuck workers
   Q->>T: Claim issue and move to In Progress
   Q->>W: Delegate issue through supported worker path
-  W->>W: Implement, self-review with code review, iterate
+  W->>W: Implement, run checks, use judgment on author QA
   W->>G: Open PR via create-pr
-  W->>Q: Handoff PR state and review evidence
+  W->>Q: Handoff PR state and request independent review
   Q->>T: Move to In Review
   Q->>R: Call review step in clean context
   R->>Q: Freshness, findings, hosted bot review recommendation, PR readiness, refactor candidates, and reviewed head SHA
@@ -571,6 +579,12 @@ Default rule:
   verdict in the body and attachable P0-P2 findings as inline threads. It checks
   the PR head immediately before submission and does not duplicate a local
   review already recorded for that head.
+- Agent Implement and Create PR may run author QA, but author QA is not
+  independent review evidence. Risk, uncertainty, scope, test evidence, or an
+  explicit request decides whether it runs; a new commit alone does not require
+  another pass. They never apply or clear the configured review evidence label,
+  move an issue to `Ready to Merge`, or apply merge-ready PR labels. They hand a
+  non-draft PR back to Orchestrator for Agent Review.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
   integrate gate when config grants merge authority. It diagnoses stuck draft

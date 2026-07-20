@@ -167,10 +167,12 @@ Last updated: YYYY-MM-DD
   that have not yet produced a PR
 - Cap count policy: count each open PR once, add active previews that are not
   clearly linked to an already counted PR, then add unreturned implementation
-  dispatches. Exclude bot dependency PRs (dependabot, renovate) from the cap;
-  track them as a separate drain count. Draft PRs are open PRs and count even
-  when tracker sync has not linked them yet. Obey any stricter preview-provider
-  or worker-session limit
+  dispatches. Reconcile the ledger with repo-scoped active tracker claims and
+  dirty, baseline-unmerged, or uncertain non-default worktrees; synthesize
+  missing dispatches and deduplicate them against open PRs. Exclude bot
+  dependency PRs (dependabot, renovate) from the cap; track them as a separate
+  drain count. Draft PRs are open PRs and count even when tracker sync has not
+  linked them yet. Obey any stricter preview-provider or worker-session limit
 - Partitioned-scope cap semantics: when the queue is split across concurrent
   orchestrator runs, record whether the cap is shared repo-wide or per scope,
   and how each run counts the other's PRs and dispatches. Unset means one

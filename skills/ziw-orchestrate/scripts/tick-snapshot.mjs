@@ -4,7 +4,7 @@
 // snapshot instead of dozens of tool round-trips.
 //
 // Usage:
-//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY|UUID|NAME] [--linear-states Todo,Triage]
+//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY|UUID|NAME] [--linear-route-label owner/name] [--linear-states Todo,Triage]
 //
 // GitHub state comes from the `gh` CLI (must be installed and authenticated).
 // Linear state is included only when --linear-team is given and either
@@ -17,6 +17,7 @@ import { execFileSync } from "node:child_process";
 
 import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs";
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
+import { localWorktrees } from "./worktree-snapshot.mjs";
 
 const args = process.argv.slice(2);
 const argValue = (flag) => {
@@ -62,9 +63,12 @@ const repo = argValue("--repo") ?? deriveRepo();
 if (!repo || !repo.includes("/")) fail("cannot determine repo; pass --repo owner/name");
 const [owner, name] = repo.split("/");
 const limit = Number(argValue("--limit") ?? 50);
+if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+  fail("--limit must be an integer from 1 to 100");
+}
 
 const PR_QUERY = `
-query($owner: String!, $name: String!, $limit: Int!) {
+query($owner: String!, $name: String!, $limit: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     defaultBranchRef {
       name
@@ -75,8 +79,9 @@ query($owner: String!, $name: String!, $limit: Int!) {
         } } } }
       }
     }
-    pullRequests(states: OPEN, first: $limit, orderBy: { field: UPDATED_AT, direction: DESC }) {
+    pullRequests(states: OPEN, first: $limit, after: $after, orderBy: { field: UPDATED_AT, direction: DESC }) {
       totalCount
+      pageInfo { hasNextPage endCursor }
       nodes {
         number title url isDraft updatedAt
         author { login __typename }
@@ -124,19 +129,39 @@ const isDependencyBotAuthor = (login) => {
   return normalized.includes("dependabot") || normalized.includes("renovate");
 };
 
-const raw = gh([
-  "api",
-  "graphql",
-  "-f",
-  `query=${PR_QUERY}`,
-  "-F",
-  `owner=${owner}`,
-  "-F",
-  `name=${name}`,
-  "-F",
-  `limit=${limit}`,
-]);
-const repoData = JSON.parse(raw).data.repository;
+const prsByNumber = new Map();
+let after = null;
+let repoData = null;
+do {
+  const requestArgs = [
+    "api",
+    "graphql",
+    "-f",
+    `query=${PR_QUERY}`,
+    "-F",
+    `owner=${owner}`,
+    "-F",
+    `name=${name}`,
+    "-F",
+    `limit=${limit}`,
+  ];
+  if (after) requestArgs.push("-f", `after=${after}`);
+  const pageData = JSON.parse(gh(requestArgs)).data?.repository;
+  if (!pageData?.pullRequests) fail("GitHub query returned no pull request connection");
+  repoData ??= pageData;
+  for (const pr of pageData.pullRequests.nodes ?? []) prsByNumber.set(pr.number, pr);
+  const pageInfo = pageData.pullRequests.pageInfo;
+  after = pageInfo?.hasNextPage ? pageInfo.endCursor : null;
+  if (pageInfo?.hasNextPage && !after) {
+    fail("GitHub pull request query reported another page without an end cursor");
+  }
+} while (after);
+
+const prNodes = [...prsByNumber.values()];
+if (prNodes.length < (repoData.pullRequests.totalCount ?? 0)) {
+  fail("GitHub pull request pagination returned fewer PRs than totalCount");
+}
+repoData.pullRequests.nodes = prNodes;
 
 const baselineRollup = repoData.defaultBranchRef?.target?.statusCheckRollup;
 const baseline = {
@@ -172,6 +197,7 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
 }));
 
 const linearTeam = argValue("--linear-team");
+const linearRouteLabel = argValue("--linear-route-label") ?? repo;
 const linearStates = [
   ...new Set(
     [...argValues("--linear-state"), ...argValues("--linear-states")]
@@ -189,10 +215,18 @@ if (linearTeam && hasLinearCredential()) {
       request: linearGraphqlRequest,
       selector: linearTeam,
       states: linearStates,
+      routeLabel: linearRouteLabel,
     });
   } catch (error) {
     fail(`Linear query failed: ${error.message}`);
   }
+}
+
+let worktrees;
+try {
+  worktrees = localWorktrees({ baseline, repo });
+} catch (error) {
+  fail(`local worktree query failed: ${error.message}`);
 }
 
 process.stdout.write(
@@ -210,6 +244,7 @@ process.stdout.write(
         dependencyBotPrCount: prs.filter((pr) => pr.isDependencyBot).length,
       },
       prs,
+      worktrees,
       linear,
     },
     null,

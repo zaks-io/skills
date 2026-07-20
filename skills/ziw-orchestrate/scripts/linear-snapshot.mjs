@@ -120,7 +120,28 @@ export function selectScopedLinearIssues(issues, states = []) {
   );
 }
 
-export async function loadLinearSnapshot({ request, selector, states = [] }) {
+export function selectActiveLinearIssues(issues, routeLabel) {
+  const active = issues.filter((issue) => issue.stateType === "started" || Boolean(issue.assignee));
+  if (!routeLabel) return active;
+
+  const normalizedRoute = routeLabel.trim().toLowerCase();
+  const routeNamespace = normalizedRoute.includes("/") ? `${normalizedRoute.split("/")[0]}/` : null;
+  const usesRouteLabels = issues.some((issue) =>
+    (issue.labels ?? []).some((label) => {
+      const normalizedLabel = label.trim().toLowerCase();
+      return (
+        normalizedLabel === normalizedRoute ||
+        (routeNamespace && normalizedLabel.startsWith(routeNamespace))
+      );
+    }),
+  );
+  if (!usesRouteLabels) return active;
+  return active.filter((issue) =>
+    (issue.labels ?? []).some((label) => label.trim().toLowerCase() === normalizedRoute),
+  );
+}
+
+export async function loadLinearSnapshot({ request, selector, states = [], routeLabel }) {
   const team = await resolveLinearTeam(request, selector);
   const issues = [];
   let after = null;
@@ -145,6 +166,8 @@ export async function loadLinearSnapshot({ request, selector, states = [] }) {
     teamName: team.name,
     statesFilter: states,
     includesDirectBlockers: states.length > 0,
+    activeScope: { routeLabel: routeLabel ?? null },
+    activeIssues: selectActiveLinearIssues(issues, routeLabel),
     issues: selectScopedLinearIssues(issues, states),
   };
 }

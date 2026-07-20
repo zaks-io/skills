@@ -8,8 +8,10 @@ Cursor remote agents, or review/triage workers.
 Orchestrator is the only active work loop. It decides the next workflow action
 and delegates context-heavy work.
 
-- Implementation workers write code, self-review with `ziw-code-review`, and
-  open or update their PR through `ziw-pr`.
+- Implementation workers write code, run required checks, use best judgment on
+  whether `ziw-code-review` author QA adds value, and open or update their PR
+  through `ziw-pr` before independent review. A new commit alone never requires
+  another author-QA pass.
 - Review workers run independent `ziw-code-review` from clean context and return
   findings or a clean verdict.
 - Triage workers repair issue shape, dependencies, routing, readiness, and
@@ -38,6 +40,10 @@ Always include:
 - branch/worktree policy
 - required checks or config reference
 - constraints: preserve unrelated changes, no production deploy, no secrets
+- role boundary: author QA is not independent review evidence; the implementer
+  cannot mutate review-evidence labels or merge-ready state
+- author-QA policy: use worker judgment based on risk, uncertainty, scope, and
+  test evidence; do not require review after every change
 
 If a critical literal exists only in a prior comment, update or route the issue
 body first so the worker does not rediscover it from history.
@@ -54,7 +60,7 @@ Branch/worktree: <branch-or-create-policy>
 Scope: <one sentence from issue>
 Non-goals: <out-of-scope line from issue, including sibling tickets; do not deliver adjacent work>
 Required checks: <commands or config reference>
-Constraints: preserve unrelated changes; no production deploy; no secrets.
+Constraints: preserve unrelated changes; no production deploy; no secrets. Use best judgment on whether author QA adds value; do not run or repeat it merely because a commit changed. Author QA is not independent review evidence. Do not apply or clear review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready PR labels.
 Return the workflow handoff only.
 ```
 
