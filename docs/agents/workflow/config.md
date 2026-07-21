@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-06-14
+Last updated: 2026-07-20
 
 ## Verification
 
@@ -48,7 +48,7 @@ Last updated: 2026-06-14
 - Project, board, repo, milestone, or roadmap: none verified for SKI; project queries for `SKI`, `Skills`, and `Friction` returned no projects
 - Routing label: `zaks-io/skills`
 - Repo-route label: `zaks-io/skills`
-- Triage scope: SKI `Todo` and active or PR-linked current issues by default; Linear `Backlog` only when explicitly requested
+- Triage scope: SKI `Todo`, `Triage`, and active or PR-linked current issues by default; Linear `Backlog` only when explicitly requested
 - Linear Backlog state: `Backlog`
 - Linear Backlog policy: uncommitted, intentionally parked, or incorrectly shaped work; not scanned or promoted during default triage
 - Review-debt intake route: SKI `Triage` with `needs-triage`
@@ -70,7 +70,7 @@ Last updated: 2026-06-14
 - Ready-state promotion source states: `Triage`, `Backlog`
 - Active states: `In Progress`, `Blocked`, `In Review`, `Changes Requested`, `Ready to Merge`
 - Done state: `Done`
-- Status transition owner: Issue Triage may reconcile verified stale states and requested ready-state promotion; Linear Backlog promotion requires explicit Linear Backlog review or backfill; Agent Orchestrator owns active workflow transitions
+- Status transition owner: Issue Triage may reconcile verified stale states and move complete Triage tickets to Todo during a normal triage run; Linear Backlog promotion requires explicit Linear Backlog review or backfill; Agent Orchestrator owns active workflow transitions
 - Code-host issue sync policy: for Linear + GitHub, assume linked tickets and PRs are synced when both exist; refresh both before manual state repair
 - Readiness labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`
 - Readiness label policy:

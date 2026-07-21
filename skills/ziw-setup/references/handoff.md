@@ -78,6 +78,6 @@ Rules:
   development, preview, or production resources.
 - Leave active tracker status changes to Agent Orchestrator unless the user
   explicitly says otherwise. Issue Triage may reconcile verified stale states
-  such as merged work marked done, and may promote complete intake issues to the
-  configured ready state during requested ready-state promotion from intake or
-  Linear Backlog cleanup.
+  such as merged work marked done, and may promote complete configured intake
+  issues during a normal triage run. Linear Backlog promotion still requires an
+  explicit Linear Backlog cleanup request.

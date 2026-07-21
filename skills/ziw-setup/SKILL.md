@@ -178,8 +178,9 @@ Record:
   scale, estimate policy, dependency policy, dependency graph mechanism, file
   footprint convention, issue body contract, agent-suitability policy for work
   types and risk,
-  Issue Triage verified-state reconciliation authority, requested ready-state
-  promotion authority, explicit Linear Backlog promotion gate, and which workflow
+  Issue Triage verified-state reconciliation authority, configured
+  intake-to-ready promotion authority, explicit Linear Backlog promotion gate,
+  and which workflow
   role owns active status transitions
 - tracker tool query contract: exact provider IDs, query-safe names, status
   field names, relationship or blocker fields, pagination shape if relevant, and
@@ -236,7 +237,8 @@ Record:
 - automation roles: To Issues, Issue Triage, Agent Orchestrator, Agent Review,
   Create PR, and Agent Implement, including To Issues spec-to-slice creation and
   the dependency graph, Issue Triage current-ticket readiness repair,
-  verified-state reconciliation, requested ready-state promotion, Orchestrator-owned
+  verified-state reconciliation, configured intake-to-ready promotion,
+  Orchestrator-owned
   active tracker transitions, the orchestrator integrate gate and friction intake,
   clean-context review delegation, and the implementation pipeline
 - review gates: code review, Agent Review, local GitHub review submission actor

@@ -136,10 +136,11 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
   Stale labels on Done tickets are cleanup drift, not current work queue input.
 - Issue Triage should make current tickets agent-ready and keep tracker state
   aligned with external reality. Its default scope is the configured ready state,
-  usually `Todo`, plus active or PR-linked issues that need repair. It should
+  usually `Todo`, configured intake such as `Triage`, plus active or PR-linked
+  issues that need repair. It should
   not review Linear `Backlog` or equivalent out-of-work-queue states unless the
   user explicitly asks for Linear Backlog review.
-- During requested intake cleanup, Issue Triage may move complete issues from
+- During every normal triage run, Issue Triage may move complete issues from
   configured intake states such as `Triage` to the configured ready state,
   usually `Todo`. Encode blockers separately; dependency blockers do not prevent
   ready-state promotion. Do not promote Linear `Backlog` by default, but do
@@ -163,7 +164,7 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
 - If a repo uses an extra label such as `remote-worker` or `remote-cursor`,
   record it in `docs/agents/workflow/config.md`; it is not a shared default.
 - Labels are coordination signals. The issue tracker is the source of truth for
-  workflow state. Issue Triage owns requested ready-state promotion and verified
+  workflow state. Issue Triage owns configured intake-to-ready promotion and verified
   stale-state reconciliation, such as marking linked merged PR work `Done`; when
   it marks work `Done`, it also clears `ready-for-agent`. Agent Orchestrator owns
   active workflow state unless the user explicitly says

@@ -35,19 +35,21 @@ diagnosis, security scanning, or production triage.
 Read only:
 
 - `docs/agents/workflow/config.md`
+- source-of-truth specs, roadmap, milestone, and project docs cited by the
+  config or scoped tickets
 - issue tracker metadata, bodies, comments, labels, statuses, estimates,
   projects, parents, and relationships
 - explicit user instructions
 - approved workflow script outputs from `skills/ziw-orchestrate/scripts`
 
-Run the scripts, read the output, fix the tickets. The scripts are the
-observation layer; the agent does not rediscover the same state manually. No
-manual code search, implementation file reads, one-off `gh` queries, CI
-spelunking, deploy checks, log review, security tool runs, or broad repo health
-checks. Linked PRs, branches, docs, or logs inside an issue are metadata unless
-they appear in tracker text or approved script output. If handoff quality depends
-on information that is not already in tracker text, config, or script output,
-leave the exact missing field for To Issues, Orchestrator, or a human.
+Run the scripts, read the output, inspect only the bounded tracker scope and its
+cited source-of-truth docs, then fix the tickets. The scripts are the observation
+layer for queue, PR, and worker state; the agent does not rediscover that state
+manually. No manual code search, implementation file reads, one-off `gh`
+queries, CI spelunking, deploy checks, log review, security tool runs, or broad
+repo health checks. If handoff quality depends on information that is not in the
+tracker, config, cited source-of-truth docs, or script output, leave the exact
+missing field for To Issues or a human.
 
 Tracker/MCP tools are for applying ticket mutations and reading specific ticket
 fields that the scripts do not return. Do not use MCP calls to rebuild the same
@@ -96,6 +98,12 @@ Start each run by choosing one mode:
 - requested Linear Backlog or intake cleanup
 - dry run
 
+A normal `ziw-triage` invocation is a request to process the configured intake
+states. Complete implementation-ready intake tickets move from `Triage` to the
+configured ready state, usually `Todo`, without requiring the user to separately
+say "intake cleanup." Linear `Backlog` remains excluded unless explicitly
+requested. A dry run recommends the same transitions without applying them.
+
 Then follow this order:
 
 1. State the bounded tracker scope, skipped states, allowed mutations, and
@@ -109,7 +117,8 @@ Then follow this order:
    script returns only those states plus their direct blockers. If a script cannot
    run because credentials or inputs are missing, report the exact missing input
    and use tracker tools only for the smallest bounded replacement query.
-3. Build the issue set from script output and tracker queries.
+3. Build the issue set from script output and tracker queries. Read cited
+   source-of-truth docs when needed to verify scope or dependency order.
 4. Freeze the issue set. Do not expand it because a linked PR, branch, CI run,
    deploy, alert, or code path looks interesting.
 5. Classify every issue.
@@ -229,8 +238,7 @@ Apply obvious mechanical tracker updates:
 - remove completed, canceled, duplicate, or unrelated blockers only when tracker
   state makes that direct
 - move complete issues from configured intake states to the configured ready
-  state only when the user asked for intake cleanup/backfill and the issue body
-  is complete
+  state during every normal triage run when the issue body is complete
 - move complete `ready-for-agent` `kind-slice` issues from explicitly requested
   Linear Backlog cleanup/backfill scope to the configured ready state when
   config grants promotion authority
@@ -305,16 +313,21 @@ the contradiction.
 
 ## Dependencies
 
-Encode dependencies only from tracker evidence:
+Encode dependencies from bounded, authoritative evidence:
 
 - explicit blocker text in the issue
 - tracker parent, child, related, blocker, or duplicate relationships
-- accepted sequencing already summarized in the issue body
+- accepted sequencing in the scoped project's cited specs, roadmap, milestone,
+  or project docs
+- concrete producer-before-consumer, schema-before-reader, API-before-client, or
+  release-order prerequisites stated by those sources
 
-Do not open linked specs, docs, PRs, branches, migrations, or code to infer
-ordering outside the scripts. If sequencing depends on those sources and is not
-summarized in the tracker or script output, leave the issue for To Issues or
-human clarification.
+Use the smallest direct blocker graph that preserves the required order. Remove
+terminal blockers when tracker state makes that safe, detect missing direct
+edges and cycles, and keep transitive-only edges out unless the tracker requires
+them. Do not inspect implementation code, PR diffs, branches, or deploy state to
+invent ordering. If the tracker and cited source-of-truth docs still leave the
+sequence ambiguous, leave the issue for To Issues or human clarification.
 
 Dependency blockers do not remove `ready-for-agent` or worker-environment
 labels. Encode dependency order with tracker relationships, blocker fields, or
@@ -361,7 +374,8 @@ or dependency order to make a ticket look ready.
   checks, production logs, alerts, security scans, package audits, or
   repo-health sweeps.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
-- Do not follow links from issue bodies or comments to explore external state.
+- Follow only cited source-of-truth project docs for scope and dependency
+  analysis. Do not follow PR, CI, deploy, log, or unrelated external links.
 - Do not create noisy comments for small label edits.
 - Do not create new label taxonomies unless config or the user explicitly names
   them.

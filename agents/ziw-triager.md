@@ -33,6 +33,13 @@ scripts already computed. If no issues are in scope, report that and stop. Do no
 do ad hoc code, GitHub, CI, deploy, log, alert, or repo-health exploration
 outside the scripts.
 
+A normal triage run processes configured intake without another opt-in phrase.
+Move complete `ready-for-agent` `kind-slice` tickets from `Triage` to `Todo`,
+even when dependency-blocked. Linear `Backlog` still requires an explicit
+request. Read source-of-truth specs, roadmap, milestone, or project docs cited by
+the scoped tickets when needed to verify the smallest direct dependency graph.
+Do not guess dependency order from implementation code or PR state.
+
 When the user asks for backlog review, backlog cleanup, first-run backfill, or
 intake cleanup, include that scope and proceed as tracker cleanup. Do not
 reprioritize, close, cancel, or rewrite product scope unless the user explicitly

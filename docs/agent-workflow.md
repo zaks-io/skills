@@ -162,6 +162,12 @@ config-gap finding when the conflict affects the workflow.
   parked, or not shaped correctly. Triage never leaves dependency-ready tickets
   in Linear Backlog just because blockers remain. When something is unclear, it
   asks the user or leaves exact human next actions.
+
+Workflow issue triage means the manual `$ziw-triage` skill or the namespaced
+`ziw-triager` worker, not a generic tracker triage skill with a different state
+model. A normal run processes configured intake such as `Triage`; complete
+implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
+
 - Create PR: turns the current branch into a PR after required checks and any
   judgment-based author QA. This is the worker's shipping step, not a separate
   orchestration stage.
@@ -527,9 +533,9 @@ sequenceDiagram
 
 ## Status Ownership
 
-The issue tracker stores the current issue state. Issue Triage may move complete
-issues from configured intake states to the configured ready state only when
-intake cleanup is requested, and it may reconcile verified stale states such as
+The issue tracker stores the current issue state. A normal Issue Triage run may
+move complete issues from configured intake states to the configured ready state,
+and it may reconcile verified stale states such as
 marking a ticket `Done` when the linked PR is already merged. Agent Orchestrator
 is the default writer for active workflow status transitions. Other roles can
 recommend state changes, but they should not move active work unless the repo
@@ -559,7 +565,8 @@ Default rule:
   ready state, configured intake such as `Triage`, and direct blockers of those
   tickets, not unrelated Backlog or Duplicate work. It uses tracker/MCP tools for
   targeted ticket reads and mutations, not rediscovering queue state the scripts
-  already computed. It does not review Linear Backlog unless asked, and it does
+  already computed. It reads source-of-truth project docs cited by scoped
+  tickets when needed to verify dependencies. It does not review Linear Backlog unless asked, and it does
   not park dependency-ready slices in Linear Backlog after requested Linear
   Backlog cleanup. It does not do ad hoc code, GitHub, CI, deploy, production,
   alert, or log exploration outside the scripts.

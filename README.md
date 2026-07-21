@@ -313,6 +313,13 @@ not want agents working yet: uncommitted ideas, intentionally parked scope, or
 tickets that are not shaped correctly. Dependency blockers should be encoded
 separately, not used to remove readiness or park ready work in Linear Backlog.
 
+A normal `$ziw-triage` run processes `Triage` without another opt-in phrase:
+complete `ready-for-agent` `kind-slice` tickets move to `Todo`, even when blocked
+by another ticket. It reads cited source-of-truth project docs to repair the
+smallest direct dependency graph. Use `$ziw-triage` or the namespaced
+`ziw-triager` worker for this workflow, not a generic triage skill with a
+different state model.
+
 Triage is not exploration. It should not manually inspect code, GitHub, CI,
 deploys, logs, alerts, or repo health outside the approved workflow scripts.
 Tracker/MCP tools are for specific ticket reads and mutations, not for
@@ -436,7 +443,8 @@ glue should stay under `.agents/` unless it proves portable.
 - `ziw-triage`: update current tracker labels, kinds, readiness, stale
   verified states, orphans, body shape, estimates when configured, and
   dependencies so Todo tickets are clean and agent-ready. It follows the
-  repo-configured label treatment policy, skips Linear Backlog unless asked, and
+  repo-configured label treatment policy, processes configured intake on every
+  normal run, skips Linear Backlog unless asked, and
   asks or lists exact human next actions when something is unclear.
 - `ziw-orchestrate`: run the script-backed work loop, dispatching startable
   `kind-slice` tickets and calling review and integrate as steps, without
@@ -465,9 +473,9 @@ Without `--submit`, PR review remains read-only.
 2. Run `ziw-to-issues` on a spec, PRD, or epic ticket to create the
    `kind-slice` tickets and dependency graph. Re-run it any time to reconcile the
    tickets with the plan.
-3. Run `ziw-triage` before the first orchestration run and whenever
-   Todo or active tracker state needs repair. Ask explicitly when you want Linear
-   Linear Backlog review or intake backfill.
+3. Run `ziw-triage` before the first orchestration run and whenever Todo,
+   Triage, or active tracker state needs repair. Ask explicitly only when you
+   want Linear Backlog review or backfill.
 4. Run `ziw-orchestrate` to run the loop: dispatch, review,
    integrate, repeat until the delivery scope is delivered or completely
    blocked. A completely blocked loop stops instead of rescheduling itself.

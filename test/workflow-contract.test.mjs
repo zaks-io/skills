@@ -37,7 +37,7 @@ test("readiness queues exclude terminal tickets with stale readiness labels", ()
   );
 });
 
-test("requested ready-state promotion promotes blocked ready slices from Linear Backlog", () => {
+test("explicit Linear Backlog review promotes blocked ready slices", () => {
   const config = {
     doneState: "Done",
     readyPromotionSourceStates: ["Triage", "Backlog"],
@@ -65,11 +65,48 @@ test("requested ready-state promotion promotes blocked ready slices from Linear 
   );
 });
 
-test("ready-state promotion stays opt-in even when a slice is ready", () => {
+test("normal triage promotes implementation-ready intake slices to Todo", () => {
   assert.deepEqual(
     readyStatePromotionDecision(
       {
         id: "ZAK-4",
+        labels: ["kind-slice", "ready-for-agent"],
+        state: "Triage",
+      },
+      { readyPromotionSourceStates: ["Triage", "Backlog"], readyState: "Todo" },
+    ),
+    {
+      action: workflowDecisionActions.promoteToReadyState,
+      targetState: "Todo",
+      reason:
+        "implementation-ready work belongs in the ready state; dependency blockers are encoded separately",
+    },
+  );
+});
+
+test("ready-state promotion can be explicitly disabled for a dry run", () => {
+  assert.deepEqual(
+    readyStatePromotionDecision(
+      {
+        id: "ZAK-4A",
+        labels: ["kind-slice", "ready-for-agent"],
+        state: "Triage",
+      },
+      { readyPromotionSourceStates: ["Triage"], readyState: "Todo" },
+      { requestedReadyStatePromotion: false },
+    ),
+    {
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "ready-state promotion was explicitly disabled",
+    },
+  );
+});
+
+test("Linear Backlog promotion remains opt-in", () => {
+  assert.deepEqual(
+    readyStatePromotionDecision(
+      {
+        id: "ZAK-4B",
         labels: ["kind-slice", "ready-for-agent"],
         state: "Backlog",
       },
@@ -77,7 +114,7 @@ test("ready-state promotion stays opt-in even when a slice is ready", () => {
     ),
     {
       action: workflowDecisionActions.leaveUnchanged,
-      reason: "ready-state promotion was not requested",
+      reason: "Linear Backlog promotion requires requested Linear Backlog review",
     },
   );
 });
@@ -86,7 +123,7 @@ test("requested intake cleanup does not promote Linear Backlog by accident", () 
   assert.deepEqual(
     readyStatePromotionDecision(
       {
-        id: "ZAK-4B",
+        id: "ZAK-4C",
         labels: ["kind-slice", "ready-for-agent"],
         state: "Backlog",
       },

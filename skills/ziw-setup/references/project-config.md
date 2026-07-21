@@ -53,8 +53,8 @@ Last updated: YYYY-MM-DD
 - Project, board, repo, milestone, or roadmap:
 - Routing label:
 - Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required before issue-assigned delegation so the agent resolves which repo to clone
-- Triage scope: Todo and active or PR-linked current issues by default; Linear
-  Backlog only when explicitly requested
+- Triage scope: Todo, configured intake such as Triage, and active or PR-linked
+  current issues by default; Linear Backlog only when explicitly requested
 - Linear Backlog state: Backlog
 - Linear Backlog policy: work the user does not want agents to work yet because
   it is uncommitted, intentionally parked, or not shaped correctly
@@ -88,7 +88,7 @@ Last updated: YYYY-MM-DD
 - Ready-state promotion source states: Triage, Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
-- Status transition owner: Issue Triage may reconcile verified stale states and move requested ready-state promotion source tickets to ready state; Linear Backlog promotion also requires explicit Linear Backlog review or backfill; Agent Orchestrator owns active workflow transitions
+- Status transition owner: Issue Triage may reconcile verified stale states and move complete configured intake tickets to ready state during a normal triage run; Linear Backlog promotion requires explicit Linear Backlog review or backfill; Agent Orchestrator owns active workflow transitions
 - Code-host issue sync policy: for Linear + GitHub, assume linked tickets and PRs
   are synced when both exist; Linear may advance ticket states from PR status, so
   refresh both before manual state repair
@@ -381,8 +381,9 @@ store only a repo slug when the provider requires a different team, project, or
 board name.
 
 Triage scope should describe current work, not the whole Linear Backlog state or
-Orchestrator delivery scope. By default, Issue Triage reviews Todo and active or
-PR-linked issues, verifies their labels, body contracts, blockers, and external
+Orchestrator delivery scope. By default, Issue Triage reviews Todo, configured
+intake such as Triage, and active or PR-linked issues, verifies their labels,
+body contracts, blockers, and external
 state, and marks proven merged work done. Linear Backlog, roadmap, someday, or
 out-of-work-queue states are reviewed only when the user explicitly asks for
 Linear Backlog review or first-run Linear Backlog backfill. Linear Backlog is

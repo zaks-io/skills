@@ -158,9 +158,8 @@ export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
     config.intakeState,
   ]);
   const state = normalize(ticket?.state ?? ticket?.status ?? ticket?.workflowState);
-  const requestedReadyStatePromotion = Boolean(
-    options.requestedReadyStatePromotion ?? config.requestedReadyStatePromotion,
-  );
+  const requestedReadyStatePromotion =
+    options.requestedReadyStatePromotion ?? config.requestedReadyStatePromotion;
   const requestedLinearBacklogReview = Boolean(
     options.requestedLinearBacklogReview ?? config.requestedLinearBacklogReview,
   );
@@ -200,10 +199,10 @@ export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
     };
   }
 
-  if (!requestedReadyStatePromotion) {
+  if (requestedReadyStatePromotion === false) {
     return {
       action: workflowDecisionActions.leaveUnchanged,
-      reason: "ready-state promotion was not requested",
+      reason: "ready-state promotion was explicitly disabled",
     };
   }
 
