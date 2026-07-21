@@ -110,11 +110,12 @@ Each tick:
    instead of spending spare slots. Draft state is an orchestration repair
    signal, not a code review request, and capacity pressure is not a reason to
    close a draft or in-progress PR.
-6. Delegate every context-heavy step (implement, review, triage) to an isolated
-   worker. Dispatching a ticket is one atomic step: claim it and move it to the
-   configured in-progress state at dispatch time, so the tracker never shows a
-   dispatched ticket still sitting in the ready state. Reduce each worker
-   result into the compact queue and ledger before continuing.
+6. For every selected ticket, apply the tick plan's `trackerStateUpdates` and
+   require the tracker to confirm the configured in-progress state before
+   launching an isolated worker. If that transition fails, do not start the
+   worker. Delegate every context-heavy step (implement, review, triage) only
+   after its claim succeeds. Reduce each worker result into the compact queue
+   and ledger before continuing.
 7. Persist only the ledger and checkpoint. Append friction entries. If the queue
    is completely blocked, report blocked and stop the recurring run for this
    scope. Otherwise exit.

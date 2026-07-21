@@ -153,12 +153,12 @@ Default tick order:
 4. Drain active PRs, previews, draft stalls, base-branch drift, checks, review
    debt, stale labels, and ready-for-human-merge PRs before dispatching.
 5. Select every startable `kind-slice` ticket that is ready, unblocked, within
-   cap, and non-colliding by predicted footprint; dispatch the whole selected
-   set this tick, never saving startable tickets for later wake-ups.
-6. Delegate implementation, review, or triage. Dispatch is atomic with the
-   claim: move the ticket to the configured in-progress state at dispatch time.
-   A dispatched ticket left in the ready state is tracker drift to fix on
-   sight and invites duplicate dispatch. Never let two workers own one branch.
+   cap, and non-colliding by predicted footprint. Apply the planner's
+   `trackerStateUpdates` and confirm the configured in-progress state first.
+6. Delegate implementation, review, or triage only after the claim succeeds.
+   Dispatch the whole selected set this tick, never saving startable tickets
+   for later wake-ups. Never start a worker while its ticket remains ready;
+   never let two workers own one branch.
 7. Persist only ledger/checkpoint updates and friction entries.
 8. Stop the recurring scope if the queue is completely blocked; otherwise exit
    until the next scheduled tick.

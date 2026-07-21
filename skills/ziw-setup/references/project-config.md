@@ -84,6 +84,7 @@ Last updated: YYYY-MM-DD
 - Orphan policy:
 - Issue key examples:
 - Ready state: Todo
+- In-progress state: In Progress
 - Intake states: Triage
 - Ready-state promotion source states: Triage, Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge

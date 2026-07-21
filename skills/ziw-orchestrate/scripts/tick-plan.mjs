@@ -249,6 +249,11 @@ const hostedReviews = pullRequests
 const capacity = capacityDecision(planningState, config);
 const dispatch = dispatchSelectionDecision(planningState, config);
 const humanMergeLabels = pullRequests.map((pr) => humanMergeDecisionForPr(state, config, pr));
+const trackerStateUpdates = toArray(dispatch.selected).map((ticket) => ({
+  ticket: ticket.id,
+  targetState: config.inProgressState ?? "In Progress",
+  timing: "before-dispatch",
+}));
 
 const selectedDispatches = dispatch.selected?.length ?? 0;
 const nextAction =
@@ -272,6 +277,7 @@ process.stdout.write(
       decisions: {
         capacity,
         dispatch,
+        trackerStateUpdates,
         readyStatePromotions,
         reviewEvidence,
         linearDag,
@@ -290,6 +296,7 @@ process.stdout.write(
         openPrs: capacity.footprint.prs,
         startableTickets: planningState.startableTickets.length,
         selectedDispatches,
+        trackerStateUpdates: trackerStateUpdates.length,
         deferredDispatches: dispatch.deferred?.length ?? 0,
         activeDispatches: activeDispatches.length,
         synthesizedDispatches: activeDispatches.filter(

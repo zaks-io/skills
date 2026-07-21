@@ -240,6 +240,23 @@ test("tick-plan dispatches Linear DAG starts with snapshot-derived footprints", 
   assert.deepEqual(output.decisions.dispatch.selected, [
     { id: "LIN-1", footprint: ["apps/api/src/index.ts"] },
   ]);
+  assert.deepEqual(output.decisions.trackerStateUpdates, [
+    { ticket: "LIN-1", targetState: "In Progress", timing: "before-dispatch" },
+  ]);
+});
+
+test("tick-plan uses the configured in-progress state before dispatch", () => {
+  const output = runPlan({
+    snapshot: { repo: "zaks-io/example", prs: [] },
+    config: { activePrPreviewCap: 1, inProgressState: "Started" },
+    state: {
+      startableTickets: [{ id: "ZAK-1", footprint: ["src/a.ts"] }],
+    },
+  });
+
+  assert.deepEqual(output.decisions.trackerStateUpdates, [
+    { ticket: "ZAK-1", targetState: "Started", timing: "before-dispatch" },
+  ]);
 });
 
 test("tick-plan synthesizes active Linear claims before capacity selection", () => {
