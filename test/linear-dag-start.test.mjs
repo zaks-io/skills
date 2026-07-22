@@ -112,29 +112,35 @@ test("linearDagStart ignores non-agent readiness labels from broad config", () =
   );
 });
 
-test("linearDagStart excludes claimed issues and open PRs from starts", () => {
+test("linearDagStart ignores human assignees but excludes worker claims and open PRs", () => {
   const output = linearDagStart([
     {
       identifier: "LIN-1",
-      assignee: "Cursor",
+      assignee: "Isaac",
       labels: ["kind-slice", "ready-for-agent"],
       stateType: "unstarted",
     },
     {
       identifier: "LIN-2",
+      workerSession: "cursor-session",
       labels: ["kind-slice", "ready-for-agent"],
-      prOpen: true,
       stateType: "unstarted",
     },
     {
       identifier: "LIN-3",
       labels: ["kind-slice", "ready-for-agent"],
+      prOpen: true,
+      stateType: "unstarted",
+    },
+    {
+      identifier: "LIN-4",
+      labels: ["kind-slice", "ready-for-agent"],
       stateType: "unstarted",
     },
   ]);
 
-  assert.deepEqual(output.frontier, ["LIN-1", "LIN-2", "LIN-3"]);
-  assert.deepEqual(output.starts, ["LIN-3"]);
+  assert.deepEqual(output.frontier, ["LIN-1", "LIN-2", "LIN-3", "LIN-4"]);
+  assert.deepEqual(output.starts, ["LIN-1", "LIN-4"]);
 });
 
 test("linearDagStart blocks missing required estimates", () => {
@@ -240,17 +246,12 @@ test("tick-plan fails fast when input is missing", () => {
   assert.match(result.stderr, /expected exactly one input/);
 });
 
-test("CLI exits non-zero with verification guidance when the DAG is empty", () => {
+test("CLI reports an empty DAG as a successfully drained scope", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-dag-"));
   const file = path.join(dir, "input.json");
   writeFileSync(file, JSON.stringify({ issues: [] }), "utf8");
 
-  assert.throws(
-    () => execFileSync("node", [script, file], { encoding: "utf8" }),
-    (error) => {
-      assert.match(String(error.stderr), /zero live issues/);
-      assert.match(String(error.stderr), /tracker MCP/);
-      return true;
-    },
-  );
+  const output = JSON.parse(execFileSync("node", [script, file], { encoding: "utf8" }));
+  assert.equal(output.totalIssues, 0);
+  assert.deepEqual(output.starts, []);
 });

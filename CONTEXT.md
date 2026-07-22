@@ -88,12 +88,14 @@ complete body, but blocked by another ticket or external dependency.
 _Avoid_: Linear Backlog, future work
 
 **Active Delivery Footprint**:
-The repo-level capacity consumed by open PRs, active PR-scoped previews, and implementation dispatches that have not yet produced a PR.
-_Avoid_: worker concurrency, queue size
+The repo-level inventory of open PRs, previews, and implementation branches used
+for action planning and collision checks. It is not worker capacity.
+_Avoid_: worker concurrency cap, queue size
 
-**Active PR/Preview Cap**:
-The maximum active delivery footprint allowed before **Agent Orchestrator** must advance existing PRs or previews instead of dispatching more work. It is not a PR closure quota.
-_Avoid_: agent session cap, parallel worker count, queue eviction
+**Worker Concurrency Cap**:
+The maximum confirmed implementation and repair sessions that may run at once.
+Open PRs, previews, human assignees, and abandoned worktrees do not consume it.
+_Avoid_: PR quota, queue eviction
 
 **Current Work**:
 Tickets in configured ready or active states, plus active or PR-linked tickets that may need tracker repair.
@@ -279,8 +281,8 @@ _Avoid_: local check, CI in general
 - **Readiness Labels** and **Worker Environment Labels** are metadata, not workflow state.
 - **Startable Work** is always a **Slice Ticket**, but not every **Slice Ticket** is **Startable Work**.
 - **Issue Triage** prepares **Current Work** for **Agent Orchestrator**.
-- **Active Delivery Footprint** is compared to the **Active PR/Preview Cap**
-  before **Agent Orchestrator** dispatches more work.
+- **Worker Concurrency Cap** limits active implementation and repair sessions;
+  **Active Delivery Footprint** constrains only overlapping file seams.
 - **Agent Orchestrator** delegates **Agent Implement** through a **Worker Delegation Path**.
 - **Agent Implement** produces a PR and a **Handoff** for **Agent Orchestrator**.
 - **Agent Review** calls **Code Review** from **Clean Context**.
@@ -300,7 +302,7 @@ _Avoid_: local check, CI in general
 > **Domain expert:** "No. A **Worker Environment Label** only approves the configured environment; blockers still live in relationships, body text, or workflow state."
 >
 > **Dev:** "The workers are idle, so Orchestrator can start three more tickets."
-> **Domain expert:** "Not if open PRs or previews already fill the **Active PR/Preview Cap**. Drain those first."
+> **Domain expert:** "Yes, up to the **Worker Concurrency Cap**, provided the ready tickets do not collide with active file seams."
 
 ## Flagged Ambiguities
 
@@ -317,6 +319,5 @@ _Avoid_: local check, CI in general
   vague parked work.
 - Local CLI availability does not prove **Issue-assigned Delegation** exists. That path must come from the **Issue Tracker** or verified **Repo Config**.
 - The **Dispatch Ledger** is not workflow state. The relevant **Systems Of Record** must be refreshed before acting.
-- "Concurrency" is ambiguous. Use **Active PR/Preview Cap** for delivery
-  capacity and **Worker Delegation Path** or provider session limit for worker
-  mechanics.
+- Use **Worker Concurrency Cap** for active sessions and **Active Delivery
+  Footprint** for PR action and file-collision inventory.

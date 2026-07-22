@@ -180,7 +180,7 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
   passed the configured code review gate for this ticket. Resolve it by the
   exact configured slug or ID, not by reconstructing a display name. Apply it
   only with adjacent review evidence that names the PR URL and reviewed head
-  SHA. Remove it when the PR head changes, blocking review findings appear, the
+  SHA and review-diff fingerprint. Remove it when that diff changes, blocking review findings appear, the
   linked PR changes, or the review evidence is missing or stale.
 - The configured code-host human-merge PR label means the PR is ready to merge
   except for required human merge authority. Apply it only to open non-draft PRs

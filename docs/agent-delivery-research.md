@@ -134,16 +134,15 @@ Default human-planning work:
 - performance work without a benchmark
 - tasks where learning or design judgment is the point
 
-### Active PR/Preview Capacity
+### Worker Capacity And Provider Limits
 
-Local operating judgment: worker-session concurrency is the wrong throttle when
-remote agents open PR-scoped preview environments. A worker can finish while its
-PR and preview keep consuming scarce provider capacity.
+The earlier design used one active PR/preview cap for worker dispatch and
+provider pressure. That coupled unrelated constraints and let a queue of idle
+PRs suppress implementation throughput.
 
-The orchestrator therefore uses an active PR/preview cap. It counts repo-level
-open PRs, active PR-scoped previews, and implementation dispatches that have not
-yet produced a PR. When the cap is full, Orchestrator drains existing PRs and
-previews before assigning more implementation work.
+The corrected design caps confirmed worker sessions. PRs and previews remain
+action, collision, and provider-limit inputs, but they do not consume worker
+slots. The orchestrator advances PRs while backfilling every safe worker slot.
 
 ### Measurement
 

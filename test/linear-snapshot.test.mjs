@@ -108,10 +108,7 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
     snapshot.issues.map((item) => item.identifier),
     ["SPL-1", "SPL-2"],
   );
-  assert.deepEqual(
-    snapshot.activeIssues.map((item) => item.identifier),
-    ["SPL-2"],
-  );
+  assert.deepEqual(snapshot.activeIssues, []);
   assert.deepEqual(snapshot.issues[0].footprint, ["apps/api/src/index.ts"]);
 });
 
@@ -152,8 +149,8 @@ test("selectScopedLinearIssues does not silently expand beyond direct blockers",
 
 test("selectActiveLinearIssues scopes active claims to the repo route label", () => {
   const issues = [
-    normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/splitch"], stateType: "started" }),
-    normalizedIssue({ identifier: "SPL-2", labels: ["zaks-io/other"], stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/splitch"], workerSession: "bc-1" }),
+    normalizedIssue({ identifier: "SPL-2", labels: ["zaks-io/other"], workerSession: "bc-2" }),
     normalizedIssue({
       identifier: "SPL-3",
       labels: ["zaks-io/splitch"],
@@ -164,32 +161,50 @@ test("selectActiveLinearIssues scopes active claims to the repo route label", ()
 
   assert.deepEqual(
     selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
-    ["SPL-1", "SPL-3"],
+    ["SPL-1"],
   );
 });
 
 test("selectActiveLinearIssues falls back to team scope when route labels are unused", () => {
   const issues = [
-    normalizedIssue({ identifier: "SPL-1", labels: ["kind-slice"], stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-1", labels: ["kind-slice"], workerSession: "bc-1" }),
     normalizedIssue({ identifier: "SPL-2", labels: ["kind-slice"], assignee: "Isaac" }),
   ];
 
   assert.deepEqual(
     selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
-    ["SPL-1", "SPL-2"],
+    ["SPL-1"],
   );
 });
 
 test("selectActiveLinearIssues returns no cross-repo claims when only another route is active", () => {
   const issues = [
-    normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/other"], stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/other"], workerSession: "bc-1" }),
   ];
 
   assert.deepEqual(selectActiveLinearIssues(issues, "zaks-io/splitch"), []);
 });
 
-function normalizedIssue({ identifier, labels = [], stateType = "unstarted", assignee = null }) {
-  return { identifier, labels, stateType, assignee };
+test("started tracker state without a worker session does not consume a worker slot", () => {
+  const issues = [
+    normalizedIssue({ identifier: "SPL-1", stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-2", workerSession: "bc-2" }),
+  ];
+
+  assert.deepEqual(
+    selectActiveLinearIssues(issues).map((item) => item.identifier),
+    ["SPL-2"],
+  );
+});
+
+function normalizedIssue({
+  identifier,
+  labels = [],
+  stateType = "unstarted",
+  assignee = null,
+  workerSession = null,
+}) {
+  return { identifier, labels, stateType, assignee, workerSession };
 }
 
 function issue({

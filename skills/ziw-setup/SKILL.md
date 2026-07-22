@@ -56,7 +56,7 @@ Load these references when writing the config:
 - [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
   for tracker states, labels, readiness, and issue body shape
 - [references/operating-profile.md](references/operating-profile.md) for the
-  active PR/preview cap default, the issue-assigned delegation and continuation
+  worker concurrency default, the issue-assigned delegation and continuation
   mechanic, the repo-route precondition, and the merge-safety decision table
 - [references/linear-cursor-example.md](references/linear-cursor-example.md) for
   a worked Linear + Cursor config to copy when the repo uses that stack
@@ -198,7 +198,7 @@ Record:
 - duplicate worker or PR detection policy for issue-assigned providers that can
   spawn more than one session for one dispatch
 - autonomous-loop controls when the repo runs the orchestrator unattended:
-  active PR/preview cap, cap count policy, preview-provider cap, stuck-worker
+  worker concurrency cap, worker count policy, preview-provider cap, stuck-worker
   timeout, attempt cap before the thrash circuit breaker, required checks that
   define green for the integrate gate, auto-merge risk tiers, merge method,
   post-merge preparation and check, the production deploy status check on the
@@ -312,7 +312,7 @@ Review evidence:
 By default, the review evidence label means the latest linked PR head SHA has
 passed the configured code review gate for the ticket. Record the exact
 configured label slug or ID, PR URL, and reviewed head SHA when applying it.
-Remove it when the PR head changes, blocking findings appear, the linked PR
+Remove it when the review-relevant diff changes, blocking findings appear, the linked PR
 changes, or the evidence is missing. Resolve the label by configured slug or ID,
 not by reconstructing a title-case display name.
 

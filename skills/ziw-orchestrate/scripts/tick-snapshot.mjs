@@ -4,7 +4,7 @@
 // snapshot instead of dozens of tool round-trips.
 //
 // Usage:
-//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY|UUID|NAME] [--linear-route-label owner/name] [--linear-states Todo,Triage]
+//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY|UUID|NAME] [--no-local-worktrees] [--pretty]
 //
 // GitHub state comes from the `gh` CLI (must be installed and authenticated).
 // Linear state is included only when --linear-team is given and either
@@ -19,7 +19,9 @@ import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs"
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
 import { localWorktrees } from "./worktree-snapshot.mjs";
 
+const startedAt = performance.now();
 const args = process.argv.slice(2);
+const pretty = args.includes("--pretty");
 const argValue = (flag) => {
   const i = args.indexOf(flag);
   return i >= 0 ? args[i + 1] : undefined;
@@ -73,7 +75,7 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
     defaultBranchRef {
       name
       target {
-        ... on Commit { oid statusCheckRollup { state contexts(first: 50) { nodes {
+        ... on Commit { oid statusCheckRollup { state contexts(first: 50) { totalCount nodes {
           ... on CheckRun { name conclusion status }
           ... on StatusContext { context state }
         } } } }
@@ -83,14 +85,15 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
       totalCount
       pageInfo { hasNextPage endCursor }
       nodes {
-        number title url isDraft updatedAt
+        number title url isDraft updatedAt changedFiles
         author { login __typename }
         headRefName headRefOid baseRefName
         mergeable mergeStateStatus reviewDecision
+        autoMergeRequest { enabledAt }
         labels(first: 20) { nodes { name } }
         reviewThreads(first: 100) { totalCount nodes { isResolved } }
-        reviews(last: 20) { nodes { author { login } state submittedAt } }
-        commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 60) { nodes {
+        reviews(last: 20) { totalCount nodes { author { login } state submittedAt commit { oid } } }
+        commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 60) { totalCount nodes {
           ... on CheckRun { name conclusion status }
           ... on StatusContext { context state }
         } } } } } }
@@ -112,14 +115,23 @@ const checkSummary = (rollup) => {
       pending.push(label);
     }
   }
-  return { state: rollup.state ?? "UNKNOWN", failed, pending };
+  return {
+    state: rollup.state ?? "UNKNOWN",
+    failed,
+    pending,
+    truncated: (rollup.contexts?.totalCount ?? 0) > (rollup.contexts?.nodes?.length ?? 0),
+  };
 };
 
 const latestReviewByAuthor = (reviews) => {
   const byAuthor = new Map();
   for (const review of reviews ?? []) {
     if (!review.author?.login || review.state === "COMMENTED") continue;
-    byAuthor.set(review.author.login, { state: review.state, submittedAt: review.submittedAt });
+    byAuthor.set(review.author.login, {
+      state: review.state,
+      submittedAt: review.submittedAt,
+      headSha: review.commit?.oid ?? null,
+    });
   }
   return Object.fromEntries(byAuthor);
 };
@@ -169,7 +181,7 @@ const baseline = {
   headSha: repoData.defaultBranchRef?.target?.oid ?? null,
   checks: checkSummary(baselineRollup),
 };
-baseline.green = baseline.checks.state === "SUCCESS" || baseline.checks.state === "NONE";
+baseline.green = baseline.checks.state === "SUCCESS";
 
 const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
   number: pr.number,
@@ -183,15 +195,18 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
   isDraft: pr.isDraft,
   draftState: pr.isDraft ? "draft" : "ready-for-review",
   updatedAt: pr.updatedAt,
+  changedFiles: pr.changedFiles,
   headRefName: pr.headRefName,
   headSha: pr.headRefOid,
   baseRefName: pr.baseRefName,
   mergeable: pr.mergeable,
   mergeStateStatus: pr.mergeStateStatus,
   reviewDecision: pr.reviewDecision,
+  autoMergeArmed: Boolean(pr.autoMergeRequest),
   labels: (pr.labels?.nodes ?? []).map((label) => label.name),
   unresolvedThreads: (pr.reviewThreads?.nodes ?? []).filter((t) => !t.isResolved).length,
   reviewThreadsTruncated: (pr.reviewThreads?.totalCount ?? 0) > 100,
+  reviewsTruncated: (pr.reviews?.totalCount ?? 0) > (pr.reviews?.nodes?.length ?? 0),
   latestReviews: latestReviewByAuthor(pr.reviews?.nodes),
   checks: checkSummary(pr.commits?.nodes?.[0]?.commit?.statusCheckRollup),
 }));
@@ -222,32 +237,41 @@ if (linearTeam && hasLinearCredential()) {
   }
 }
 
-let worktrees;
-try {
-  worktrees = localWorktrees({ baseline, repo });
-} catch (error) {
-  fail(`local worktree query failed: ${error.message}`);
+let worktrees = [];
+if (!args.includes("--no-local-worktrees")) {
+  try {
+    worktrees = localWorktrees({ baseline, repo });
+  } catch (error) {
+    fail(`local worktree query failed: ${error.message}`);
+  }
 }
 
-process.stdout.write(
-  `${JSON.stringify(
-    {
-      generatedAt: new Date().toISOString(),
-      repo,
-      baseline,
-      footprint: {
-        openPrCount: repoData.pullRequests?.totalCount ?? prs.length,
-        productPrCount: prs.filter((pr) => !pr.isDependencyBot).length,
-        draftPrCount: prs.filter((pr) => pr.isDraft).length,
-        readyForReviewPrCount: prs.filter((pr) => !pr.isDraft).length,
-        botPrCount: prs.filter((pr) => pr.isBot).length,
-        dependencyBotPrCount: prs.filter((pr) => pr.isDependencyBot).length,
-      },
-      prs,
-      worktrees,
-      linear,
-    },
-    null,
-    2,
-  )}\n`,
-);
+const snapshot = {
+  v: 2,
+  generatedAt: new Date().toISOString(),
+  repo,
+  sources: {
+    github: "complete",
+    linear: linear.skipped ? "missing" : "complete",
+    worktrees: args.includes("--no-local-worktrees") ? "skipped" : "complete",
+  },
+  baseline,
+  footprint: {
+    openPrCount: repoData.pullRequests?.totalCount ?? prs.length,
+    productPrCount: prs.filter((pr) => !pr.isDependencyBot).length,
+    draftPrCount: prs.filter((pr) => pr.isDraft).length,
+    readyForReviewPrCount: prs.filter((pr) => !pr.isDraft).length,
+    botPrCount: prs.filter((pr) => pr.isBot).length,
+    dependencyBotPrCount: prs.filter((pr) => pr.isDependencyBot).length,
+  },
+  prs,
+  worktrees,
+  linear,
+};
+const snapshotBytes = Buffer.byteLength(JSON.stringify(snapshot));
+snapshot.usage = {
+  elapsedMs: Math.round(performance.now() - startedAt),
+  outputBytes: snapshotBytes,
+  estimatedOutputTokens: Math.ceil(snapshotBytes / 4),
+};
+process.stdout.write(`${JSON.stringify(snapshot, null, pretty ? 2 : 0)}\n`);

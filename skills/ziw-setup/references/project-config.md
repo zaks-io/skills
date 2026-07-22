@@ -104,6 +104,14 @@ Last updated: YYYY-MM-DD
 - Worker environment labels:
 - Worker environment label policy:
   - remote-cursor: approved to run in the remote Cursor environment; does not mean unblocked or startable
+- Worker routing policy: remote-safe routine work first, then the
+  highest-leverage authorized local-only work
+- Remote worker paths:
+- Local worker paths:
+- Local budget usage source:
+- Local budget soft stop: pauses new local-heavy starts while remote work continues
+- Local budget hard stop: stops new local dispatch; remote work continues
+- Local starts below soft stop per tick: 1 unless repo policy says otherwise
 - Startable work criteria: kind-slice, ready state, ready-for-agent, complete
   body with explicit non-goals, configured required estimate, repo-route label
   when issue-assigned, no active blockers, no active claim or open PR
@@ -120,7 +128,7 @@ Last updated: YYYY-MM-DD
 - Review evidence labels: exact configured label slugs or IDs (repo-specific;
   record the real slug here, not an example)
 - Review evidence label policy:
-  - <review-evidence-label>: latest linked PR head SHA passed the configured code review gate; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
+  - <review-evidence-label>: linked PR review-relevant diff passed the configured code review gate; record PR URL, reviewed head SHA, and diff fingerprint; remove when that diff changes, blocking findings appear, linked PR changes, or evidence is missing
 - Type labels: Bug, Feature, Improvement, Tech Debt, Spike, Hotfix
 - Area labels:
 - Priority policy:
@@ -163,38 +171,31 @@ Last updated: YYYY-MM-DD
 - Worker delegation paths: local-worktree, issue-assigned, or both
 - Default worker path:
 - Capacity policy:
-- Active PR/preview cap: max active delivery slots (default 3 if unset). Count
-  repo-level open PRs, active PR-scoped previews, and implementation dispatches
-  that have not yet produced a PR
-- Cap count policy: count each open PR once, add active previews that are not
-  clearly linked to an already counted PR, then add unreturned implementation
-  dispatches. Reconcile the ledger with repo-scoped active tracker claims and
-  dirty, baseline-unmerged, or uncertain non-default worktrees; synthesize
-  missing dispatches and deduplicate them against open PRs. Exclude bot
-  dependency PRs (dependabot, renovate) from the cap; track them as a separate
-  drain count. Draft PRs are open PRs and count even when tracker sync has not
-  linked them yet. Obey any stricter preview-provider or worker-session limit
-- Partitioned-scope cap semantics: when the queue is split across concurrent
-  orchestrator runs, record whether the cap is shared repo-wide or per scope,
-  and how each run counts the other's PRs and dispatches. Unset means one
-  repo-wide cap shared by all runs
+- Worker concurrency cap: max active implementation or repair sessions (default
+  3 if unset)
+- Worker count policy: count confirmed sessions until they return, stop, fail,
+  or produce a PR. Deduplicate session, issue, and provider handles. Human
+  assignees, open PRs, previews, and abandoned worktrees do not occupy worker
+  slots
+- Partitioned-scope cap semantics: record whether concurrent orchestrator runs
+  share one repo-wide worker pool and how they reserve slots
 - Dispatch footprint policy: before fanning out startable work, compare predicted
   file or package footprints against active PRs, active worker branches, and other
   selected candidates, including shared document hotspots. Hold collisions or
-  unknown footprints for triage or a later tick; capacity headroom alone is not
-  permission to dispatch
+  concrete collisions. Start one unknown-footprint lane when nothing can collide;
+  otherwise derive the footprint in the same tick
 - Worktree hygiene policy: configured disposable worktree root or prefixes,
   prune command, and orphan-removal guard. Only orchestrator-owned disposable
   worktrees may be removed automatically
-- Capacity drain policy: when active delivery slots are at or over cap,
-  Orchestrator advances, merges, routes fixes, cleans up previews, or escalates
-  existing PRs and previews before dispatching new implementation work
+- Saturation policy: every tick advances actionable PR state and fills every safe
+  worker slot. Record an explicit collision, authority, provider, or budget
+  reason for each idle slot while ready work exists
 - PR closure guard: capacity pressure is not a closure reason. Orchestrator may
   close PRs only with refreshed code-host and tracker evidence of duplicate,
   explicitly canceled or abandoned, already-terminal, or security/policy-required
   work. Draft, active, recently updated, or unclear-ownership PRs stay open and
-  become capacity blockers or active work to advance. PR age, draft status, and
-  active-delivery pressure are not abandonment evidence
+  remain file seams or active work to advance. PR age, draft status, and
+  worker pressure are not abandonment evidence
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Duplicate worker or PR policy: idempotency key, session-handle source, and how
   to choose a canonical PR when one dispatch creates more than one session
@@ -249,8 +250,8 @@ Last updated: YYYY-MM-DD
 - Friction review automation: exact daily, weekly, or manual mechanism that
   reviews friction entries and opens improvement PRs when warranted
 - Delivery metrics: merge rate, first-pass check rate, review rework, stuck workers, human escalations, and agent cost when available
-- Capacity metrics: open PRs, active previews, active delivery slots, and
-  remaining headroom at start and end of orchestration runs
+- Capacity metrics: active workers, worker cap, remaining headroom, and
+  justified idle slots at tick start and end
 - Handoff format:
 
 ## Agent Access
@@ -326,7 +327,8 @@ Last updated: YYYY-MM-DD
   Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts
   ready-for-review, and verifies the code-host PR is non-draft unless this repo
   says otherwise. A kept-draft PR is pre-review, not ready-for-review. Draft PRs
-  still consume active delivery capacity and file-contention seams
+  consume file-contention seams but not worker slots unless a worker is actively
+  repairing them
 - Ready-for-review owner: Agent Orchestrator
 - Issue update:
 - Merge authority:

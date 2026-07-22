@@ -27,7 +27,7 @@ test("deduplication enriches ledger dispatches with live footprint evidence", ()
   const [dispatch] = deriveActiveDispatches({
     snapshot: {
       linear: {
-        activeIssues: [{ identifier: "MAIN-7", stateType: "started", footprint: ["src/hot.ts"] }],
+        activeIssues: [{ identifier: "MAIN-7", workerSession: "bc-7", footprint: ["src/hot.ts"] }],
       },
     },
     state: {
@@ -46,7 +46,7 @@ test("terminal Linear assignments are not active claims", () => {
         activeIssues: [
           { identifier: "MAIN-1", stateType: "completed", assignee: "Isaac" },
           { identifier: "MAIN-2", stateType: "canceled", assignee: "Isaac" },
-          { identifier: "MAIN-3", stateType: "started", assignee: "Isaac" },
+          { identifier: "MAIN-3", workerSession: "bc-3", assignee: "Isaac" },
         ],
       },
     },
@@ -62,7 +62,7 @@ test("dependency bot PRs do not suppress active issue claims", () => {
   const dispatches = deriveActiveDispatches({
     snapshot: {
       linear: {
-        activeIssues: [{ identifier: "MAIN-4", stateType: "started" }],
+        activeIssues: [{ identifier: "MAIN-4", workerSession: "bc-4" }],
       },
     },
     pullRequests: [
@@ -140,5 +140,22 @@ test("merged PR evidence matches exact heads without hiding a reused branch", ()
       mergedPullRequests,
     ),
     false,
+  );
+});
+
+test("completed and stale dispatch receipts do not consume worker slots", () => {
+  const dispatches = deriveActiveDispatches({
+    state: {
+      dispatches: [
+        { id: "MAIN-7", status: "completed" },
+        { id: "MAIN-8", status: "stale" },
+        { id: "MAIN-9", status: "running" },
+      ],
+    },
+  });
+
+  assert.deepEqual(
+    dispatches.map((dispatch) => dispatch.id),
+    ["MAIN-9"],
   );
 });

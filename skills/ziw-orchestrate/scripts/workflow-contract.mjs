@@ -69,7 +69,6 @@ export const workflowDecisionActions = Object.freeze({
   clearReviewEvidence: "CLEAR_REVIEW_EVIDENCE",
   deferForFileContention: "DEFER_FOR_FILE_CONTENTION",
   dispatchStartableWork: "DISPATCH_STARTABLE_WORK",
-  drainActiveWork: "DRAIN_ACTIVE_WORK",
   deferUntilPrReady: "DEFER_UNTIL_PR_READY",
   holdMerge: "HOLD_MERGE",
   hostedReviewComplete: "RECORD_HOSTED_REVIEW_COMPLETE",
@@ -82,6 +81,7 @@ export const workflowDecisionActions = Object.freeze({
   resolveAutoReviewState: "RESOLVE_AUTO_REVIEW_STATE",
   routeHumanMerge: "ROUTE_HUMAN_MERGE",
   runLocalCli: "RUN_LOCAL_CLI",
+  stopBudgetExhausted: "STOP_BUDGET_EXHAUSTED",
   stopBlocked: "STOP_COMPLETELY_BLOCKED",
   treatAsWorkContext: "TREAT_AS_WORK_CONTEXT",
   waitForSignal: "WAIT_FOR_EXTERNAL_SIGNAL",
@@ -346,14 +346,8 @@ function mergeReadinessFacts(state = {}) {
       prState === "draft" ||
       normalize(state.draftState) === "draft",
     hostedReviewBlocked: Boolean(
-      firstDefined(
-        state.hostedReviewPending || undefined,
-        state.codeRabbitPending || undefined,
-        state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped
-          ? true
-          : undefined,
-        state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped,
-      ),
+      (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
+      (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
     ),
     open: Boolean((state.open ?? !terminal) && !terminal),
     reviewEvidenceCurrent: currentReviewEvidence(state),
@@ -467,28 +461,19 @@ export function riskTier(state = {}, config = {}) {
   return explicit;
 }
 
-export function reviewDepthRequirement(tier) {
+export function reviewDepthRequirement(tier, config = {}) {
   const normalizedTier = RISK_TIERS.includes(normalize(tier)) ? normalize(tier) : "medium";
-  if (normalizedTier === "high") {
-    return {
-      independentReviews: 2,
-      secondPassOnUncertainty: true,
-      strongestModel: true,
-      tier: normalizedTier,
-    };
-  }
-  if (normalizedTier === "medium") {
-    return {
-      independentReviews: 1,
-      secondPassOnUncertainty: true,
-      strongestModel: false,
-      tier: normalizedTier,
-    };
+  const configured = config.requiredIndependentReviews;
+  const independentReviews = Number(
+    typeof configured === "object" ? (configured?.[normalizedTier] ?? 1) : (configured ?? 1),
+  );
+  if (!Number.isInteger(independentReviews) || independentReviews < 1) {
+    throw new Error("required independent reviews must be a positive integer");
   }
   return {
-    independentReviews: 1,
-    secondPassOnUncertainty: false,
-    strongestModel: false,
+    independentReviews,
+    secondPassOnUncertainty: Boolean(config.secondReviewOnUncertainty),
+    strongestModel: normalizedTier === "high",
     tier: normalizedTier,
   };
 }
@@ -508,7 +493,7 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   const tier = riskTier(state, config);
   // Delivery mode is repo policy: config-owned, never read from runtime state.
   const mode = resolvedDeliveryMode(config);
-  const reviewDepth = reviewDepthRequirement(tier);
+  const reviewDepth = reviewDepthRequirement(tier, config);
   const base = { mode, reviewDepth, tier };
 
   const hold = (reason) => ({ ...base, action: workflowDecisionActions.holdMerge, reason });
@@ -536,17 +521,21 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   // fields harden the check when present. Third-party signals such as hosted
   // reviews always require a provable head SHA match.
   const conformance = normalize(state.conformance ?? state.conformanceVerdict);
-  const requireConformance = config.requireConformanceEvidence !== false;
+  const requireConformance = config.requireConformanceEvidence === true;
   const currentHead = state.currentPrHeadSha ?? state.headSha;
+  if (CONFORMANCE_FAIL.has(conformance)) {
+    return hold("conformance table has FAIL rows; route findings back to the worker");
+  }
+  if (
+    conformance &&
+    state.conformanceHeadSha != null &&
+    !shaEquals(state.conformanceHeadSha, currentHead)
+  ) {
+    return hold("conformance evidence does not cover the current PR head");
+  }
   if (requireConformance) {
-    if (CONFORMANCE_FAIL.has(conformance)) {
-      return hold("conformance table has FAIL rows; route findings back to the worker");
-    }
     if (!conformance) {
       return hold("conformance table is not exhibited for the current PR head");
-    }
-    if (state.conformanceHeadSha != null && !shaEquals(state.conformanceHeadSha, currentHead)) {
-      return hold("conformance evidence does not cover the current PR head");
     }
     if (conformance !== CONFORMANCE_PASS && tier === "high") {
       return hold(
@@ -573,7 +562,7 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   }
 
   const conformanceNote =
-    requireConformance && conformance !== CONFORMANCE_PASS
+    conformance && conformance !== CONFORMANCE_PASS
       ? "; conformance not fully verifiable, recorded as intake gap"
       : "";
   return {
@@ -624,47 +613,73 @@ export function activeDeliveryFootprint(state = {}) {
   };
 }
 
-function activeDeliveryCap(config = {}) {
-  const cap = Number(config.activePrPreviewCap ?? config.cap ?? 3);
+function workerConcurrencyCap(config = {}) {
+  const cap = Number(config.workerConcurrencyCap ?? config.cap ?? 3);
   if (!Number.isInteger(cap) || cap < 0) {
-    throw new Error("active delivery cap must be a non-negative integer");
+    throw new Error("worker concurrency cap must be a non-negative integer");
   }
   return cap;
 }
 
+function isActiveWorker(worker = {}) {
+  if (worker.occupiesWorkerSlot === false) return false;
+  if (worker.returned === true || worker.stopped === true || worker.hasPr === true) return false;
+  return !["completed", "failed", "returned", "stale", "stopped"].includes(
+    normalize(worker.state ?? worker.status),
+  );
+}
+
+export function activeWorkerCapacity(state = {}, config = {}) {
+  const cap = workerConcurrencyCap(config);
+  const workers = [...toArray(state.workers), ...toArray(state.dispatches)].filter(isActiveWorker);
+  const identities = new Set(
+    workers.map((worker, index) =>
+      normalize(
+        worker.session ??
+          worker.sessionId ??
+          worker.issueId ??
+          worker.ticket ??
+          worker.id ??
+          `worker-${index}`,
+      ),
+    ),
+  );
+  const used = identities.size;
+  return { cap, headroom: Math.max(0, cap - used), used };
+}
+
 export function capacityDecision(state = {}, config = {}) {
-  const cap = activeDeliveryCap(config);
-  const footprint = activeDeliveryFootprint(state);
+  const capacity = activeWorkerCapacity(state, config);
   const startableCount = toArray(state.startableTickets).length;
   const activeSignalExpected = Boolean(state.activeSignalExpected);
 
-  if (footprint.total >= cap) {
+  if (capacity.headroom === 0) {
     return {
-      action: workflowDecisionActions.drainActiveWork,
-      footprint,
-      reason: "active PR, preview, or dispatch footprint is at capacity",
+      action: workflowDecisionActions.waitForSignal,
+      capacity,
+      reason: "all configured worker slots are occupied",
     };
   }
 
   if (startableCount > 0) {
     return {
       action: workflowDecisionActions.dispatchStartableWork,
-      footprint,
-      reason: "capacity exists and startable work is available",
+      capacity,
+      reason: "worker slots are available and startable work exists",
     };
   }
 
-  if (footprint.total > 0 || activeSignalExpected) {
+  if (capacity.used > 0 || activeSignalExpected) {
     return {
       action: workflowDecisionActions.waitForSignal,
-      footprint,
+      capacity,
       reason: "external worker, check, preview, or review signal may still arrive",
     };
   }
 
   return {
     action: workflowDecisionActions.stopBlocked,
-    footprint,
+    capacity,
     reason: "no startable work, active work, or expected external signal remains",
   };
 }
@@ -710,24 +725,78 @@ function activeFootprintItems(state = {}) {
       !["returned", "stopped", "failed"].includes(normalize(dispatch?.state ?? dispatch?.status)),
   );
 
-  return [...toArray(state.activeWork), ...activePrs, ...activeDispatches];
+  return [...toArray(state.activeWork).filter(isActiveWorker), ...activePrs, ...activeDispatches];
+}
+
+function configuredWorkerNames(config = {}, kind) {
+  const defaults =
+    kind === "remote" ? ["remote", "remote-cursor", "cursor"] : ["local", "local-codex", "codex"];
+  return valueSet([
+    ...defaults,
+    config[`${kind}WorkerPath`],
+    ...toArray(config[`${kind}WorkerPaths`]),
+  ]);
+}
+
+function eligibleWorkerKinds(ticket = {}, config = {}) {
+  const workers = toArray(
+    ticket.eligibleWorkers ?? ticket.workerPaths ?? ticket.allowedWorkers ?? ticket.workers,
+  )
+    .map(normalize)
+    .filter(Boolean);
+  if (workers.length === 0) return null;
+
+  const remoteNames = configuredWorkerNames(config, "remote");
+  const localNames = configuredWorkerNames(config, "local");
+  return [
+    ...(workers.some((worker) => remoteNames.has(worker)) ? ["remote"] : []),
+    ...(workers.some((worker) => localNames.has(worker)) ? ["local"] : []),
+  ];
+}
+
+function ticketLeverage(ticket = {}) {
+  const explicit = Number(ticket.unlockCount ?? ticket.downstreamCount);
+  if (Number.isFinite(explicit)) return explicit;
+  return toArray(ticket.blocks ?? ticket.dependents).length;
+}
+
+function ticketPriority(ticket = {}) {
+  const priority = Number(ticket.priority ?? ticket.objectiveRank);
+  return Number.isFinite(priority) && priority > 0 ? priority : Number.POSITIVE_INFINITY;
+}
+
+function localBudgetPolicy(state = {}, config = {}) {
+  const usage = Number(state.localBudgetUsagePercent);
+  if (!Number.isFinite(usage)) return { mode: "unconfigured" };
+
+  if (config.localBudgetSoftStopPercent == null || config.localBudgetHardStopPercent == null) {
+    return { mode: "unconfigured", usage };
+  }
+  const softStop = Number(config.localBudgetSoftStopPercent);
+  const hardStop = Number(config.localBudgetHardStopPercent);
+  if (!Number.isFinite(softStop) || !Number.isFinite(hardStop) || softStop > hardStop) {
+    throw new Error("local budget stops must be numeric and soft stop must not exceed hard stop");
+  }
+  if (usage >= hardStop) return { hardStop, mode: "hard-stop", softStop, usage };
+  if (usage >= softStop) return { hardStop, mode: "remote-only", softStop, usage };
+  return { hardStop, mode: "local-allowed", softStop, usage };
 }
 
 export function dispatchSelectionDecision(state = {}, config = {}) {
-  const cap = activeDeliveryCap(config);
-  const footprint = activeDeliveryFootprint(state);
-  const headroom = Math.max(0, cap - footprint.total);
+  const capacity = activeWorkerCapacity(state, config);
+  const headroom = capacity.headroom;
   const candidates = toArray(state.startableTickets);
   const requireFootprint = config.requireDispatchFootprint !== false;
+  const budget = localBudgetPolicy(state, config);
 
   if (headroom <= 0) {
     return {
-      action: workflowDecisionActions.drainActiveWork,
+      action: workflowDecisionActions.waitForSignal,
       deferred: candidates.map((ticket) => ({
         id: ticket?.id,
-        reason: "active delivery cap has no headroom",
+        reason: "worker concurrency cap has no headroom",
       })),
-      footprint,
+      capacity,
       selected: [],
     };
   }
@@ -738,20 +807,68 @@ export function dispatchSelectionDecision(state = {}, config = {}) {
   }));
   const selected = [];
   const deferred = [];
+  const localStartLimit = Number(config.localStartsBelowSoftLimit ?? headroom);
+  if (!Number.isInteger(localStartLimit) || localStartLimit < 0) {
+    throw new Error("local starts below the soft budget stop must be a non-negative integer");
+  }
+  let localStarts = 0;
+  const routedCandidates = candidates
+    .map((ticket, index) => ({ index, kinds: eligibleWorkerKinds(ticket, config), ticket }))
+    .sort((left, right) => {
+      const leverageDifference = ticketLeverage(right.ticket) - ticketLeverage(left.ticket);
+      if (leverageDifference !== 0) return leverageDifference;
+      const priorityDifference = ticketPriority(left.ticket) - ticketPriority(right.ticket);
+      if (priorityDifference !== 0) return priorityDifference;
+      return left.index - right.index;
+    });
 
-  for (const ticket of candidates) {
+  for (const { kinds, ticket } of routedCandidates) {
     if (selected.length >= headroom) {
       deferred.push({
         id: ticket?.id,
-        reason: "active delivery cap headroom is already allocated",
+        reason: "worker concurrency headroom is already allocated",
       });
       continue;
     }
 
     const ticketFootprint = footprintEntries(ticket);
-    if (requireFootprint && ticketFootprint.length === 0) {
+    if (
+      requireFootprint &&
+      ticketFootprint.length === 0 &&
+      (activeItems.length > 0 || selected.length > 0)
+    ) {
       deferred.push({ id: ticket?.id, reason: "missing predicted file footprint" });
       continue;
+    }
+
+    let worker;
+    if (kinds != null) {
+      if (kinds.includes("remote")) {
+        worker = "remote";
+      } else if (
+        kinds.includes("local") &&
+        (budget.mode === "remote-only" || budget.mode === "hard-stop")
+      ) {
+        deferred.push({
+          id: ticket?.id,
+          reason:
+            budget.mode === "hard-stop"
+              ? "configured hard local budget stop reached"
+              : "local-heavy starts are paused at the configured soft budget stop",
+        });
+        continue;
+      } else if (kinds.includes("local") && localStarts >= localStartLimit) {
+        deferred.push({
+          id: ticket?.id,
+          reason: "configured per-tick local start limit is already allocated",
+        });
+        continue;
+      } else if (kinds.includes("local")) {
+        worker = "local";
+      } else {
+        deferred.push({ id: ticket?.id, reason: "no configured worker is authorized" });
+        continue;
+      }
     }
 
     const conflict = [...activeItems, ...selected].find((item) =>
@@ -767,14 +884,19 @@ export function dispatchSelectionDecision(state = {}, config = {}) {
       continue;
     }
 
-    selected.push({ id: ticket?.id, footprint: ticketFootprint });
+    selected.push({
+      id: ticket?.id,
+      footprint: ticketFootprint,
+      ...(worker ? { worker } : {}),
+    });
+    if (worker === "local") localStarts += 1;
   }
 
   if (selected.length > 0) {
     return {
       action: workflowDecisionActions.dispatchStartableWork,
+      capacity,
       deferred,
-      footprint,
       selected,
     };
   }
@@ -784,11 +906,16 @@ export function dispatchSelectionDecision(state = {}, config = {}) {
     deferred.every((item) => item.reason === "missing predicted file footprint");
 
   return {
-    action: missingFootprintOnly
-      ? workflowDecisionActions.requestFileFootprint
-      : workflowDecisionActions.deferForFileContention,
+    action:
+      deferred.length > 0 &&
+      deferred.every((item) => item.reason === "configured hard local budget stop reached")
+        ? workflowDecisionActions.stopBudgetExhausted
+        : missingFootprintOnly
+          ? workflowDecisionActions.requestFileFootprint
+          : workflowDecisionActions.deferForFileContention,
+    ...(budget.mode !== "unconfigured" ? { budget } : {}),
+    capacity,
     deferred,
-    footprint,
     selected,
   };
 }

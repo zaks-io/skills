@@ -22,8 +22,8 @@ and report the exact command the user should schedule.
 
 A tick is a single, stateless-against-external-state pass. The loop's goal is to
 clear its scope as fast as the safety gates allow. Within a tick, take every
-safe action currently available: drain returned PRs and repairs, then fill
-dispatch capacity with the full non-colliding startable set. A tick exits when
+safe action currently available: advance PRs and repairs while filling every
+worker slot with the full non-colliding startable set. A tick exits when
 no safe action remains right now, not after one action per ticket. Rationing
 work across future ticks (one dispatch per wake-up, one action per ticket) is a
 throughput bug; leaving safe actions undone at tick exit for any reason other
@@ -85,28 +85,21 @@ Each tick:
    issue, branch, head, or worktree; drop stale ledger entries; re-dispatch or
    escalate stuck workers. A failed worktree inventory is a snapshot failure,
    not evidence of zero local workers.
-4. Refresh the repo-level active delivery footprint: open PRs, active PR-scoped
-   previews, and reconciled implementation dispatches that have not yet
-   produced a PR.
-   Count repo/project preview capacity, not only the requested issue filter.
-   Open PRs include drafts. Draft state is not hidden work, and a draft PR that
-   has not synced to the tracker still consumes capacity and must be advanced or
-   repaired before redispatching that ticket.
-   Count only agent- or human-delegated product PRs against the delivery cap;
-   track bot dependency PRs (dependabot, renovate) as a separate drain count.
-   Bot PRs are merge/close work to advance, not delegation slots — they must
-   not starve new dispatch.
-5. Act on everything actionable this tick, drain before dispatch: advance
-   returned PRs, active previews, and stuck draft PRs first. Optimize
-   delivery-slot turnover over worker count: merge green PRs, route fixes, run
-   `gh pr update-branch <pr>` on GitHub PRs after main moves, and inspect
-   previews before dispatching new work. Do not delegate routine branch
+4. Refresh worker capacity from confirmed implementation and repair sessions.
+   Do not count human assignees, open PRs, previews, or abandoned worktrees as
+   workers. Keep those signals in the action and collision inventory.
+5. Act on everything actionable this tick and refill worker slots immediately:
+   advance returned PRs, previews, and stuck drafts while dispatching unrelated
+   safe work. Merge green PRs, route fixes, run
+   `gh pr update-branch <pr>` on GitHub PRs after main moves, inspect previews,
+   and dispatch unrelated new work concurrently. Do not delegate routine branch
    updates; delegate only after the update reports a merge conflict or
-   equivalent manual conflict state. Then fill remaining cap headroom in the
-   same tick with the full non-colliding startable set; do not save startable
+   equivalent manual conflict state. Fill all worker headroom in the same tick
+   with the full non-colliding startable set; do not save startable
    tickets for a later wake-up. Before fanning out, compare predicted file
    footprints against active PRs, active branches, and selected candidates;
-   hold colliding or unknown-footprint tickets for triage or a later tick
+   hold concrete collisions; derive unknown footprints in the same tick unless
+   one unknown-footprint lane can safely start with nothing to collide against
    instead of spending spare slots. Draft state is an orchestration repair
    signal, not a code review request, and capacity pressure is not a reason to
    close a draft or in-progress PR.
@@ -118,7 +111,9 @@ Each tick:
    and ledger before continuing.
 7. Persist only the ledger and checkpoint. Append friction entries. If the queue
    is completely blocked, report blocked and stop the recurring run for this
-   scope. Otherwise exit.
+   scope. A preferred remote worker having no eligible tickets is not complete
+   blockage. Account for authorized local work, PR actions, tracker repair, and
+   expected external signal first. Otherwise exit.
 8. Sleep until the next scheduled tick only when future external signal can still
    arrive without user intervention.
 
@@ -127,6 +122,11 @@ PR heads, default-branch drift, worktrees, or file contention. Local Git is not
 the authority, but stale local observations must not drive orchestration.
 Refresh it again after any code-host or tracker mutation that changes PR,
 review, merge, or done state before choosing the next action.
+
+Automation checkpoints are hints, not authority. If a checkpoint disagrees with
+the refreshed tracker, code-host, baseline, worker, or CI state, discard its
+claims for the tick. Failure to update the checkpoint must not reintroduce stale
+capacity or PR framing on the next wake-up.
 
 ## Light Context Budget
 

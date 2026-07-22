@@ -256,9 +256,9 @@ orchestrator should diagnose the draft blocker and unstick the PR when no blocke
 remains.
 
 The configured review evidence label, such as `code-review-passed`, is not a
-ticket state. It means the latest linked PR head SHA passed the configured code
-review gate. Agents resolve it by exact configured slug or ID and remove it when
-the PR head changes, blocking findings appear, the linked PR changes, or evidence
+ticket state. It means the linked PR's review-relevant diff passed the configured
+code review gate. Agents resolve it by exact configured slug or ID and remove it when
+the review-relevant diff changes, blocking findings appear, the linked PR changes, or evidence
 is stale.
 
 The configured code-host human-merge PR label, such as `needs-human-merge`,
@@ -377,10 +377,9 @@ Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
 runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
 Claude Code; Codex automations, either cron automations or heartbeat
 automations) and never needs a human to re-trigger a pass. Each tick it wakes
-light, refreshes external state, reconciles its dispatch ledger, drains existing
-open PRs and active previews first without closing draft or in-progress PRs just
-to make room, dispatches startable `kind-slice` tickets only when the active
-PR/preview cap has headroom (default 3), calls review and integrate as steps,
+light, refreshes external state, reconciles its dispatch ledger, advances open
+PRs and previews while immediately filling every safe worker slot up to the
+worker concurrency cap (default 3), calls review and integrate as steps,
 reasons over the available evidence, and logs where it struggled to a friction
 intake sink with compact event entries and run rollups. It can also nudge a worker,
 repair workflow state, route feedback, mark tickets for human review when the
@@ -501,7 +500,7 @@ A repo is ready when:
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
 - kind labels, CI-equivalent local gate policy, merge method, duplicate-dispatch
-  policy, active PR/preview cap, capacity drain policy, PR closure guard,
+  policy, worker concurrency cap, saturation policy, PR closure guard,
   stuck-worker timeout, required-checks-for-merge, auto-merge risk tiers,
   friction intake, and delivery metrics are set when running the autonomous loop
 - `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,

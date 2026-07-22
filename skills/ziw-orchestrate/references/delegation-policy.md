@@ -73,9 +73,11 @@ Codex or Agent Skills: $ziw-code-review.
 Repo: <path>
 PR/branch/range: <target>
 Base: <base branch or range>
+Review target: <head SHA and review-diff fingerprint; one request per materially distinct diff>
 Intent source: <issue or PR URL>
 Required checks: <commands or config reference>
-Return the review report and no code changes.
+Return the review report and no code changes. Refuse an empty diff or a duplicate
+same-head review request.
 ```
 
 ## Triage Prompt
@@ -107,9 +109,9 @@ Before starting issue-assigned work, verify:
 - issue has one primary outcome with concrete in-scope and out-of-scope text
 - configured repo-route label is present or safely repairable
 - requested agent/delegation mechanism is verified
-- issue is not already claimed, delegated, linked to an open PR, represented by
-  another active worker session, or waiting on review feedback
-- active PR/preview footprint has cap headroom
+- issue is not already claimed, delegated, linked to an open PR, or represented
+  by another active worker session
+- the worker concurrency cap has headroom; PR and preview inventory is not worker capacity
 
 Do not mutate a real issue to probe agent capability. Use read-only metadata,
 documented config, or stop with the missing setup item. If the user explicitly
@@ -138,3 +140,9 @@ Configured worker environment labels or fields, such as `remote-cursor`, are
 approval metadata. Apply or preserve them when issue identity, repo route, and
 repo-configured environment approval criteria are verified. Do not require
 dependency blockers to be clear just to apply the environment label.
+
+Remote eligibility is not a global implementation gate. Security-sensitive,
+schema, migration, and cross-cutting tickets may be correctly barred from a
+remote worker while remaining authorized for a local worker. Route them locally
+when the local budget policy allows it, and record a local-budget hold only when
+that specific path is paused.

@@ -365,29 +365,68 @@ test("dependency bot PRs do not consume active delivery capacity", () => {
   );
 });
 
-test("capacity decision drains active work before dispatching more tickets", () => {
+test("worker capacity ignores open PRs and fills every available worker slot", () => {
   const decision = capacityDecision(
     {
-      pullRequests: [{ id: "pr-1", state: "open" }],
-      previews: [{ id: "preview-1", state: "active" }],
+      pullRequests: [
+        { id: "pr-1", state: "open" },
+        { id: "pr-2", state: "open" },
+        { id: "pr-3", state: "open" },
+        { id: "pr-4", state: "open" },
+      ],
       dispatches: [{ id: "dispatch-1", state: "running" }],
-      startableTickets: [{ id: "ZAK-3" }],
+      startableTickets: [
+        { id: "ZAK-2" },
+        { id: "ZAK-3" },
+        { id: "ZAK-4" },
+        { id: "ZAK-5" },
+        { id: "ZAK-6" },
+      ],
     },
-    { activePrPreviewCap: 3 },
+    { workerConcurrencyCap: 6 },
   );
 
-  assert.equal(decision.action, workflowDecisionActions.drainActiveWork);
+  assert.equal(decision.action, workflowDecisionActions.dispatchStartableWork);
+  assert.deepEqual(decision.capacity, { cap: 6, headroom: 5, used: 1 });
 });
 
-test("capacity decisions reject invalid delivery caps", () => {
+test("dispatch fills free worker slots while open PRs continue independently", () => {
+  const decision = dispatchSelectionDecision(
+    {
+      pullRequests: [
+        { id: "PR-1", state: "open", footprint: ["apps/a"] },
+        { id: "PR-2", state: "open", footprint: ["apps/b"] },
+        { id: "PR-3", state: "open", footprint: ["apps/c"] },
+        { id: "PR-4", state: "open", footprint: ["apps/d"] },
+      ],
+      dispatches: [{ id: "MAIN-1", state: "running", footprint: ["apps/e"] }],
+      startableTickets: [
+        { id: "MAIN-2", footprint: ["apps/f"] },
+        { id: "MAIN-3", footprint: ["apps/g"] },
+        { id: "MAIN-4", footprint: ["apps/h"] },
+        { id: "MAIN-5", footprint: ["apps/i"] },
+        { id: "MAIN-6", footprint: ["apps/j"] },
+      ],
+    },
+    { workerConcurrencyCap: 6 },
+  );
+
+  assert.deepEqual(decision.capacity, { cap: 6, headroom: 5, used: 1 });
+  assert.deepEqual(
+    decision.selected.map((ticket) => ticket.id),
+    ["MAIN-2", "MAIN-3", "MAIN-4", "MAIN-5", "MAIN-6"],
+  );
+});
+
+test("capacity decisions reject invalid worker concurrency caps", () => {
   for (const cap of ["many", -1, 1.5]) {
     assert.throws(
-      () => capacityDecision({}, { activePrPreviewCap: cap }),
-      /active delivery cap must be a non-negative integer/,
+      () => capacityDecision({}, { workerConcurrencyCap: cap }),
+      /worker concurrency cap must be a non-negative integer/,
     );
     assert.throws(
-      () => dispatchSelectionDecision({}, { activePrPreviewCap: cap }),
-      /active delivery cap must be a non-negative integer/,
+      () => dispatchSelectionDecision({}, { workerConcurrencyCap: cap }),
+      /worker concurrency cap must be a non-negative integer/,
     );
   }
 });
@@ -415,7 +454,7 @@ test("dispatch selection spends spare capacity only on non-colliding footprints"
           },
         ],
       },
-      { activePrPreviewCap: 3 },
+      { workerConcurrencyCap: 3 },
     ),
     {
       action: workflowDecisionActions.dispatchStartableWork,
@@ -431,7 +470,7 @@ test("dispatch selection spends spare capacity only on non-colliding footprints"
           reason: "predicted file footprint collides with active or selected work",
         },
       ],
-      footprint: { dispatches: 0, previews: 0, prs: 0, total: 0 },
+      capacity: { cap: 3, headroom: 3, used: 0 },
       selected: [
         {
           id: "AP-101",
@@ -455,7 +494,7 @@ test("dispatch selection treats active PR footprints as occupied seams", () => {
         { id: "AP-101", footprint: ["apps/api/src/routes/ephemeral.ts"] },
       ],
     },
-    { activePrPreviewCap: 3 },
+    { workerConcurrencyCap: 3 },
   );
 
   assert.deepEqual(decision.selected, [
@@ -481,7 +520,7 @@ test("dispatch selection treats trailing footprint globs as directory seams", ()
           { id: "SPL-1", footprint: ["apps/control-panel/src/routes/settings.tsx"] },
         ],
       },
-      { activePrPreviewCap: 3 },
+      { workerConcurrencyCap: 3 },
     ).deferred,
     [
       {
@@ -509,7 +548,7 @@ test("dispatch selection treats draft PR footprints as occupied seams", () => {
         { id: "AP-202", footprint: ["apps/api/src/routes/session.ts"] },
       ],
     },
-    { activePrPreviewCap: 3 },
+    { workerConcurrencyCap: 3 },
   );
 
   assert.deepEqual(decision.selected, [
@@ -524,18 +563,109 @@ test("dispatch selection treats draft PR footprints as occupied seams", () => {
   ]);
 });
 
-test("dispatch selection asks for footprints before fanning out unknown work", () => {
+test("dispatch selection starts the first unknown-footprint lane when nothing can collide", () => {
   assert.deepEqual(
     dispatchSelectionDecision({
       startableTickets: [{ id: "AP-200" }],
     }),
     {
-      action: workflowDecisionActions.requestFileFootprint,
-      deferred: [{ id: "AP-200", reason: "missing predicted file footprint" }],
-      footprint: { dispatches: 0, previews: 0, prs: 0, total: 0 },
-      selected: [],
+      action: workflowDecisionActions.dispatchStartableWork,
+      deferred: [],
+      capacity: { cap: 3, headroom: 3, used: 0 },
+      selected: [{ id: "AP-200", footprint: [] }],
     },
   );
+});
+
+test("dispatch selection fills all safe slots in leverage order", () => {
+  const decision = dispatchSelectionDecision(
+    {
+      localBudgetUsagePercent: 11,
+      startableTickets: [
+        {
+          id: "MAIN-302",
+          eligibleWorkers: ["local-codex"],
+          footprint: ["convex/schema.ts"],
+          unlockCount: 0,
+        },
+        {
+          id: "MAIN-301",
+          eligibleWorkers: ["local-codex"],
+          footprint: ["convex/security"],
+          unlockCount: 3,
+        },
+        {
+          id: "MAIN-139",
+          eligibleWorkers: ["remote-cursor", "local-codex"],
+          footprint: ["tests/e2e/smoke.spec.ts"],
+        },
+      ],
+    },
+    {
+      workerConcurrencyCap: 6,
+      localBudgetSoftStopPercent: 12,
+      localBudgetHardStopPercent: 14,
+    },
+  );
+
+  assert.deepEqual(decision.selected, [
+    { id: "MAIN-301", footprint: ["convex/security"], worker: "local" },
+    { id: "MAIN-302", footprint: ["convex/schema.ts"], worker: "local" },
+    { id: "MAIN-139", footprint: ["tests/e2e/smoke.spec.ts"], worker: "remote" },
+  ]);
+  assert.deepEqual(decision.deferred, []);
+});
+
+test("dispatch selection keeps remote work running after the local soft budget stop", () => {
+  const decision = dispatchSelectionDecision(
+    {
+      localBudgetUsagePercent: 12,
+      startableTickets: [
+        { id: "MAIN-301", eligibleWorkers: ["local"], footprint: ["convex/security"] },
+        { id: "MAIN-139", eligibleWorkers: ["cursor"], footprint: ["tests/e2e"] },
+      ],
+    },
+    { workerConcurrencyCap: 6, localBudgetSoftStopPercent: 12, localBudgetHardStopPercent: 14 },
+  );
+
+  assert.deepEqual(decision.selected, [
+    { id: "MAIN-139", footprint: ["tests/e2e"], worker: "remote" },
+  ]);
+  assert.deepEqual(decision.deferred, [
+    {
+      id: "MAIN-301",
+      reason: "local-heavy starts are paused at the configured soft budget stop",
+    },
+  ]);
+});
+
+test("dispatch selection keeps remote work running at the local hard budget stop", () => {
+  const decision = dispatchSelectionDecision(
+    {
+      localBudgetUsagePercent: 14,
+      startableTickets: [{ id: "MAIN-139", eligibleWorkers: ["cursor"], footprint: ["tests/e2e"] }],
+    },
+    { localBudgetSoftStopPercent: 12, localBudgetHardStopPercent: 14 },
+  );
+
+  assert.equal(decision.action, workflowDecisionActions.dispatchStartableWork);
+  assert.deepEqual(decision.selected, [
+    { id: "MAIN-139", footprint: ["tests/e2e"], worker: "remote" },
+  ]);
+  assert.deepEqual(decision.deferred, []);
+});
+
+test("dispatch selection records an authority reason for unknown worker paths", () => {
+  const decision = dispatchSelectionDecision({
+    startableTickets: [
+      { id: "MAIN-400", eligibleWorkers: ["unconfigured-provider"], footprint: ["src/a.ts"] },
+    ],
+  });
+
+  assert.deepEqual(decision.selected, []);
+  assert.deepEqual(decision.deferred, [
+    { id: "MAIN-400", reason: "no configured worker is authorized" },
+  ]);
 });
 
 test("CodeRabbit waits when hosted review is already pending for the PR head", () => {
@@ -691,13 +821,17 @@ test("risk tier derives from labels with explicit tier winning", () => {
 
 test("review depth scales with risk tier", () => {
   assert.equal(reviewDepthRequirement("low").independentReviews, 1);
-  assert.equal(reviewDepthRequirement("medium").secondPassOnUncertainty, true);
+  assert.equal(reviewDepthRequirement("medium").secondPassOnUncertainty, false);
   assert.deepEqual(reviewDepthRequirement("high"), {
-    independentReviews: 2,
-    secondPassOnUncertainty: true,
+    independentReviews: 1,
+    secondPassOnUncertainty: false,
     strongestModel: true,
     tier: "high",
   });
+  assert.equal(
+    reviewDepthRequirement("high", { requiredIndependentReviews: { high: 2 } }).independentReviews,
+    2,
+  );
 });
 
 test("velocity mode arms auto-merge for high risk once review depth is satisfied", () => {
@@ -716,14 +850,13 @@ test("velocity mode arms auto-merge for high risk once review depth is satisfied
   assert.equal(decision.mode, "velocity");
 });
 
-test("high-risk merges hold without a second independent review", () => {
+test("high-risk merges do not purchase a redundant second review by default", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, labels: ["risk-schema"] },
     { deliveryMode: "velocity" },
   );
 
-  assert.equal(decision.action, workflowDecisionActions.holdMerge);
-  assert.match(decision.reason, /another independent review/);
+  assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
 });
 
 test("production mode routes high-risk merges to human authority", () => {
@@ -750,7 +883,7 @@ test("high-risk work requires exhibited PASS conformance", () => {
       hostedReviewComplete: true,
       hostedReviewHeadSha: "abc123",
     },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", requireConformanceEvidence: true },
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
@@ -760,7 +893,7 @@ test("high-risk work requires exhibited PASS conformance", () => {
 test("conformance FAIL rows hold the merge at every tier", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, conformance: "fail", labels: ["risk-normal"] },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", requireConformanceEvidence: true },
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
@@ -822,7 +955,7 @@ test("production mode arms auto-merge for low and medium risk when green", () =>
   assert.equal(low.tier, "low");
 });
 
-test("a hosted review of a stale head does not count toward review depth", () => {
+test("a hosted review of a stale head does not count when two reviews are explicitly required", () => {
   const decision = mergeEligibilityDecision(
     {
       ...greenPr,
@@ -830,17 +963,17 @@ test("a hosted review of a stale head does not count toward review depth", () =>
       hostedReviewComplete: true,
       hostedReviewHeadSha: "old999",
     },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", requiredIndependentReviews: { high: 2 } },
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
   assert.match(decision.reason, /another independent review/);
 });
 
-test("a hosted review with no recorded head SHA does not count toward review depth", () => {
+test("a hosted review with no recorded head SHA does not count when two reviews are required", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, labels: ["risk-schema"], hostedReviewComplete: true },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", requiredIndependentReviews: { high: 2 } },
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
@@ -866,10 +999,10 @@ test("configured human merge authority routes to human even in velocity mode", (
   assert.match(decision.reason, /configured merge authority/);
 });
 
-test("a missing conformance table holds the merge at every tier", () => {
+test("a missing required conformance table holds the merge", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, conformance: undefined, labels: ["risk-normal"] },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", requireConformanceEvidence: true },
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
@@ -888,7 +1021,7 @@ test("requireConformanceEvidence false lets repos without the table keep merging
 test("conformance evidence for a different head does not cover the merge", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, conformanceHeadSha: "old999", labels: ["risk-normal"] },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", requireConformanceEvidence: true },
   );
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
@@ -913,7 +1046,7 @@ test("delivery mode is config-owned; state cannot switch a repo into velocity", 
 
 test("mergeEligibilityDecision blocks on hosted-review fields humanMergePrLabelDecision knows", () => {
   const pending = mergeEligibilityDecision(
-    { ...greenPr, codeRabbitPending: true },
+    { ...greenPr, codeRabbitPending: true, codeRabbitRequired: true },
     { deliveryMode: "velocity" },
   );
   assert.equal(pending.action, workflowDecisionActions.holdMerge);

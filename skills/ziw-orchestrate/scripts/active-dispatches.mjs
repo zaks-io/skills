@@ -12,7 +12,9 @@ const isLiveDispatch = (dispatch) =>
   dispatch?.returned !== true &&
   dispatch?.stopped !== true &&
   dispatch?.hasPr !== true &&
-  !["returned", "stopped", "failed"].includes(normalize(dispatch?.state ?? dispatch?.status));
+  !["returned", "stopped", "failed", "completed", "stale"].includes(
+    normalize(dispatch?.state ?? dispatch?.status),
+  );
 
 const issueIdentifier = (item) => {
   const exact = [item?.issueId, item?.identifier, item?.ticket]
@@ -94,6 +96,8 @@ const mergeDispatches = (existing, incoming) => ({
   headSha: existing.headSha ?? incoming.headSha,
   worktree: existing.worktree ?? incoming.worktree,
   footprint: [...new Set([...toArray(existing.footprint), ...toArray(incoming.footprint)])],
+  occupiesWorkerSlot:
+    existing.occupiesWorkerSlot !== false || incoming.occupiesWorkerSlot !== false,
   source:
     sameValue(existing.worktree, incoming.worktree) && existing.source
       ? existing.source
@@ -117,7 +121,13 @@ const isOpenProductPr = (pr) =>
 const isActiveLinearClaim = (issue) => {
   const stateType = normalize(issue?.stateType ?? issue?.state?.type);
   if (["completed", "canceled"].includes(stateType)) return false;
-  return stateType === "started" || Boolean(issue?.assignee);
+  return Boolean(
+    issue?.activeClaim ??
+    issue?.delegated ??
+    issue?.assignedWorker ??
+    issue?.workerSession ??
+    issue?.agentSession,
+  );
 };
 
 const isUnmergedWorktree = (worktree) =>
@@ -154,10 +164,14 @@ export function reconcileActiveDelivery({ snapshot = {}, state = {}, pullRequest
   for (const dispatch of [...toArray(state.dispatches), ...toArray(state.ledgerDispatches)].filter(
     isLiveDispatch,
   )) {
-    addDispatch({ ...dispatch, source: dispatch.source ?? "ledger" });
+    addDispatch({ ...dispatch, occupiesWorkerSlot: true, source: dispatch.source ?? "ledger" });
   }
   for (const activeWork of toArray(state.activeWork).filter(isLiveDispatch)) {
-    addDispatch({ ...activeWork, source: activeWork.source ?? "local-active-work" });
+    addDispatch({
+      ...activeWork,
+      occupiesWorkerSlot: true,
+      source: activeWork.source ?? "local-active-work",
+    });
   }
 
   const activeLinearIssues = [
@@ -176,6 +190,7 @@ export function reconcileActiveDelivery({ snapshot = {}, state = {}, pullRequest
       id: identifier,
       issueId: identifier,
       state: "running",
+      occupiesWorkerSlot: true,
       source: worktree ? "linear-active-claim+local-worktree" : "linear-active-claim",
       branch: worktree?.branch ?? null,
       headSha: worktree?.headSha ?? null,
@@ -207,6 +222,7 @@ export function reconcileActiveDelivery({ snapshot = {}, state = {}, pullRequest
       id: identifier ?? worktree.branch ?? worktree.path ?? worktree.headSha,
       issueId: identifier ?? null,
       state: "running",
+      occupiesWorkerSlot: false,
       source: "local-worktree-unmerged",
       branch: worktree.branch ?? null,
       headSha: worktree.headSha ?? null,

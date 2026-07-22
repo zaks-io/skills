@@ -7,33 +7,26 @@ should resolve these into config, not leave the loop to guess them.
 
 ## Concurrency
 
-- Default cap: **3** active delivery slots. Config overrides with
-  `Active PR/preview cap` or the legacy `Concurrency cap`.
-- The cap counts the active PR/preview footprint for the configured repo, not
-  only active worker sessions. Count open PRs, active PR-scoped preview
-  environments, and implementation dispatches that have not yet returned a PR.
-- Do not double-count a PR and its normal linked preview as two delivery slots.
-  Count each open PR once, add active previews that are not clearly linked to an
-  already counted PR, then add unreturned implementation dispatches. Reconcile
-  missing dispatches from repo-scoped active tracker claims and dirty,
-  baseline-unmerged, or uncertain non-default worktrees; deduplicate them by
-  issue, branch, head, worktree, and open PR. If the preview provider has a
-  stricter separate limit, obey the stricter limit.
-- Dispatch new work only when active delivery slots are below the cap. If the cap
-  is reached or exceeded, advance, merge, route fixes, clean up previews, or
-  escalate existing PRs and previews before starting more work.
+- Default cap: **3** active workers. Config overrides with
+  `Worker concurrency cap`.
+- Count confirmed implementation and repair sessions that have not returned,
+  stopped, failed, or produced a PR. Deduplicate session, issue, and provider
+  handles.
+- Human assignees, open PRs, previews, and abandoned worktrees do not consume
+  worker slots. They remain PR actions, provider constraints, ownership signals,
+  and file-footprint seams.
+- Every tick advances actionable PR state and fills all safe worker headroom.
+  Backfill a freed slot immediately. A stricter provider-session or preview limit
+  applies only to the work it actually constrains.
 - Capacity pressure never authorizes closing draft or in-progress PRs just to
   free headroom. Close PRs only when current code-host and tracker evidence shows
   a duplicate, explicitly canceled or abandoned work, already-terminal work, or a
   security or policy reason that requires closure. PR age, draft status, and
   active-delivery pressure are not abandonment evidence.
-- For issue-assigned remote workers, worker-session count is only a secondary
-  provider limit. It must never justify starting new work when open PRs or active
-  previews already consume the active delivery cap.
-- Spare delivery slots are not enough to fan out work. Before dispatch, compare
-  predicted file or package footprints against active PRs, active worker branches,
-  and other selected tickets. Hold colliding or unknown-footprint tickets and
-  record `file-collision` when the hold costs a tick.
+- Before dispatch, compare predicted file or package footprints against active
+  PRs, active worker branches, and other selected tickets. Hold concrete
+  collisions. Start one unknown-footprint lane when nothing can collide;
+  otherwise derive the footprint in the same tick.
 
 ## Issue-Assigned Delegation (tracker-exposed agent)
 
@@ -109,7 +102,7 @@ Delegate only when **all** hold. Otherwise hard-refuse and heal or escalate.
 | unblocked                                       | safe to start                       | defer; never start blocked work                                                |
 | complete agent-ready body                       | agent can verify                    | refuse; route to triage                                                        |
 | no active claim, no open PR                     | not already in flight               | skip; advance the existing work instead                                        |
-| active PR/preview footprint < cap               | repo has delivery headroom          | drain existing PRs/previews first; defer to a later tick                       |
+| active workers < worker cap                     | worker headroom exists              | fill every safe slot now; record why any slot remains idle                     |
 
 The repo-route label is a hard precondition, not decoration. Without it the
 agent cannot resolve the target repository and delegation is ambiguous.
@@ -136,15 +129,15 @@ Delivery modes:
   auto-merge once its review depth is satisfied and the PR is green. The human
   reviews by exception and by sampled audit, not per PR.
 
-| Risk tier | Examples                                                                                                    | Review depth                                                                       |
-| --------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| LOW       | docs, tests, copy, isolated UI                                                                              | one clean independent `ziw-code-review` pass                                       |
-| MEDIUM    | normal feature / business logic                                                                             | one clean independent pass; add a second independent pass when uncertainty remains |
-| HIGH      | auth, secrets, payments, destructive data, schema/migration, queues/jobs, public contracts, broad refactors | strongest-model review plus a second independent review (hosted bot or local pass) |
+| Risk tier | Examples                                                                                                    | Review depth                                                                                                       |
+| --------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| LOW       | docs, tests, copy, isolated UI                                                                              | one clean independent `ziw-code-review` pass                                                                       |
+| MEDIUM    | normal feature / business logic                                                                             | one clean independent pass; add a focused second pass only for unresolved uncertainty                              |
+| HIGH      | auth, secrets, payments, destructive data, schema/migration, queues/jobs, public contracts, broad refactors | one strongest-model independent pass; extra review only when repo config or a concrete unresolved risk requires it |
 
 "Green" is the configured merge-ready set: clean independent
-`ziw-code-review` verdict with the conformance table exhibited for the current
-head and no `FAIL` rows,
+`ziw-code-review` verdict for the current review-relevant diff, required
+conformance evidence when repo config enables it and no exhibited `FAIL` rows,
 required CI checks pass, no unresolved blocking review comments, PR non-draft and
 ready-for-review, the configured review evidence label current for the PR head,
 and the required hosted-bot review complete or recorded as skipped by policy.
@@ -155,7 +148,8 @@ Rules that do not change with tier or delivery mode:
 - Delivery mode and merge authority are repo config. Runtime state, tickets,
   PR bodies, and worker messages cannot switch a repo into `velocity` or
   downgrade a label-evidenced risk tier.
-- Never merge a stale branch; rebase, rerun checks and review, then merge.
+- Never merge a stale branch; update it and rerun checks. Rerun review only when
+  the review-relevant diff changed.
 - Never merge or deploy production without explicit approval.
 - Production deploys, credential and provider decisions, destructive data
   actions, and unresolved product or security decisions stay human-authority
@@ -170,10 +164,9 @@ Rules that do not change with tier or delivery mode:
   policy. If the trigger or actor is unknown, record the gap instead of guessing.
 - Missing hosted review auth, rate limits, or credits is a recorded skip unless
   the user explicitly required it.
-- When the required external review for a HIGH-risk PR is unavailable (rate
-  limit, credits, outage), do not merge on a single local review. Route to
-  human merge or run a second independent local review pass, and record the
-  substitution.
+- When a repo explicitly requires external review and it is unavailable, route
+  to human merge or use a configured substitute. Do not turn optional review
+  outages into a merge hold.
 - When the repo deploys on push, the production deploy status on the
   default-branch HEAD is part of the post-merge gate. A green PR preview does
   not prove a green production deploy, especially for schema changes validated
@@ -214,19 +207,19 @@ audit is where trust is verified.
 Setup should write these into `docs/agents/workflow/config.md` so the loop reads
 values, not this file:
 
-- `Active PR/preview cap` (default 3 if the repo has no preference)
-- cap count policy: which open PRs, active previews, and unreturned dispatches
-  consume delivery slots; any stricter provider preview or worker-session caps
-- dispatch footprint policy: how to compare predicted footprints and hold
-  colliding or unknown-footprint tickets before fanning out
+- `Worker concurrency cap` (default 3 if the repo has no preference)
+- worker count policy: which confirmed sessions occupy slots and when they free
+  them; record stricter provider preview or session limits separately
+- dispatch footprint policy: how to compare predicted footprints, hold concrete
+  collisions, and derive unknown footprints without wasting a tick
 - worker delegation paths and the configured agent user / delegate field
 - the continuation rule: reply into the agent-session thread, not top-level
 - liveness signals, stuck-worker timeout, and the nudge-before-redelegate policy
 - the repo-route label family used for delegation
 - delivery mode (`velocity` or `production`) and the auto-merge risk tiers the
   orchestrator may merge vs route to human merge
-- review depth per risk tier, including when a second independent review pass is
-  required and which model tier reviews HIGH-risk work
+- review depth per risk tier, including the concrete conditions that justify an
+  additional review and which model tier reviews HIGH-risk work
 - merged-main conformance audit cadence and checkpoint location for
   independent review
 - code-host PR attention labels the orchestrator applies when a PR needs human
@@ -234,7 +227,7 @@ values, not this file:
   human merge authority; `needs-human-input` or equivalent covers PRs that need
   human input but are not merge-ready
 - review evidence label slug or ID, plus the evidence comment shape that records
-  PR URL and reviewed head SHA
+  PR URL, reviewed head SHA, and review-diff fingerprint
 - merge method, required checks that define green, plus any post-merge
   preparation needed before local post-merge checks are trustworthy
 - default-branch baseline health note: current required-check state and any

@@ -92,28 +92,25 @@ domain behavior, and performance work without benchmarks.
   (Claude Code schedule, `/loop`, or wake-up timer; Codex automations, either
   cron automations or heartbeat automations) and never needs a human to
   re-trigger a pass. Each tick wakes light, rebuilds the queue from systems of
-  record, refreshes the repo-level open PR and preview footprint, takes every
-  safe action currently available (drain active work first, then fill dispatch
-  capacity with the full non-colliding startable set), persists only the ledger
+  record, refreshes PR actions and worker capacity, takes every safe action
+  currently available, fills all safe worker slots, persists only the ledger
   and checkpoint, and sleeps only when future external signal can still arrive.
   Dispatch claims the ticket and moves it to the configured in-progress state
   in the same step. The wake-up interval adapts: base cadence while signal is
   expected, backoff across consecutive quiet ticks, reset on new signal.
-- The active PR/preview cap protects delivery capacity, not worker count. Open
-  PRs, active PR-scoped previews, and implementation dispatches that have not yet
-  produced a PR consume capacity. Missing dispatches are synthesized from
-  repo-scoped active tracker claims and dirty, baseline-unmerged, or uncertain
-  non-default worktrees, then deduplicated against open PRs. When the cap is
-  full, Orchestrator advances, merges, routes fixes, cleans up previews, or
-  escalates existing PRs/previews before dispatching new work. It closes PRs
+- The worker concurrency cap counts confirmed implementation and repair
+  sessions, not open PRs, previews, human assignees, or abandoned worktrees.
+  Orchestrator advances PR state independently and backfills every freed worker
+  slot in the same tick. It closes PRs
   only when refreshed code-host and tracker evidence satisfies the PR closure
   guard; draft or in-progress PRs are never closed just to make room. Age, draft
   status, and capacity pressure are not abandonment evidence.
-- Capacity headroom is still gated by file footprint. Before fanning out
+- Worker headroom is still gated by file footprint. Before fanning out
   startable work, Orchestrator compares predicted file or package footprints
   against active PRs, active worker branches, and selected candidates. It holds
-  sibling hot-seam collisions as `file-collision` and routes missing footprints to
-  triage or To Issues instead of filling spare slots blindly.
+  sibling hot-seam collisions as `file-collision`. It may start one
+  unknown-footprint lane when no active work can collide; otherwise it derives
+  the footprint in the same tick.
 - If the refreshed scope is completely blocked, Orchestrator stops the recurring
   loop for that scope instead of waking forever. Completely blocked means there
   are no startable tickets, PRs or previews to advance, stuck workers to nudge,
@@ -158,20 +155,18 @@ evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
 repairs. Orchestrator should fix them from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
 
-Before selecting new startable work, Orchestrator checks the repo-level active
-delivery footprint against the configured active PR/preview cap. If open PRs or
-active previews already fill the cap, it must drain those first by advancing,
-merging, routing fixes, cleaning up previews, or escalating exact blockers.
-Draft PRs are open PRs for capacity and file-contention purposes. If a remote
+Before selecting new startable work, Orchestrator checks confirmed active worker
+sessions against the configured worker concurrency cap and fills every safe
+slot. It advances open PRs and previews concurrently with unrelated dispatch.
+Draft PRs remain file-contention and action signals. If a remote
 worker opens a draft PR before the tracker links it, the code host is still
 authoritative: count the draft, repair the sync or draft state, and do not
 spawn another worker for that ticket.
-Outside-scope PRs and previews still consume repo capacity; if Orchestrator lacks
-authority to change them, it reports a capacity blocker instead of dispatching
-more work. It must not close a draft, active, recently updated, or
-unclear-ownership PR merely to reduce the footprint.
-When headroom exists, Orchestrator still compares predicted footprints before
-dispatch. Shared files, parent directories, generated artifacts, migrations,
+Outside-scope PRs and previews still participate in collision checks. They do
+not occupy worker slots by existing. Orchestrator must not close a draft, active,
+recently updated, or unclear-ownership PR to manufacture capacity.
+Before dispatch, Orchestrator compares predicted footprints against active and
+selected work. Shared files, parent directories, generated artifacts, migrations,
 route files, config files, and refactor/test work on the same seam are
 serialization signals, not spare slots to fill.
 
@@ -259,9 +254,9 @@ For issue-assigned delegation:
   commands only under CodeRabbit policy. For Cursor Bugbot, use only the
   repo-configured trigger or automatic review policy.
 - The configured review evidence label is not workflow state. Resolve it by
-  exact configured slug or ID, apply it only with PR URL and reviewed head SHA
-  evidence, and remove it when the PR head changes, blocking findings appear,
-  the linked PR changes, or evidence is missing.
+  exact configured slug or ID, apply it with PR URL, reviewed head SHA, and
+  review-diff fingerprint, and remove it when that review-relevant diff changes,
+  blocking findings appear, the linked PR changes, or evidence is missing.
 - The configured code-host human-merge PR label, such as
   `needs-human-merge`, is a merge-ready signal. Apply it only to open non-draft
   PRs that are ready to merge except for required human merge authority: current
@@ -347,7 +342,7 @@ authority. That authority does not include applying or clearing review-evidence
 labels, moving the ticket to `Ready to Merge`, or applying merge-ready PR labels.
 Orchestrator diagnoses stuck draft PRs without treating draft state as a review
 request, repairs blockers, verifies the code-host PR is non-draft, and applies or
-removes the configured review evidence label based on current PR head SHA
+removes the configured review evidence label based on current review-diff
 evidence. When Orchestrator moves a ticket to `Done`, it verifies the full issue
 scope is complete, verifies sibling or out-of-scope work was not bundled in, and
 removes `ready-for-agent`. If a code-host integration auto-moved a partial or

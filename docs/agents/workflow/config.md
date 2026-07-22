@@ -88,7 +88,7 @@ Last updated: 2026-07-20
 - Risk labels: `risk-normal`, `risk-security-sensitive`, `risk-schema`, `risk-cross-cutting`
 - Risk label policy: dimensions, not severity levels; use `risk-security-sensitive` for trust boundaries, credentials, production, or secret handling; use `risk-cross-cutting` for shared workflow contracts and multi-skill changes
 - Review evidence labels: `code-review-passed`
-- Review evidence label policy: latest linked PR head SHA passed `ziw-code-review`; apply only with PR URL and reviewed head SHA evidence; remove when PR head changes, blocking findings appear, linked PR changes, or evidence is missing
+- Review evidence label policy: linked PR review-relevant diff passed `ziw-code-review`; record PR URL, reviewed head SHA, and diff fingerprint; remove only when that diff changes, blocking findings appear, linked PR changes, or evidence is missing
 - Code-host human-merge PR label: `needs-human-merge`
 - Code-host human-merge PR label policy: GitHub PR label meaning merge-ready except for required human merge authority; apply only to open non-draft PRs after current clean code review evidence, passing required checks, complete or policy-skipped hosted review, matching issue scope, and zero unresolved blocking review threads; clear on new commits, draft transitions, failed or pending required checks, blocking findings, unresolved review threads, stale or missing review evidence, close, or merge
 - Type labels: `Bug`, `Feature`, `Improvement`, `Tech Debt`, `Spike`, `Hotfix`
@@ -112,11 +112,11 @@ Last updated: 2026-07-20
 
 - Worker delegation paths: `local-worktree`
 - Default worker path: local Codex worktree/session
-- Capacity policy: default active delivery cap 3; drain active PRs before dispatching more work
-- Active PR/preview cap: 3 active delivery slots
-- Cap count policy: count each open PR once, including draft PRs that have not synced to the tracker yet; add active previews that are not clearly linked to an already counted PR, then add unreturned implementation dispatches synthesized from the ledger, repo-scoped active tracker claims, and dirty, baseline-unmerged, or uncertain non-default worktrees; deduplicate those signals against open PRs
-- Dispatch footprint policy: compare predicted files/packages against active PRs, active branches, and selected tickets; hold collisions or unknown footprints for triage
-- Capacity drain policy: when active delivery slots are at or over cap, advance, merge when authorized, route fixes, or escalate existing PRs before dispatching new implementation work
+- Capacity policy: keep every safe worker slot active while ready work exists
+- Worker concurrency cap: 3 active implementation or repair sessions
+- Worker count policy: count confirmed sessions until return, stop, failure, or PR creation; human assignees, open PRs, previews, and abandoned worktrees do not occupy slots
+- Dispatch footprint policy: compare predicted files/packages against active PRs, active branches, and selected tickets; hold concrete collisions; start one unknown-footprint lane only when nothing can collide, otherwise derive the footprint in the same tick
+- Saturation policy: advance PR state and backfill every free worker slot in the same tick; record why any slot remains idle
 - PR closure guard: close PRs only with refreshed code-host and tracker evidence of duplicate, explicitly canceled or abandoned, terminal, or policy-required work; never close draft or active PRs only to make room
 - Stuck-worker timeout: one business day with no branch, PR, comment, or check signal before nudge; re-dispatch only after checking for duplicates
 - Duplicate worker or PR policy: current GitHub open PR list and Linear issue links decide canonical work; close duplicates only with refreshed evidence
@@ -145,7 +145,7 @@ Last updated: 2026-07-20
 - Friction ticket intake: SKI team `Triage`; no project
 - Friction review automation: intended daily Codex automation, not created yet
 - Delivery metrics: started, merged, waiting, blocked, first-pass checks, review rework, stuck workers, human escalations, and agent cost when available
-- Capacity metrics: open PRs, active previews, active delivery slots, and remaining headroom at start and end of orchestration runs
+- Capacity metrics: active workers, worker cap, remaining headroom, and justified idle slots at tick start and end
 - Handoff format: use `skills/ziw-setup/references/handoff.md`
 
 ## Agent Access
@@ -193,7 +193,7 @@ Last updated: 2026-07-20
 - CodeRabbit command policy: local review first; use hosted CodeRabbit only for high-risk/complex diffs or explicit user request; never post review commands or use CLI until auto-review mode and current hosted review state are resolved
 - Cursor Bugbot config source: unknown; no repo-local config found during setup refresh
 - Cursor Bugbot command policy: alternative hosted bot review provider; use only verified app auto-review or repo-configured trigger
-- Draft PR policy: draft only while checks, requested human prep, or required author fixes are incomplete; draft state alone is not a code review request; draft PRs still consume active delivery capacity and file-contention seams
+- Draft PR policy: draft only while checks, requested human prep, or required author fixes are incomplete; draft state alone is not a code review request; draft PRs consume file-contention seams but not worker slots unless a worker is repairing them
 - Ready-for-review owner: Agent Orchestrator or PR owner after local gates and review are clean
 - Issue update: link PR and update SKI issue comments/labels with PR URL, reviewed head SHA, and check evidence when scoped
 - Merge authority: human

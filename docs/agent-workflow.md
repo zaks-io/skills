@@ -182,11 +182,9 @@ ready-for-review are mutually exclusive. A draft PR is pre-review; a
 ready-for-review PR is non-draft.
 
 The configured review evidence label, such as `code-review-passed`, is not a
-workflow status. It means the latest linked PR head SHA has passed the configured
-code review gate for the ticket. It must be resolved by exact configured slug or
-ID, applied with PR URL and reviewed head SHA evidence, and removed when the PR
-head changes, blocking findings appear, the linked PR changes, or evidence is
-missing.
+workflow status. It means the linked PR's review-relevant diff passed the
+configured code review gate. Record the PR URL, reviewed head SHA, and diff
+fingerprint. A new commit clears it only when that review-relevant diff changes.
 
 The configured code-host human-merge PR label, such as `needs-human-merge`, is
 a merge-ready signal. Apply it only to open non-draft PRs that are ready to merge
@@ -204,8 +202,8 @@ The loop is self-scheduling. It runs on the runtime's own recurring mechanism (a
 schedule, `/loop`, or wake-up timer in Claude Code; Codex automations, either
 cron automations or heartbeat automations) and never needs a human to re-trigger
 a pass. Each tick wakes light, rebuilds the queue from systems of record, takes
-every safe action currently available (draining active work first, then filling
-dispatch capacity with the full non-colliding startable set), persists only the
+every safe action currently available and fills every safe worker slot with the
+full non-colliding startable set, persists only the
 ledger and checkpoint, and sleeps only
 when future external signal can still arrive. Dispatch is atomic with the
 claim: a dispatched ticket moves to the configured in-progress state in the
@@ -217,22 +215,21 @@ empties. The
 orchestrator skill bundles the tick contract in
 `skills/ziw-orchestrate/references/loop-contract.md`.
 
-The active PR/preview cap protects the repo's delivery footprint, not just the
-number of worker sessions. Each tick refreshes repo-level open PRs, active
-PR-scoped previews, and implementation dispatches that have not yet returned a
-PR. When that footprint is at or above the configured cap, Orchestrator drains
-existing work first: review, merge, route fixes, clean up previews, or escalate
-the exact human/provider action. It closes PRs only with refreshed evidence that
+The worker concurrency cap counts confirmed implementation and repair sessions.
+Each tick advances actionable PRs and previews while immediately backfilling
+every free worker slot with safe ready work. Open PRs, previews, human assignees,
+and abandoned worktrees do not occupy worker slots, though they remain action,
+ownership, provider-limit, and collision signals. Orchestrator closes PRs only
+with refreshed evidence that
 the PR is duplicate, explicitly canceled or abandoned, terminal, or must close for
 security or policy. Age, draft status, and capacity pressure are not abandonment
-evidence. It never closes draft or in-progress PRs just to make room. It does not
-dispatch more implementation work just because workers are idle.
-Draft PRs are open PRs for capacity and file-contention purposes. If a remote
+evidence. It never closes draft or in-progress PRs just to make room. Draft PRs
+are file-contention signals. If a remote
 worker opens a draft PR and the tracker has not linked it yet, the code host is
 still authoritative: count the draft, repair the sync or draft state, and do not
 spawn another worker for that ticket.
 
-Capacity headroom is still gated by file footprint. Before fanning out startable
+Worker headroom is still gated by file footprint. Before fanning out startable
 work, Orchestrator compares predicted file or package footprints against active
 PRs, active worker branches, and the candidates selected for the same tick. It
 dispatches only a non-colliding set, holds sibling hot-seam collisions as
@@ -245,8 +242,9 @@ checks to rerun or route, stale metadata repairs, or in-flight work that can sti
 produce signal. The blocked report names each blocker, next owner, and the
 condition that would make the scope runnable again.
 
-Review and integrate are steps the orchestrator calls inside a tick and waits
-on. To Issues and triage are front-loaded steps the user runs before
+Review and integrate are steps the orchestrator calls inside a tick while it
+continues unrelated dispatch. It waits only for a concrete expected signal. To
+Issues and triage are front-loaded steps the user runs before
 orchestration, or bounded repair steps the orchestrator can delegate when current
 work is stale.
 
@@ -255,8 +253,9 @@ post-merge failures: refresh dependencies when the workspace graph changed,
 rebuild or regenerate configured artifacts, and run the configured post-merge
 check with the configured runner. When a GitHub PR is behind the default branch,
 Orchestrator refreshes PR state and runs `gh pr update-branch <pr>` itself, then
-reruns checks and review. It delegates branch-update work only when the update
-reports a merge conflict or equivalent manual conflict state. It merges through
+reruns checks and reuses review when the review-relevant diff is equivalent. It
+delegates branch-update work only when the update reports a merge conflict or a
+materially changed diff. It merges through
 the configured code-host method only. If the host rejects that method, setup is
 stale and must be refreshed before another merge attempt.
 
@@ -345,12 +344,10 @@ evidence, set repo-route metadata, or mark a PR ready-for-review are workflow
 repairs. Orchestrator should fix them from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
 
-Before selecting new startable work, Orchestrator checks the repo-level active
-delivery footprint against the configured active PR/preview cap. Open PRs and
-active previews outside the requested filter still consume repo capacity. If they
-fill the cap and Orchestrator lacks authority to change them, the loop reports a
-capacity blocker instead of adding another PR and preview.
-When headroom exists, it still compares predicted footprints before dispatch:
+Before selecting new startable work, Orchestrator checks confirmed sessions
+against the worker concurrency cap and fills every safe slot. Open PRs and
+previews outside the requested filter remain collision signals but do not
+suppress unrelated work. It compares predicted footprints before dispatch:
 shared files, parent directories, generated artifacts, migrations, route files,
 config files, and refactor/test work on the same seam are serialization signals,
 not spare slots to fill.
@@ -512,7 +509,7 @@ sequenceDiagram
   I->>T: Clean labels, kinds, readiness, dependencies, verified stale state
   Q->>T: Refresh startable (kind-slice) and active issues
   Q->>G: Refresh PR, branch, check, and preview state
-  Q->>Q: Compute active PR/preview footprint before dispatch
+  Q->>Q: Compute worker slots and PR collision inventory
   Q->>Q: Reconcile dispatch ledger; re-dispatch stuck workers
   Q->>T: Claim issue and move to In Progress
   Q->>W: Delegate issue through supported worker path

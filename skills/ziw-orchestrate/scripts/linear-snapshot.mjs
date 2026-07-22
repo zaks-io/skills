@@ -123,7 +123,15 @@ export function selectScopedLinearIssues(issues, states = []) {
 }
 
 export function selectActiveLinearIssues(issues, routeLabel) {
-  const active = issues.filter((issue) => issue.stateType === "started" || Boolean(issue.assignee));
+  const active = issues.filter((issue) =>
+    Boolean(
+      issue.activeClaim ??
+      issue.delegated ??
+      issue.assignedWorker ??
+      issue.workerSession ??
+      issue.agentSession,
+    ),
+  );
   if (!routeLabel) return active;
 
   const normalizedRoute = routeLabel.trim().toLowerCase();

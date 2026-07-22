@@ -26,10 +26,10 @@ const mergedIntoBaseline = (headSha, baseline, cwd) => {
       git(["merge-base", "--is-ancestor", headSha, ref], { cwd, stdio: "ignore" });
       return true;
     } catch (error) {
-      if (error.status === 1) return false;
+      if (error.status !== 1 && error.status != null) continue;
     }
   }
-  return null;
+  return false;
 };
 
 const mergedPullRequestsForHead = (repo, headSha) => {

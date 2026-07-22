@@ -7,8 +7,9 @@ disable-model-invocation: true
 
 # Orchestrate
 
-Run the tracked-work control loop. Coordinate state, workers, review, and
-integration. Do not implement, review diffs, or merge by hand when a worker,
+Maximize scoped work completed through sub-agents. Keep worker slots full,
+remove concrete blockers, and merge or truthfully close finished PRs immediately.
+Do not implement, review diffs, or merge by hand when a worker,
 `ziw-code-review`, or the integrate gate owns that step.
 
 Keep the hot path small:
@@ -38,7 +39,7 @@ Load references only when their condition applies:
   Backlog scope, delivery scope, loop budget, worker count, or pass count.
 - Current tracker, PR, preview, worker, ledger, and review evidence state.
 - Repo workflow config, required checks, worker environments, merge authority,
-  active delivery cap, and friction intake.
+  worker concurrency cap, provider limits, and friction intake.
 
 ## Scope
 
@@ -58,14 +59,11 @@ query and continue. Ask only when multiple real scopes remain plausible.
 - A verified-ready ticket set is a delivery scope. Repair routine label, status,
   route, review-evidence, and handoff drift from evidence instead of asking the
   user.
-- `until clear` means continue ticks until every scoped issue is done,
-  delegated and waiting, blocked, waiting on human input, ready for human merge,
-  or otherwise has no safe next action.
+- `until clear` means continue ticks until every scoped issue is done or blocked
+  on authority or input the orchestrator cannot supply. Delegated, checking,
+  reviewing, and merge-ready work is still active scope.
 - `one pass`, ticket count, worker count, time budget, or first meaningful state
   change stops at that boundary.
-
-Never interpret a broad cleanup request as permission to implement vague parked
-work. Every scoped issue must end with a truthful next owner and state.
 
 ## State Authority
 
@@ -77,9 +75,8 @@ Refresh systems of record before each action:
 - preview/deploy state when configured
 - local Git refs, worktrees, branch status, and HEAD when local checkouts matter
 
-Draft PRs are visible active work. Every open code-host PR, draft or
-ready-for-review, consumes active delivery capacity and file-footprint seams even
-when tracker sync has not linked it yet.
+Draft PRs are visible active work and occupy file-footprint seams. Open PRs and
+previews do not occupy worker slots unless a worker is actively repairing them.
 
 Reconcile the ephemeral ledger with open PRs, repo-scoped claims, and dirty or
 baseline-unmerged non-default worktrees, including unkeyed branches. Deduplicate
@@ -115,17 +112,16 @@ node <skill-dir>/scripts/tick-plan.mjs /tmp/ziw-tick-snapshot.json \
 ```
 
 The planner is advisory but should be followed unless current evidence exposes a
-gap it cannot model. It returns active footprint, capacity action,
-collision-safe dispatch selection, Linear DAG `frontier` and dispatchable
-`starts`, ready-state promotion decisions, hosted-review actions, and
-human-merge PR label actions. Do not spend tokens manually re-deriving those
-decisions when the JSON inputs are current.
+gap it cannot model. Its compact plan returns every PR action, worker wait,
+explicit hold, worker capacity, and collision-safe dispatch for the tick. Use
+`--debug` only when diagnosing the planner. Do not spend tokens manually
+re-deriving current JSON inputs.
 
 `starts` is the Triage/Orchestrator label-state handoff: `kind-slice`,
 configured ready state, `ready-for-agent`, unblocked, unclaimed, and no open PR.
-Actual dispatch still requires the predicted file/package footprint. If a
-`starts` issue lacks footprint, route it back to triage or To Issues for
-handoff repair instead of dispatching blind.
+Actual fanout still requires predicted file/package footprints. If the first
+selected issue lacks one and no active work can collide, start it; otherwise
+derive the missing footprint in the same tick before selecting more work.
 
 To inspect only the dependency frontier from Linear issue JSON:
 
@@ -136,36 +132,33 @@ node <skill-dir>/scripts/linear-dag-start.mjs /tmp/ziw-tick-snapshot.json \
 
 ## Tick
 
-One wake-up is one tick. Clear the scope as fast as the safety gates allow:
-take every safe action currently available, then fill dispatch capacity with
-the full non-colliding startable set. Rationing actions across ticks is a
-throughput bug and a friction event; sleep is for awaiting external signal,
-not pacing. Keep only repo config, scope, compact queue, active footprint,
-ledger, review checkpoint, blockers, and next actions in the main context.
+One wake-up is one tick. Clear the scope as fast as safety gates allow. Every
+action must dispatch work, remove a concrete blocker, or finish an artifact.
+Parking merge-ready PRs, repeating equivalent-diff review, and no-change polling
+are resource-wasting failures. Fill the full non-colliding startable set. Keep
+only repo config, scope, compact queue, active footprint, ledger, review
+checkpoint, blockers, and next actions in the main context.
 Delegate inventory, implementation, review, and triage to isolated workers.
 
-Default tick order:
+Default tick lanes run concurrently after one refreshed snapshot:
 
 1. Refresh local Git and external state.
 2. Run `tick-snapshot`; run `tick-plan` after building compact queue/config
    JSON.
 3. Reconcile ledger entries against refreshed tracker and PR state.
-4. Drain active PRs, previews, draft stalls, base-branch drift, checks, review
-   debt, stale labels, and ready-for-human-merge PRs before dispatching.
-5. Select every startable `kind-slice` ticket that is ready, unblocked, within
-   cap, and non-colliding by predicted footprint. Apply the planner's
+4. Immediately fill every free worker slot with a ready, unblocked,
+   non-colliding `kind-slice`. Apply the planner's
    `trackerStateUpdates` and confirm the configured in-progress state first.
-6. Delegate implementation, review, or triage only after the claim succeeds.
-   Dispatch the whole selected set this tick, never saving startable tickets
+5. In parallel, advance every actionable PR, preview, draft stall, base-branch
+   drift, check, review, label, and merge item. Never finish the PR lane before
+   starting the dispatch lane.
+6. Delegate after the corresponding claim succeeds. Dispatch the whole selected
+   set this tick, never saving startable tickets
    for later wake-ups. Never start a worker while its ticket remains ready;
    never let two workers own one branch.
 7. Persist only ledger/checkpoint updates and friction entries.
 8. Stop the recurring scope if the queue is completely blocked; otherwise exit
    until the next scheduled tick.
-
-Use model judgment for safe workflow repairs not named here: bounded,
-reversible, backed by refreshed evidence, and not deciding product intent,
-security posture, credentials, provider input, production, or architecture.
 
 ## Dispatch
 
@@ -175,11 +168,12 @@ metadata, and predicted file footprint. A ticket that could close sibling
 tickets, lacks non-goals, or contains unresolved human decisions goes back to
 triage or `ready-for-human`.
 
-Capacity headroom is necessary but not sufficient. Compare predicted file,
+Worker headroom must be filled whenever safe work exists. Compare predicted file,
 package, schema, migration, route, generated artifact, config, and dense-doc
-footprints against open PRs, active branches, active dispatches, and candidates
-selected this tick. Hold colliding work as `file-collision`; do not fill spare
-slots for their own sake.
+footprints against active work and candidates. Select by backlog leverage and
+priority, then choose an authorized remote or local worker within explicit
+budget policy. Hold every unselected start with a collision, authority, or
+budget reason. An idle slot with safe ready work is an orchestration failure.
 
 Worker prompts must include a one-sentence scope and explicit non-goals,
 including sibling tickets the worker must not deliver. One ticket maps to one
@@ -190,15 +184,18 @@ PR unless the issue body explicitly says otherwise and config allows it.
 For every returned PR, call the review/integrate state machine instead of
 reviewing or merging inline. The core invariants:
 
-- Review evidence, checks, hosted review, draft state, and merge readiness expire
-  when the PR head or base evidence changes.
+- Review evidence expires when the review-relevant diff changes. A base-only
+  update that preserves the reviewed diff requires fresh checks, not a repeated
+  review. Required hosted review evidence follows its configured policy.
 - Draft state is an orchestration repair signal, not a review request.
 - Feedback goes to the original worker continuation target and stays on the same
   branch/PR.
+- One substantive review covers one review-relevant diff. Reuse it and never
+  repeat a pending or equivalent-diff review because another tick ran.
 - Base-branch drift on a GitHub PR is an orchestrator-owned repair: run
-  `gh pr update-branch <pr>` after refreshing PR state, then rerun checks and
-  review on the updated head. Delegate only when the update reports a merge
-  conflict or equivalent manual conflict state.
+  `gh pr update-branch <pr>` after refreshing PR state, rerun checks, and reuse
+  review when the review-relevant diff is equivalent. Delegate only when the
+  update reports a merge conflict or the diff materially changed.
 - `needs-human-merge` means merge-ready except for required human merge
   authority. Apply it only to open non-draft PRs with current clean review
   evidence, passing required checks, complete or policy-skipped hosted review,
@@ -223,10 +220,10 @@ Stop and report when:
 - configured budget is exhausted
 - a configured thrash circuit breaker trips
 
-Completely blocked means no scoped item has a safe next action: no startable
-tickets, returned PRs to advance, draft stalls to repair, checks to rerun or
-route, stale metadata to fix, stuck workers to nudge, or in-flight work expected
-to produce signal.
+Completely blocked means no scoped item has a safe next action. Account for every
+startable ticket, worker path, PR action, repair, and expected signal. A remote
+eligibility miss or local budget stop is not global blockage. Local budget
+limits stop local starts only; keep authorized remote workers running.
 
 ## Guardrails
 
@@ -241,6 +238,7 @@ to produce signal.
 - Never mark a ticket `ready-for-human` or a PR `needs-human-merge` while
   unresolved agent-fixable findings remain.
 - Never merge stale heads, stale review evidence, or stale checks.
+- Never send empty diffs or non-review gate failures to a review worker.
 - Never merge or deploy production without explicit approval.
 - Keep tracker comments and friction entries metadata-only. Do not paste
   secrets, private logs, diffs, customer data, signed URLs, or tokens.
@@ -251,7 +249,7 @@ Report compact evidence:
 
 - issues started, nudged, reviewed, integrated, blocked, moved, or marked done
 - PRs checked, reviewed, merged, labeled, unlabeled, draft-repaired, or blocked
-- active footprint, cap, headroom, and dispatch decisions
+- worker slots used, cap, headroom, and any justified idle slots
 - workers launched or messaged, with continuation targets used
 - tracker updates, readiness/review-evidence label changes, hosted review
   actions, and human-merge PR label decisions
