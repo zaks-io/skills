@@ -8,12 +8,11 @@ const errors = [];
 const manualOnlySkills = new Set([
   "ziw-implement",
   "ziw-orchestrate",
-  "ziw-pr",
   "ziw-to-issues",
   "ziw-triage",
   "ziw-setup",
 ]);
-const implicitInvocationSkills = new Set(["ziw-code-review"]);
+const implicitInvocationSkills = new Set(["ziw-code-review", "ziw-pr"]);
 const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set(["ziw-orchestrate"]);

@@ -644,7 +644,8 @@ allowed without approval and which need approval.
 These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
-- Side-effecting workflows use manual invocation.
+- Side-effecting workflows use manual invocation, except `ziw-pr`, which agents
+  may invoke on their own once a branch is ready to ship.
 - `ziw-code-review` uses clean context where the agent tooling
   supports it and review current committed code unless a working-tree review was
   explicitly requested.
