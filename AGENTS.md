@@ -49,9 +49,12 @@ content.
 - Preserve support for both Claude and Codex skill types. When adding or
   changing a skill, keep the portable `SKILL.md` contract, Claude-compatible
   frontmatter, and Codex `agents/openai.yaml` metadata in sync.
-- Side-effecting workflow skills are manual-only in both Claude frontmatter and
-  `agents/openai.yaml`, except `ziw-pr`, which is model-invocable so an agent can
-  ship a finished branch without a separate prompt.
+- Invocation policy follows reversibility, not side-effect count. A skill is
+  manual-only in both Claude frontmatter and `agents/openai.yaml` when a wrong
+  invocation leaves a human cleaning up: bulk tracker mutation
+  (`ziw-triage`, `ziw-to-issues`), ticket claiming (`ziw-implement`), or merge
+  authority (`ziw-orchestrate`). Skills whose effects are local and reversible
+  are model-invocable (`ziw-setup`, `ziw-pr`, `ziw-code-review`).
 - Claude Code sub-agents live only in root `agents/`, load skill files through
   `${CLAUDE_PLUGIN_ROOT}`, and use `model: inherit`. Keep them limited to
   context-heavy delegation roles, not every workflow skill.
