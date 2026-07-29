@@ -2,7 +2,6 @@
 name: ziw-setup
 description: Use for workflow setup when setting up or refreshing a repository for agent workflows by creating docs/agents/workflow/config.md with repo commands, issue tracking, agent adapters, review gates, and environment safety rules.
 argument-hint: "[repo-path]"
-disable-model-invocation: true
 ---
 
 # Setup
