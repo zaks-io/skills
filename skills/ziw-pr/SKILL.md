@@ -2,7 +2,6 @@
 name: ziw-pr
 description: Use when opening, refreshing, or shipping the current branch as a pull request with local checks, judgment-based author QA, Conventional Commits, PR creation, and issue tracking.
 argument-hint: "[issue-id|branch|pr-url]"
-disable-model-invocation: true
 ---
 
 # Create PR
