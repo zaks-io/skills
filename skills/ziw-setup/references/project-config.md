@@ -37,6 +37,20 @@ Last updated: YYYY-MM-DD
 - Production deploy path:
 - Production approval required: yes
 
+## Planning Artifacts
+
+- Current-truth spec authority: index, directory, standalone document, or none
+- Spec paths:
+- Spec format: existing template or `ziw-grill` default semantic contract
+- Spec status convention: `Draft` and `Ready for slicing`, or mapped repo equivalents
+- Spec readiness authority: explicit user confirmation required
+- Glossary paths:
+- Context map:
+- ADR path:
+- ADR naming and status convention:
+- Authority hierarchy: current-truth specs, glossary or context docs, ADR rationale, code evidence, tracker slices, and non-authoritative conversation context
+- Documentation checks: format, Markdown lint, local links, anchors, and `git diff --check`
+
 ## Issue Tracker
 
 - Provider:

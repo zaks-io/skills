@@ -1,6 +1,6 @@
 # Agent Delivery Research
 
-Reviewed: 2026-06-01
+Reviewed: 2026-07-30
 
 This note records the research behind the workflow design. Use it when changing
 the workflow skills, adding a new role, or deciding whether to delegate work to
@@ -17,6 +17,8 @@ a coding agent.
   merge.
 - Keep skills narrow. A skill should earn its token cost by improving pass rate,
   review quality, safety, or cycle time.
+- Resolve material planning ambiguity before ticket slicing. Agents should not
+  invent product decisions to make a ticket look executable.
 - Route work by task type. Documentation, tests, CI, build updates, small
   refactors, and scoped bug fixes are better agent targets than broad domain
   changes, auth, security, PII, production, performance, or ambiguous work.
@@ -51,8 +53,8 @@ a coding agent.
 
 Agent Orchestrator is the only active loop. It should keep a small context,
 refresh Linear, GitHub, checks, and PR state, then delegate implementation or
-review. To Issues and Issue Triage prepare current work. Agent Review and
-integrate are called steps.
+review. Grill resolves material planning ambiguity; To Issues and Issue Triage
+prepare current work. Agent Review and integrate are called steps.
 
 There is no separate coverage-audit loop in this repo. Coverage and conformance
 checking live inside the existing roles instead: To Issues emits a coverage
@@ -70,6 +72,7 @@ authority can follow delivery mode while trust is verified on merged reality.
 Core user-facing roles:
 
 - `ziw-setup`
+- `ziw-grill`
 - `ziw-to-issues`
 - `ziw-triage`
 - `ziw-orchestrate`
@@ -82,6 +85,12 @@ Helper gates:
 
 Do not add a new workflow skill unless it has one job, a distinct owner in the
 workflow, and a measurable reason not to live inside an existing role.
+
+`ziw-grill` was added from repeated observed use of the same one-question
+planning workflow before To Issues. This is a local workflow judgment backed by
+usage, not a new external research claim. Its separate authority boundary keeps
+planning clarification out of To Issues, while its ready-spec handoff improves
+the issue quality supported by the evidence above.
 
 The current keep, watch, remove, and demote decisions live in
 [skill-portfolio.md](skill-portfolio.md). Provider-specific delegation glue, such

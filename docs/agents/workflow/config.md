@@ -1,6 +1,6 @@
 # Agent Config
 
-Last updated: 2026-07-20
+Last updated: 2026-07-30
 
 ## Verification
 
@@ -29,6 +29,20 @@ Last updated: 2026-07-20
 - Preview checks: none
 - Production deploy path: none
 - Production approval required: yes; there is no production deploy target
+
+## Planning Artifacts
+
+- Current-truth spec authority: `docs/agent-workflow.md` for the technical workflow contract; `docs/skill-portfolio.md` for the published skill surface; `docs/skill-distribution.md` for distribution policy
+- Spec paths: `docs/*.md`
+- Spec format: repo-native Markdown with stable section anchors
+- Spec status convention: grilled specs use `Draft` and `Ready for slicing`; existing workflow docs are maintained current without a lifecycle marker
+- Spec readiness authority: explicit user confirmation required for Grill's `Ready for slicing` transition
+- Glossary paths: `CONTEXT.md`
+- Context map: none; this is a single-context repo
+- ADR path: none configured
+- ADR naming and status convention: none configured; create lazily only after Grill's ADR gate passes
+- Authority hierarchy: current-truth docs, `CONTEXT.md` language, ADR rationale when added, code evidence, tracker slices, non-authoritative conversation context
+- Documentation checks: `pnpm format:check`, `pnpm check`, and `git diff --check`
 
 ## Issue Tracker
 

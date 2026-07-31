@@ -142,16 +142,14 @@ const evidenceForPr = (state, pr) => {
       ? {
           hasReviewEvidence: true,
           independentReviewCount: currentApprovals.length,
+          reviewEvidenceCurrent: true,
           reviewedHeadSha: pr.headSha,
           reviewVerdict: "Ready to Merge",
         }
       : {};
   if (currentApprovals.length > 0) return { ...explicit, ...githubEvidence };
 
-  const currentFingerprint =
-    pr.reviewDiffFingerprint ??
-    pr.reviewRelevantDiffFingerprint ??
-    state.reviewDiffByPr?.[pr.number];
+  const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
   const reviewedFingerprint =
     explicit.reviewedDiffFingerprint ?? explicit.reviewRelevantDiffFingerprint;
   if (currentFingerprint && normalize(currentFingerprint) === normalize(reviewedFingerprint)) {
@@ -159,6 +157,8 @@ const evidenceForPr = (state, pr) => {
       ...explicit,
       hasReviewEvidence: true,
       independentReviewCount: Math.max(Number(explicit.independentReviewCount) || 0, 1),
+      reviewDiffFingerprint: currentFingerprint,
+      reviewedDiffFingerprint: reviewedFingerprint,
       reviewedHeadSha: pr.headSha,
       reviewVerdict: explicit.reviewVerdict ?? "Ready to Merge",
     };
@@ -166,17 +166,35 @@ const evidenceForPr = (state, pr) => {
   return explicit;
 };
 
+const reviewDiffFingerprintForPr = (state, pr) =>
+  pr.reviewDiffFingerprint ??
+  pr.reviewRelevantDiffFingerprint ??
+  state.reviewDiffByPr?.[pr.number] ??
+  state.reviewDiffByPr?.[String(pr.number ?? "")];
+
 const hostedReviewForPr = (state, pr) => {
   const byPr = state.hostedReviewByPr ?? {};
   const keys = [pr.number, String(pr.number ?? ""), pr.id, pr.url, pr.headSha, pr.headRefName]
     .map((key) => String(key ?? "").trim())
     .filter(Boolean);
-  return Object.assign({}, ...keys.map((key) => byPr[key] ?? {}));
+  const hostedReview = Object.assign({}, ...keys.map((key) => byPr[key] ?? {}));
+  const requiredAliases = [
+    hostedReview.required,
+    hostedReview.hostedReviewRequired,
+    hostedReview.codeRabbitRequired,
+  ].filter((value) => value != null);
+  const required =
+    requiredAliases.length === 0 ? undefined : requiredAliases.some((value) => value === true);
+  return {
+    ...hostedReview,
+    ...(required == null ? {} : { required, hostedReviewRequired: required }),
+  };
 };
 
 const humanMergeDecisionForPr = (state, config, pr) => {
   const evidence = evidenceForPr(state, pr);
   const hostedReview = hostedReviewForPr(state, pr);
+  const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
   return {
     pr: pr.number ?? pr.id ?? pr.url,
     headSha: pr.headSha,
@@ -191,6 +209,7 @@ const humanMergeDecisionForPr = (state, config, pr) => {
         reviewDecision: pr.reviewDecision,
         ...hostedReview,
         ...evidence,
+        ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
       },
       config,
     ),
@@ -199,6 +218,7 @@ const humanMergeDecisionForPr = (state, config, pr) => {
 
 const hostedReviewDecisionForPr = (state, config, pr) => {
   const hostedReview = hostedReviewForPr(state, pr);
+  const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
   if (!hostedReview.required) return null;
   return {
     pr: pr.number ?? pr.id ?? pr.url,
@@ -209,6 +229,7 @@ const hostedReviewDecisionForPr = (state, config, pr) => {
         prState: pr.isDraft ? "draft" : pr.state,
         currentPrHeadSha: pr.headSha,
         ...hostedReview,
+        ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
       },
       config,
     ),
@@ -220,6 +241,15 @@ const targetForPr = (pr) => `pr:${pr.number ?? pr.id ?? pr.url}`;
 const reviewRequestForPr = (state, pr) => {
   const byPr = state.reviewRequestsByPr ?? state.reviewRequestByPr ?? {};
   const request = byPr[pr.number] ?? byPr[String(pr.number ?? "")] ?? byPr[pr.id] ?? {};
+  const currentFingerprint = normalize(reviewDiffFingerprintForPr(state, pr));
+  const requestedFingerprint = normalize(
+    request.reviewDiffFingerprint ??
+      request.reviewRelevantDiffFingerprint ??
+      request.reviewedDiffFingerprint,
+  );
+  if (currentFingerprint && requestedFingerprint) {
+    return currentFingerprint === requestedFingerprint ? request : null;
+  }
   return normalize(request.headSha ?? request.reviewHeadSha) === normalize(pr.headSha)
     ? request
     : null;
@@ -309,6 +339,9 @@ const prDisposition = (state, config, pr) => {
       reviewDecision: pr.reviewDecision,
       ...hostedReview,
       ...evidence,
+      ...(reviewDiffFingerprintForPr(state, pr)
+        ? { reviewDiffFingerprint: reviewDiffFingerprintForPr(state, pr) }
+        : {}),
     },
     config,
   );
@@ -341,7 +374,9 @@ const prDisposition = (state, config, pr) => {
           kind: "request-hosted-review",
           owner: "orchestrator",
           reason: "HOSTED_REVIEW_REQUIRED",
-          idempotencyKey: `hosted-review:${pr.number ?? pr.id}:${pr.headSha}`,
+          idempotencyKey: `hosted-review:${pr.number ?? pr.id}:${
+            reviewDiffFingerprintForPr(state, pr) ?? pr.headSha
+          }`,
         },
       };
     }
@@ -390,7 +425,9 @@ const prDisposition = (state, config, pr) => {
         kind: "request-review",
         owner: "review-worker",
         reason: "REVIEW_REQUIRED",
-        idempotencyKey: `review:${pr.number ?? pr.id}:${pr.headSha}`,
+        idempotencyKey: `review:${pr.number ?? pr.id}:${
+          pr.reviewDiffFingerprint ?? pr.reviewRelevantDiffFingerprint ?? pr.headSha
+        }`,
       },
     };
   }

@@ -118,7 +118,8 @@ high-risk changes or when the user asks.
 
 Do not post hosted-review commands or run a provider CLI until the provider,
 auto-review mode, trigger policy, and current hosted review state are resolved.
-If a hosted review is enabled, pending, or complete for the current PR head, wait
+If a hosted review is enabled, pending, or complete for the current
+review-relevant diff, wait
 instead of requesting another. Never use CodeRabbit CLI for an existing PR, and
 do not apply CodeRabbit commands to Cursor Bugbot. Use `@coderabbitai ignore` in
 the PR description only when CodeRabbit policy allows skipping optional

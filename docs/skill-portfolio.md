@@ -20,12 +20,14 @@ stale, not invoked in real runs, or duplicating another role's authority.
 
 ## Current Decision
 
-Keep the seven current publishable skills for now. Do not add another
+Keep the eight current publishable skills for now. `ziw-grill` fills the
+observed, frequently used planning gap before To Issues. Do not add another
 publishable skill until telemetry proves the current surface is insufficient.
 
 | Skill             | Decision              | Why                                                                                                                                                                                      |
 | ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ziw-setup`       | Keep                  | Owns Repo Config creation and refresh. Other roles should not rediscover commands, tracker IDs, environment rules, or agent access.                                                      |
+| `ziw-grill`       | Keep                  | Owns one-question-at-a-time planning clarification and the Draft-to-ready spec handoff. This prevents To Issues from inventing product decisions or slicing contradictory plans.         |
 | `ziw-to-issues`   | Keep                  | Owns spec or epic conversion into dependency-ordered Slice Tickets. This is separate from tracker cleanup and implementation.                                                            |
 | `ziw-triage`      | Keep, watch size      | Owns script-driven Issue Tracker backlog cleanup, readiness, dependency, and review-debt intake before Orchestrator runs. Merging it into Orchestrator would make the work loop heavier. |
 | `ziw-orchestrate` | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.                              |

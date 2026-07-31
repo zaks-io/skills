@@ -181,30 +181,44 @@ test("ready-state promotion ignores non-agent readiness labels from broad config
   );
 });
 
-test("review evidence is cleared when the PR head no longer matches", () => {
+test("review evidence is preserved across a new head when the reviewed diff is equivalent", () => {
   assert.deepEqual(
     reviewEvidenceDecision({
       evidenceLabel: "Code review passed",
-      reviewedHeadSha: "abc123",
-      currentPrHeadSha: "def456",
+      reviewDiffFingerprint: "same-diff",
+      reviewedDiffFingerprint: "SAME-DIFF",
     }),
     {
-      action: workflowDecisionActions.clearReviewEvidence,
-      reason: "reviewed head SHA does not match current PR head",
+      action: workflowDecisionActions.leaveUnchanged,
+      reason: "review evidence is current",
     },
   );
 });
 
-test("review evidence is applied only when a clean review covers the current head", () => {
+test("review evidence is cleared when the review-relevant diff changes", () => {
   assert.deepEqual(
     reviewEvidenceDecision({
-      currentPrHeadSha: "abc123",
-      reviewedHeadSha: "ABC123",
+      evidenceLabel: "Code review passed",
+      reviewDiffFingerprint: "new-diff",
+      reviewedDiffFingerprint: "old-diff",
+    }),
+    {
+      action: workflowDecisionActions.clearReviewEvidence,
+      reason: "review-relevant diff changed since review",
+    },
+  );
+});
+
+test("review evidence is applied only when a clean review covers the current diff", () => {
+  assert.deepEqual(
+    reviewEvidenceDecision({
+      reviewDiffFingerprint: "same-diff",
+      reviewedDiffFingerprint: "SAME-DIFF",
       reviewVerdict: "APPROVE",
     }),
     {
       action: workflowDecisionActions.applyReviewEvidence,
-      reason: "clean review covers the current PR head",
+      reason: "clean review covers the current review-relevant diff",
     },
   );
 });
@@ -213,8 +227,8 @@ test("human merge PR label is applied only when the PR is merge-ready with curre
   assert.deepEqual(
     humanMergePrLabelDecision(
       {
-        currentPrHeadSha: "abc123",
-        reviewedHeadSha: "ABC123",
+        reviewDiffFingerprint: "same-diff",
+        reviewedDiffFingerprint: "SAME-DIFF",
         reviewVerdict: "Ready to Merge",
         hasReviewEvidence: true,
         requiredChecksPassed: true,
@@ -243,7 +257,7 @@ test("human merge PR label is not applied without current code review evidence",
     {
       action: workflowDecisionActions.leaveUnchanged,
       label: "needs-human-merge",
-      reason: "current PR head lacks clean code review evidence",
+      reason: "current review-relevant diff lacks clean code review evidence",
     },
   );
 });
@@ -252,12 +266,12 @@ test("human merge PR label is cleared when a new commit invalidates review evide
   assert.deepEqual(
     humanMergePrLabelDecision(
       {
-        currentPrHeadSha: "def456",
+        reviewDiffFingerprint: "new-diff",
         hasReviewEvidence: true,
         humanMergePrLabelApplied: true,
         prState: "open",
         requiredChecksPassed: true,
-        reviewedHeadSha: "abc123",
+        reviewedDiffFingerprint: "old-diff",
         reviewVerdict: "APPROVE",
       },
       { mergeAuthority: "human" },
@@ -265,7 +279,7 @@ test("human merge PR label is cleared when a new commit invalidates review evide
     {
       action: workflowDecisionActions.clearHumanMergePrLabel,
       label: "needs-human-merge",
-      reason: "current PR head lacks clean code review evidence",
+      reason: "current review-relevant diff lacks clean code review evidence",
     },
   );
 });
@@ -280,6 +294,7 @@ test("human merge PR label is cleared from draft PRs", () => {
       prState: "open",
       requiredChecksPassed: true,
       reviewedHeadSha: "ABC123",
+      reviewEvidenceCurrent: true,
       reviewVerdict: "APPROVE",
     }),
     {
@@ -301,6 +316,7 @@ test("human merge PR label waits for required hosted bot review", () => {
         prState: "open",
         requiredChecksPassed: true,
         reviewedHeadSha: "ABC123",
+        reviewEvidenceCurrent: true,
         reviewVerdict: "APPROVE",
       },
       { mergeAuthority: "human" },
@@ -668,19 +684,19 @@ test("dispatch selection records an authority reason for unknown worker paths", 
   ]);
 });
 
-test("CodeRabbit waits when hosted review is already pending for the PR head", () => {
+test("CodeRabbit waits when hosted review already covers the current diff", () => {
   assert.deepEqual(
     codeRabbitEscalationDecision({
       recommended: true,
       prExists: true,
       autoReviewMode: "enabled",
-      currentPrHeadSha: "abc123",
-      hostedReviewHeadSha: "ABC123",
+      reviewDiffFingerprint: "same-diff",
+      hostedReviewDiffFingerprint: "SAME-DIFF",
       hostedReviewPending: true,
     }),
     {
       action: workflowDecisionActions.hostedReviewPending,
-      reason: "hosted review is already pending for the current PR head",
+      reason: "hosted review is already pending for the current review-relevant diff",
     },
   );
 });
@@ -690,13 +706,13 @@ test("current hosted review evidence wins when auto-review mode is unknown", () 
     codeRabbitEscalationDecision({
       recommended: true,
       prExists: true,
-      currentPrHeadSha: "abc123",
-      hostedReviewHeadSha: "ABC123",
+      reviewDiffFingerprint: "same-diff",
+      hostedReviewDiffFingerprint: "SAME-DIFF",
       hostedReviewComplete: true,
     }),
     {
       action: workflowDecisionActions.hostedReviewComplete,
-      reason: "hosted review already covers the current PR head",
+      reason: "hosted review already covers the current review-relevant diff",
     },
   );
 });
@@ -955,13 +971,14 @@ test("production mode arms auto-merge for low and medium risk when green", () =>
   assert.equal(low.tier, "low");
 });
 
-test("a hosted review of a stale head does not count when two reviews are explicitly required", () => {
+test("a hosted review of a stale diff does not count when two reviews are explicitly required", () => {
   const decision = mergeEligibilityDecision(
     {
       ...greenPr,
       labels: ["risk-schema"],
       hostedReviewComplete: true,
-      hostedReviewHeadSha: "old999",
+      reviewDiffFingerprint: "current-diff",
+      hostedReviewDiffFingerprint: "old-diff",
     },
     { deliveryMode: "velocity", requiredIndependentReviews: { high: 2 } },
   );
@@ -970,9 +987,14 @@ test("a hosted review of a stale head does not count when two reviews are explic
   assert.match(decision.reason, /another independent review/);
 });
 
-test("a hosted review with no recorded head SHA does not count when two reviews are required", () => {
+test("a hosted review boolean without recorded diff fingerprints does not count", () => {
   const decision = mergeEligibilityDecision(
-    { ...greenPr, labels: ["risk-schema"], hostedReviewComplete: true },
+    {
+      ...greenPr,
+      labels: ["risk-schema"],
+      hostedReviewComplete: true,
+      hostedReviewCurrent: true,
+    },
     { deliveryMode: "velocity", requiredIndependentReviews: { high: 2 } },
   );
 

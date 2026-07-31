@@ -176,12 +176,13 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
   triage must verify the full issue scope is complete before leaving it there.
   If linked PR evidence covers only part of the issue, reopen or narrow it
   according to repo config.
-- The configured review evidence label means the latest linked PR head SHA has
-  passed the configured code review gate for this ticket. Resolve it by the
-  exact configured slug or ID, not by reconstructing a display name. Apply it
-  only with adjacent review evidence that names the PR URL and reviewed head
-  SHA and review-diff fingerprint. Remove it when that diff changes, blocking review findings appear, the
-  linked PR changes, or the review evidence is missing or stale.
+- The configured review evidence label means the linked PR's review-relevant
+  diff has passed the configured code review gate for this ticket. Resolve it
+  by the exact configured slug or ID, not by reconstructing a display name.
+  Apply it only with adjacent review evidence that names the PR URL, reviewed
+  head SHA, and review-diff fingerprint. Remove it when that diff changes,
+  blocking review findings appear, the linked PR changes, or the review evidence
+  is missing or stale.
 - The configured code-host human-merge PR label means the PR is ready to merge
   except for required human merge authority. Apply it only to open non-draft PRs
   with current clean review evidence, passing required checks, complete or

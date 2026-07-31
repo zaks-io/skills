@@ -139,7 +139,8 @@ Delivery modes:
 `ziw-code-review` verdict for the current review-relevant diff, required
 conformance evidence when repo config enables it and no exhibited `FAIL` rows,
 required CI checks pass, no unresolved blocking review comments, PR non-draft and
-ready-for-review, the configured review evidence label current for the PR head,
+ready-for-review, the configured review evidence label current for the
+review-relevant diff,
 and the required hosted-bot review complete or recorded as skipped by policy.
 
 Rules that do not change with tier or delivery mode:
@@ -192,7 +193,8 @@ skill or config that produced it.
 
 In `velocity` mode, the user's standing touchpoints are:
 
-- spec, PRD, and ADR approval before To Issues runs
+- explicit approval of Grill's `Ready for slicing` transition before To Issues
+  runs on a grilled spec
 - risk-tier confirmation when To Issues marks HIGH-tier work
 - production deploys and the other human-authority boundaries above
 - decision requests escalated in the shape above

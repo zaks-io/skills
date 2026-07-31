@@ -22,7 +22,8 @@ intake metadata is a dispatch hazard.
 
 ## Inputs
 
-- A spec doc, PRD ticket, epic ticket, plan, or project to turn into issues.
+- A spec doc, PRD ticket, epic ticket, plan, or project to turn into issues. A
+  Grill-managed spec must be `Ready for slicing`.
 - Repo path and `docs/agents/workflow/config.md`.
 - Existing tracker tickets under the same parent, project, or route.
 - Any hand-created implementation tickets to adopt into the plan.
@@ -47,6 +48,27 @@ Read the agent-ready body contract and label rules from
 [../ziw-setup/references/issue-tracker-contract.md](../ziw-setup/references/issue-tracker-contract.md)
 so the body shape and labels stay defined in one place. See Self-Healing below
 when existing tickets are inconsistent.
+
+## Planning Handoff
+
+Inspect the source plan before creating or editing tracker tickets.
+
+- `Status: Ready for slicing`, or its configured equivalent, is an explicit
+  Grill handoff and may proceed.
+- `Status: Draft`, or its configured equivalent, is not ready for implementation
+  slicing. Stop and report its blocking questions.
+- When the user explicitly asks to preserve a Draft in the tracker, create or
+  update only a non-ready `kind-spec` or `kind-epic` container carrying the
+  gaps. Do not emit implementation slices or apply `ready-for-agent`.
+- A legacy spec, PRD, plan, or epic without lifecycle status may proceed only
+  when its outcome, scope, non-goals, behavior, acceptance signals, and material
+  open questions are clear enough to satisfy this skill's ticket contract.
+- A contradiction or blocking question that could change slice boundaries,
+  risk, dependencies, or required proof returns the plan to `ziw-grill`; To
+  Issues does not invent the missing decision.
+
+Do not weaken this gate because a plan already has tickets. Adopt existing
+tickets only after the source is ready enough to define their boundaries.
 
 ## Ticket Kinds
 

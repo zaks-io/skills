@@ -18,6 +18,19 @@ test("tick-snapshot paginates the complete open PR footprint", () => {
   writeFileSync(
     gh,
     `#!/usr/bin/env node
+const endpoint = process.argv.find((arg) => arg.includes("/pulls/") && arg.includes("/files"));
+if (endpoint) {
+  const number = Number(endpoint.match(/pulls\\/(\\d+)/)[1]);
+  process.stdout.write(JSON.stringify([[{
+    filename: "src/shared.js",
+    status: "modified",
+    sha: number === 1 ? "same-reviewed-blob" : "changed-blob",
+    additions: 2,
+    deletions: 1,
+    changes: 3
+  }]]));
+  process.exit(0);
+}
 const after = process.argv.find((arg) => arg.startsWith("after="));
 const second = Boolean(after);
 const number = second ? 2 : 1;
@@ -32,6 +45,7 @@ const repository = {
       url: "https://example.com/pr/" + number,
       isDraft: false,
       updatedAt: "2026-07-20T00:00:00Z",
+      changedFiles: 1,
       author: { login: "worker", __typename: "User" },
       headRefName: "work-" + number,
       headRefOid: "head-" + number,
@@ -64,4 +78,6 @@ process.stdout.write(JSON.stringify({ data: { repository } }));
     output.prs.map((pr) => pr.number),
     [1, 2],
   );
+  assert.match(output.prs[0].reviewDiffFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.notEqual(output.prs[0].reviewDiffFingerprint, output.prs[1].reviewDiffFingerprint);
 });

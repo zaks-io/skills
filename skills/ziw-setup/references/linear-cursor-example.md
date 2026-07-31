@@ -35,6 +35,20 @@ Last updated: 2026-06-01
 - Focused checks: pnpm test <path>, pnpm prettier:check
 - Production approval required: yes
 
+## Planning Artifacts
+
+- Current-truth spec authority: docs/specs/README.md and docs/specs/\*.md
+- Spec paths: docs/specs/\*.md
+- Spec format: existing repo template
+- Spec status convention: Draft and Ready for slicing
+- Spec readiness authority: explicit user confirmation required
+- Glossary paths: CONTEXT.md
+- Context map: none; single context
+- ADR path: docs/adr/
+- ADR naming and status convention: NNNN-slug.md; Accepted or Superseded
+- Authority hierarchy: specs, glossary, ADR rationale, code evidence, tracker slices, conversation context
+- Documentation checks: pnpm format:check, pnpm docs:links, git diff --check
+
 ## Issue Tracker
 
 - Provider: Linear

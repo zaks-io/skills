@@ -11,7 +11,7 @@ const manualOnlySkills = new Set([
   "ziw-to-issues",
   "ziw-triage",
 ]);
-const implicitInvocationSkills = new Set(["ziw-code-review", "ziw-pr", "ziw-setup"]);
+const implicitInvocationSkills = new Set(["ziw-code-review", "ziw-grill", "ziw-pr", "ziw-setup"]);
 const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set(["ziw-orchestrate"]);
@@ -19,6 +19,7 @@ const triggerTerms = {
   "ziw-implement": ["implement", "issue", "pr"],
   "ziw-orchestrate": ["orchestrate", "issue", "tracker"],
   "ziw-code-review": ["review", "code"],
+  "ziw-grill": ["grill", "spec", "question"],
   "ziw-pr": ["pr", "pull request"],
   "ziw-to-issues": ["spec", "ticket", "dependency"],
   "ziw-triage": ["tracker", "triage", "project", "issue"],
@@ -31,6 +32,12 @@ const readmeFile = path.join(root, "README.md");
 const agentWorkflowFile = path.join(docsDir, "agent-workflow.md");
 const researchFile = path.join(docsDir, "agent-delivery-research.md");
 const skillPortfolioFile = path.join(docsDir, "skill-portfolio.md");
+const projectConfigReferenceFile = path.join(
+  skillsDir,
+  "ziw-setup",
+  "references",
+  "project-config.md",
+);
 const workflowContractFile = path.join(
   root,
   "skills",
@@ -147,12 +154,36 @@ if (!readmeText.includes("docs/agent-delivery-research.md")) {
 if (!readmeText.includes("docs/skill-portfolio.md")) {
   fail(`${relative(readmeFile)} must link to docs/skill-portfolio.md`);
 }
+for (const required of ["$ziw-grill", "Ready for slicing"]) {
+  if (!readmeText.includes(required)) {
+    fail(`${relative(readmeFile)} must include ${required}`);
+  }
+}
 const workflowText = readText(agentWorkflowFile);
 if (!workflowText.includes("agent-delivery-research.md")) {
   fail(`${relative(agentWorkflowFile)} must link to agent-delivery-research.md`);
 }
 if (!workflowText.includes("skill-portfolio.md")) {
   fail(`${relative(agentWorkflowFile)} must link to skill-portfolio.md`);
+}
+for (const required of ["ziw-grill", "Status: Draft", "Status: Ready for slicing"]) {
+  if (!workflowText.includes(required)) {
+    fail(`${relative(agentWorkflowFile)} must include ${required}`);
+  }
+}
+
+const toIssuesText = readText(path.join(skillsDir, "ziw-to-issues", "SKILL.md"));
+for (const required of ["Draft", "Ready for slicing"]) {
+  if (!toIssuesText.includes(required)) {
+    fail(`skills/ziw-to-issues/SKILL.md must include ${required}`);
+  }
+}
+
+const projectConfigReferenceText = readText(projectConfigReferenceFile);
+for (const required of ["## Planning Artifacts", "Spec status convention"]) {
+  if (!projectConfigReferenceText.includes(required)) {
+    fail(`${relative(projectConfigReferenceFile)} must include ${required}`);
+  }
 }
 
 for (const name of skillNames) {
@@ -226,6 +257,12 @@ for (const name of skillNames) {
 
   if (manualOnlySkills.has(name) && frontmatterValue("disable-model-invocation") !== "true") {
     fail(`${relative(skillFile)} must set disable-model-invocation: true`);
+  }
+  if (
+    implicitInvocationSkills.has(name) &&
+    frontmatterValue("disable-model-invocation") === "true"
+  ) {
+    fail(`${relative(skillFile)} must remain model-invocable`);
   }
   if (cleanContextSkills.has(name) && frontmatterValue("context") !== "fork") {
     fail(`${relative(skillFile)} must set context: fork`);

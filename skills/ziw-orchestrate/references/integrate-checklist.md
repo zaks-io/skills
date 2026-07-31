@@ -26,7 +26,8 @@ file carries the order of operations.
    continuation target or mark the ticket for human attention. If no explicit
    draft blocker remains, mark the PR ready-for-review and verify it is
    non-draft.
-4. Confirm code review happened when feasible and covers the current PR head
+4. Confirm code review happened when feasible and covers the current
+   review-relevant diff
    before applying the configured review evidence label, moving to
    `Ready to Merge`, or calling integrate. Request Agent Review only when
    review evidence is the actual blocker, not merely because the PR is draft.
@@ -44,7 +45,7 @@ file carries the order of operations.
    wasted, log the cost with an existing friction category, usually
    `stuck-worker` for live worker churn or `config-gap` for missing
    check-state expectations.
-6. When the review target is stable and no same-head request exists, run one
+6. When the review target is stable and no equivalent-diff request exists, run one
    independent `ziw-code-review` in a
    subagent or disposable worktree. Parallel reviews must use isolated
    worktrees or sessions, never one shared mutable checkout.
@@ -52,10 +53,10 @@ file carries the order of operations.
    artifact. If multiple current review artifacts disagree on blocking
    findings, reconcile conservatively: treat the PR as blocked until a focused
    re-review resolves the exact findings or the risky diff is fixed.
-8. If the PR head changed since the configured review evidence label was
-   applied, or the label lacks reviewed head SHA evidence, remove the label
-   before continuing. Also remove the configured code-host human-merge PR
-   label if it is present.
+8. If the review-relevant diff changed since the configured review evidence
+   label was applied, or the label lacks a review-diff fingerprint, remove the
+   label before continuing. Also remove the configured code-host human-merge
+   PR label if it is present. A head change alone does not invalidate review.
 9. If the latest review has blocking findings, remove the configured review
    evidence label and post actionable findings as PR review comments when
    configured.
@@ -67,10 +68,10 @@ file carries the order of operations.
     number of times.
 12. Keep fixes on the same branch and PR. After fixes, rerun review and
     required checks.
-13. When review is clean for the current PR head, apply the configured review
+13. When review is clean for the current review-relevant diff, apply the configured review
     evidence label to the issue and record the PR URL, reviewed head SHA,
-    review artifact, and reviewer path in a tracker comment or configured
-    evidence field.
+    review-diff fingerprint, review artifact, and reviewer path in a tracker
+    comment or configured evidence field.
 14. Before changing draft state, refresh code-host PR state and the current PR
     head. Before applying the configured review evidence label, moving tracker
     state to `Ready to Merge`, or calling integrate, refresh local Git refs
@@ -106,7 +107,7 @@ file carries the order of operations.
     finding.
 18. Move to `Ready to Merge` only when review is clean, required checks pass,
     the PR is non-draft and ready-for-review, the configured review evidence
-    label is current for the PR head, the diff matches the linked issue's
+    label is current for the review-relevant diff, the diff matches the linked issue's
     in-scope and out-of-scope boundary, and required hosted bot review escalation is
     complete or recorded as skipped by policy. If configured merge authority is
     human, apply the configured code-host human-merge PR label such as

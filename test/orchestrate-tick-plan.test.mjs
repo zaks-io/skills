@@ -33,6 +33,7 @@ test("tick-plan advances PRs and fills worker slots in the same tick", () => {
           number: 247,
           state: "open",
           headSha: "pr-head",
+          reviewDiffFingerprint: "reviewed-diff",
           isDraft: false,
           checks: { state: "SUCCESS", failed: [], pending: [] },
           mergeable: "MERGEABLE",
@@ -49,6 +50,7 @@ test("tick-plan advances PRs and fills worker slots in the same tick", () => {
       reviewEvidenceByPr: {
         247: {
           hasReviewEvidence: true,
+          reviewedDiffFingerprint: "reviewed-diff",
           reviewedHeadSha: "pr-head",
           reviewVerdict: "Ready to Merge",
         },
@@ -159,7 +161,137 @@ test("optional hosted review state never parks an otherwise merge-ready PR", () 
   );
 });
 
-test("tick-plan does not repeat a review request for the same head", () => {
+test("tick-plan reuses a pending hosted review for an equivalent rebased diff", () => {
+  const output = runCompactPlan({
+    snapshot: {
+      repo: "zaks-io/mainstay",
+      prs: [
+        {
+          number: 244,
+          state: "open",
+          headSha: "rebased-head",
+          reviewDiffFingerprint: "stable-hosted-diff",
+          changedFiles: 2,
+          checks: { state: "SUCCESS", failed: [], pending: [] },
+          latestReviews: {
+            reviewer: { state: "APPROVED", headSha: "rebased-head" },
+          },
+        },
+      ],
+    },
+    config: { mergeAuthority: "agent" },
+    state: {
+      hostedReviewByPr: {
+        244: {
+          required: true,
+          hostedReviewPending: true,
+          hostedReviewDiffFingerprint: "stable-hosted-diff",
+        },
+      },
+    },
+  });
+
+  assert.equal(
+    output.actions.some((action) => action.kind === "request-hosted-review"),
+    false,
+  );
+  assert.deepEqual(output.waits, [
+    { target: "pr:244", signal: "hosted-review", reason: "HOSTED_REVIEW_PENDING" },
+  ]);
+});
+
+test("tick-plan requests hosted review again when the review-relevant diff changes", () => {
+  const output = runCompactPlan({
+    snapshot: {
+      repo: "zaks-io/mainstay",
+      prs: [
+        {
+          number: 245,
+          state: "open",
+          headSha: "new-head",
+          reviewDiffFingerprint: "new-hosted-diff",
+          changedFiles: 2,
+          checks: { state: "SUCCESS", failed: [], pending: [] },
+          latestReviews: {
+            reviewer: { state: "APPROVED", headSha: "new-head" },
+          },
+        },
+      ],
+    },
+    config: { mergeAuthority: "agent" },
+    state: {
+      hostedReviewByPr: {
+        245: {
+          required: true,
+          hostedReviewPending: true,
+          hostedReviewDiffFingerprint: "old-hosted-diff",
+          hostedReviewProvider: "Cursor Bugbot",
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(
+    output.actions.find((action) => action.kind === "request-hosted-review"),
+    {
+      target: "pr:245",
+      kind: "request-hosted-review",
+      owner: "orchestrator",
+      reason: "HOSTED_REVIEW_REQUIRED",
+      idempotencyKey: "hosted-review:245:new-hosted-diff",
+    },
+  );
+});
+
+test("tick-plan conservatively normalizes hosted-review required aliases", () => {
+  const scenarios = [
+    {
+      number: 246,
+      hostedReview: {
+        required: false,
+        hostedReviewRequired: true,
+        hostedReviewProvider: "Cursor Bugbot",
+      },
+    },
+    {
+      number: 247,
+      hostedReview: {
+        codeRabbitRequired: true,
+        autoReviewMode: "disabled",
+      },
+    },
+  ];
+
+  for (const { number, hostedReview } of scenarios) {
+    const output = runCompactPlan({
+      snapshot: {
+        repo: "zaks-io/mainstay",
+        prs: [
+          {
+            number,
+            state: "open",
+            headSha: `head-${number}`,
+            reviewDiffFingerprint: `diff-${number}`,
+            changedFiles: 2,
+            checks: { state: "SUCCESS", failed: [], pending: [] },
+            latestReviews: {
+              reviewer: { state: "APPROVED", headSha: `head-${number}` },
+            },
+          },
+        ],
+      },
+      config: { mergeAuthority: "agent" },
+      state: { hostedReviewByPr: { [number]: hostedReview } },
+    });
+
+    assert.equal(
+      output.actions.find((action) => action.kind === "request-hosted-review")?.idempotencyKey,
+      `hosted-review:${number}:diff-${number}`,
+    );
+  }
+});
+
+test("tick-plan does not repeat a review request for an equivalent diff", () => {
   const output = runCompactPlan({
     snapshot: {
       repo: "zaks-io/mainstay",
@@ -167,7 +299,8 @@ test("tick-plan does not repeat a review request for the same head", () => {
         {
           number: 242,
           state: "open",
-          headSha: "stable-head",
+          headSha: "new-head",
+          reviewDiffFingerprint: "stable-diff",
           changedFiles: 2,
           checks: { state: "SUCCESS", failed: [], pending: [] },
         },
@@ -175,7 +308,15 @@ test("tick-plan does not repeat a review request for the same head", () => {
       linear: { issues: [] },
     },
     config: { requireConformanceEvidence: false },
-    state: { reviewRequestsByPr: { 242: { headSha: "stable-head", status: "pending" } } },
+    state: {
+      reviewRequestsByPr: {
+        242: {
+          headSha: "old-head",
+          reviewDiffFingerprint: "stable-diff",
+          status: "pending",
+        },
+      },
+    },
   });
 
   assert.equal(
@@ -356,6 +497,7 @@ test("tick-plan applies human merge label only with current review evidence", ()
           state: "open",
           isDraft: false,
           headSha: "abc123",
+          reviewDiffFingerprint: "reviewed-diff",
           checks: { state: "SUCCESS", failed: [], pending: [] },
         },
       ],
@@ -371,6 +513,7 @@ test("tick-plan applies human merge label only with current review evidence", ()
           state: "open",
           isDraft: false,
           headSha: "abc123",
+          reviewDiffFingerprint: "reviewed-diff",
           checks: { state: "SUCCESS", failed: [], pending: [] },
         },
       ],
@@ -380,6 +523,7 @@ test("tick-plan applies human merge label only with current review evidence", ()
       reviewEvidenceByPr: {
         12: {
           hasReviewEvidence: true,
+          reviewedDiffFingerprint: "reviewed-diff",
           reviewedHeadSha: "ABC123",
           reviewVerdict: "Ready to Merge",
         },

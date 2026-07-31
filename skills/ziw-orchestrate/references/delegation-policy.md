@@ -77,7 +77,7 @@ Review target: <head SHA and review-diff fingerprint; one request per materially
 Intent source: <issue or PR URL>
 Required checks: <commands or config reference>
 Return the review report and no code changes. Refuse an empty diff or a duplicate
-same-head review request.
+equivalent-diff review request.
 ```
 
 ## Triage Prompt

@@ -262,7 +262,8 @@ Recommend `PR REVIEW` only for high-risk or genuinely complex work: auth,
 authorization, secrets, payments, destructive data, migrations, background jobs,
 public contracts, broad refactors, or unresolved reviewer uncertainty. For an
 existing PR, do not recommend `CLI`. If auto-review mode is unknown, or a
-push-triggered hosted review is enabled or pending for the current PR head,
+push-triggered hosted review is enabled or pending for the current
+review-relevant diff,
 report `auto-review unknown` or `auto-review pending` and recommend no command.
 Treat missing auth, rate limits, or credits as skipped unless the user explicitly
 requested that provider.
@@ -287,11 +288,14 @@ Ready-for-review means non-draft.
 In Author QA mode, always recommend `LEAVE UNCHANGED` for review evidence. In
 independent review mode, recommend applying the configured review evidence
 label only when the verdict is `READY FOR PR` or `APPROVE` for a concrete
-branch or PR head SHA and the conformance table is exhibited for that head with
-no `FAIL` rows. Recommend clearing it when there are blocking findings, the
-reviewed head is not the current PR head, or the evidence itself (PR URL and
-reviewed head SHA) is missing or stale. A label without current evidence is a
-claim, not proof.
+branch or PR head SHA and the conformance table is exhibited for that review
+with no `FAIL` rows. Record the review-diff fingerprint. Recommend clearing the
+label when there are blocking findings, the review-relevant diff changed, or
+the evidence itself (PR URL, reviewed head SHA, and review-diff fingerprint) is
+missing or stale. A label without current evidence is a claim, not proof.
+Use the fingerprint supplied by the current orchestrator snapshot. Do not
+derive a competing value from the head SHA or treat a missing fingerprint as
+current evidence.
 
 Do not treat a clean review alone as permission to apply the configured
 code-host human-merge PR label such as `needs-human-merge`. That label requires

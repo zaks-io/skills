@@ -162,7 +162,7 @@ Use this CodeRabbit command map only when CodeRabbit is the configured provider:
   incremental review or `@coderabbitai full review` for a fresh full pass.
 - Auto-review disabled or opt-in only: comment `@coderabbitai review` for
   incremental review, or `@coderabbitai full review` when no complete review
-  covers the current PR head.
+  covers the current review-relevant diff.
 - Manual `review` and `full review` commands consume PR review allowance when
   the review runs; record a skip instead when rate limits or credits block an
   optional review.

@@ -28,6 +28,14 @@ _Avoid_: setup notes, agent docs, project README
 An alias for **Repo Config** when emphasizing that future agents read values instead of rediscovering them.
 _Avoid_: narrative config, runbook
 
+**Current-Truth Spec**:
+The authoritative description of agreed current behavior and constraints that **To Issues** slices into tracked work.
+_Avoid_: ADR, ticket, transcript
+
+**Ready For Slicing**:
+The **Current-Truth Spec** status granted only after the planning readiness gate passes and the user explicitly approves ticket slicing.
+_Avoid_: ready-for-agent, implementation-ready
+
 **Downstream Repo**:
 A repository that installs or uses these workflow skills.
 _Avoid_: target project, client repo
@@ -139,6 +147,10 @@ _Avoid_: changed files, ownership map
 **Setup**:
 The workflow role that creates or refreshes **Repo Config** from current evidence.
 _Avoid_: onboarding, bootstrap
+
+**Grill**:
+The workflow role that resolves material planning ambiguity one question at a time and produces or updates a **Current-Truth Spec**.
+_Avoid_: brainstorming, ticket writing
 
 **To Issues**:
 The workflow role that turns a spec, PRD, epic, or plan into dependency-ordered **Slice Tickets**.

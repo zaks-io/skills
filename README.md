@@ -205,6 +205,7 @@ patches stale or missing values.
 Then run the normal flow:
 
 ```text
+$ziw-grill <idea|plan|spec>
 $ziw-to-issues <spec|prd|epic>
 $ziw-triage
 $ziw-orchestrate
@@ -228,9 +229,11 @@ Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
 automatically exclude the configured `Done` state unless you explicitly ask to
 audit Done cleanup.
 
-To Issues turns a spec, PRD, or epic ticket into dependency-ordered one-PR
-tickets. Triage gets the current set consistent. Orchestrator runs the loop:
-dispatch, review, integrate, repeat.
+Grill resolves material ambiguity one question at a time and marks the
+authoritative spec `Ready for slicing` only after explicit user approval. To
+Issues turns that spec, a complete PRD, or an epic ticket into
+dependency-ordered one-PR tickets. Triage gets the current set consistent.
+Orchestrator runs the loop: dispatch, review, integrate, repeat.
 
 Use direct skills when you want one specific action:
 
@@ -367,11 +370,17 @@ evidence, set repo-route metadata, or mark a PR ready-for-review are
 orchestration repairs. It should fix those from tracker, PR, check, and config
 evidence and keep going instead of escalating them.
 
-To Issues is the front door. It turns a spec, PRD, or epic ticket into
-dependency-ordered `kind-slice` tickets, adopts any tickets you made by hand
-instead of duplicating them, applies the body contract, labels, and configured
-estimates, and emits a dependency graph and predicted file footprint. Run it
-whenever you want the tickets to match the plan; re-running converges.
+Grill is the planning front door when intent is fuzzy or contradictory. It
+checks code and docs before asking, asks one recommended question at a time,
+updates confirmed current-truth specs, and keeps them `Draft` until you approve
+`Ready for slicing`. It never creates tracker tickets.
+
+To Issues is the ticketing front door. It turns a ready spec, complete PRD, or
+epic ticket into dependency-ordered `kind-slice` tickets, adopts any tickets you
+made by hand instead of duplicating them, applies the body contract, labels, and
+configured estimates, and emits a dependency graph and predicted file
+footprint. Run it whenever you want the tickets to match the plan; re-running
+converges. Draft specs return to Grill instead of producing ready slices.
 
 Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
 runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
@@ -435,6 +444,9 @@ glue should stay under `.agents/` unless it proves portable.
 
 - `ziw-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
+- `ziw-grill`: resolve material product, domain, scope, and architecture
+  ambiguity one question at a time; update authoritative planning artifacts;
+  and require explicit approval before a spec becomes ready for slicing.
 - `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered
   one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
   contract with explicit non-goals, labels, and configured estimates, and emit a
@@ -469,16 +481,18 @@ Without `--submit`, PR review remains read-only.
 
 1. Run `ziw-setup` once per repo, and rerun it when the workflow config may
    be stale.
-2. Run `ziw-to-issues` on a spec, PRD, or epic ticket to create the
+2. Run `ziw-grill` when an idea or existing spec has material ambiguity. Stop
+   when the user approves `Ready for slicing`.
+3. Run `ziw-to-issues` on the ready spec, complete PRD, or epic ticket to create the
    `kind-slice` tickets and dependency graph. Re-run it any time to reconcile the
    tickets with the plan.
-3. Run `ziw-triage` before the first orchestration run and whenever Todo,
+4. Run `ziw-triage` before the first orchestration run and whenever Todo,
    Triage, or active tracker state needs repair. Ask explicitly only when you
    want Linear Backlog review or backfill.
-4. Run `ziw-orchestrate` to run the loop: dispatch, review,
+5. Run `ziw-orchestrate` to run the loop: dispatch, review,
    integrate, repeat until the delivery scope is delivered or completely
    blocked. A completely blocked loop stops instead of rescheduling itself.
-5. Use `ziw-pr` directly only when you are already on a branch and
+6. Use `ziw-pr` directly only when you are already on a branch and
    want to ship it.
 
 For the deeper agent contract, state model, handoff shape, and diagrams, see
@@ -499,11 +513,13 @@ A repo is ready when:
   policy are explicit
 - local, development, preview, and production rules are explicit
 - verification commands are recorded
+- planning artifact authority, status convention, and documentation checks are
+  recorded
 - kind labels, CI-equivalent local gate policy, merge method, duplicate-dispatch
   policy, worker concurrency cap, saturation policy, PR closure guard,
   stuck-worker timeout, required-checks-for-merge, auto-merge risk tiers,
   friction intake, and delivery metrics are set when running the autonomous loop
-- `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
+- `ziw-grill`, `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
   `ziw-code-review`, and `ziw-pr` can run without guessing repo
   conventions
 

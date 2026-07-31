@@ -37,6 +37,27 @@ includes repo commands, code host state, CI checks, tracker metadata, worker
 delegation, adapter paths, and environment safety rules. Values that cannot be
 verified stay marked as inferred or unknown; they are not authoritative config.
 
+## Planning Artifacts
+
+Repo Config maps the current-truth spec index and paths, glossary or context
+docs, context map, ADR convention, planning authority hierarchy, status
+convention, and documentation checks. Grill uses this map before rediscovering
+repo conventions. A missing map does not block planning when existing docs make
+authority discoverable, but Grill reports it as a Setup gap.
+
+Grill owns two planning states:
+
+- `Status: Draft`: confirmed decisions may be written inline, but unresolved
+  material questions still block ticket slicing.
+- `Status: Ready for slicing`: the readiness contract passes, documentation
+  checks pass, and the user explicitly approved the transition.
+
+Existing repos may use equivalent status text when Repo Config maps it. Specs
+are current truth, context or glossary docs define canonical domain language,
+and ADRs preserve rationale for hard-to-reverse, surprising tradeoffs. Code,
+tracker tickets, and prior ADRs can expose contradictions but do not silently
+override the current-truth spec.
+
 ## Systems Of Record
 
 Workflow state must not live only in local agent files.
@@ -133,6 +154,11 @@ config-gap finding when the conflict affects the workflow.
 
 ## Roles
 
+- Grill: resolves material product, domain, scope, and architecture ambiguity
+  one question at a time. It checks code, docs, config, and authoritative
+  external sources before asking, updates confirmed authoritative planning
+  artifacts, and requires user approval before a spec becomes
+  `Ready for slicing`. It does not create tracker tickets or implement code.
 - To Issues: the front door that turns a spec, PRD, or epic ticket into
   dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
   instead of duplicating them, applies the agent-ready body contract and labels,
@@ -173,8 +199,8 @@ implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
   orchestration stage.
 - Code Review: shared bug-focused review gate.
 
-Setup, To Issues, Issue Triage, Agent Orchestrator, Agent Implement, and Agent
-Review are the core workflow roles. Code Review, Create PR, and Secret
+Setup, Grill, To Issues, Issue Triage, Agent Orchestrator, Agent Implement, and
+Agent Review are the core workflow roles. Code Review, Create PR, and Secret
 Redaction are helper gates used by those roles.
 
 PR draft state is code-host state, not tracker state. Draft and
@@ -185,6 +211,11 @@ The configured review evidence label, such as `code-review-passed`, is not a
 workflow status. It means the linked PR's review-relevant diff passed the
 configured code review gate. Record the PR URL, reviewed head SHA, and diff
 fingerprint. A new commit clears it only when that review-relevant diff changes.
+The bundled snapshot defines that fingerprint as SHA-256 over the sorted changed
+file records: status, current path, previous path, Git blob SHA, additions,
+deletions, and total changes. Snapshot adapters must emit an equivalent
+content-sensitive fingerprint or omit it and fail closed. A head SHA is only a
+backward-compatible request key, not proof that review evidence is current.
 
 The configured code-host human-merge PR label, such as `needs-human-merge`, is
 a merge-ready signal. Apply it only to open non-draft PRs that are ready to merge
@@ -282,6 +313,13 @@ whole scope.
 To Issues reads them and emits `kind-slice` children. The orchestrator hard-
 refuses to dispatch a container even if it carries `ready-for-agent`.
 
+To Issues refuses a planning artifact marked `Draft`. It may preserve the
+artifact in a non-ready container when explicitly requested, but it does not
+emit implementation slices or apply `ready-for-agent`. Legacy inputs without a
+status must still be clear enough to define outcome, boundaries, behavior,
+acceptance signals, and material open questions. Missing decisions return to
+Grill instead of being invented during slicing.
+
 Every ready `kind-slice` must have one primary outcome and explicit `in scope`
 and `out of scope` sections. The out-of-scope section is the worker's stop list:
 adjacent tickets, optional polish, broad refactors, production actions, and
@@ -317,7 +355,8 @@ authority, never skip silently, record every fix.
   `config-gap` friction entry per inline heal, so repeated mistakes become a list
   of what to fix upstream.
 
-Self-healing cannot fix a bad spec; a vague PRD dead-ends at the user by design.
+Self-healing cannot fix a bad spec. Material planning ambiguity returns to Grill
+and dead-ends at the user's decision by design.
 
 ## Orchestration
 
@@ -462,7 +501,9 @@ the repo-configured trigger or automatic review policy.
 ```mermaid
 flowchart TD
   Setup["ziw-setup\nCreate repo config"]
-  Config["Repo config\ncommands, tracker, agents, environments"]
+  Config["Repo config\nplanning, commands, tracker, agents, environments"]
+  Grill["ziw-grill\nresolve ambiguity one question at a time"]
+  Specs["Planning artifacts\nDraft or Ready for slicing"]
   Tracker["Issue tracker\nsource of truth for issue state"]
   ToIssues["ziw-to-issues\nspec/epic to kind-slice tickets + DAG"]
   IssueTriage["ziw-triage\nmetadata, readiness, verified state repair"]
@@ -473,6 +514,7 @@ flowchart TD
   Integrate["integrate step\nauto-merge gate on green"]
 
   Setup --> Config
+  Config --> Grill
   Config --> ToIssues
   Config --> Orchestrator
   Config --> IssueTriage
@@ -480,6 +522,8 @@ flowchart TD
   Config --> CodeReview
   Config --> AgentReview
 
+  Grill -->|confirmed decisions| Specs
+  Specs -->|explicit user invocation| ToIssues
   ToIssues -->|create/adopt slices, DAG, footprint| Tracker
   IssueTriage -->|labels, readiness, verified state repair| Tracker
   Orchestrator -->|select kind-slice, claim, move states| Tracker
@@ -497,6 +541,8 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
+  participant U as User
+  participant P as Grill
   participant D as To Issues
   participant I as Issue Triage
   participant Q as Agent Orchestrator
@@ -505,6 +551,11 @@ sequenceDiagram
   participant G as Code Host and PR
   participant R as Agent Review
 
+  P->>P: Resolve one decision at a time and update Draft spec
+  P->>U: Recommend Ready for slicing
+  U->>P: Approve readiness
+  P->>U: Report spec and exact To Issues command
+  U->>D: Invoke To Issues with authoritative spec
   D->>T: Create/adopt kind-slice tickets, DAG, footprint
   I->>T: Clean labels, kinds, readiness, dependencies, verified stale state
   Q->>T: Refresh startable (kind-slice) and active issues
@@ -551,6 +602,8 @@ verification requires reopening or narrowing the ticket.
 
 Default rule:
 
+- Grill can edit local planning artifacts only after the user confirms each
+  decision. It has no tracker, implementation, PR, merge, or deploy authority.
 - To Issues can create and adopt `kind-slice` tickets, set kind/type/risk/
   readiness labels, set configured estimates, encode dependencies, and write the
   agent-ready body. It does not move active work. Ready slices go in the
@@ -594,7 +647,7 @@ Default rule:
   integrate gate when config grants merge authority. It diagnoses stuck draft
   PRs without treating draft state as a review request, repairs blockers, verifies
   the code-host PR is non-draft, and applies or removes the configured review
-  evidence label based on current PR head SHA evidence. When it moves a ticket
+  evidence label based on current review-diff evidence. When it moves a ticket
   to `Done`, it verifies the full issue scope is complete, verifies sibling or
   out-of-scope work was not bundled in, and removes `ready-for-agent`. If a
   code-host integration auto-moved a partial or multi-PR issue to `Done`,
@@ -613,7 +666,7 @@ Every handoff should say:
 - checks run
 - whether code review covers the current diff
 - whether the configured review evidence label is applied, removed, or requested
-  for the current PR head SHA
+  for the current review-relevant diff
 - whether the configured code-host human-merge PR label is applied, removed, or
   requested, and the merge-ready evidence that justifies it
 - whether hosted bot review is skipped, complete, auto-review pending, or still
@@ -644,10 +697,13 @@ allowed without approval and which need approval.
 These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
-- Workflows whose mistakes need human cleanup use manual invocation: bulk
-  tracker mutation, ticket claiming, and merge authority. Workflows with local,
-  reversible effects (`ziw-setup`, `ziw-pr`, `ziw-code-review`) may be invoked by
-  the agent.
+- Workflows that claim work, perform bulk tracker mutation, or exercise merge
+  authority use manual invocation. Read-only work, local reversible edits, and
+  bounded current-branch or PR shipping (`ziw-code-review`, `ziw-setup`,
+  `ziw-grill`, `ziw-pr`) may be invoked by the agent.
+- `ziw-grill` is invoked implicitly only when a material unresolved decision
+  blocks safe progress after available evidence has been checked. Explicit
+  invocation always starts a grilling session.
 - `ziw-code-review` uses clean context where the agent tooling
   supports it and review current committed code unless a working-tree review was
   explicitly requested.

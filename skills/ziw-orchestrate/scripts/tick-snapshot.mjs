@@ -14,6 +14,7 @@
 // this snapshot carries only workflow metadata and derived file footprints.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs";
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
@@ -141,6 +142,32 @@ const isDependencyBotAuthor = (login) => {
   return normalized.includes("dependabot") || normalized.includes("renovate");
 };
 
+const pullRequestFiles = (number, expectedCount) => {
+  const pages = JSON.parse(
+    gh(["api", "--paginate", "--slurp", `repos/${repo}/pulls/${number}/files?per_page=100`]),
+  );
+  const files = pages.flat();
+  if (Number.isInteger(expectedCount) && files.length !== expectedCount) {
+    fail(`PR #${number} file snapshot returned ${files.length} of ${expectedCount} changed files`);
+  }
+  return files;
+};
+
+const reviewDiffFingerprint = (files) => {
+  const canonical = files
+    .map((file) => ({
+      additions: file.additions,
+      changes: file.changes,
+      deletions: file.deletions,
+      filename: file.filename,
+      previousFilename: file.previous_filename ?? null,
+      sha: file.sha,
+      status: file.status,
+    }))
+    .sort((left, right) => left.filename.localeCompare(right.filename));
+  return `sha256:${createHash("sha256").update(JSON.stringify(canonical)).digest("hex")}`;
+};
+
 const prsByNumber = new Map();
 let after = null;
 let repoData = null;
@@ -183,33 +210,37 @@ const baseline = {
 };
 baseline.green = baseline.checks.state === "SUCCESS";
 
-const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => ({
-  number: pr.number,
-  title: pr.title,
-  url: pr.url,
-  state: "open",
-  open: true,
-  author: pr.author?.login ?? null,
-  isBot: pr.author?.__typename === "Bot",
-  isDependencyBot: isDependencyBotAuthor(pr.author?.login),
-  isDraft: pr.isDraft,
-  draftState: pr.isDraft ? "draft" : "ready-for-review",
-  updatedAt: pr.updatedAt,
-  changedFiles: pr.changedFiles,
-  headRefName: pr.headRefName,
-  headSha: pr.headRefOid,
-  baseRefName: pr.baseRefName,
-  mergeable: pr.mergeable,
-  mergeStateStatus: pr.mergeStateStatus,
-  reviewDecision: pr.reviewDecision,
-  autoMergeArmed: Boolean(pr.autoMergeRequest),
-  labels: (pr.labels?.nodes ?? []).map((label) => label.name),
-  unresolvedThreads: (pr.reviewThreads?.nodes ?? []).filter((t) => !t.isResolved).length,
-  reviewThreadsTruncated: (pr.reviewThreads?.totalCount ?? 0) > 100,
-  reviewsTruncated: (pr.reviews?.totalCount ?? 0) > (pr.reviews?.nodes?.length ?? 0),
-  latestReviews: latestReviewByAuthor(pr.reviews?.nodes),
-  checks: checkSummary(pr.commits?.nodes?.[0]?.commit?.statusCheckRollup),
-}));
+const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
+  const files = pullRequestFiles(pr.number, pr.changedFiles);
+  return {
+    number: pr.number,
+    title: pr.title,
+    url: pr.url,
+    state: "open",
+    open: true,
+    author: pr.author?.login ?? null,
+    isBot: pr.author?.__typename === "Bot",
+    isDependencyBot: isDependencyBotAuthor(pr.author?.login),
+    isDraft: pr.isDraft,
+    draftState: pr.isDraft ? "draft" : "ready-for-review",
+    updatedAt: pr.updatedAt,
+    changedFiles: pr.changedFiles,
+    reviewDiffFingerprint: reviewDiffFingerprint(files),
+    headRefName: pr.headRefName,
+    headSha: pr.headRefOid,
+    baseRefName: pr.baseRefName,
+    mergeable: pr.mergeable,
+    mergeStateStatus: pr.mergeStateStatus,
+    reviewDecision: pr.reviewDecision,
+    autoMergeArmed: Boolean(pr.autoMergeRequest),
+    labels: (pr.labels?.nodes ?? []).map((label) => label.name),
+    unresolvedThreads: (pr.reviewThreads?.nodes ?? []).filter((t) => !t.isResolved).length,
+    reviewThreadsTruncated: (pr.reviewThreads?.totalCount ?? 0) > 100,
+    reviewsTruncated: (pr.reviews?.totalCount ?? 0) > (pr.reviews?.nodes?.length ?? 0),
+    latestReviews: latestReviewByAuthor(pr.reviews?.nodes),
+    checks: checkSummary(pr.commits?.nodes?.[0]?.commit?.statusCheckRollup),
+  };
+});
 
 const linearTeam = argValue("--linear-team");
 const linearRouteLabel = argValue("--linear-route-label") ?? repo;

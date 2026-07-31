@@ -1,6 +1,6 @@
 ---
 name: ziw-setup
-description: Use for workflow setup when setting up or refreshing a repository for agent workflows by creating docs/agents/workflow/config.md with repo commands, issue tracking, agent adapters, review gates, and environment safety rules.
+description: Use for workflow setup when setting up or refreshing a repository for agent workflows by creating docs/agents/workflow/config.md with repo commands, planning artifacts, issue tracking, agent adapters, review gates, and environment safety rules.
 argument-hint: "[repo-path]"
 ---
 
@@ -34,6 +34,7 @@ user instruction. If the value is not verified, mark it `inferred` or move it to
 
 - Repo path to configure.
 - Existing repo rules, CI, package scripts, issue tracker, and deploy docs.
+- Existing spec indexes, specs, glossaries, context maps, and ADR conventions.
 - Any user-provided tracker, agent access, or environment constraints.
 
 ## Output File
@@ -95,6 +96,9 @@ Verify all populated workflow fields that setup writes or preserves:
 - install, check, build, test, lint, smoke, preview, and generated-artifact
   commands from scripts, CI workflows, makefiles, justfiles, runbooks, or direct
   safe command execution
+- planning artifact authority, paths, status convention, and documentation
+  checks from spec indexes, context maps, ADR indexes, scripts, CI, or explicit
+  user instruction
 - issue tracker provider, location, team/project/board/roadmap, statuses,
   labels, priorities, estimate fields, relationships, issue templates, and query
   contracts with read-only tracker tool calls when tools are available
@@ -168,6 +172,9 @@ Record:
   calls it. Flag any test, lint, coverage, format, or scan step that CI runs
   outside that entrypoint as a `config-gap` to fix in the repo, not a
   difference to document in prose
+- planning artifact map: current-truth spec index and paths, glossary or context
+  map paths, ADR path and naming convention, authority hierarchy, spec status
+  convention, and documentation checks
 - issue tracker provider, provider location, project or board, routing label,
   triage scope, orphan policy, statuses, labels, kind label set
   (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
@@ -308,9 +315,10 @@ Review evidence:
 
 - configured exact label slug or ID, such as `code-review-passed`
 
-By default, the review evidence label means the latest linked PR head SHA has
-passed the configured code review gate for the ticket. Record the exact
-configured label slug or ID, PR URL, and reviewed head SHA when applying it.
+By default, the review evidence label means the linked PR's review-relevant diff
+has passed the configured code review gate for the ticket. Record the exact
+configured label slug or ID, PR URL, reviewed head SHA, and review-diff
+fingerprint when applying it.
 Remove it when the review-relevant diff changes, blocking findings appear, the linked PR
 changes, or the evidence is missing. Resolve the label by configured slug or ID,
 not by reconstructing a title-case display name.

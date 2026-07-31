@@ -53,6 +53,28 @@ const labelName = (label) => normalize(typeof label === "string" ? label : label
 
 const shaEquals = (left, right) => Boolean(left && right && normalize(left) === normalize(right));
 
+const fingerprintEquals = (left, right) =>
+  Boolean(left && right && normalize(left) === normalize(right));
+
+const currentReviewDiffFingerprint = (state = {}) =>
+  firstDefined(
+    state.currentReviewDiffFingerprint,
+    state.reviewDiffFingerprint,
+    state.reviewRelevantDiffFingerprint,
+  );
+
+const reviewedDiffFingerprint = (state = {}) =>
+  firstDefined(state.reviewedDiffFingerprint, state.reviewedReviewDiffFingerprint);
+
+const reviewCoversCurrentDiff = (state = {}) =>
+  fingerprintEquals(reviewedDiffFingerprint(state), currentReviewDiffFingerprint(state));
+
+const hostedReviewCoversCurrentDiff = (state = {}) =>
+  fingerprintEquals(
+    state.hostedReviewDiffFingerprint ?? state.hostedReviewedDiffFingerprint,
+    currentReviewDiffFingerprint(state),
+  );
+
 const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boolean));
 
 function isDependencyBotPr(pr = {}) {
@@ -226,10 +248,10 @@ export function reviewEvidenceDecision(evidence = {}) {
   const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(evidence.reviewVerdict));
 
   if (!hasEvidence) {
-    if (cleanVerdict && shaEquals(evidence.reviewedHeadSha, evidence.currentPrHeadSha)) {
+    if (cleanVerdict && reviewCoversCurrentDiff(evidence)) {
       return {
         action: workflowDecisionActions.applyReviewEvidence,
-        reason: "clean review covers the current PR head",
+        reason: "clean review covers the current review-relevant diff",
       };
     }
 
@@ -253,10 +275,10 @@ export function reviewEvidenceDecision(evidence = {}) {
     };
   }
 
-  if (!shaEquals(evidence.reviewedHeadSha, evidence.currentPrHeadSha)) {
+  if (!reviewCoversCurrentDiff(evidence)) {
     return {
       action: workflowDecisionActions.clearReviewEvidence,
-      reason: "reviewed head SHA does not match current PR head",
+      reason: "review-relevant diff changed since review",
     };
   }
 
@@ -270,8 +292,6 @@ const hasNamedLabel = (labels, name) =>
   Boolean(name) && toArray(labels).some((label) => labelName(label) === normalize(name));
 
 function currentReviewEvidence(state = {}) {
-  const currentHead = state.currentPrHeadSha ?? state.headSha;
-  const reviewedHead = state.reviewedHeadSha ?? state.reviewHeadSha;
   const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(
     normalize(state.reviewVerdict ?? state.codeReviewVerdict),
   );
@@ -286,7 +306,7 @@ function currentReviewEvidence(state = {}) {
 
   return (
     state.reviewEvidenceCurrent === true ||
-    (hasEvidence && cleanVerdict && shaEquals(reviewedHead, currentHead))
+    (hasEvidence && cleanVerdict && reviewCoversCurrentDiff(state))
   );
 }
 
@@ -337,6 +357,9 @@ function mergeReadinessFacts(state = {}) {
   const prState = normalize(state.prState ?? state.state ?? state.status);
   const terminal =
     state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
+  const hostedReviewRequired = state.hostedReviewRequired || state.codeRabbitRequired;
+  const hostedReviewComplete = state.hostedReviewComplete || state.codeRabbitComplete;
+  const hostedReviewSkipped = state.hostedReviewSkipped || state.codeRabbitSkipped;
   return {
     blockingFindings: Boolean(state.blockingFindings) || Boolean(state.changesRequested),
     checksPassed: requiredChecksPassed(state),
@@ -346,8 +369,9 @@ function mergeReadinessFacts(state = {}) {
       prState === "draft" ||
       normalize(state.draftState) === "draft",
     hostedReviewBlocked: Boolean(
-      (state.hostedReviewRequired && !state.hostedReviewComplete && !state.hostedReviewSkipped) ||
-      (state.codeRabbitRequired && !state.codeRabbitComplete && !state.codeRabbitSkipped),
+      hostedReviewRequired &&
+      !hostedReviewSkipped &&
+      !(hostedReviewComplete && hostedReviewCoversCurrentDiff(state)),
     ),
     open: Boolean((state.open ?? !terminal) && !terminal),
     reviewEvidenceCurrent: currentReviewEvidence(state),
@@ -395,7 +419,7 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
         : !humanMergeRequired(state, config)
           ? "configured merge authority does not require human merge"
           : !facts.reviewEvidenceCurrent
-            ? "current PR head lacks clean code review evidence"
+            ? "current review-relevant diff lacks clean code review evidence"
             : !facts.checksPassed
               ? "required checks are not confirmed passing"
               : facts.blockingFindings
@@ -482,10 +506,9 @@ function independentReviewCount(state = {}) {
   const explicit = state.independentReviewCount ?? state.independentReviews;
   let count = countEvidence(explicit);
   if (count === 0 && currentReviewEvidence(state)) count = 1;
-  // Fail closed: a hosted review counts only when its recorded head SHA
-  // provably matches the current PR head.
-  const currentHead = state.currentPrHeadSha ?? state.headSha;
-  if (state.hostedReviewComplete && shaEquals(state.hostedReviewHeadSha, currentHead)) count += 1;
+  // Fail closed: a hosted review counts only when its recorded diff fingerprint
+  // provably matches the current review-relevant diff.
+  if (state.hostedReviewComplete && hostedReviewCoversCurrentDiff(state)) count += 1;
   return count;
 }
 
@@ -507,7 +530,7 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   if (!facts.open) return hold("PR is not open");
   if (facts.draft) return hold("draft PRs are pre-review and cannot merge");
   if (!facts.reviewEvidenceCurrent) {
-    return hold("current PR head lacks clean code review evidence");
+    return hold("current review-relevant diff lacks clean code review evidence");
   }
   if (!facts.checksPassed) return hold("required checks are not confirmed passing");
   if (facts.blockingFindings) return hold("blocking findings or changes requested remain");
@@ -517,9 +540,8 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
 
   // Trust boundary: state is orchestrator-assembled from freshly refreshed
   // systems of record, so first-party boolean evidence (reviewEvidenceCurrent,
-  // a conformance verdict without conformanceHeadSha) is trusted as-is; SHA
-  // fields harden the check when present. Third-party signals such as hosted
-  // reviews always require a provable head SHA match.
+  // a conformance verdict without conformanceHeadSha) is trusted as-is.
+  // Third-party reviews require a matching review-diff fingerprint.
   const conformance = normalize(state.conformance ?? state.conformanceVerdict);
   const requireConformance = config.requireConformanceEvidence === true;
   const currentHead = state.currentPrHeadSha ?? state.headSha;
@@ -935,9 +957,7 @@ export function hostedReviewEscalationDecision(state = {}, config = {}) {
   const providerKey = normalize(provider);
   const recommended = Boolean(state.recommended || state.required || state.highRisk);
   const hasPr = Boolean(state.prExists || state.prUrl);
-  const currentHead = state.currentPrHeadSha;
-  const hostedHead = state.hostedReviewHeadSha;
-  const hostedCoversHead = shaEquals(hostedHead, currentHead);
+  const hostedCoversDiff = hostedReviewCoversCurrentDiff(state);
   const autoReviewMode = normalize(state.autoReviewMode ?? state.autoReview);
   const requiresAutoReviewResolution =
     state.requiresAutoReviewResolution ??
@@ -956,17 +976,17 @@ export function hostedReviewEscalationDecision(state = {}, config = {}) {
     };
   }
 
-  if (state.hostedReviewComplete && hostedCoversHead) {
+  if (state.hostedReviewComplete && hostedCoversDiff) {
     return {
       action: workflowDecisionActions.hostedReviewComplete,
-      reason: "hosted review already covers the current PR head",
+      reason: "hosted review already covers the current review-relevant diff",
     };
   }
 
-  if (state.hostedReviewPending && hostedCoversHead) {
+  if (state.hostedReviewPending && hostedCoversDiff) {
     return {
       action: workflowDecisionActions.hostedReviewPending,
-      reason: "hosted review is already pending for the current PR head",
+      reason: "hosted review is already pending for the current review-relevant diff",
     };
   }
 
