@@ -5,13 +5,6 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = path.join(root, "skills");
 const errors = [];
-const manualOnlySkills = new Set([
-  "ziw-implement",
-  "ziw-orchestrate",
-  "ziw-to-issues",
-  "ziw-triage",
-]);
-const implicitInvocationSkills = new Set(["ziw-code-review", "ziw-grill", "ziw-pr", "ziw-setup"]);
 const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set(["ziw-orchestrate"]);
@@ -255,13 +248,7 @@ for (const name of skillNames) {
     }
   }
 
-  if (manualOnlySkills.has(name) && frontmatterValue("disable-model-invocation") !== "true") {
-    fail(`${relative(skillFile)} must set disable-model-invocation: true`);
-  }
-  if (
-    implicitInvocationSkills.has(name) &&
-    frontmatterValue("disable-model-invocation") === "true"
-  ) {
+  if (frontmatterValue("disable-model-invocation") === "true") {
     fail(`${relative(skillFile)} must remain model-invocable`);
   }
   if (cleanContextSkills.has(name) && frontmatterValue("context") !== "fork") {
@@ -278,11 +265,7 @@ for (const name of skillNames) {
 
   const openaiFile = path.join(skillsDir, name, "agents", "openai.yaml");
   const openaiText = readText(openaiFile);
-  const expectedImplicitPolicy = manualOnlySkills.has(name)
-    ? "false"
-    : implicitInvocationSkills.has(name)
-      ? "true"
-      : null;
+  const expectedImplicitPolicy = "true";
   if (!openaiText.includes(`default_prompt:`)) {
     fail(`${relative(openaiFile)} is missing interface.default_prompt`);
   }

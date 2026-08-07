@@ -49,13 +49,10 @@ content.
 - Preserve support for both Claude and Codex skill types. When adding or
   changing a skill, keep the portable `SKILL.md` contract, Claude-compatible
   frontmatter, and Codex `agents/openai.yaml` metadata in sync.
-- Invocation policy follows the scope and recoverability of effects. A skill is
-  manual-only in both Claude frontmatter and `agents/openai.yaml` when it claims
-  work, performs bulk tracker mutation, or exercises merge authority:
-  `ziw-implement`, `ziw-triage`, `ziw-to-issues`, and `ziw-orchestrate`.
-  Read-only work, local reversible edits, and bounded current-branch or PR
-  shipping are model-invocable: `ziw-code-review`, `ziw-setup`, `ziw-grill`,
-  and `ziw-pr`.
+- All published skills are model-invocable in Claude frontmatter and
+  `agents/openai.yaml`. Invocation selects a workflow; it does not expand the
+  authority granted by the user's request, repo config, production approval, or
+  merge rules.
 - Claude Code sub-agents live only in root `agents/`, load skill files through
   `${CLAUDE_PLUGIN_ROOT}`, and use `model: inherit`. Keep them limited to
   context-heavy delegation roles, not every workflow skill.

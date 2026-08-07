@@ -2,7 +2,6 @@
 name: ziw-orchestrate
 description: Use to orchestrate a specific ticket set, issue tracker filter, project, delivery scope, or Linear Backlog clear run by selecting startable issues, delegating workers, calling review and integrate steps, updating tracker state, and stopping when no safe workflow action remains.
 argument-hint: "[ticket-ids|filter|project|until-clear]"
-disable-model-invocation: true
 ---
 
 # Orchestrate

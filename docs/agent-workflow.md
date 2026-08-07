@@ -189,7 +189,7 @@ config-gap finding when the conflict affects the workflow.
   in Linear Backlog just because blockers remain. When something is unclear, it
   asks the user or leaves exact human next actions.
 
-Workflow issue triage means the manual `$ziw-triage` skill or the namespaced
+Workflow issue triage means the published `$ziw-triage` skill or the namespaced
 `ziw-triager` worker, not a generic tracker triage skill with a different state
 model. A normal run processes configured intake such as `Triage`; complete
 implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
@@ -523,7 +523,7 @@ flowchart TD
   Config --> AgentReview
 
   Grill -->|confirmed decisions| Specs
-  Specs -->|explicit user invocation| ToIssues
+  Specs -->|Ready for slicing| ToIssues
   ToIssues -->|create/adopt slices, DAG, footprint| Tracker
   IssueTriage -->|labels, readiness, verified state repair| Tracker
   Orchestrator -->|select kind-slice, claim, move states| Tracker
@@ -697,10 +697,9 @@ allowed without approval and which need approval.
 These skills keep a portable `SKILL.md` core for Codex, Claude, and other Agent
 Skills systems.
 
-- Workflows that claim work, perform bulk tracker mutation, or exercise merge
-  authority use manual invocation. Read-only work, local reversible edits, and
-  bounded current-branch or PR shipping (`ziw-code-review`, `ziw-setup`,
-  `ziw-grill`, `ziw-pr`) may be invoked by the agent.
+- All published workflows may be invoked by the agent. Invocation selects the
+  applicable workflow but does not grant tracker mutation, merge, production,
+  or other authority beyond the user's request and repo config.
 - `ziw-grill` is invoked implicitly only when a material unresolved decision
   blocks safe progress after available evidence has been checked. Explicit
   invocation always starts a grilling session.

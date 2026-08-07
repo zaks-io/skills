@@ -2,7 +2,6 @@
 name: ziw-implement
 description: Use for implementation when taking one tracker issue through the full implementation pipeline by claiming the issue, making scoped changes locally or remotely, verifying, using judgment about author QA, running ziw-pr, and handing off for independent review.
 argument-hint: "[issue-id-or-url]"
-disable-model-invocation: true
 ---
 
 # Implement

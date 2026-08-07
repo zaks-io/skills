@@ -2,7 +2,6 @@
 name: ziw-triage
 description: Use for script-guided issue tracker triage when managing the current project backlog, making issues ready for Orchestrator by running workflow scripts, inspecting their outputs, and fixing labels, statuses, dependencies, body contracts, estimates, stale tracker state, and explicit human questions without ad hoc exploration.
 argument-hint: "[project-url|team|repo|filter]"
-disable-model-invocation: true
 ---
 
 # Issue Triage
