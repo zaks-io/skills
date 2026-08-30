@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 export const LINEAR_GRAPHQL_ENDPOINT = "https://api.linear.app/graphql";
 export const DEFAULT_KEYCHAIN_SERVICE = "zaks-io-skills.linear";
 export const DEFAULT_KEYCHAIN_ACCOUNT = "linear-api-key";
+const AES_GCM_AUTH_TAG_BYTES = 16;
 export const DEFAULT_STORE_PATH = path.join(
   homedir(),
   ".config",
@@ -67,7 +68,7 @@ const runSecurity = (args, options = {}) =>
   execFileSync("security", args, {
     encoding: "utf8",
     input: options.input,
-    stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
+    stdio: options.stdio ?? [options.input == null ? "ignore" : "pipe", "pipe", "pipe"],
   });
 
 const readHiddenLine = async (prompt) => {
@@ -108,7 +109,9 @@ export function encryptLinearApiKey(apiKey, options = {}) {
   if (key.byteLength !== 32) throw new Error("encryption key must be 32 bytes");
 
   const iv = options.iv ?? randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const cipher = createCipheriv("aes-256-gcm", key, iv, {
+    authTagLength: AES_GCM_AUTH_TAG_BYTES,
+  });
   const ciphertext = Buffer.concat([cipher.update(apiKey, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
 
@@ -131,8 +134,15 @@ export function decryptLinearApiKeyBlob(blob, key) {
   }
   if (key.byteLength !== 32) throw new Error("decryption key must be 32 bytes");
 
-  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(blob.iv, "base64"));
-  decipher.setAuthTag(Buffer.from(blob.tag, "base64"));
+  const tag = Buffer.from(blob.tag, "base64");
+  if (tag.byteLength !== AES_GCM_AUTH_TAG_BYTES) {
+    throw new Error(`encrypted Linear credential auth tag must be ${AES_GCM_AUTH_TAG_BYTES} bytes`);
+  }
+
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(blob.iv, "base64"), {
+    authTagLength: AES_GCM_AUTH_TAG_BYTES,
+  });
+  decipher.setAuthTag(tag);
   return Buffer.concat([
     decipher.update(Buffer.from(blob.ciphertext, "base64")),
     decipher.final(),
@@ -163,16 +173,9 @@ export function storeDecryptKeyInKeychain(key, options = {}) {
   const service = options.service ?? DEFAULT_KEYCHAIN_SERVICE;
   const account = options.account ?? DEFAULT_KEYCHAIN_ACCOUNT;
 
-  runSecurity([
-    "add-generic-password",
-    "-s",
-    service,
-    "-a",
-    account,
-    "-w",
-    key.toString("base64"),
-    "-U",
-  ]);
+  runSecurity(["add-generic-password", "-s", service, "-a", account, "-U", "-w"], {
+    input: `${key.toString("base64")}\n${key.toString("base64")}\n`,
+  });
 }
 
 export function readDecryptKeyFromKeychain(options = {}) {
