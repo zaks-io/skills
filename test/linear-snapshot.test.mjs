@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   extractLinearFootprint,
   loadLinearSnapshot,
+  normalizeLinearIssue,
   resolveLinearTeam,
   selectActiveLinearIssues,
   selectScopedLinearIssues,
@@ -236,3 +237,66 @@ function issue({
     },
   };
 }
+
+test("snapshot preserves live agent sessions through normalization and route filtering", async () => {
+  const statuses = ["pending", "active", "awaitingInput", "complete", "error", "stale"];
+  const request = async ({ query }) => {
+    if (query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } };
+    assert.match(query, /agentSessions\(first: 100\)/);
+    assert.match(query, /nodes \{ id status dismissedAt endedAt \}/);
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false },
+          nodes: statuses.map((status, index) => ({
+            ...issue({ identifier: `SPL-${index + 1}` }),
+            labels: { nodes: [{ name: "zaks-io/splitch" }] },
+            agentSessions: {
+              pageInfo: { hasNextPage: false },
+              nodes: [{ id: `session-${index}`, status, dismissedAt: null, endedAt: null }],
+            },
+          })),
+        },
+      },
+    };
+  };
+  const snapshot = await loadLinearSnapshot({
+    request,
+    selector: "SPL",
+    routeLabel: "zaks-io/splitch",
+  });
+  assert.deepEqual(
+    snapshot.activeIssues.map((item) => item.workerSession),
+    ["session-0", "session-1", "session-2"],
+  );
+  assert.deepEqual(
+    snapshot.issues.slice(3).map((item) => item.workerSession),
+    [null, null, null],
+  );
+});
+
+test("dismissed and ended sessions do not become active claims", () => {
+  const normalized = normalizeLinearIssue({
+    ...issue({ identifier: "SPL-1" }),
+    agentSessions: {
+      nodes: [
+        { id: "dismissed", status: "active", dismissedAt: "2026-09-05T00:00:00Z" },
+        { id: "ended", status: "active", endedAt: "2026-09-05T00:00:00Z" },
+      ],
+    },
+  });
+  assert.equal(normalized.workerSession, null);
+  assert.deepEqual(selectActiveLinearIssues([normalized]), []);
+});
+
+test("truncated session evidence fails instead of reporting no active workers", () => {
+  assert.throws(
+    () =>
+      normalizeLinearIssue({
+        ...issue({ identifier: "SPL-1" }),
+        agentSessions: { pageInfo: { hasNextPage: true }, nodes: [] },
+      }),
+    /more than 100 agent sessions/,
+  );
+});

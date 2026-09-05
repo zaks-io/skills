@@ -159,3 +159,29 @@ test("completed and stale dispatch receipts do not consume worker slots", () => 
     ["MAIN-9"],
   );
 });
+
+test("different workers sharing a base commit retain separate capacity slots", () => {
+  const dispatches = deriveActiveDispatches({
+    state: {
+      dispatches: [
+        { issueId: "MAIN-10", branch: "fix/MAIN-10", headSha: "shared-base", state: "running" },
+        { issueId: "MAIN-11", branch: "fix/MAIN-11", headSha: "shared-base", state: "running" },
+      ],
+    },
+  });
+  assert.deepEqual(
+    dispatches.map((dispatch) => dispatch.issueId),
+    ["MAIN-10", "MAIN-11"],
+  );
+});
+
+test("an unrelated PR sharing a commit does not suppress a worker", () => {
+  const dispatches = deriveActiveDispatches({
+    state: { dispatches: [{ issueId: "MAIN-10", branch: "fix/MAIN-10", headSha: "shared-base" }] },
+    pullRequests: [
+      { number: 11, headRefName: "fix/MAIN-11", headSha: "shared-base", state: "open" },
+    ],
+  });
+  assert.equal(dispatches.length, 1);
+  assert.equal(dispatches[0].issueId, "MAIN-10");
+});

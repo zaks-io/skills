@@ -70,7 +70,6 @@ const itemsMatch = (left, right) => {
   return (
     (leftIssue && rightIssue && leftIssue === rightIssue) ||
     sameValue(left?.branch ?? left?.headRefName, right?.branch ?? right?.headRefName) ||
-    sameValue(left?.headSha ?? left?.headRefOid, right?.headSha ?? right?.headRefOid) ||
     sameValue(left?.worktree ?? left?.path, right?.worktree ?? right?.path)
   );
 };

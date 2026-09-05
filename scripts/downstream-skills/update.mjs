@@ -70,9 +70,21 @@ function updateTargetInWorktree(target, options, sourceBefore) {
 
 function updateInCheckout(target, options, checkoutRoot, before, branchName) {
   const result = runProjectUpdate(target, checkoutRoot, before);
-  if (result.status !== "updated") {
+  if (result.status !== "updated" && result.status !== "unchanged") {
+    return withBranch(result, branchName);
+  }
+
+  if (result.status === "unchanged") {
     const branchResult = existingBranchResult(result, checkoutRoot, branchName);
-    return publishResult(branchResult, options, checkoutRoot, branchName);
+    if (branchResult.status !== "committed") {
+      return branchResult;
+    }
+
+    const checked = options.check ? runConfiguredCheck(branchResult, checkoutRoot) : branchResult;
+    if (options.check && checked.checkStatus !== "passed") {
+      return withBranch(checked, branchName);
+    }
+    return publishResult(checked, options, checkoutRoot, branchName);
   }
 
   const checked = options.check ? runConfiguredCheck(result, checkoutRoot) : result;
@@ -173,7 +185,12 @@ function publishResult(result, options, repoRoot, branchName) {
 }
 
 function existingBranchResult(result, repoRoot, branchName) {
-  if (!result.baseRef || !branchName || !branchHasDiff(repoRoot, result.baseRef)) {
+  if (
+    result.status !== "unchanged" ||
+    !result.baseRef ||
+    !branchName ||
+    !branchHasDiff(repoRoot, result.baseRef)
+  ) {
     return withBranch(result, branchName);
   }
 

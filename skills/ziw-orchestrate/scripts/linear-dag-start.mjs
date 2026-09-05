@@ -258,6 +258,11 @@ export function extractLinearIssues(input = {}) {
 }
 
 export function linearDagStart(issuesInput = [], config = {}) {
+  const completedIds = new Set(
+    toArray(issuesInput)
+      .filter((issue) => isDoneIssue(issue, config))
+      .map((issue) => normalize(issueId(issue))),
+  );
   const issues = toArray(issuesInput).filter(
     (issue) => issueId(issue) && !isDoneIssue(issue, config),
   );
@@ -273,7 +278,7 @@ export function linearDagStart(issuesInput = [], config = {}) {
   const nodes = new Map();
   for (const issue of issues) {
     const id = issueId(issue);
-    const blockedBy = blockerRefs(issue);
+    const blockedBy = blockerRefs(issue).filter((id) => !completedIds.has(normalize(id)));
     const inScopeBlockedBy = [];
     const externalBlockedBy = [];
 

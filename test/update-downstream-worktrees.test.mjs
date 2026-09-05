@@ -171,6 +171,92 @@ test("updateTargets publishes an existing update branch on rerun", () => {
   }
 });
 
+test("updateTargets preserves updater failure on an existing update branch", () => {
+  const root = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+    const branchName = dailyBranchName("codex/test-skills");
+    git(repo, "switch", "-c", branchName);
+    writeFileSync(path.join(repo, "generated-skill.txt"), "generated\n");
+    git(repo, "add", "generated-skill.txt");
+    git(repo, "commit", "-m", "chore: update workflow skills");
+    git(repo, "switch", "main");
+
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "exit 7\n");
+    installFakeGh(bin, "https://example.com/pull/unexpected");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const result = updateTargets(
+      worktreeOptions(root, {
+        commit: true,
+        pr: true,
+        push: true,
+      }),
+    )[0];
+
+    assert.equal(result.status, "update-failed");
+    assert.equal(result.updateExitCode, 7);
+    assert.equal(result.branchName, branchName);
+    assert.equal(result.reusedBranch, true);
+    assert.equal(result.worktreeCleanup, "kept");
+    assert.equal(existsSync(result.worktreePath), true);
+    assert.equal(gitShowStatus(repo, `origin/${branchName}:generated-skill.txt`), 128);
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("updateTargets checks an existing update branch before publication", () => {
+  const root = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    const configDir = path.join(repo, "docs/agents/workflow");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(path.join(configDir, "config.md"), "- Full local gate: `false`\n");
+    git(repo, "add", "docs/agents/workflow/config.md");
+    git(repo, "commit", "-m", "add workflow config");
+    addBareOrigin(root, repo);
+
+    const branchName = dailyBranchName("codex/test-skills");
+    git(repo, "switch", "-c", branchName);
+    writeFileSync(path.join(repo, "generated-skill.txt"), "generated\n");
+    git(repo, "add", "generated-skill.txt");
+    git(repo, "commit", "-m", "chore: update workflow skills");
+    git(repo, "switch", "main");
+
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "exit 0\n");
+    installFakeGh(bin, "https://example.com/pull/unexpected");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const result = updateTargets(
+      worktreeOptions(root, {
+        check: true,
+        commit: true,
+        pr: true,
+        push: true,
+      }),
+    )[0];
+
+    assert.equal(result.status, "committed");
+    assert.equal(result.checkCommand, "false");
+    assert.equal(result.checkStatus, "failed");
+    assert.equal(result.branchName, branchName);
+    assert.equal(result.reusedBranch, true);
+    assert.equal(result.worktreeCleanup, "removed");
+    assert.equal(existsSync(result.worktreePath), false);
+    assert.equal(gitShowStatus(repo, `origin/${branchName}:generated-skill.txt`), 128);
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function createConsumerRepo(root) {
   const repo = path.join(root, "consumer");
   mkdirSync(repo, { recursive: true });

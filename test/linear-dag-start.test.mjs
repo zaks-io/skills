@@ -255,3 +255,28 @@ test("CLI reports an empty DAG as a successfully drained scope", () => {
   assert.equal(output.totalIssues, 0);
   assert.deepEqual(output.starts, []);
 });
+
+test("completed prerequisites in raw input release dependents", () => {
+  for (const terminal of [{ state: "Done" }, { stateType: "canceled" }, { state: "Shipped" }]) {
+    const result = linearDagStart(
+      [
+        { identifier: "LIN-1", ...terminal },
+        {
+          identifier: "LIN-2",
+          state: "Todo",
+          labels: ["kind-slice", "ready-for-agent"],
+          blockedBy: ["lin-1"],
+        },
+        {
+          identifier: "LIN-3",
+          state: "Todo",
+          labels: ["kind-slice", "ready-for-agent"],
+          blockedBy: ["EXT-1"],
+        },
+      ],
+      { doneState: "Shipped" },
+    );
+    assert.deepEqual(result.starts, ["LIN-2"]);
+    assert.deepEqual(result.outOfScopeBlockers, [{ ticket: "LIN-3", blocker: "EXT-1" }]);
+  }
+});

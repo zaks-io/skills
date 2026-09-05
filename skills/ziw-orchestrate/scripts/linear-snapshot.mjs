@@ -78,6 +78,10 @@ query($teamId: ID!, $after: String) {
       state { name type }
       labels { nodes { name } }
       assignee { displayName }
+      agentSessions(first: 100) {
+        pageInfo { hasNextPage }
+        nodes { id status dismissedAt endedAt }
+      }
       inverseRelations(first: 250) {
         pageInfo { hasNextPage }
         nodes { type issue { identifier state { type } } }
@@ -90,6 +94,15 @@ export function normalizeLinearIssue(issue) {
   if (issue.inverseRelations?.pageInfo?.hasNextPage) {
     throw new Error(`Linear issue ${issue.identifier} has more than 250 inverse relations`);
   }
+  if (issue.agentSessions?.pageInfo?.hasNextPage) {
+    throw new Error(`Linear issue ${issue.identifier} has more than 100 agent sessions`);
+  }
+  const workerSession = (issue.agentSessions?.nodes ?? []).find(
+    (session) =>
+      ["pending", "active", "awaitingInput"].includes(session.status) &&
+      !session.dismissedAt &&
+      !session.endedAt,
+  );
   return {
     identifier: issue.identifier,
     title: issue.title,
@@ -100,6 +113,7 @@ export function normalizeLinearIssue(issue) {
     estimate: issue.estimate ?? null,
     labels: (issue.labels?.nodes ?? []).map((label) => label.name),
     assignee: issue.assignee?.displayName ?? null,
+    workerSession: workerSession?.id ?? null,
     footprint: extractLinearFootprint(issue.description),
     blockedBy: (issue.inverseRelations?.nodes ?? [])
       .filter(
