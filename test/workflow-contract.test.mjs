@@ -223,7 +223,12 @@ test("review evidence is applied only when a clean review covers the current dif
   );
 });
 
-for (const invalidation of ["blockingFindings", "linkedPrChanged", "evidenceMissing"]) {
+for (const invalidation of [
+  "blockingFindings",
+  "changesRequested",
+  "linkedPrChanged",
+  "evidenceMissing",
+]) {
   for (const hasReviewEvidence of [false, true]) {
     test(`review evidence respects ${invalidation} with existing label ${hasReviewEvidence}`, () => {
       const decision = reviewEvidenceDecision({
@@ -242,6 +247,27 @@ for (const invalidation of ["blockingFindings", "linkedPrChanged", "evidenceMiss
     });
   }
 }
+
+test("changes-requested review decisions block new evidence and clear existing evidence", () => {
+  for (const hasReviewEvidence of [false, true]) {
+    for (const reviewDecision of ["changes_requested", "CHANGES_REQUESTED"]) {
+      const decision = reviewEvidenceDecision({
+        hasReviewEvidence,
+        reviewDiffFingerprint: "same-diff",
+        reviewedDiffFingerprint: "same-diff",
+        reviewVerdict: "APPROVE",
+        blockingFindings: false,
+        reviewDecision,
+      });
+      assert.equal(
+        decision.action,
+        hasReviewEvidence
+          ? workflowDecisionActions.clearReviewEvidence
+          : workflowDecisionActions.leaveUnchanged,
+      );
+    }
+  }
+});
 
 test("human merge PR label is applied only when the PR is merge-ready with current review", () => {
   assert.deepEqual(

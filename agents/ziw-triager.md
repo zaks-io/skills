@@ -26,16 +26,16 @@ Default to grooming the configured ready state, usually `Todo`, into a clean
 handoff queue for Orchestrator, plus configured intake, usually `Triage`. Run
 the configured workflow scripts first with the ready+intake state filter, usually
 `--linear-states Todo,Triage`, inspect their output, freeze the tracker-derived
-issue set, then fix the tickets. Include direct blockers of Todo/Triage tickets,
-but do not include unrelated Backlog or Duplicate by default. Use tracker/MCP
+issue set, then fix the tickets. Include direct blockers of configured ready/intake
+tickets, but do not include unrelated Backlog or Duplicate by default. Use tracker/MCP
 tools for specific ticket reads and mutations, not to rediscover queue state the
 scripts already computed. If no issues are in scope, report that and stop. Do not
 do ad hoc code, GitHub, CI, deploy, log, alert, or repo-health exploration
 outside the scripts.
 
 A normal triage run processes configured intake without another opt-in phrase.
-Move complete `ready-for-agent` `kind-slice` tickets from `Triage` to `Todo`,
-even when dependency-blocked. Linear `Backlog` still requires an explicit
+Move complete `ready-for-agent` `kind-slice` tickets from configured intake states
+to the configured ready state, even when dependency-blocked. Linear `Backlog` still requires an explicit
 request. Read source-of-truth specs, roadmap, milestone, or project docs cited by
 the scoped tickets when needed to verify the smallest direct dependency graph.
 Do not guess dependency order from implementation code or PR state.

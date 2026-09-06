@@ -248,15 +248,16 @@ const isStartableNode = (node) => startableBlockers(node).length === 0;
 
 export function extractLinearIssues(input = {}) {
   if (Array.isArray(input)) return input;
-  return (
-    input.linear?.issues ??
-    input.snapshot?.linear?.issues ??
-    input.state?.tickets ??
-    input.queue?.tickets ??
-    input.issues ??
-    input.nodes ??
-    []
-  );
+  const linear = input.linear ?? input.snapshot?.linear;
+  if (linear?.issues != null || linear?.activeIssues != null) {
+    const byId = new Map();
+    for (const issue of [...toArray(linear.issues), ...toArray(linear.activeIssues)]) {
+      const id = normalize(issueId(issue));
+      if (id && !byId.has(id)) byId.set(id, issue);
+    }
+    return [...byId.values()];
+  }
+  return input.state?.tickets ?? input.queue?.tickets ?? input.issues ?? input.nodes ?? [];
 }
 
 export function linearDagStart(issuesInput = [], config = {}) {

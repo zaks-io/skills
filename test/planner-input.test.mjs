@@ -124,6 +124,21 @@ test("planner validates each override and cannot hide invalid input behind prece
   );
 });
 
+test("planner requires usable identities while allowing nullable provider metadata", (t) => {
+  for (const value of [null, "", "   "]) {
+    for (const field of ["url", "headSha", "headRefName", "headRefOid", "currentPrHeadSha"]) {
+      rejected(run(t, { ...snapshot, prs: [{ [field]: value }] }), /prs\/0/);
+    }
+    rejected(run(t, { snapshot, state: { tickets: [{ url: value }] } }), /tickets\/0/);
+  }
+  const result = run(t, {
+    ...snapshot,
+    prs: [{ number: 1, url: null, headSha: null }],
+    linear: { issues: [{ identifier: "SKI-1", url: null }] },
+  });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("planner preserves documented override precedence and does not coerce values", (t) => {
   const input = {
     snapshot,

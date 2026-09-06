@@ -243,6 +243,14 @@ export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
   };
 }
 
+function hasBlockingReview(state) {
+  return (
+    Boolean(state.blockingFindings) ||
+    Boolean(state.changesRequested) ||
+    normalize(state.reviewDecision) === "changes_requested"
+  );
+}
+
 export function reviewEvidenceDecision(evidence = {}) {
   const hasEvidence = Boolean(evidence.hasReviewEvidence ?? evidence.evidenceLabel);
   const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(evidence.reviewVerdict));
@@ -251,7 +259,7 @@ export function reviewEvidenceDecision(evidence = {}) {
     if (
       cleanVerdict &&
       reviewCoversCurrentDiff(evidence) &&
-      !evidence.blockingFindings &&
+      !hasBlockingReview(evidence) &&
       !evidence.linkedPrChanged &&
       !evidence.evidenceMissing
     ) {
@@ -267,7 +275,7 @@ export function reviewEvidenceDecision(evidence = {}) {
     };
   }
 
-  if (evidence.blockingFindings) {
+  if (hasBlockingReview(evidence)) {
     return {
       action: workflowDecisionActions.clearReviewEvidence,
       reason: "blocking findings invalidate review evidence",
@@ -358,10 +366,7 @@ function mergeReadinessFacts(state = {}) {
   const hostedReviewComplete = state.hostedReviewComplete || state.codeRabbitComplete;
   const hostedReviewSkipped = state.hostedReviewSkipped || state.codeRabbitSkipped;
   return {
-    blockingFindings:
-      Boolean(state.blockingFindings) ||
-      Boolean(state.changesRequested) ||
-      normalize(state.reviewDecision) === "changes_requested",
+    blockingFindings: hasBlockingReview(state),
     checksPassed: requiredChecksPassed(state),
     draft:
       state.draft === true ||

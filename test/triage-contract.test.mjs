@@ -31,10 +31,10 @@ test("ziw-triage uses bounded source-of-truth dependency evidence", () => {
   assert.match(skill, /Do not inspect implementation code, PR diffs, branches, or deploy state/i);
 });
 
-test("runtime triage prompts preserve Triage-to-Todo semantics", () => {
+test("runtime triage prompts use configured intake and ready states", () => {
   for (const file of ["skills/ziw-triage/agents/openai.yaml", "agents/ziw-triager.md"]) {
     const content = read(file);
-    assert.match(content, /Triage[\s\S]{0,120}(?:to|into) `?Todo/i);
+    assert.match(content, /configured intake states[\s\S]{0,120}to the configured ready state/i);
     assert.match(content, /Linear `?Backlog`?.*explicit/i);
     assert.match(content, /source-of-truth/i);
   }

@@ -128,6 +128,11 @@ Then follow this order:
    configured active or PR-linked issues only when the output or tracker fields
    show state, review, claim, or metadata needing reconciliation. Read cited
    source-of-truth docs when needed to verify scope or dependency order.
+   When such a target or any of its direct `blockedBy` records is absent from
+   the snapshot, fetch the missing records with one bounded tracker query. Add
+   them to `linear.activeIssues` in the compact input before freezing the issue
+   set and rerunning the planner and DAG scripts. Do not fetch blockers of those
+   blockers or unrelated parked and terminal issues.
 4. Freeze the issue set. Do not expand it because a linked PR, branch, CI run,
    deploy, alert, or code path looks interesting.
 5. Classify every issue.

@@ -76,7 +76,11 @@ const identityProperties = {
   ),
   ...fields("footprint fileFootprint files paths packages", strings),
 };
-const identity = (names) => names.split(" ").map((name) => ({ required: [name] }));
+const identity = (names) =>
+  names.split(" ").map((name) => ({
+    required: [name],
+    properties: { [name]: identifier },
+  }));
 
 export const definitions = {
   evidence: { type: "object", additionalProperties: false, properties: evidenceProperties },

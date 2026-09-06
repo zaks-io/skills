@@ -417,7 +417,30 @@
           ]
         }
       },
-      "anyOf": [{ "required": ["pr"] }, { "required": ["ticket"] }]
+      "anyOf": [
+        {
+          "required": ["pr"],
+          "properties": {
+            "pr": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["ticket"],
+          "properties": {
+            "ticket": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        }
+      ]
     },
     "checks": {
       "type": "object",
@@ -430,13 +453,83 @@
     "pullRequest": {
       "type": "object",
       "anyOf": [
-        { "required": ["number"] },
-        { "required": ["id"] },
-        { "required": ["url"] },
-        { "required": ["headSha"] },
-        { "required": ["headRefName"] },
-        { "required": ["headRefOid"] },
-        { "required": ["currentPrHeadSha"] }
+        {
+          "required": ["number"],
+          "properties": {
+            "number": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["id"],
+          "properties": {
+            "id": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["headSha"],
+          "properties": {
+            "headSha": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["headRefName"],
+          "properties": {
+            "headRefName": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["headRefOid"],
+          "properties": {
+            "headRefOid": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["currentPrHeadSha"],
+          "properties": {
+            "currentPrHeadSha": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        }
       ],
       "properties": {
         "id": {
@@ -751,10 +844,50 @@
     "issue": {
       "type": "object",
       "anyOf": [
-        { "required": ["identifier"] },
-        { "required": ["key"] },
-        { "required": ["id"] },
-        { "required": ["url"] }
+        {
+          "required": ["identifier"],
+          "properties": {
+            "identifier": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["key"],
+          "properties": {
+            "key": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["id"],
+          "properties": {
+            "id": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        }
       ],
       "properties": {
         "id": {
@@ -1142,10 +1275,32 @@
           ]
         }
       },
-      "anyOf": [{ "required": ["id"] }, { "required": ["identifier"] }]
+      "anyOf": [
+        {
+          "required": ["id"],
+          "properties": {
+            "id": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["identifier"],
+          "properties": {
+            "identifier": {
+              "anyOf": [
+                { "type": "string", "pattern": "\\S" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            }
+          }
+        }
+      ]
     },
     "config": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "additionalProperties": false,
       "properties": {

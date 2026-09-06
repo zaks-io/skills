@@ -253,6 +253,36 @@ test("extractLinearIssues handles planner envelopes", () => {
   );
 });
 
+test("extractLinearIssues merges active reconciliation targets and direct blockers", () => {
+  assert.deepEqual(
+    extractLinearIssues({
+      linear: {
+        issues: [{ identifier: "LIN-1" }],
+        activeIssues: [
+          { identifier: "LIN-2", blockedBy: ["LIN-3"] },
+          { identifier: "LIN-3" },
+          { identifier: "LIN-1" },
+        ],
+      },
+    }),
+    [
+      { identifier: "LIN-1" },
+      { identifier: "LIN-2", blockedBy: ["LIN-3"] },
+      { identifier: "LIN-3" },
+    ],
+  );
+});
+
+test("extractLinearIssues falls through a skipped Linear snapshot to state tickets", () => {
+  assert.deepEqual(
+    extractLinearIssues({
+      snapshot: { linear: { skipped: "credential unavailable" } },
+      state: { tickets: [{ identifier: "LIN-1" }] },
+    }),
+    [{ identifier: "LIN-1" }],
+  );
+});
+
 test("tick-plan fails fast when input is missing", () => {
   const result = spawnSync("node", [tickPlanScript], { encoding: "utf8" });
 
