@@ -641,7 +641,8 @@ Default rule:
   explicit request decides whether it runs; a new commit alone does not require
   another pass. They never apply or clear the configured review evidence label,
   move an issue to `Ready to Merge`, or apply merge-ready PR labels. They hand a
-  non-draft PR back to Orchestrator for Agent Review.
+  PR back to Orchestrator for Agent Review, normally non-draft; an explicit user
+  or repo-configured draft handoff remains pre-review until marked ready.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
   integrate gate when config grants merge authority. It diagnoses stuck draft

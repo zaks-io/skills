@@ -201,7 +201,8 @@ export function reconcileActiveDelivery({ snapshot = {}, state = {}, pullRequest
 
   const issueById = new Map(
     [
-      ...activeLinearIssues,
+      ...toArray(snapshot.linear?.activeIssues),
+      ...toArray(state.activeLinearIssues),
       ...toArray(snapshot.linear?.issues),
       ...toArray(state.tickets ?? state.linearIssues),
       ...toArray(state.startableTickets),
@@ -209,6 +210,12 @@ export function reconcileActiveDelivery({ snapshot = {}, state = {}, pullRequest
       .map((issue) => [issueIdentifier(issue), issue])
       .filter(([identifier]) => identifier),
   );
+  for (const pr of reconciledPullRequests) {
+    const issue = issueById.get(issueIdentifier(pr));
+    if (issue) {
+      pr.issueLabels = [...new Set([...toArray(pr.issueLabels), ...toArray(issue.labels)])];
+    }
+  }
   for (const worktree of worktrees) {
     if (
       (worktree.branch && normalize(worktree.branch) === normalize(snapshot.baseline?.branch)) ||

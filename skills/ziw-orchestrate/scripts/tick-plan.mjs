@@ -7,7 +7,7 @@
 // Input may be the direct output of tick-snapshot.mjs or an envelope:
 //   {
 //     "snapshot": { ...tick-snapshot output... },
-//     "config": { "activePrPreviewCap": 3 },
+//     "config": { "workerConcurrencyCap": 3 },
 //     "state": {
 //       "startableTickets": [{ "id": "ZAK-1", "footprint": ["src/foo.ts"] }],
 //       "dispatches": [],
@@ -18,9 +18,9 @@
 //     }
 //   }
 
-import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
+import { loadPlannerInput } from "./planner-input.mjs";
 import { reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
 import {
@@ -35,40 +35,14 @@ import {
 } from "./workflow-contract.mjs";
 
 const startedAt = performance.now();
-const args = process.argv.slice(2);
-const debug = args.includes("--debug");
-const pretty = args.includes("--pretty");
-const usage =
-  "Usage: node tick-plan.mjs <snapshot-or-envelope.json> [--config config.json] [--state state.json]";
-
-const fail = (message) => {
-  console.error(`tick-plan: ${message}`);
+let inputs;
+try {
+  inputs = loadPlannerInput(process.argv.slice(2));
+} catch (error) {
+  console.error(`tick-plan: ${error.message}`);
   process.exit(1);
-};
-
-const argValue = (flag) => {
-  const index = args.indexOf(flag);
-  return index >= 0 ? args[index + 1] : undefined;
-};
-
-const positional = args.filter(
-  (arg, index) =>
-    !arg.startsWith("--") && args[index - 1] !== "--config" && args[index - 1] !== "--state",
-);
-
-if (positional.length !== 1) {
-  fail(`expected exactly one input\n${usage}`);
 }
-
-const readJson = (source, label) => {
-  if (!source) return {};
-  try {
-    const text = source === "-" ? readFileSync(0, "utf8") : readFileSync(source, "utf8");
-    return text.trim() ? JSON.parse(text) : {};
-  } catch (error) {
-    fail(`cannot read ${label}: ${error.message}`);
-  }
-};
+const { snapshot, config, state, debug, pretty } = inputs;
 
 const normalize = (value) =>
   String(value ?? "")
@@ -200,6 +174,7 @@ const humanMergeDecisionForPr = (state, config, pr) => {
     headSha: pr.headSha,
     ...humanMergePrLabelDecision(
       {
+        ...pr,
         prState: pr.state,
         prLabels: pr.labels,
         isDraft: pr.isDraft,
@@ -331,6 +306,7 @@ const prDisposition = (state, config, pr) => {
 
   const decision = mergeEligibilityDecision(
     {
+      ...pr,
       prState: pr.state,
       isDraft: pr.isDraft,
       currentPrHeadSha: pr.headSha,
@@ -440,24 +416,6 @@ const prDisposition = (state, config, pr) => {
   return { bucket: "holds", value: { target, reason: "MERGE_HELD" } };
 };
 
-const envelope = readJson(positional[0], "input");
-const snapshot =
-  envelope.snapshot ??
-  (envelope.prs || envelope.baseline || envelope.footprint || envelope.linear ? envelope : {});
-const config = {
-  ...(envelope.config ?? {}),
-  ...readJson(argValue("--config"), "--config"),
-};
-const state = {
-  ...(envelope.queue ?? {}),
-  ...(envelope.state ?? {}),
-  ...readJson(argValue("--state"), "--state"),
-};
-
-if (!snapshot.repo && !state.repo) {
-  fail("snapshot is missing repo identity; refusing to plan from empty or partial evidence");
-}
-
 const initialPullRequests = mergePrLists(snapshot.prs, state.pullRequests);
 const delivery = reconcileActiveDelivery({
   snapshot,
@@ -525,6 +483,12 @@ const readyStatePromotions = toArray(state.tickets ?? snapshot.linear?.issues).m
 
 const reviewEvidence = toArray(state.reviewEvidenceChecks).map((evidence) => ({
   target: evidence.pr ?? evidence.ticket ?? evidence.currentPrHeadSha,
+  actionTarget:
+    evidence.pr != null
+      ? `pr:${evidence.pr}`
+      : evidence.ticket != null
+        ? `ticket:${evidence.ticket}`
+        : null,
   ...reviewEvidenceDecision(evidence),
 }));
 
@@ -604,7 +568,23 @@ for (const promotion of readyStatePromotions) {
   });
 }
 
-const actions = [...dispatchActions, ...prActions];
+const labelActions = [
+  ...humanMergeLabels.map((decision) => ({
+    ...decision,
+    target: `pr:${decision.pr}`,
+  })),
+  ...reviewEvidence.map((decision) => ({ ...decision, target: decision.actionTarget })),
+]
+  .filter((decision) => decision.target && /^(APPLY|CLEAR)_/.test(decision.action))
+  .map((decision) => ({
+    target: decision.target,
+    kind: decision.action.toLowerCase().replaceAll("_", "-"),
+    owner: "orchestrator",
+    reason: decision.reason,
+    ...(decision.label ? { label: decision.label } : {}),
+    ...(decision.headSha ? { headSha: decision.headSha } : {}),
+  }));
+const actions = [...dispatchActions, ...labelActions, ...prActions];
 
 if (!linearQueried) warnings.push({ reason: "TRACKER_STATE_MISSING" });
 const wakeState =

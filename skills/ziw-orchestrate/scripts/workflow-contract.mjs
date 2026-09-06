@@ -243,12 +243,26 @@ export function readyStatePromotionDecision(ticket, config = {}, options = {}) {
   };
 }
 
+function hasBlockingReview(state) {
+  return (
+    Boolean(state.blockingFindings) ||
+    Boolean(state.changesRequested) ||
+    normalize(state.reviewDecision) === "changes_requested"
+  );
+}
+
 export function reviewEvidenceDecision(evidence = {}) {
   const hasEvidence = Boolean(evidence.hasReviewEvidence ?? evidence.evidenceLabel);
   const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(evidence.reviewVerdict));
 
   if (!hasEvidence) {
-    if (cleanVerdict && reviewCoversCurrentDiff(evidence)) {
+    if (
+      cleanVerdict &&
+      reviewCoversCurrentDiff(evidence) &&
+      !hasBlockingReview(evidence) &&
+      !evidence.linkedPrChanged &&
+      !evidence.evidenceMissing
+    ) {
       return {
         action: workflowDecisionActions.applyReviewEvidence,
         reason: "clean review covers the current review-relevant diff",
@@ -261,7 +275,7 @@ export function reviewEvidenceDecision(evidence = {}) {
     };
   }
 
-  if (evidence.blockingFindings) {
+  if (hasBlockingReview(evidence)) {
     return {
       action: workflowDecisionActions.clearReviewEvidence,
       reason: "blocking findings invalidate review evidence",
@@ -344,15 +358,6 @@ function grantedAutoMergeTiers(config = {}) {
   );
 }
 
-// Merge authority is repo config only; runtime state cannot grant or revoke it.
-// With no explicit authority, the delivery-mode tier grants decide, so both
-// merge-path helpers give one answer for the same PR.
-function humanMergeRequired(state = {}, config = {}) {
-  const authority = normalize(config.mergeAuthority);
-  if (authority) return !AGENT_MERGE_AUTHORITIES.includes(authority);
-  return !grantedAutoMergeTiers(config).has(riskTier(state, config));
-}
-
 function mergeReadinessFacts(state = {}) {
   const prState = normalize(state.prState ?? state.state ?? state.status);
   const terminal =
@@ -361,7 +366,7 @@ function mergeReadinessFacts(state = {}) {
   const hostedReviewComplete = state.hostedReviewComplete || state.codeRabbitComplete;
   const hostedReviewSkipped = state.hostedReviewSkipped || state.codeRabbitSkipped;
   return {
-    blockingFindings: Boolean(state.blockingFindings) || Boolean(state.changesRequested),
+    blockingFindings: hasBlockingReview(state),
     checksPassed: requiredChecksPassed(state),
     draft:
       state.draft === true ||
@@ -409,6 +414,7 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     ),
   );
   const facts = mergeReadinessFacts(state);
+  const mergeDecision = mergeEligibilityDecision(state, config);
 
   const invalidReason = !label
     ? "no human-merge PR label is configured"
@@ -416,21 +422,11 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
       ? "PR is not open"
       : facts.draft
         ? "draft PRs are pre-review and cannot be marked ready for human merge"
-        : !humanMergeRequired(state, config)
-          ? "configured merge authority does not require human merge"
-          : !facts.reviewEvidenceCurrent
-            ? "current review-relevant diff lacks clean code review evidence"
-            : !facts.checksPassed
-              ? "required checks are not confirmed passing"
-              : facts.blockingFindings
-                ? "blocking findings or changes requested remain"
-                : facts.unresolvedReviewThreads > 0
-                  ? "unresolved review threads remain"
-                  : facts.hostedReviewBlocked
-                    ? "required hosted review is pending or incomplete"
-                    : facts.scopeMismatch
-                      ? "diff does not match the linked issue scope"
-                      : "";
+        : mergeDecision.action === workflowDecisionActions.holdMerge
+          ? mergeDecision.reason
+          : mergeDecision.action !== workflowDecisionActions.routeHumanMerge
+            ? "configured merge authority does not require human merge"
+            : "";
 
   if (invalidReason) {
     return {

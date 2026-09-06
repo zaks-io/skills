@@ -123,31 +123,45 @@ export function selectScopedLinearIssues(issues, states = []) {
 }
 
 export function selectActiveLinearIssues(issues, routeLabel) {
-  const active = issues.filter((issue) =>
-    Boolean(
-      issue.activeClaim ??
-      issue.delegated ??
-      issue.assignedWorker ??
-      issue.workerSession ??
-      issue.agentSession,
-    ),
+  const active = issues.filter(
+    (issue) =>
+      !["completed", "canceled"].includes(issue.stateType) &&
+      Boolean(
+        issue.stateType === "started" ||
+        issue.activeClaim ||
+        issue.delegated ||
+        issue.assignedWorker ||
+        issue.workerSession ||
+        issue.agentSession,
+      ),
   );
-  if (!routeLabel) return active;
+  let scopedActive = active;
 
-  const normalizedRoute = routeLabel.trim().toLowerCase();
-  const routeNamespace = normalizedRoute.includes("/") ? `${normalizedRoute.split("/")[0]}/` : null;
-  const usesRouteLabels = issues.some((issue) =>
-    (issue.labels ?? []).some((label) => {
-      const normalizedLabel = label.trim().toLowerCase();
-      return (
-        normalizedLabel === normalizedRoute ||
-        (routeNamespace && normalizedLabel.startsWith(routeNamespace))
+  if (routeLabel) {
+    const normalizedRoute = routeLabel.trim().toLowerCase();
+    const routeNamespace = normalizedRoute.includes("/")
+      ? `${normalizedRoute.split("/")[0]}/`
+      : null;
+    const usesRouteLabels = issues.some((issue) =>
+      (issue.labels ?? []).some((label) => {
+        const normalizedLabel = label.trim().toLowerCase();
+        return (
+          normalizedLabel === normalizedRoute ||
+          (routeNamespace && normalizedLabel.startsWith(routeNamespace))
+        );
+      }),
+    );
+    if (usesRouteLabels) {
+      scopedActive = active.filter((issue) =>
+        (issue.labels ?? []).some((label) => label.trim().toLowerCase() === normalizedRoute),
       );
-    }),
-  );
-  if (!usesRouteLabels) return active;
-  return active.filter((issue) =>
-    (issue.labels ?? []).some((label) => label.trim().toLowerCase() === normalizedRoute),
+    }
+  }
+
+  const selected = new Set(scopedActive.map((issue) => issue.identifier));
+  const directBlockers = new Set(scopedActive.flatMap((issue) => issue.blockedBy ?? []));
+  return issues.filter(
+    (issue) => selected.has(issue.identifier) || directBlockers.has(issue.identifier),
   );
 }
 

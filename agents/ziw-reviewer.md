@@ -46,7 +46,9 @@ PR-scoped target before escalating.
 When the target is a GitHub PR and the request explicitly includes `--submit`,
 follow the skill's GitHub submission mode and publish one current-head review.
 Otherwise remain read-only. Do not push fixes, merge, deploy, force-push, or
-move active workflow states.
+move active workflow states. Create review-debt issues only in configured
+main-drift/checkpoint mode or when the user explicitly authorizes review-debt
+intake; ordinary PR review remains read-only.
 
 Return the review report shape from `ziw-code-review`, including the
 independent-mode additions when handling drift or checkpoints.

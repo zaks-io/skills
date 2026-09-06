@@ -223,6 +223,52 @@ test("review evidence is applied only when a clean review covers the current dif
   );
 });
 
+for (const invalidation of [
+  "blockingFindings",
+  "changesRequested",
+  "linkedPrChanged",
+  "evidenceMissing",
+]) {
+  for (const hasReviewEvidence of [false, true]) {
+    test(`review evidence respects ${invalidation} with existing label ${hasReviewEvidence}`, () => {
+      const decision = reviewEvidenceDecision({
+        hasReviewEvidence,
+        reviewDiffFingerprint: "same-diff",
+        reviewedDiffFingerprint: "same-diff",
+        reviewVerdict: "APPROVE",
+        [invalidation]: true,
+      });
+      assert.equal(
+        decision.action,
+        hasReviewEvidence
+          ? workflowDecisionActions.clearReviewEvidence
+          : workflowDecisionActions.leaveUnchanged,
+      );
+    });
+  }
+}
+
+test("changes-requested review decisions block new evidence and clear existing evidence", () => {
+  for (const hasReviewEvidence of [false, true]) {
+    for (const reviewDecision of ["changes_requested", "CHANGES_REQUESTED"]) {
+      const decision = reviewEvidenceDecision({
+        hasReviewEvidence,
+        reviewDiffFingerprint: "same-diff",
+        reviewedDiffFingerprint: "same-diff",
+        reviewVerdict: "APPROVE",
+        blockingFindings: false,
+        reviewDecision,
+      });
+      assert.equal(
+        decision.action,
+        hasReviewEvidence
+          ? workflowDecisionActions.clearReviewEvidence
+          : workflowDecisionActions.leaveUnchanged,
+      );
+    }
+  }
+});
+
 test("human merge PR label is applied only when the PR is merge-ready with current review", () => {
   assert.deepEqual(
     humanMergePrLabelDecision(
@@ -243,6 +289,25 @@ test("human merge PR label is applied only when the PR is merge-ready with curre
     },
   );
 });
+
+for (const config of [
+  { mergeAuthority: "human", requireConformanceEvidence: true },
+  { mergeAuthority: "human", requiredIndependentReviews: 2 },
+]) {
+  test(`human merge label shares the merge gate: ${JSON.stringify(config)}`, () => {
+    const state = {
+      prState: "open",
+      reviewEvidenceCurrent: true,
+      requiredChecksPassed: true,
+    };
+    assert.equal(mergeEligibilityDecision(state, config).action, "HOLD_MERGE");
+    assert.equal(humanMergePrLabelDecision(state, config).action, "LEAVE_UNCHANGED");
+    assert.equal(
+      humanMergePrLabelDecision({ ...state, humanMergePrLabelApplied: true }, config).action,
+      "CLEAR_HUMAN_MERGE_PR_LABEL",
+    );
+  });
+}
 
 test("human merge PR label is not applied without current code review evidence", () => {
   assert.deepEqual(
@@ -1097,6 +1162,14 @@ test("changes requested holds the merge even when blockingFindings is explicitly
 
   assert.equal(decision.action, workflowDecisionActions.holdMerge);
   assert.match(decision.reason, /changes requested/);
+});
+
+test("a code-host changes-requested verdict clears the human-merge label", () => {
+  const decision = humanMergePrLabelDecision(
+    { ...greenPr, reviewDecision: "CHANGES_REQUESTED", humanMergePrLabelApplied: true },
+    { mergeAuthority: "human" },
+  );
+  assert.equal(decision.action, workflowDecisionActions.clearHumanMergePrLabel);
 });
 
 test("both merge-path helpers agree on default authority for the same green PR", () => {

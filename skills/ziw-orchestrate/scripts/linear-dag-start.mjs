@@ -155,17 +155,19 @@ const readinessMatches = (issue, config = {}) => {
 };
 
 const startableStateMatches = (issue, config = {}) => {
-  const startableStates = new Set(
-    [
-      config.startableState,
-      ...toArray(config.startableStates),
-      config.readyState,
-      ...toArray(config.readyStates),
-      ...DEFAULT_STARTABLE_STATES,
-    ]
-      .map(normalize)
-      .filter(Boolean),
-  );
+  const configuredStates = [
+    config.startableState,
+    ...toArray(config.startableStates),
+    config.readyState,
+    ...toArray(config.readyStates),
+  ]
+    .map(normalize)
+    .filter(Boolean);
+  if (configuredStates.length > 0) {
+    return configuredStates.includes(normalize(issueStateName(issue)));
+  }
+
+  const startableStates = new Set(DEFAULT_STARTABLE_STATES);
   const startableStateTypes = new Set(
     [
       config.startableStateType,
@@ -246,15 +248,16 @@ const isStartableNode = (node) => startableBlockers(node).length === 0;
 
 export function extractLinearIssues(input = {}) {
   if (Array.isArray(input)) return input;
-  return (
-    input.linear?.issues ??
-    input.snapshot?.linear?.issues ??
-    input.state?.tickets ??
-    input.queue?.tickets ??
-    input.issues ??
-    input.nodes ??
-    []
-  );
+  const linear = input.linear ?? input.snapshot?.linear;
+  if (linear?.issues != null || linear?.activeIssues != null) {
+    const byId = new Map();
+    for (const issue of [...toArray(linear.issues), ...toArray(linear.activeIssues)]) {
+      const id = normalize(issueId(issue));
+      if (id && !byId.has(id)) byId.set(id, issue);
+    }
+    return [...byId.values()];
+  }
+  return input.state?.tickets ?? input.queue?.tickets ?? input.issues ?? input.nodes ?? [];
 }
 
 export function linearDagStart(issuesInput = [], config = {}) {

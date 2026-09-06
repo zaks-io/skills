@@ -86,7 +86,7 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
         issues: {
           pageInfo: { hasNextPage: !secondPage, endCursor: secondPage ? null : "page-2" },
           nodes: secondPage
-            ? [issue({ identifier: "SPL-2", state: "Blocked" })]
+            ? [issue({ identifier: "SPL-2", state: "Backlog" })]
             : [
                 issue({
                   identifier: "SPL-1",
@@ -165,6 +165,40 @@ test("selectActiveLinearIssues scopes active claims to the repo route label", ()
   );
 });
 
+test("selectActiveLinearIssues includes only direct blockers of routed active claims", () => {
+  const issues = [
+    normalizedIssue({
+      identifier: "SPL-1",
+      labels: ["zaks-io/splitch"],
+      workerSession: "bc-1",
+      blockedBy: ["SPL-2"],
+    }),
+    normalizedIssue({ identifier: "SPL-2", blockedBy: ["SPL-3"] }),
+    normalizedIssue({ identifier: "SPL-3" }),
+    normalizedIssue({
+      identifier: "SPL-4",
+      labels: ["zaks-io/other"],
+      workerSession: "bc-4",
+      blockedBy: ["SPL-5"],
+    }),
+    normalizedIssue({ identifier: "SPL-5", stateType: "started" }),
+    normalizedIssue({ identifier: "SPL-6", state: "Backlog" }),
+    normalizedIssue({
+      identifier: "SPL-7",
+      labels: ["zaks-io/splitch"],
+      stateType: "completed",
+      workerSession: "bc-7",
+      blockedBy: ["SPL-8"],
+    }),
+    normalizedIssue({ identifier: "SPL-8" }),
+  ];
+
+  assert.deepEqual(
+    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
+    ["SPL-1", "SPL-2"],
+  );
+});
+
 test("selectActiveLinearIssues falls back to team scope when route labels are unused", () => {
   const issues = [
     normalizedIssue({ identifier: "SPL-1", labels: ["kind-slice"], workerSession: "bc-1" }),
@@ -185,7 +219,7 @@ test("selectActiveLinearIssues returns no cross-repo claims when only another ro
   assert.deepEqual(selectActiveLinearIssues(issues, "zaks-io/splitch"), []);
 });
 
-test("started tracker state without a worker session does not consume a worker slot", () => {
+test("selectActiveLinearIssues includes started tracker state for reconciliation", () => {
   const issues = [
     normalizedIssue({ identifier: "SPL-1", stateType: "started" }),
     normalizedIssue({ identifier: "SPL-2", workerSession: "bc-2" }),
@@ -193,18 +227,65 @@ test("started tracker state without a worker session does not consume a worker s
 
   assert.deepEqual(
     selectActiveLinearIssues(issues).map((item) => item.identifier),
-    ["SPL-2"],
+    ["SPL-1", "SPL-2"],
+  );
+});
+
+test("false activity signals do not hide later positive signals", () => {
+  for (const field of ["delegated", "assignedWorker", "workerSession", "agentSession"]) {
+    const target = {
+      ...normalizedIssue({ identifier: "SPL-1" }),
+      activeClaim: false,
+      delegated: false,
+      assignedWorker: false,
+      workerSession: null,
+      agentSession: null,
+      [field]: "session-1",
+    };
+    assert.deepEqual(selectActiveLinearIssues([target]), [target], field);
+  }
+});
+
+test("loadLinearSnapshot includes active targets with their direct blockers", async () => {
+  const request = async ({ query }) => {
+    if (query.includes("teams(first")) {
+      return {
+        data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } },
+      };
+    }
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false },
+          nodes: [
+            issue({ identifier: "SPL-1", state: "In Progress", blockedBy: "SPL-2" }),
+            issue({ identifier: "SPL-2", state: "Backlog" }),
+            issue({ identifier: "SPL-3", state: "Backlog" }),
+            issue({ identifier: "SPL-4", state: "Backlog" }),
+          ],
+        },
+      },
+    };
+  };
+
+  const snapshot = await loadLinearSnapshot({ request, selector: "SPL", states: ["Todo"] });
+
+  assert.deepEqual(
+    snapshot.activeIssues.map((item) => item.identifier),
+    ["SPL-1", "SPL-2"],
   );
 });
 
 function normalizedIssue({
   identifier,
   labels = [],
+  state = "Todo",
   stateType = "unstarted",
   assignee = null,
   workerSession = null,
+  blockedBy = [],
 }) {
-  return { identifier, labels, stateType, assignee, workerSession };
+  return { identifier, labels, state, stateType, assignee, workerSession, blockedBy };
 }
 
 function issue({

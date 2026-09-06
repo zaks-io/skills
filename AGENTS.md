@@ -32,6 +32,9 @@ content.
 - `docs/agents/workflow/config.md`: repo-local workflow lookup table. Read it
   before running `ziw-*` workflow skills in this repo.
 - `scripts/check-skills.mjs`: structural validation and repo invariants.
+- `scripts/planner-schema/`: planner JSON Schema source. Run
+  `pnpm generate:planner-contract` after edits; `pnpm check` verifies generated
+  schema and standalone validator freshness.
 - `scripts/update-downstream-skills.mjs`: discovers downstream `skills-lock.json`
   consumers, runs project-scope skill updates, and reports repos needing PRs.
 - `scripts/workflow-contract.mjs`: pure workflow decision helpers covered by

@@ -535,6 +535,114 @@ test("tick-plan applies human merge label only with current review evidence", ()
   assert.equal(withEvidence.decisions.humanMergeLabels[0].action, "APPLY_HUMAN_MERGE_PR_LABEL");
 });
 
+for (const riskField of ["labels", "issueLabels"]) {
+  test(`tick-plan preserves ${riskField} when deciding merge authority`, () => {
+    const output = runCompactPlan({
+      snapshot: {
+        repo: "zaks-io/example",
+        prs: [
+          {
+            number: 12,
+            state: "open",
+            headSha: "reviewed-head",
+            [riskField]: ["risk-security-sensitive"],
+            checks: { state: "SUCCESS" },
+            latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+          },
+        ],
+      },
+      config: { mergeAuthority: "agent" },
+    });
+    assert.equal(
+      output.actions.some(({ kind }) => kind === "arm-auto-merge"),
+      false,
+    );
+    assert.equal(
+      output.actions.some(({ kind }) => kind === "route-human-merge"),
+      true,
+    );
+  });
+}
+
+test("tick-plan carries matched tracker risk labels into merge decisions", () => {
+  const output = runCompactPlan({
+    snapshot: {
+      repo: "zaks-io/example",
+      prs: [
+        {
+          number: 12,
+          state: "open",
+          headRefName: "ski-12-security-fix",
+          headSha: "reviewed-head",
+          checks: { state: "SUCCESS" },
+          latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+        },
+      ],
+      linear: { issues: [{ identifier: "SKI-12", state: "In Review", labels: ["risk-schema"] }] },
+    },
+    config: { mergeAuthority: "agent" },
+  });
+  assert.equal(
+    output.actions.some(({ kind }) => kind === "arm-auto-merge"),
+    false,
+  );
+  assert.equal(
+    output.actions.some(({ kind }) => kind === "route-human-merge"),
+    true,
+  );
+});
+
+test("compact tick-plan includes label application and invalidation actions", () => {
+  const output = runCompactPlan({
+    snapshot: {
+      repo: "zaks-io/example",
+      prs: [
+        {
+          number: 12,
+          state: "open",
+          headSha: "reviewed-head",
+          checks: { state: "SUCCESS" },
+          latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+        },
+        {
+          number: 13,
+          state: "open",
+          isDraft: true,
+          labels: ["needs-human-merge"],
+        },
+      ],
+    },
+    config: { mergeAuthority: "human" },
+    state: {
+      reviewEvidenceChecks: [
+        {
+          ticket: "SKI-1",
+          hasReviewEvidence: true,
+          blockingFindings: true,
+        },
+      ],
+    },
+  });
+  assert.equal(
+    output.actions.some(
+      ({ kind, target }) => kind === "apply-human-merge-pr-label" && target === "pr:12",
+    ),
+    true,
+  );
+  assert.equal(
+    output.actions.some(
+      ({ kind, target }) => kind === "clear-human-merge-pr-label" && target === "pr:13",
+    ),
+    true,
+  );
+  assert.equal(
+    output.actions.some(
+      ({ kind, target }) => kind === "clear-review-evidence" && target === "ticket:SKI-1",
+    ),
+    true,
+  );
+});
+
 test("tick-plan selects only non-colliding dispatch work", () => {
   const output = runPlan({
     snapshot: {

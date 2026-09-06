@@ -23,6 +23,7 @@ Keep the hot path small:
 Load references only when their condition applies:
 
 - Loop setup or cadence: [references/loop-contract.md](references/loop-contract.md)
+- Planner JSON inputs: [references/planner-input.md](references/planner-input.md)
 - Dispatch, capacity, draft PR, closure, or scope boundaries:
   [references/dispatch-policy.md](references/dispatch-policy.md)
 - Worktree, issue-assigned, Cursor, or worker prompt details:
@@ -102,7 +103,8 @@ once on macOS, then include `--linear-team <KEY|UUID|NAME>`. Active claims defau
 to the repo route label; override with `--linear-route-label <label>`.
 `LINEAR_API_KEY` is also accepted. Use tracker tools for full bodies and comments.
 
-Then compute deterministic decisions from compact JSON:
+Build compact JSON using the [planner contract](references/planner-input.md).
+The planner rejects invalid fields and types before emitting actions. Run:
 
 ```bash
 node <skill-dir>/scripts/tick-plan.mjs /tmp/ziw-tick-snapshot.json \

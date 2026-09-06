@@ -93,6 +93,20 @@ test("linearDagStart keeps graph frontier separate from startable starts", () =>
   );
 });
 
+test("linearDagStart respects configured ready states over defaults and broad state types", () => {
+  const output = linearDagStart(
+    ["Ready", "Todo", "Needs refinement"].map((state, index) => ({
+      identifier: `LIN-${index + 1}`,
+      labels: ["kind-slice", "ready-for-agent"],
+      state,
+      stateType: "unstarted",
+    })),
+    { readyState: "Ready" },
+  );
+
+  assert.deepEqual(output.starts, ["LIN-1"]);
+});
+
 test("linearDagStart ignores non-agent readiness labels from broad config", () => {
   const output = linearDagStart(
     [
@@ -234,6 +248,36 @@ test("extractLinearIssues handles planner envelopes", () => {
   assert.deepEqual(
     extractLinearIssues({
       snapshot: { linear: { issues: [{ identifier: "LIN-1" }] } },
+    }),
+    [{ identifier: "LIN-1" }],
+  );
+});
+
+test("extractLinearIssues merges active reconciliation targets and direct blockers", () => {
+  assert.deepEqual(
+    extractLinearIssues({
+      linear: {
+        issues: [{ identifier: "LIN-1" }],
+        activeIssues: [
+          { identifier: "LIN-2", blockedBy: ["LIN-3"] },
+          { identifier: "LIN-3" },
+          { identifier: "LIN-1" },
+        ],
+      },
+    }),
+    [
+      { identifier: "LIN-1" },
+      { identifier: "LIN-2", blockedBy: ["LIN-3"] },
+      { identifier: "LIN-3" },
+    ],
+  );
+});
+
+test("extractLinearIssues falls through a skipped Linear snapshot to state tickets", () => {
+  assert.deepEqual(
+    extractLinearIssues({
+      snapshot: { linear: { skipped: "credential unavailable" } },
+      state: { tickets: [{ identifier: "LIN-1" }] },
     }),
     [{ identifier: "LIN-1" }],
   );

@@ -4,6 +4,7 @@ import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { validateInput } from "../skills/ziw-orchestrate/scripts/planner-input-validator.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const script = path.join(root, "skills", "ziw-orchestrate", "scripts", "tick-snapshot.mjs");
@@ -73,6 +74,7 @@ process.stdout.write(JSON.stringify({ data: { repository } }));
     }),
   );
 
+  assert.equal(validateInput(output), true, JSON.stringify(validateInput.errors));
   assert.equal(output.footprint.openPrCount, 2);
   assert.deepEqual(
     output.prs.map((pr) => pr.number),

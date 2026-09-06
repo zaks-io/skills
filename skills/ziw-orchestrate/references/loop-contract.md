@@ -65,16 +65,18 @@ Each tick:
    or `LINEAR_API_KEY`, it also returns the open issue queue with unresolved
    `blockedBy` identifiers per issue. Then run
    `node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> --config <config.json> --state <queue-state.json>`
-   when compact queue/config JSON is available. The planner deterministically
-   returns active footprint, capacity action, collision-safe dispatch selection,
-   Linear DAG roots/frontier, dispatchable starts, ready-state promotions,
-   hosted-review actions, and human-merge PR label decisions. Use
+   when compact queue/config JSON is available. Follow
+   [planner-input.md](planner-input.md) when assembling it; fix validation
+   errors at their reported field paths before acting. The planner deterministically
+   returns compact actions, including review-evidence and human-merge PR label
+   updates, waits, holds, capacity, and wake state. Use `--debug` for the full
+   decision evidence, including Linear DAG roots/frontier. Use
    `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot.json> --config <config.json>`
-   when only the Linear dependency frontier is needed. Both DAG scripts fail
-   loud when they compute zero live issues: that exit means either a bug in
-   the query/scope or a drained queue, and either way the tick must verify the
-   queue directly with tracker MCP tools or a fresh snapshot before treating
-   the scope as empty or done. Never dispatch an issue
+   when only the Linear dependency frontier is needed. An empty DAG succeeds
+   with no starts; it does not prove that the requested scope is complete.
+   Verify an unexpectedly empty queue directly with tracker tooling or a fresh
+   snapshot before treating the scope as done. Missing tracker evidence in the
+   compact plan is `TRACKER_STATE_MISSING`, not a drained queue. Never dispatch an issue
    whose snapshot or tracker state shows an incomplete blocker. Use tracker
    tooling for issue bodies and comments. Delegate the inventory read to an
    isolated triage worker when the runtime has one; keep only the compact queue
@@ -103,7 +105,7 @@ Each tick:
    instead of spending spare slots. Draft state is an orchestration repair
    signal, not a code review request, and capacity pressure is not a reason to
    close a draft or in-progress PR.
-6. For every selected ticket, apply the tick plan's `trackerStateUpdates` and
+6. For every selected ticket, apply the dispatch action's `targetState` and
    require the tracker to confirm the configured in-progress state before
    launching an isolated worker. If that transition fails, do not start the
    worker. Delegate every context-heavy step (implement, review, triage) only

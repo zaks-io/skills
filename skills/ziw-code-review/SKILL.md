@@ -39,9 +39,11 @@ Choose the mode before reviewing:
   clearing review evidence for the reviewed head, but only Agent Orchestrator
   performs tracker and merge-ready mutations.
 
-Both modes are read-only for workflow state. Do not apply or clear
-review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready
-PR labels.
+Both modes leave existing workflow state read-only by default. Author QA never
+creates tracker issues. Independent review may create review-debt issues only in
+configured main-drift/checkpoint mode or when the user explicitly authorizes
+review-debt intake. Do not apply or clear review-evidence labels, move the issue
+to `Ready to Merge`, or apply merge-ready PR labels.
 
 ## Context
 
@@ -141,16 +143,20 @@ local review through GitHub after verifying the PR head has not changed. Follow
 [references/github-review-submission.md](references/github-review-submission.md).
 
 Submission is the only code-host mutation this mode authorizes. It does not
-authorize fixes, labels, tracker transitions, external review-bot triggers, or
-merge actions. A PR URL or number without `--submit` remains read-only.
+authorize fixes, labels, tracker transitions, tracker issue creation, external
+review-bot triggers, or merge actions. Tracker issue creation still requires the
+configured main-drift/checkpoint mode or explicit user authorization for
+review-debt intake. A PR URL or number without `--submit` remains read-only.
 
 ## Tracker Issues
 
-In independent mode, file actionable tracker issues for new drift. Search for
-duplicates by problem, files, PR, and commit range first. Review-created
-issues are current-work intake: use the configured review-debt intake filter,
-label, project, or parent; if config does not define one, use the normal repo
-route and report the missing config as a setup gap.
+In configured main-drift/checkpoint mode, or when the user explicitly authorizes
+review-debt intake, file actionable tracker issues for new drift. Search for
+duplicates by problem, files, PR, and commit range first. Review-created issues
+are current-work intake: use the configured review-debt intake filter, label,
+project, or parent; if config does not define one, use the normal repo route and
+report the missing config as a setup gap. For ordinary user-requested PR review,
+report or recommend follow-up issues without creating them.
 
 New issue rules:
 
@@ -322,6 +328,7 @@ Hosted bot review command: <none|configured PR command|@coderabbitai review|@cod
 PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY, because <reason>
 Review evidence label: APPLY configured label | CLEAR | LEAVE UNCHANGED, because <reason>
 GitHub submission: NOT REQUESTED | POSTED <review URL> | ALREADY CURRENT <review URL> | FAILED, because <reason>
+Next owner/action: <owner and exact next action>
 
 Conformance:
 
@@ -359,5 +366,7 @@ the handoff to Agent Orchestrator.
   state, or apply merge-ready PR labels. Report recommendations to Agent
   Orchestrator instead.
 - Do not broaden scope or decide product/security questions during review.
-- Create or recommend follow-up tracker issues for adjacent work.
+- Create follow-up tracker issues only in the configured main-drift/checkpoint
+  mode or with explicit user authorization for review-debt intake; otherwise
+  recommend them without creating them.
 - Never include sensitive values in review output.

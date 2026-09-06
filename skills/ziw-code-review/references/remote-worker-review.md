@@ -46,5 +46,6 @@ Return only:
 - Hosted bot review recommendation: skip, CLI, or PR review; include provider
   and auto-review mode
   and command or skip marker when known
+- Next owner/action
 - Verdict: ready, needs revision, or do not merge
 ```
