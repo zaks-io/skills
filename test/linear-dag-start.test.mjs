@@ -93,6 +93,20 @@ test("linearDagStart keeps graph frontier separate from startable starts", () =>
   );
 });
 
+test("linearDagStart respects configured ready states over defaults and broad state types", () => {
+  const output = linearDagStart(
+    ["Ready", "Todo", "Needs refinement"].map((state, index) => ({
+      identifier: `LIN-${index + 1}`,
+      labels: ["kind-slice", "ready-for-agent"],
+      state,
+      stateType: "unstarted",
+    })),
+    { readyState: "Ready" },
+  );
+
+  assert.deepEqual(output.starts, ["LIN-1"]);
+});
+
 test("linearDagStart ignores non-agent readiness labels from broad config", () => {
   const output = linearDagStart(
     [

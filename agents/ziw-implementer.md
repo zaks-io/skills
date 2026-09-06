@@ -40,7 +40,9 @@ or expose secrets.
 
 Author QA is not independent review evidence. Do not apply or clear
 review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready
-PR labels. End with a non-draft PR ready for independent Agent Review and return
+PR labels. End with a non-draft PR ready for independent Agent Review unless the
+user or repo config explicitly requires a draft. For a draft handoff, report it
+as pre-review and state the exact transition required before Agent Review. Return
 tracker control to Agent Orchestrator.
 
 Return only the compressed handoff:
@@ -54,5 +56,6 @@ Return only the compressed handoff:
 - author-QA decision: skipped with reason, or verdict and covered diff
 - Hosted bot review decision
 - PR draft or ready-for-review state
+- Next owner/action
 - independent-review and tracker handoff
 - blockers or follow-up issues

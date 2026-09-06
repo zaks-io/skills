@@ -21,11 +21,12 @@ The end state is a useful `Todo` backlog:
 - Orchestrator can consume the final `starts`, blocked-ready list, and next
   actions without re-triaging the same queue
 
-Default triage starts from the configured ready and intake states plus direct
-blockers only. In most Linear repos this means `Todo`, `Triage`, and any active
-issues that directly block those tickets. Do not include unrelated Linear
-`Backlog`, Duplicate, Done, canceled, icebox, or other parked/terminal states by
-default.
+Default triage starts from the configured ready and intake states, configured
+active or PR-linked issues that need reconciliation, and direct blockers of those
+tickets. In most Linear repos this means `Todo`, `Triage`, active or PR-linked
+issues with stale workflow metadata, and any active issues that directly block
+those tickets. Do not include unrelated Linear `Backlog`, Duplicate, Done,
+canceled, icebox, or other parked/terminal states by default.
 
 This skill is script-driven tracker grooming. It is not research,
 implementation, code review, repo health monitoring, CI diagnosis, deploy
@@ -111,12 +112,21 @@ Then follow this order:
    `../ziw-orchestrate/scripts/tick-snapshot.mjs` for the compact queue snapshot,
    `../ziw-orchestrate/scripts/tick-plan.mjs` for deterministic queue decisions,
    and `../ziw-orchestrate/scripts/linear-dag-start.mjs` for
-   dependency/startability. In default mode, pass the configured ready and intake
-   states to `tick-snapshot.mjs`, usually `--linear-states Todo,Triage`, so the
-   script returns only those states plus their direct blockers. If a script cannot
-   run because credentials or inputs are missing, report the exact missing input
-   and use tracker tools only for the smallest bounded replacement query.
-3. Build the issue set from script output and tracker queries. Read cited
+   dependency/startability. Pass the configured repo, tracker team, route label,
+   and ready/intake states to `tick-snapshot.mjs`, usually
+   `--linear-states Todo,Triage`, so the snapshot bounds the queue and its direct
+   blockers. Build the scripts' compact JSON config and queue inputs from
+   verified values in the Markdown workflow config; do not pass
+   `docs/agents/workflow/config.md` directly to a script's `--config` flag. Use
+   the [planner input contract](../ziw-orchestrate/references/planner-input.md)
+   for accepted fields and types. Use
+   the normal compact JSON output for planning. `--pretty` only changes
+   formatting, and `--debug` is for diagnosing planner decisions. If a script
+   cannot run because credentials or inputs are missing, report the exact missing
+   input and use tracker tools only for the smallest bounded replacement query.
+3. Build the issue set from script output and targeted tracker queries. Include
+   configured active or PR-linked issues only when the output or tracker fields
+   show state, review, claim, or metadata needing reconciliation. Read cited
    source-of-truth docs when needed to verify scope or dependency order.
 4. Freeze the issue set. Do not expand it because a linked PR, branch, CI run,
    deploy, alert, or code path looks interesting.
@@ -136,12 +146,12 @@ Use script and tracker output to choose one action per issue:
 - **Fix now**: safe label, status, body, estimate, route, dependency, stale
   readiness, review-evidence, or handoff-field repair is clear.
 - **Ready for Orchestrator**: the issue is a one-PR `kind-slice` with body,
-  route, readiness, required estimate, dependency encoding, and predicted
-  footprint.
+  route, readiness, required estimate, dependency encoding, and likely files,
+  packages, or artifacts recorded in its body.
 - **Blocked but shaped**: the issue is otherwise ready, but
   `linear-dag-start.mjs` reports dependency blockers.
 - **Needs To Issues**: the issue is a container, vague plan, multi-PR scope,
-  missing split, or missing predicted footprint.
+  missing split, or missing likely files, packages, or artifacts in its body.
 - **Needs human**: product, security, credential, customer, ADR, ownership,
   priority, or acceptance-criteria decision is missing.
 - **Orchestrator action**: script output shows linked PR/status/check/review
@@ -173,14 +183,17 @@ exploration:
 1. Issues in the configured ready state, usually `Todo`.
 2. Issues in configured intake or review-debt intake states that config says
    Issue Triage should normalize, usually `Triage`.
-3. Direct active blockers of those ready or intake issues, even when the blocker
-   lives outside `Todo` or `Triage`.
-4. Non-done issues with the repo routing label that are missing configured
+3. Active or PR-linked issues in the configured current-work scope when tracker
+   or script evidence shows stale status, review, claim, or handoff metadata that
+   triage is allowed to repair.
+4. Direct active blockers of those ready, intake, or reconciliation issues, even
+   when the blocker lives outside `Todo` or `Triage`.
+5. Non-done issues with the repo routing label that are missing configured
    project, parent, kind, readiness, dependency, or body metadata only when they
    are already in the configured ready or intake states.
-5. Issues from workflow script output whose tracker metadata needs repair before
+6. Issues from workflow script output whose tracker metadata needs repair before
    Orchestrator can use them.
-6. Recently updated issues only when they are already in configured ready,
+7. Recently updated issues only when they are already in configured ready,
    intake, or active tracker states.
 
 For default mode, the main cleanup target is the configured ready state. If
@@ -204,7 +217,7 @@ Classify each issue into exactly one primary outcome:
   labels, dependencies, and required estimate when configured
 - blocked but shaped: otherwise ready, with dependency blockers encoded
 - needs To Issues: container, spec, epic, vague plan, multi-PR work, missing
-  predicted footprint, or missing concrete scope split
+  likely files/packages/artifacts in the body, or missing concrete scope split
 - needs human decision: product, security, credential, customer, ADR, ownership,
   priority, or acceptance-criteria decision required
 - parked: intentionally not ready for agent work
@@ -236,8 +249,10 @@ Apply obvious mechanical tracker updates:
 - encode dependency blockers from tracker relationships or issue text
 - remove completed, canceled, duplicate, or unrelated blockers only when tracker
   state makes that direct
-- move complete issues from configured intake states to the configured ready
-  state during every normal triage run when the issue body is complete
+- move complete `kind-slice` issues from configured intake states to the
+  configured ready state during every normal triage run when the full readiness
+  contract is complete, including the required labels, route, estimate, body,
+  and `ready-for-agent`; never promote `kind-spec` or `kind-epic` containers
 - move complete `ready-for-agent` `kind-slice` issues from explicitly requested
   Linear Backlog cleanup/backfill scope to the configured ready state when
   config grants promotion authority
@@ -341,8 +356,12 @@ node <skill-dir>/../ziw-orchestrate/scripts/linear-dag-start.mjs <snapshot-or-is
 
 Use the DAG result to fix the queue:
 
-- `starts`: leave in `Todo` with `ready-for-agent`; include in Orchestrator
-  handoff
+- `starts`: verify the full readiness contract before leaving the issue in
+  `Todo` with `ready-for-agent` and handing it to Orchestrator. The DAG checks
+  label/state eligibility, not body completeness. Missing structured footprint
+  data in the snapshot is distinct from missing likely files/packages/artifacts
+  in the issue body. Orchestrator owns footprint derivation and collision-safe
+  dispatch, including the unknown-footprint lane its dispatch policy allows.
 - `frontier` but not `starts`: repair missing labels, kind, ready state, active
   claim, open-PR metadata, or body fields when safe
 - `startableBlockers`: convert each blocker into a ticket repair, a To Issues

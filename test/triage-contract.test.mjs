@@ -13,12 +13,12 @@ test("ziw-triage processes configured intake on every normal run", () => {
   assert.match(skill, /normal `ziw-triage` invocation.*process.*configured intake/is);
   assert.match(
     skill,
-    /move complete issues from configured intake states.*every normal triage run/is,
+    /move complete `kind-slice` issues from configured intake states.*every normal triage run/is,
   );
   assert.match(skill, /Linear `Backlog` remains excluded unless explicitly\s+requested/i);
   assert.doesNotMatch(
     skill,
-    /move complete issues from configured intake states[\s\S]{0,120}only when the user asked/i,
+    /move complete `kind-slice` issues from configured intake states[\s\S]{0,120}only when the user asked/i,
   );
 });
 

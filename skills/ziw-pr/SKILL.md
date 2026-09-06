@@ -230,6 +230,7 @@ Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
 PR state: <draft|ready-for-review>
 Scope: <matches issue|split needed|untracked, with reason>
 Issue:  <issue, handoff status, created, or skipped>
+Next:   <owner and exact next action>
 ```
 
 ## Guardrails

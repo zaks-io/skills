@@ -1,22 +1,26 @@
 # Workflow Skills
 
-Shared skills for running agent work the same way across repos.
+Give your coding agents a repeatable workflow for turning ideas and issues into
+tested, independently reviewed pull requests, with less manual coordination.
 
-The basic idea is simple: every repo gets a small workflow config at
-`docs/agents/workflow/config.md`. The skills read that file before they touch
-issues, branches, PRs, checks, previews, or deploys.
+These skills are reusable instructions for Claude Code, Codex, and other agents
+that support Agent Skills. They teach agents how to clarify a plan, split it into
+scoped tickets, implement the work, and move it through review and merge under
+your repo's rules.
 
-That gives agents the things they usually guess badly:
+Use them to:
 
-- which package manager and checks to run
-- where tracked work lives
-- which tracker IDs, names, and query fields actually return that work
-- which labels mean implementation-ready and which statuses mean startable
-- whether tickets should carry estimates, and which field or scale to use
-- who can move tickets
-- how remote issue-assigned workers are delegated
-- what local, development, preview, and production mean for this repo
-- when a human has to approve something
+- Turn a rough idea into an approved spec and dependency-ordered tickets.
+- Hand an agent one issue to implement, test, and open as a pull request.
+- Review a branch or PR in a fresh agent context.
+- Coordinate several agents across a set of issues, track checks and review
+  feedback, and advance work until it is done or blocked on human input.
+
+You can run one skill for a specific task or use the full delivery workflow.
+Each repo gets a small config at `docs/agents/workflow/config.md` that records
+its issue tracker, verification commands, worker setup, and approval rules.
+The skills read it before acting, so you can reuse the workflow across repos
+without re-explaining how each project works.
 
 ## Install
 

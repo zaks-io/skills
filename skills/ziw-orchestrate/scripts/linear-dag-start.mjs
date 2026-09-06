@@ -155,17 +155,19 @@ const readinessMatches = (issue, config = {}) => {
 };
 
 const startableStateMatches = (issue, config = {}) => {
-  const startableStates = new Set(
-    [
-      config.startableState,
-      ...toArray(config.startableStates),
-      config.readyState,
-      ...toArray(config.readyStates),
-      ...DEFAULT_STARTABLE_STATES,
-    ]
-      .map(normalize)
-      .filter(Boolean),
-  );
+  const configuredStates = [
+    config.startableState,
+    ...toArray(config.startableStates),
+    config.readyState,
+    ...toArray(config.readyStates),
+  ]
+    .map(normalize)
+    .filter(Boolean);
+  if (configuredStates.length > 0) {
+    return configuredStates.includes(normalize(issueStateName(issue)));
+  }
+
+  const startableStates = new Set(DEFAULT_STARTABLE_STATES);
   const startableStateTypes = new Set(
     [
       config.startableStateType,

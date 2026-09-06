@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node scripts/check-skills.mjs",
+    "check": "node scripts/check-skills.mjs && node scripts/build-planner-validator.mjs --check",
+    "generate:planner-contract": "node scripts/build-planner-validator.mjs",
     "ci:check": "pnpm format:check && pnpm check && pnpm test && pnpm validate:skills && pnpm security:secrets",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
@@ -23,6 +24,7 @@
   },
   "packageManager": "pnpm@10.19.0",
   "devDependencies": {
+    "ajv": "^8.20.0",
     "lefthook": "^2.1.8",
     "prettier": "^3.8.3"
   }

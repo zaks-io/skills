@@ -25,7 +25,9 @@ Last updated: 2026-07-30
 - Coverage and secret-scan scope: `node --test`; `gitleaks detect --no-git --source . --redact --no-banner` locally; full-history Gitleaks in CI
 - Focused checks: `pnpm format:check`, `pnpm check`, `pnpm test`, `pnpm validate:skills`, `pnpm security:secrets`
 - Build: none
-- Generated artifacts: none
+- Generated artifacts: `skills/ziw-orchestrate/references/planner-input.schema.json`
+  and `skills/ziw-orchestrate/scripts/planner-input-validator.mjs`; regenerate
+  with `pnpm generate:planner-contract`, verified by `pnpm check`
 - Preview checks: none
 - Production deploy path: none
 - Production approval required: yes; there is no production deploy target

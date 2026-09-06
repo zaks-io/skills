@@ -197,8 +197,10 @@ Review may produce the reviewed-head verdict that Agent Orchestrator uses for
 tracker review evidence and merge readiness.
 
 Do not apply or clear review-evidence labels, move the issue to `Ready to Merge`,
-or apply merge-ready PR labels. End at a non-draft PR ready for independent
-review and return tracker control to Agent Orchestrator.
+or apply merge-ready PR labels. End at a PR ready for independent review. The
+normal handoff is non-draft; if the user or repo config explicitly requires a
+draft, report it as pre-review and state the transition required before review.
+Return tracker control to Agent Orchestrator.
 
 Do not leave the PR in draft after required checks pass and no known blocker
 remains unless the user or repo config explicitly asks for a draft handoff. If a draft handoff remains,
@@ -237,6 +239,7 @@ Report:
 - whether any author QA covers the current diff
 - PR head SHA, base SHA, and merge base used for the final checks and review
 - PR draft or ready-for-review state
+- next owner and action
 - independent review requested or pending; no implementer-created review evidence
 - tracker handoff requested, usually `In Review`, for Agent Orchestrator
 - hosted bot review decision or remaining escalation
