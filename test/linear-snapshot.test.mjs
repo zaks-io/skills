@@ -231,6 +231,21 @@ test("selectActiveLinearIssues includes started tracker state for reconciliation
   );
 });
 
+test("false activity signals do not hide later positive signals", () => {
+  for (const field of ["delegated", "assignedWorker", "workerSession", "agentSession"]) {
+    const target = {
+      ...normalizedIssue({ identifier: "SPL-1" }),
+      activeClaim: false,
+      delegated: false,
+      assignedWorker: false,
+      workerSession: null,
+      agentSession: null,
+      [field]: "session-1",
+    };
+    assert.deepEqual(selectActiveLinearIssues([target]), [target], field);
+  }
+});
+
 test("loadLinearSnapshot includes active targets with their direct blockers", async () => {
   const request = async ({ query }) => {
     if (query.includes("teams(first")) {

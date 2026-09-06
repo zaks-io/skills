@@ -124,19 +124,35 @@ test("planner validates each override and cannot hide invalid input behind prece
   );
 });
 
-test("planner requires usable identities while allowing nullable provider metadata", (t) => {
-  for (const value of [null, "", "   "]) {
-    for (const field of ["url", "headSha", "headRefName", "headRefOid", "currentPrHeadSha"]) {
-      rejected(run(t, { ...snapshot, prs: [{ [field]: value }] }), /prs\/0/);
+test("planner validates each alternative identity independently", (t) => {
+  const identities = {
+    url: "https://github.com/zaks-io/example/pull/1",
+    headSha: "current-head",
+    headRefName: "feature/example",
+    headRefOid: "current-head",
+    currentPrHeadSha: "current-head",
+  };
+  for (const [field, validValue] of Object.entries(identities)) {
+    const fixture = { [field]: validValue };
+    const valid = run(t, { ...snapshot, prs: [fixture] });
+    assert.equal(valid.status, 0, `${field}: ${valid.stderr}`);
+    for (const value of [null, "", "   "]) {
+      rejected(run(t, { ...snapshot, prs: [{ ...fixture, [field]: value }] }), /prs\/0/);
     }
-    rejected(run(t, { snapshot, state: { tickets: [{ url: value }] } }), /tickets\/0/);
+    const nullable = run(t, { ...snapshot, prs: [{ number: 1, [field]: null }] });
+    assert.equal(nullable.status, 0, `${field}: ${nullable.stderr}`);
   }
-  const result = run(t, {
-    ...snapshot,
-    prs: [{ number: 1, url: null, headSha: null }],
-    linear: { issues: [{ identifier: "SKI-1", url: null }] },
+  const ticket = { url: "https://linear.app/example/issue/SKI-1" };
+  const validTicket = run(t, { snapshot, state: { tickets: [ticket] } });
+  assert.equal(validTicket.status, 0, validTicket.stderr);
+  for (const url of [null, "", "   "]) {
+    rejected(run(t, { snapshot, state: { tickets: [{ ...ticket, url }] } }), /tickets\/0/);
+  }
+  const nullableTicket = run(t, {
+    snapshot,
+    state: { tickets: [{ identifier: "SKI-1", url: null }] },
   });
-  assert.equal(result.status, 0, result.stderr);
+  assert.equal(nullableTicket.status, 0, nullableTicket.stderr);
 });
 
 test("planner preserves documented override precedence and does not coerce values", (t) => {

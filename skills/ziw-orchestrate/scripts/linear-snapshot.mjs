@@ -128,11 +128,11 @@ export function selectActiveLinearIssues(issues, routeLabel) {
       !["completed", "canceled"].includes(issue.stateType) &&
       Boolean(
         issue.stateType === "started" ||
-        (issue.activeClaim ??
-          issue.delegated ??
-          issue.assignedWorker ??
-          issue.workerSession ??
-          issue.agentSession),
+        issue.activeClaim ||
+        issue.delegated ||
+        issue.assignedWorker ||
+        issue.workerSession ||
+        issue.agentSession,
       ),
   );
   let scopedActive = active;
