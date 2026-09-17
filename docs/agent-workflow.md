@@ -704,9 +704,9 @@ Skills systems.
 - `ziw-grill` is invoked implicitly only when a material unresolved decision
   blocks safe progress after available evidence has been checked. Explicit
   invocation always starts a grilling session.
-- `ziw-code-review` uses clean context where the agent tooling
-  supports it and review current committed code unless a working-tree review was
-  explicitly requested.
+- `ziw-code-review` requires fresh reviewer context for independent evidence;
+  a worktree isolates files only. It reviews current committed code except for
+  explicitly requested working-tree reviews or pre-PR Author QA.
 - Tool-specific permissions belong outside the shared skill contract.
 - Code host and issue tracker tools come from each repo's workflow config.
 - Worker delegation paths are repo-specific. Issue-assigned agents, when

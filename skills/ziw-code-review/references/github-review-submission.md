@@ -17,6 +17,10 @@ Repo-specific identity rules win.
   account, such as triggering an external review bot. Local review submission
   is not an external-bot trigger.
 
+Use the repo-configured account login as the expected reviewer identity. Compare
+it with API `user.login` on existing and submitted reviews, not a display name,
+Git author, or identity claimed in the body.
+
 Never print tokens, credentials, private keys, or authenticated headers.
 
 ## Freshness
@@ -24,12 +28,26 @@ Never print tokens, credentials, private keys, or authenticated headers.
 1. Resolve repository owner/name, PR number and URL, base SHA, and current
    `headRefOid` from GitHub.
 2. Confirm the locally reviewed head exactly equals the current `headRefOid`.
-3. Immediately before posting, resolve `headRefOid` again. If it changed, do
-   not post stale results. Refresh the checkout and rerun the review.
-4. Inspect existing reviews for this head before posting. A body containing
-   `<!-- ziw-local-review head=<full-sha> -->` is current local-review evidence.
-   Return its URL instead of creating a duplicate review.
+3. Complete the local report, including mode, evidence recommendation,
+   verdict, conformance, and P0-P2 findings, before checking for a duplicate.
+4. Inspect existing reviews and their inline comments through the GitHub API.
+   Reuse a review only when all of these facts match the completed local
+   report:
+   - the API `commit_id` equals the reviewed full head SHA
+   - API `user.login` equals the configured reviewer account
+   - API state is `COMMENTED` and `submitted_at` is present
+   - the body contains the exact marker
+     `<!-- ziw-local-review head=<full-sha> -->`
+   - review mode, review-evidence recommendation, verdict, and conformance are
+     compatible with the completed local report
+   - the body and inline comments cover every actionable P0-P2 finding in the
+     completed local report
+5. Recheck the current PR head before returning an existing review URL or posting.
+   If it changed, refresh and rerun review. Reuse only after all checks pass.
+   Otherwise post the completed current review. A matching marker alone is not evidence, and
+   a prior clean review cannot replace a report with new findings.
 
+Do not reuse a mismatching, incomplete, pending, dismissed, or forged review.
 Do not treat a review on an older commit as current evidence.
 
 ## Review Shape
@@ -39,6 +57,8 @@ Submit one review through:
 ```text
 POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews
 ```
+
+Field definitions: [GitHub review API](https://docs.github.com/en/rest/pulls/reviews).
 
 Use a JSON payload with:
 
@@ -72,9 +92,14 @@ into shell source.
 
 After submission:
 
-1. Verify the API response belongs to the expected PR and commit.
-2. Verify its state is `COMMENTED` and capture its `html_url`.
-3. Return `GitHub submission: POSTED <review URL>` in the review report.
+1. Verify the API response belongs to the expected PR and its `commit_id`
+   equals the reviewed head.
+2. Verify API `user.login` equals the configured reviewer account.
+3. Verify its state is `COMMENTED`, its body has the exact marker, and the
+   published body and inline comments preserve the completed local report's
+   verdict and P0-P2 findings.
+4. Capture its `html_url` and return
+   `GitHub submission: POSTED <review URL>` in the review report.
 
 If the API rejects an inline location, correct the payload once by moving that
 finding into the review body. Do not fall back to scattered issue comments or a

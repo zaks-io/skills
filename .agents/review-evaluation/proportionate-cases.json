@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "id": "tiny_copy",
+      "request": "Review this button-label correction.",
+      "scope": "Local working-tree review, no workflow handoff or linked issue. Conformance table is not required.",
+      "intent": "Fix the spelling of the Save button.",
+      "diff": "ui/save-button.html:1 changes <button>Svae</button> to <button>Save</button>. No other changes or generated consumers.",
+      "checks": "HTML check passed; supplied observation, not executed by evaluator."
+    },
+    {
+      "id": "optional_author_qa",
+      "request": "As implementation author, decide whether another author-QA pass would add confidence before handoff.",
+      "scope": "Optional QA; no explicit request to conduct a review. Independent merge review is handled separately.",
+      "diff": "ui/save-button.html:1 changes <button>Svae</button> to <button>Save</button>. No other changes.",
+      "checks": "Required checks passed; exact label assertion passed.",
+      "evidenceLabel": "leave existing independent review state to orchestrator"
+    },
+    {
+      "id": "one_line_auth",
+      "request": "Review this one-line change.",
+      "context": "Fresh reviewer context. User identity and isAdmin come from server-verified session. No other authorization gate exists before deletion.",
+      "intent": "Only admins can delete all records.",
+      "source": {
+        "server/delete.js:1": "export async function deleteAll(user, db) {",
+        "server/delete.js:2": "  if (!user) throw new Error(\"Forbidden\");",
+        "server/delete.js:3": "  await db.deleteAllRecords();",
+        "server/delete.js:4": "}"
+      },
+      "diff": "Line 2 previously read: if (!user?.isAdmin) throw new Error(\"Forbidden\");",
+      "checks": "Test for an admin deleting records passes; no non-admin test supplied.",
+      "requiredConformance": true
+    },
+    {
+      "id": "unchanged_diff",
+      "request": "Do we need to rerun the review after this base-only update?",
+      "context": "Current orchestrator snapshot verified against refreshed provider state. Same PR, no new blocking findings, no missing evidence; conformance and required check evidence remain current. No --submit request.",
+      "reviewedHead": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "currentHead": "cccccccccccccccccccccccccccccccccccccccc",
+      "reviewedDiffFingerprint": "unchanged-diff",
+      "currentReviewDiffFingerprint": "unchanged-diff",
+      "priorReview": "Clean independent APPROVE, conformance PASS; https://example.invalid/review/1",
+      "pr": "https://example.invalid/pr/1"
+    }
+  ]
+}

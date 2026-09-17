@@ -34,8 +34,8 @@ test("ziw-code-review separates Author QA from independent review ownership", ()
     /Author QA can block handoff, but it is not\s+independent review evidence/i,
   );
   assert.match(content, /Author QA mode, always recommend `LEAVE UNCHANGED`/i);
-  assert.match(content, /only Agent Orchestrator\s+performs tracker and merge-ready mutations/i);
-  assert.match(content, /Never apply or clear review-evidence labels/i);
+  assert.match(content, /only Agent\s+Orchestrator\s+performs tracker and merge-ready mutations/i);
+  assert.match(content, /Never apply or clear\s+review-evidence labels/i);
   assert.match(content, /Do not auto-trigger solely because a commit or PR changed/i);
   assert.doesNotMatch(content, /unless Agent Orchestrator or the user asked/i);
 });
