@@ -239,7 +239,7 @@ if (args[2] === "add") {
 } else if (args[2] === "remove") {
   for (const name of args.slice(3, args.indexOf("-y"))) {
     delete lock.skills[name];
-    for (const base of [".agents/skills", ".claude/skills", ".codex/skills", "agent/skills"]) remove(path.join(root, base, name));
+    for (const base of [".claude/skills", ".codex/skills", "agent/skills", ".agents/skills"]) remove(path.join(root, base, name));
   }
 }
 fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\\n");
