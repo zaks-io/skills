@@ -32,11 +32,5 @@ export function gitStatus(cwd) {
 }
 
 export function outputTail(result) {
-  return [result.stdout, result.stderr]
-    .filter(Boolean)
-    .join("\n")
-    .trim()
-    .split("\n")
-    .slice(-20)
-    .join("\n");
+  return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
 }

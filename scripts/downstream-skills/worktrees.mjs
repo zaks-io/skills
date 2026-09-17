@@ -78,14 +78,14 @@ export function createUpdateWorktree(repoRoot, options) {
 }
 
 export function removeUpdateWorktree(repoRoot, worktreePath) {
-  const removed = run("git", ["worktree", "remove", "--force", worktreePath], repoRoot);
+  const removed = run("git", ["worktree", "remove", worktreePath], repoRoot);
   return removed.status === 0
     ? { status: "removed" }
     : { status: "failed", error: outputTail(removed) };
 }
 
 export function deleteUpdateBranch(repoRoot, branchName) {
-  const deleted = run("git", ["branch", "-D", branchName], repoRoot);
+  const deleted = run("git", ["branch", "-d", branchName], repoRoot);
   return deleted.status === 0
     ? { status: "deleted" }
     : { status: "failed", error: outputTail(deleted) };

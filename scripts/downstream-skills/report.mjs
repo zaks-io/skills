@@ -1,3 +1,20 @@
+export function hasFailures(results) {
+  const blocked = new Set([
+    "missing-lockfile",
+    "invalid-lockfile",
+    "not-git-repo",
+    "skipped-dirty",
+  ]);
+  return results.some(
+    (result) =>
+      result.status.endsWith("failed") ||
+      blocked.has(result.status) ||
+      (result.checkStatus && result.checkStatus !== "passed") ||
+      result.worktreeCleanup === "failed" ||
+      result.branchCleanup === "failed",
+  );
+}
+
 export function printReport(results, options) {
   if (options.json) {
     console.log(JSON.stringify(results, null, 2));
@@ -55,6 +72,9 @@ function printResult(result) {
   if (result.checkStatus) {
     console.log(`  check: ${result.checkStatus} (${result.checkCommand ?? "none"})`);
   }
+  if (result.sourceSha) console.log(`  source commit: ${result.sourceSha}`);
+  if (result.skillCount) console.log(`  verified skills: ${result.skillCount}`);
+  if (result.status === "update-failed") console.log(`  update: ${result.updateOutput}`);
   if (result.error) {
     console.log(`  error: ${result.error}`);
   }
