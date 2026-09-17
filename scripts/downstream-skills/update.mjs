@@ -148,7 +148,7 @@ function publishResult(result, options, repoRoot, branchName) {
 
   const pushed = pushBranch(result, repoRoot, branchName);
   return options.pr && pushed.status === "pushed"
-    ? createPr(pushed, repoRoot, options.source)
+    ? createPr(pushed, repoRoot, options.source, result.baseRef ?? options.baseRef)
     : pushed;
 }
 
@@ -182,7 +182,8 @@ function pushBranch(result, repoRoot, branchName) {
     : { ...result, status: "push-failed", error: outputTail(push) };
 }
 
-function createPr(result, repoRoot, source) {
+function createPr(result, repoRoot, source, baseRef) {
+  if (!baseRef) throw new Error("Cannot publish without an update base");
   const existing = existingPrUrl(repoRoot, result.branchName);
   if (existing) {
     return { ...result, prUrl: existing, status: "pr-existing" };
@@ -199,6 +200,8 @@ function createPr(result, repoRoot, source) {
       prBody(result, source),
       "--head",
       result.branchName,
+      "--base",
+      baseRef.replace(/^origin\//, ""),
     ],
     repoRoot,
   );

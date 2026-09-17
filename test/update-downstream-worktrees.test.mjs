@@ -277,7 +277,12 @@ function installFakeGh(bin, url) {
       'if [ "$1" = "api" ] && [ "$3" = "--jq" ]; then echo bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; exit 0; fi',
       `if [ "$1" = "api" ]; then echo '${JSON.stringify(sourceTree())}'; exit 0; fi`,
       'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then exit 0; fi',
-      `if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "${url}"; exit 0; fi`,
+      `if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
+  case " $* " in
+    *" --base main "*) echo "${url}"; exit 0 ;;
+    *) echo "Missing explicit PR base" >&2; exit 1 ;;
+  esac
+fi`,
       'echo "unexpected gh call: $*" >&2',
       "exit 1",
       "",
