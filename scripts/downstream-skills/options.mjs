@@ -12,7 +12,7 @@ export const usage = () => `Usage:
   node scripts/update-downstream-skills.mjs --apply [--commit|--push|--pr]
 
 Options:
-  --apply           Run npx skills update -p -y in eligible repos.
+  --apply           Reconcile and verify all published skills from the selected source.
                     Uses temporary git worktrees by default.
   --check           Run the repo Full local gate from docs/agents/workflow/config.md.
                     This executes trusted repo-configured shell commands.
@@ -22,7 +22,7 @@ Options:
   --push            Push committed update branches. Implies --commit.
   --pr              Create GitHub PRs with gh after push. Implies --push.
   --verify-push-hooks
-                    Run downstream pre-push hooks. Default PR fanout skips them and relies on PR CI.
+                    Accepted for compatibility. Downstream pre-push hooks always run.
   --allow-dirty     Update repos with existing local changes.
   --in-place        Mutate target repo checkouts directly instead of temp worktrees.
   --keep-worktree   Keep temporary worktrees instead of automatic cleanup.
@@ -55,7 +55,6 @@ export function parseArgs(argv) {
     push: false,
     repos: [],
     root: DEFAULT_ROOT,
-    skipPushHooks: true,
     source: DEFAULT_SOURCE,
     trustCheckCommands: false,
     worktreeRoot: DEFAULT_WORKTREE_ROOT,
@@ -81,6 +80,10 @@ export function parseArgs(argv) {
 }
 
 function applyFlag(options, arg) {
+  if (arg === "--verify-push-hooks") {
+    return true;
+  }
+
   const flagMap = {
     "--help": "help",
     "-h": "help",
@@ -94,7 +97,6 @@ function applyFlag(options, arg) {
     "--keep-worktree": "keepWorktree",
     "--json": "json",
     "--trust-check-commands": "trustCheckCommands",
-    "--verify-push-hooks": "verifyPushHooks",
   };
   const key = flagMap[arg];
   if (!key) {
@@ -152,9 +154,6 @@ function normalizeOptions(options) {
   }
   if (options.commit && options.allowDirty && options.inPlace) {
     throw new Error("--commit cannot be combined with --allow-dirty in --in-place mode");
-  }
-  if (options.verifyPushHooks) {
-    options.skipPushHooks = false;
   }
   if (options.check && !options.trustCheckCommands) {
     throw new Error("--check requires --trust-check-commands");

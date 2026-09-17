@@ -65,11 +65,24 @@ Open update PRs for downstream repos:
 pnpm skills:downstream:update
 ```
 
+The coordinator reconciles the complete published skill set using the pinned
+`skills@1.7.0` CLI. It installs new skills, refreshes existing skills, and removes
+retired skills from the selected source. Other sources remain unchanged. Agent
+targets come from tracked project skill paths, not the operator's global installs.
+It verifies lockfile hashes and installed files against the fetched GitHub source
+commit before committing or publishing. This requires authenticated `gh` access.
+
+`skills update -p -y` alone refreshes installed skills but does not add newly
+published skills. Version 1.7.0 also retains retired skills in non-interactive
+mode. Use this coordinator when refreshing the complete workflow skill set.
+
 The coordinator reports which repos changed, failed, or already had matching
 PRs. The update command creates temporary `git worktree` checkouts, commits the
 generated skill refresh on deterministic daily branches, pushes those branches,
-and opens or reuses GitHub PRs. PR bodies include `@coderabbitai ignore` so
-CodeRabbit does not spend review quota on the mechanical refresh.
+and opens or reuses GitHub PRs against the same base branch. PR bodies include `@coderabbitai ignore` so
+CodeRabbit does not spend review quota on the mechanical refresh. Git commit and
+push hooks always run; a failed install or requested check blocks publication.
+Incomplete targets make the batch exit nonzero, with all command output retained.
 
 The worktree branches from a freshly fetched `origin/main` by default, falling
 back to local `main` only when the repo has no remote, so the source checkout

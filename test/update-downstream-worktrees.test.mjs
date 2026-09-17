@@ -100,7 +100,7 @@ test("updateTargets keeps changed apply-only worktrees for inspection", () => {
   }
 });
 
-test("updateTargets opens PRs while skipping downstream pre-push hooks", () => {
+test("updateTargets preserves downstream pre-push hook failures", () => {
   const root = tempDir();
   const oldPath = process.env.PATH;
   try {
@@ -121,11 +121,10 @@ test("updateTargets opens PRs while skipping downstream pre-push hooks", () => {
       }),
     )[0];
 
-    assert.equal(result.status, "pr-created");
-    assert.equal(result.pushHooks, "skipped");
-    assert.equal(result.prUrl, "https://example.com/pull/1");
-    assert.equal(existsSync(result.worktreePath), false);
-    assert.equal(gitShowStatus(repo, `origin/${result.branchName}:generated-skill.txt`), 0);
+    assert.equal(result.status, "push-failed");
+    assert.equal(result.prUrl, undefined);
+    assert.equal(existsSync(result.worktreePath), true);
+    assert.notEqual(gitShowStatus(repo, `origin/${result.branchName}:generated-skill.txt`), 0);
   } finally {
     process.env.PATH = oldPath;
     rmSync(root, { recursive: true, force: true });
@@ -175,10 +174,12 @@ function createConsumerRepo(root) {
   const repo = path.join(root, "consumer");
   mkdirSync(repo, { recursive: true });
   writeJson(path.join(repo, "skills-lock.json"), ziwLockfile());
+  mkdirSync(path.join(repo, ".agents/skills/ziw-pr"), { recursive: true });
+  writeFileSync(path.join(repo, ".agents/skills/ziw-pr/SKILL.md"), "fixture skill\n");
   git(repo, "init", "-b", "main");
   git(repo, "config", "user.name", "Test");
   git(repo, "config", "user.email", "test@example.com");
-  git(repo, "add", "skills-lock.json");
+  git(repo, "add", "skills-lock.json", ".agents");
   git(repo, "commit", "-m", "init");
   return repo;
 }
@@ -196,7 +197,6 @@ function worktreeOptions(root, overrides) {
     push: false,
     repos: [],
     root,
-    skipPushHooks: true,
     source: "zaks-io/skills",
     worktreeRoot: path.join(root, "worktrees"),
     ...overrides,
@@ -230,6 +230,7 @@ function ziwLockfile() {
         source: "zaks-io/skills",
         sourceType: "github",
         skillPath: "skills/ziw-pr/SKILL.md",
+        computedHash: "1085cf73199274fb20c00249e0f4553b4a62192278696623ebd6de57997ec05e",
       },
     },
   };
@@ -259,19 +260,29 @@ function dailyBranchName(branchPrefix) {
 function installFakeNpx(bin, body) {
   mkdirSync(bin, { recursive: true });
   const executable = path.join(bin, "npx");
-  writeFileSync(executable, `#!/bin/sh\n${body}`);
+  const fixture = JSON.stringify(ziwLockfile(), null, 2);
+  const install = `mkdir -p .agents/skills/ziw-pr\nprintf 'fixture skill\\n' > .agents/skills/ziw-pr/SKILL.md\nprintf '%s\\n' '${fixture}' > skills-lock.json\n`;
+  writeFileSync(executable, `#!/bin/sh\n${body}\n${install}`);
+  installFakeGh(bin, "https://example.com/pull/default");
   chmodSync(executable, 0o755);
 }
 
-function installFakeGh(bin, url) {
+function installFakeGh(bin, url, existing = [], lookupStatus = 0) {
   mkdirSync(bin, { recursive: true });
   const executable = path.join(bin, "gh");
   writeFileSync(
     executable,
     [
       "#!/bin/sh",
-      'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then exit 0; fi',
-      `if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "${url}"; exit 0; fi`,
+      'if [ "$1" = "api" ] && [ "$3" = "--jq" ]; then echo bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; exit 0; fi',
+      `if [ "$1" = "api" ]; then echo '${JSON.stringify(sourceTree())}'; exit 0; fi`,
+      `if [ "$1" = "pr" ] && [ "$2" = "list" ]; then echo '${JSON.stringify(existing)}'; exit ${lookupStatus}; fi`,
+      `if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
+  case " $* " in
+    *" --base main "*) echo "${url}"; exit 0 ;;
+    *) echo "Missing explicit PR base" >&2; exit 1 ;;
+  esac
+fi`,
       'echo "unexpected gh call: $*" >&2',
       "exit 1",
       "",
@@ -364,3 +375,114 @@ test("updateTargets brings reused daily branches up to fresh origin/main", () =>
     rmSync(otherRoot, { recursive: true, force: true });
   }
 });
+
+function sourceTree() {
+  return {
+    sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    truncated: false,
+    tree: [
+      {
+        path: "skills/ziw-pr",
+        type: "tree",
+        mode: "040000",
+        sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      {
+        path: "skills/ziw-pr/SKILL.md",
+        type: "blob",
+        mode: "100644",
+        sha: "f491924117d1642d0b376ed983c842c4bf5f885c",
+      },
+    ],
+  };
+}
+
+test("a failed refresh on a reused branch cannot publish earlier commits", () => {
+  const root = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    addBareOrigin(root, repo);
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+    const first = updateTargets(worktreeOptions(root, { commit: true }))[0];
+    assert.equal(first.status, "committed");
+    installFakeNpx(bin, "exit 1\n");
+    const second = updateTargets(worktreeOptions(root, { commit: true, push: true, pr: true }))[0];
+    assert.equal(second.status, "update-failed");
+    assert.equal(second.prUrl, undefined);
+    assert.equal(second.worktreeCleanup, "kept");
+    assert.notEqual(gitShowStatus(repo, `origin/${first.branchName}:generated-skill.txt`), 0);
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("an unchanged reused branch must pass the requested check before publishing", () => {
+  const root = tempDir();
+  const oldPath = process.env.PATH;
+  try {
+    const repo = createConsumerRepo(root);
+    mkdirSync(path.join(repo, "docs/agents/workflow"), { recursive: true });
+    writeFileSync(
+      path.join(repo, "docs/agents/workflow/config.md"),
+      "- Full local gate: `exit 1` (intentional fixture failure)\n",
+    );
+    git(repo, "add", "docs");
+    git(repo, "commit", "-m", "configure gate");
+    addBareOrigin(root, repo);
+    const bin = path.join(root, "bin");
+    installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+    assert.equal(updateTargets(worktreeOptions(root, { commit: true }))[0].status, "committed");
+    const result = updateTargets(
+      worktreeOptions(root, { commit: true, push: true, pr: true, check: true }),
+    )[0];
+    assert.equal(result.checkStatus, "failed");
+    assert.equal(result.prUrl, undefined);
+    assert.equal(result.worktreeCleanup, "kept");
+  } finally {
+    process.env.PATH = oldPath;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+for (const scenario of [
+  {
+    name: "matching base",
+    existing: [{ url: "https://example.com/pull/3", baseRefName: "main" }],
+    status: "pr-existing",
+  },
+  {
+    name: "wrong base",
+    existing: [{ url: "https://example.com/pull/3", baseRefName: "other" }],
+    status: "pr-failed",
+  },
+  { name: "failed lookup", existing: [], lookupStatus: 1, status: "pr-failed" },
+]) {
+  test(`updateTargets validates existing PR lookup: ${scenario.name}`, () => {
+    const root = tempDir();
+    const oldPath = process.env.PATH;
+    try {
+      const repo = createConsumerRepo(root);
+      addBareOrigin(root, repo);
+      const bin = path.join(root, "bin");
+      installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+      installFakeGh(bin, "https://example.com/pull/new", scenario.existing, scenario.lookupStatus);
+      process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+      const result = updateTargets(
+        worktreeOptions(root, { commit: true, pr: true, push: true }),
+      )[0];
+      assert.equal(result.status, scenario.status);
+      assert.equal(
+        result.prUrl,
+        scenario.status === "pr-existing" ? "https://example.com/pull/3" : undefined,
+      );
+    } finally {
+      process.env.PATH = oldPath;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}

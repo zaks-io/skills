@@ -1,13 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  lstatSync,
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -23,10 +15,10 @@ import { expandHome, parseArgs } from "../scripts/downstream-skills/options.mjs"
 import {
   extractPrUrl,
   prBody,
-  pruneDanglingSkillSymlinks,
   statusLinesChanged,
   updateTargets,
 } from "../scripts/downstream-skills/update.mjs";
+import { outputTail } from "../scripts/downstream-skills/process.mjs";
 
 const tempDir = () => mkdtempSync(path.join(os.tmpdir(), "ziw-skills-test-"));
 const writeJson = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
@@ -51,10 +43,10 @@ test("parseArgs makes PR fanout explicit and mutation-safe", () => {
   assert.equal(options.baseRef, "main");
   assert.equal(options.inPlace, false);
   assert.equal(options.keepWorktree, false);
-  assert.equal(options.skipPushHooks, true);
+  assert.equal(Object.hasOwn(options, "skipPushHooks"), false);
   assert.match(options.worktreeRoot, /ziw-skills-worktrees$/);
   assert.doesNotThrow(() => parseArgs(["--commit", "--allow-dirty"]));
-  assert.equal(parseArgs(["--pr", "--verify-push-hooks"]).skipPushHooks, false);
+  assert.equal(Object.hasOwn(parseArgs(["--pr", "--verify-push-hooks"]), "skipPushHooks"), false);
   assert.throws(() => parseArgs(["--commit", "--allow-dirty", "--in-place"]), /--commit/);
   assert.throws(() => parseArgs(["--check"]), /trust-check-commands/);
 });
@@ -170,6 +162,18 @@ test("statusLinesChanged detects additions, removals, and replacements", () => {
   assert.equal(statusLinesChanged([" M a"], [" M a"]), false);
 });
 
+test("outputTail preserves complete command output", () => {
+  const stdout = Array.from({ length: 25 }, (_, index) => `stdout-${index + 1}`).join("\n");
+  const stderr = Array.from({ length: 25 }, (_, index) => `stderr-${index + 1}`).join("\n");
+
+  const output = outputTail({ stdout, stderr });
+
+  assert.match(output, /stdout-1/);
+  assert.match(output, /stdout-25/);
+  assert.match(output, /stderr-1/);
+  assert.match(output, /stderr-25/);
+});
+
 test("buildTargets and updateTargets handle clean and dirty git repos", () => {
   const root = tempDir();
   try {
@@ -200,42 +204,16 @@ test("buildTargets and updateTargets handle clean and dirty git repos", () => {
 });
 
 test("generated PR body disables optional CodeRabbit review", () => {
-  const body = prBody({ checkCommand: "pnpm ci:check" }, "custom/source");
+  const body = prBody(
+    { checkCommand: "pnpm ci:check", sourceSha: "a".repeat(40) },
+    "custom/source",
+  );
 
   assert.match(body, /custom\/source/);
   assert.match(body, /@coderabbitai ignore/);
   assert.match(body, /CodeRabbit disabled/);
   assert.match(body, /pnpm ci:check/);
 });
-
-test("pruneDanglingSkillSymlinks removes only broken runtime skill links", () => {
-  const repo = mkdtempSync(path.join(os.tmpdir(), "ziw-prune-"));
-  try {
-    mkdirSync(path.join(repo, ".agents/skills/ziw-pr"), { recursive: true });
-    mkdirSync(path.join(repo, ".claude/skills"), { recursive: true });
-    mkdirSync(path.join(repo, ".codex/skills"), { recursive: true });
-    symlinkSync("../../.agents/skills/ziw-pr", path.join(repo, ".claude/skills/ziw-pr"));
-    symlinkSync("../../.agents/skills/ziw-review", path.join(repo, ".claude/skills/ziw-review"));
-    symlinkSync("../../.agents/skills/ziw-review", path.join(repo, ".codex/skills/ziw-review"));
-
-    const pruned = pruneDanglingSkillSymlinks(repo);
-
-    assert.deepEqual(pruned.sort(), [".claude/skills/ziw-review", ".codex/skills/ziw-review"]);
-    assert.equal(existsSync(path.join(repo, ".claude/skills/ziw-pr")), true);
-    assert.equal(lstatExists(path.join(repo, ".claude/skills/ziw-review")), false);
-  } finally {
-    rmSync(repo, { recursive: true, force: true });
-  }
-});
-
-function lstatExists(target) {
-  try {
-    lstatSync(target);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 test("extractPrUrl returns one output line", () => {
   assert.equal(extractPrUrl("noise\nhttps://example.com/pr/1\nmore\n"), "https://example.com/pr/1");
@@ -281,6 +259,21 @@ test("buildTargets collapses linked worktrees onto the primary checkout", () => 
 
     assert.equal(targets.length, 1);
     assert.equal(path.basename(targets[0].repoRoot), "repo");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("extractFullLocalGate accepts explanations after the command", () => {
+  const root = tempDir();
+  try {
+    const config = path.join(root, "config.md");
+    writeFileSync(config, "  - Full local gate: `bun run gate` (same as CI).\n");
+    assert.equal(extractFullLocalGate(config), "bun run gate");
+    writeFileSync(config, "- Full local/CI gate: `make check`; extra CI checks\n");
+    assert.equal(extractFullLocalGate(config), "make check");
+    writeFileSync(config, "- Full local pre-push gate: `pnpm verify:push` (parallel graph)\n");
+    assert.equal(extractFullLocalGate(config), "pnpm verify:push");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

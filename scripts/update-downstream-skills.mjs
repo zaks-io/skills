@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseArgs, usage } from "./downstream-skills/options.mjs";
-import { printReport } from "./downstream-skills/report.mjs";
+import { hasFailures, printReport } from "./downstream-skills/report.mjs";
 import { updateTargets } from "./downstream-skills/update.mjs";
 
 function main() {
@@ -26,9 +26,7 @@ function main() {
   const results = updateTargets(options);
   printReport(results, options);
 
-  if (
-    results.some((result) => result.status.endsWith("failed") || result.checkStatus === "failed")
-  ) {
+  if (hasFailures(results)) {
     process.exit(1);
   }
 }

@@ -1,8 +1,8 @@
-import fs from "node:fs";
 import path from "node:path";
 
 import { buildTargets, extractFullLocalGate } from "./discovery.mjs";
 import { DEFAULT_SOURCE } from "./options.mjs";
+import { refreshInstallation } from "./installation.mjs";
 import { gitStatus, outputTail, run } from "./process.mjs";
 import {
   createUpdateWorktree,
@@ -69,10 +69,13 @@ function updateTargetInWorktree(target, options, sourceBefore) {
 }
 
 function updateInCheckout(target, options, checkoutRoot, before, branchName) {
-  const result = runProjectUpdate(target, checkoutRoot, before);
+  const result = runProjectUpdate(target, checkoutRoot, before, options.source);
+  if (result.status === "update-failed") return withBranch(result, branchName);
   if (result.status !== "updated") {
     const branchResult = existingBranchResult(result, checkoutRoot, branchName);
-    return publishResult(branchResult, options, checkoutRoot, branchName);
+    const checked = options.check ? runConfiguredCheck(branchResult, checkoutRoot) : branchResult;
+    if (options.check && checked.checkStatus !== "passed") return withBranch(checked, branchName);
+    return publishResult(checked, options, checkoutRoot, branchName);
   }
 
   const checked = options.check ? runConfiguredCheck(result, checkoutRoot) : result;
@@ -87,45 +90,22 @@ function updateInCheckout(target, options, checkoutRoot, before, branchName) {
   return publishResult(committed, options, checkoutRoot, branchName);
 }
 
-function runProjectUpdate(target, checkoutRoot, before) {
-  const update = run("npx", ["skills", "update", "-p", "-y"], checkoutRoot);
-  const prunedSymlinks = pruneDanglingSkillSymlinks(checkoutRoot);
-  const after = gitStatus(checkoutRoot) ?? [];
-  const changed = statusLinesChanged(before, after);
+function runProjectUpdate(target, checkoutRoot, before, source) {
+  const update = refreshInstallation(checkoutRoot, source);
+  const after = gitStatus(checkoutRoot);
+  const changed = after !== null && statusLinesChanged(before, after);
   return {
     ...target,
     after,
     before,
     changed,
-    prunedSymlinks,
-    status: update.status === 0 ? (changed ? "updated" : "unchanged") : "update-failed",
+    sourceSha: update.sourceSha,
+    skillCount: update.skillCount,
+    status:
+      update.status === 0 && after !== null ? (changed ? "updated" : "unchanged") : "update-failed",
     updateExitCode: update.status,
     updateOutput: outputTail(update),
   };
-}
-
-// `npx skills update` removes dropped skills from the lockfile and .agents/skills
-// but leaves runtime symlinks (.claude/skills, .codex/skills) dangling.
-export function pruneDanglingSkillSymlinks(checkoutRoot) {
-  const pruned = [];
-  for (const runtimeDir of [".claude/skills", ".codex/skills"]) {
-    const dir = path.join(checkoutRoot, runtimeDir);
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      if (!entry.isSymbolicLink()) continue;
-      const linkPath = path.join(dir, entry.name);
-      if (!fs.existsSync(linkPath)) {
-        fs.unlinkSync(linkPath);
-        pruned.push(path.join(runtimeDir, entry.name));
-      }
-    }
-  }
-  return pruned;
 }
 
 function runConfiguredCheck(result, repoRoot) {
@@ -166,9 +146,9 @@ function publishResult(result, options, repoRoot, branchName) {
     return result;
   }
 
-  const pushed = pushBranch(result, repoRoot, branchName, options);
+  const pushed = pushBranch(result, repoRoot, branchName);
   return options.pr && pushed.status === "pushed"
-    ? createPr(pushed, repoRoot, options.source)
+    ? createPr(pushed, repoRoot, options.source, result.baseRef ?? options.baseRef)
     : pushed;
 }
 
@@ -189,27 +169,26 @@ function branchHasDiff(repoRoot, baseRef) {
   return run("git", ["diff", "--quiet", `${baseRef}...HEAD`], repoRoot).status === 1;
 }
 
-function pushBranch(result, repoRoot, branchName, options) {
+function pushBranch(result, repoRoot, branchName) {
   const args = ["push", "-u", "origin", branchName];
-  const skipPushHooks = options.skipPushHooks !== false;
-  if (skipPushHooks) {
-    args.splice(1, 0, "--no-verify");
-  }
 
   const push = run("git", args, repoRoot);
   return push.status === 0
     ? {
         ...result,
-        pushHooks: skipPushHooks ? "skipped" : "verified",
+        pushHooks: "verified",
         status: "pushed",
       }
     : { ...result, status: "push-failed", error: outputTail(push) };
 }
 
-function createPr(result, repoRoot, source) {
-  const existing = existingPrUrl(repoRoot, result.branchName);
-  if (existing) {
-    return { ...result, prUrl: existing, status: "pr-existing" };
+function createPr(result, repoRoot, source, baseRef) {
+  if (!baseRef) throw new Error("Cannot publish without an update base");
+  const base = baseRef.replace(/^origin\//, "");
+  const existing = existingPrUrl(repoRoot, result.branchName, base);
+  if (existing.error) return { ...result, status: "pr-failed", error: existing.error };
+  if (existing.url) {
+    return { ...result, prUrl: existing.url, status: "pr-existing" };
   }
 
   const pr = run(
@@ -223,6 +202,8 @@ function createPr(result, repoRoot, source) {
       prBody(result, source),
       "--head",
       result.branchName,
+      "--base",
+      base,
     ],
     repoRoot,
   );
@@ -232,13 +213,25 @@ function createPr(result, repoRoot, source) {
     : { ...result, status: "pr-failed", error: outputTail(pr) };
 }
 
-function existingPrUrl(repoRoot, branchName) {
+function existingPrUrl(repoRoot, branchName, base) {
   const pr = run(
     "gh",
-    ["pr", "list", "--head", branchName, "--state", "open", "--json", "url", "--jq", ".[0].url"],
+    ["pr", "list", "--head", branchName, "--state", "open", "--json", "url,baseRefName"],
     repoRoot,
   );
-  return pr.status === 0 ? pr.stdout.trim() : "";
+  if (pr.status !== 0) return { error: outputTail(pr) };
+  let matches;
+  try {
+    matches = JSON.parse(pr.stdout);
+  } catch {
+    return { error: "Could not parse existing PR lookup: " + pr.stdout };
+  }
+  if (!Array.isArray(matches)) return { error: "Expected a list of existing PRs" };
+  if (matches.length === 0) return {};
+  if (matches.length !== 1 || matches[0].baseRefName !== base || !matches[0].url) {
+    return { error: `Existing PR does not uniquely match update base ${base}: ${pr.stdout}` };
+  }
+  return { url: matches[0].url };
 }
 
 function prTitle() {
@@ -246,11 +239,13 @@ function prTitle() {
 }
 
 export function prBody(result, source = DEFAULT_SOURCE) {
+  if (!result.sourceSha) throw new Error("Cannot publish without a verified source commit");
   return [
     "## Summary",
     "",
     `- Refresh project-scoped workflow skills from \`${source}\`.`,
-    "- Generated by `npx skills update -p -y`.",
+    "- Generated by `skills@1.7.0 add --skill '*'` with explicit project agents; retired source skills removed with `skills remove`.",
+    `- Verified source commit: \`${result.sourceSha}\`.`,
     "",
     "## Review automation",
     "",
@@ -289,7 +284,7 @@ function worktreeFailure(target, worktree) {
 }
 
 function maybeRemoveWorktree(result, sourceRepoRoot, options) {
-  if (options.keepWorktree) {
+  if (options.keepWorktree || (result.checkStatus && result.checkStatus !== "passed")) {
     return { ...result, worktreeCleanup: "kept" };
   }
 
