@@ -230,7 +230,7 @@ function ziwLockfile() {
         source: "zaks-io/skills",
         sourceType: "github",
         skillPath: "skills/ziw-pr/SKILL.md",
-        computedHash: "c".repeat(64),
+        computedHash: "1085cf73199274fb20c00249e0f4553b4a62192278696623ebd6de57997ec05e",
       },
     },
   };

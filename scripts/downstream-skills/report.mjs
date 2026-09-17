@@ -72,6 +72,7 @@ function printResult(result) {
   if (result.checkStatus) {
     console.log(`  check: ${result.checkStatus} (${result.checkCommand ?? "none"})`);
   }
+  if (result.checkOutput) console.log(result.checkOutput);
   if (result.sourceSha) console.log(`  source commit: ${result.sourceSha}`);
   if (result.skillCount) console.log(`  verified skills: ${result.skillCount}`);
   if (result.status === "update-failed") console.log(`  update: ${result.updateOutput}`);

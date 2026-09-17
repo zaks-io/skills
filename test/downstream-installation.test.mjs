@@ -45,6 +45,9 @@ test("validateInstallation rejects stale canonical source bytes", () => {
     assert.doesNotThrow(() =>
       validateInstallation(root, SOURCE, parsed, new Set([".claude/skills"])),
     );
+    writeLock(root, { alpha: { ...lockEntry("alpha"), computedHash: "0".repeat(64) } });
+    assert.throws(() => validateInstallation(root, SOURCE, parsed), /Stale computedHash/);
+    writeLock(root, { alpha: lockEntry("alpha") });
     fs.writeFileSync(path.join(root, ".agents/skills/alpha/SKILL.md"), "stale\n");
     assert.throws(
       () => validateInstallation(root, SOURCE, parsed, new Set([".claude/skills"])),
@@ -165,7 +168,7 @@ function lockEntry(name) {
     source: SOURCE,
     sourceType: "github",
     skillPath: `skills/${name}/SKILL.md`,
-    computedHash: "e".repeat(64),
+    computedHash: createHash("sha256").update("SKILL.md").update(skill(name)).digest("hex"),
   };
 }
 
@@ -225,7 +228,7 @@ if (args[2] === "add") {
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, content);
     }
-    lock.skills[name] = { source: args[3], sourceType: "github", skillPath: "skills/" + name + "/SKILL.md", computedHash: crypto.createHash("sha256").update(name).digest("hex") };
+    lock.skills[name] = { source: args[3], sourceType: "github", skillPath: "skills/" + name + "/SKILL.md", computedHash: Object.keys(entries).sort((a, b) => a.localeCompare(b)).reduce((hash, file) => hash.update(file).update(entries[file]), crypto.createHash("sha256")).digest("hex") };
     if (agents.includes("claude-code")) {
       const target = path.join(root, ".claude/skills", name);
       remove(target);

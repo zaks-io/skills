@@ -65,8 +65,8 @@ export function validateInstallation(root, source, sourceTree, runtimeRoots = ne
       throw new Error(`Invalid skillPath for ${name}`);
     const canonical = path.join(root, CANONICAL_ROOT, name);
     compareSourceFiles(canonical, skill.files, name);
-    if (!/^[0-9a-f]{64}$/.test(entry.computedHash))
-      throw new Error(`Invalid computedHash for ${name}`);
+    if (entry.computedHash !== computeLockHash(canonical, skill.files.keys()))
+      throw new Error(`Stale computedHash for ${name}`);
     for (const runtimeRoot of runtimeRoots) {
       compareRuntime(
         path.join(root, runtimeRoot, name),
@@ -176,4 +176,23 @@ function stripFrontmatter(text) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Keep the lock hash compatible with computeSkillFolderHash in skills@1.7.0.
+function computeLockHash(directory, names) {
+  const hash = createHash("sha256");
+  for (const name of [...names].sort((a, b) => a.localeCompare(b))) {
+    if (
+      name
+        .split("/")
+        .slice(0, -1)
+        .some((part) => part === ".git" || part === "node_modules")
+    )
+      continue;
+    const file = path.join(directory, name);
+    if (!fs.lstatSync(file).isFile()) continue;
+    hash.update(name);
+    hash.update(fs.readFileSync(file));
+  }
+  return hash.digest("hex");
 }
