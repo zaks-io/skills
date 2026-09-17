@@ -184,9 +184,11 @@ function pushBranch(result, repoRoot, branchName) {
 
 function createPr(result, repoRoot, source, baseRef) {
   if (!baseRef) throw new Error("Cannot publish without an update base");
-  const existing = existingPrUrl(repoRoot, result.branchName);
-  if (existing) {
-    return { ...result, prUrl: existing, status: "pr-existing" };
+  const base = baseRef.replace(/^origin\//, "");
+  const existing = existingPrUrl(repoRoot, result.branchName, base);
+  if (existing.error) return { ...result, status: "pr-failed", error: existing.error };
+  if (existing.url) {
+    return { ...result, prUrl: existing.url, status: "pr-existing" };
   }
 
   const pr = run(
@@ -201,7 +203,7 @@ function createPr(result, repoRoot, source, baseRef) {
       "--head",
       result.branchName,
       "--base",
-      baseRef.replace(/^origin\//, ""),
+      base,
     ],
     repoRoot,
   );
@@ -211,13 +213,25 @@ function createPr(result, repoRoot, source, baseRef) {
     : { ...result, status: "pr-failed", error: outputTail(pr) };
 }
 
-function existingPrUrl(repoRoot, branchName) {
+function existingPrUrl(repoRoot, branchName, base) {
   const pr = run(
     "gh",
-    ["pr", "list", "--head", branchName, "--state", "open", "--json", "url", "--jq", ".[0].url"],
+    ["pr", "list", "--head", branchName, "--state", "open", "--json", "url,baseRefName"],
     repoRoot,
   );
-  return pr.status === 0 ? pr.stdout.trim() : "";
+  if (pr.status !== 0) return { error: outputTail(pr) };
+  let matches;
+  try {
+    matches = JSON.parse(pr.stdout);
+  } catch {
+    return { error: "Could not parse existing PR lookup: " + pr.stdout };
+  }
+  if (!Array.isArray(matches)) return { error: "Expected a list of existing PRs" };
+  if (matches.length === 0) return {};
+  if (matches.length !== 1 || matches[0].baseRefName !== base || !matches[0].url) {
+    return { error: `Existing PR does not uniquely match update base ${base}: ${pr.stdout}` };
+  }
+  return { url: matches[0].url };
 }
 
 function prTitle() {

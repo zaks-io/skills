@@ -267,7 +267,7 @@ function installFakeNpx(bin, body) {
   chmodSync(executable, 0o755);
 }
 
-function installFakeGh(bin, url) {
+function installFakeGh(bin, url, existing = [], lookupStatus = 0) {
   mkdirSync(bin, { recursive: true });
   const executable = path.join(bin, "gh");
   writeFileSync(
@@ -276,7 +276,7 @@ function installFakeGh(bin, url) {
       "#!/bin/sh",
       'if [ "$1" = "api" ] && [ "$3" = "--jq" ]; then echo bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; exit 0; fi',
       `if [ "$1" = "api" ]; then echo '${JSON.stringify(sourceTree())}'; exit 0; fi`,
-      'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then exit 0; fi',
+      `if [ "$1" = "pr" ] && [ "$2" = "list" ]; then echo '${JSON.stringify(existing)}'; exit ${lookupStatus}; fi`,
       `if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
   case " $* " in
     *" --base main "*) echo "${url}"; exit 0 ;;
@@ -448,3 +448,41 @@ test("an unchanged reused branch must pass the requested check before publishing
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const scenario of [
+  {
+    name: "matching base",
+    existing: [{ url: "https://example.com/pull/3", baseRefName: "main" }],
+    status: "pr-existing",
+  },
+  {
+    name: "wrong base",
+    existing: [{ url: "https://example.com/pull/3", baseRefName: "other" }],
+    status: "pr-failed",
+  },
+  { name: "failed lookup", existing: [], lookupStatus: 1, status: "pr-failed" },
+]) {
+  test(`updateTargets validates existing PR lookup: ${scenario.name}`, () => {
+    const root = tempDir();
+    const oldPath = process.env.PATH;
+    try {
+      const repo = createConsumerRepo(root);
+      addBareOrigin(root, repo);
+      const bin = path.join(root, "bin");
+      installFakeNpx(bin, "echo generated > generated-skill.txt\n");
+      installFakeGh(bin, "https://example.com/pull/new", scenario.existing, scenario.lookupStatus);
+      process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+      const result = updateTargets(
+        worktreeOptions(root, { commit: true, pr: true, push: true }),
+      )[0];
+      assert.equal(result.status, scenario.status);
+      assert.equal(
+        result.prUrl,
+        scenario.status === "pr-existing" ? "https://example.com/pull/3" : undefined,
+      );
+    } finally {
+      process.env.PATH = oldPath;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
