@@ -16,7 +16,7 @@ export function parseSourceTree(payload) {
     if (
       !node ||
       typeof node.path !== "string" ||
-      !["blob", "tree"].includes(node.type) ||
+      !["blob", "tree", "commit"].includes(node.type) ||
       typeof node.mode !== "string"
     ) {
       throw new Error("GitHub returned a malformed source tree entry");
@@ -28,7 +28,8 @@ export function parseSourceTree(payload) {
   const skills = new Map();
   for (const [skillPath, node] of nodes) {
     const match = skillPath.match(/^skills\/([^/]+)\/SKILL\.md$/);
-    if (!match || node.type !== "blob") continue;
+    if (!match) continue;
+    if (node.type !== "blob") throw new Error(`Unsupported Git object: ${skillPath}`);
     const name = match[1];
     if (!/^[a-z0-9][a-z0-9._-]*$/.test(name)) throw new Error(`Unsafe source skill name: ${name}`);
     const folder = nodes.get(`skills/${name}`);

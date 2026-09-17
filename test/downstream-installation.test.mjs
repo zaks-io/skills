@@ -30,6 +30,20 @@ test("parseSourceTree extracts complete top-level source skills and rejects trun
   assert.throws(() => parseSourceTree({ ...fixture.tree, sha: "invalid" }), /malformed/);
 });
 
+test("parseSourceTree allows unrelated submodules but rejects them inside skills", () => {
+  const fixture = sourceFixture({ alpha: { "SKILL.md": skill("alpha") } });
+  const submodule = { path: "vendor/example", type: "commit", mode: "160000", sha: COMMIT };
+  fixture.tree.tree.push(submodule);
+  assert.equal(parseSourceTree(fixture.tree).skills.size, 1);
+  submodule.path = "skills/alpha/vendor";
+  assert.throws(() => parseSourceTree(fixture.tree), /Unsupported Git object/);
+  fixture.tree.tree.pop();
+  const entry = fixture.tree.tree.find((node) => node.path === "skills/alpha/SKILL.md");
+  entry.type = "commit";
+  entry.mode = "160000";
+  assert.throws(() => parseSourceTree(fixture.tree), /Unsupported Git object/);
+});
+
 test("validateInstallation rejects stale canonical source bytes", () => {
   const root = tempDir();
   try {
