@@ -170,7 +170,7 @@ Last updated: 2026-07-30
 - Workflow skill distribution: source repo plus Claude plugin; downstream repos may use project-scoped skill installs, plugins or marketplaces, managed settings, user/global installs, or mixed mode based on worker needs
 - Workflow skill source: `skills/ziw-*` in this repo and `.claude-plugin/plugin.json` for Claude Code plugin distribution
 - Workflow skill lockfile: none for this source repo; downstream project-scoped installs use `skills-lock.json`
-- Workflow skill refresh command: downstream project-scoped installs should run `npx skills update -p -y` when a lockfile exists, or `npx skills add zaks-io/skills --all -y` for first install
+- Workflow skill refresh command: downstream project-scoped installs should run `npx skills update -p -y` when a lockfile exists, or `npx skills add zaks-io/skills` for first install
 - Project skill paths: downstream repos commonly commit `.agents/skills` as the canonical copy with `.claude/skills` symlinks when both Codex-compatible and Claude-compatible discovery are needed
 - Generated shared skill copies: downstream project-scoped copies are committed generated dependencies when remote or cloud workers need fresh-clone discovery; do not hand-edit them
 - Issue-assigned agents: not configured for this repo

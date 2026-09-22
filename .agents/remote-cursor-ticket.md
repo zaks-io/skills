@@ -94,7 +94,7 @@ with generated skill files and `skills-lock.json` updated in one PR.
   project skill paths.
 - If project skills are already installed, run `npx skills update -p -y`.
 - If no lockfile exists, run the configured install command, usually
-  `npx skills add zaks-io/skills --all -y`.
+  `npx skills add zaks-io/skills`.
 - Preserve the existing canonical-copy and symlink layout unless the installer
   changes it.
 - Inspect and keep generated skill, lockfile, or config updates that belong to
@@ -143,7 +143,7 @@ with generated skill files and `skills-lock.json` updated in one PR.
 
 Use the target repo's exact check command and route label when known. If config
 says a different install command is required, record that in the issue and
-explain the difference from the generic `npx skills add zaks-io/skills --all`
+explain the difference from the generic `npx skills add zaks-io/skills`
 request.
 
 ## Done

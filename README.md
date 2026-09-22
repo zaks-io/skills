@@ -30,10 +30,10 @@ Prerequisites:
 - `gitleaks` for `pnpm security:secrets` and `pnpm ci:check`
 - `gh` for downstream fanout PR creation with `--pr`
 
-Install all skills into the current project for all supported agents:
+Install into the current project, selecting skills and agents when prompted:
 
 ```sh
-npx skills add zaks-io/skills --all -y
+npx skills add zaks-io/skills
 ```
 
 This is the default mode for repos whose remote or cloud workers must get the
@@ -102,10 +102,10 @@ Push branches and open PRs when you want the full fanout:
 pnpm skills:downstream:update --check --trust-check-commands
 ```
 
-Install all skills globally for one local user:
+Install globally for one local user:
 
 ```sh
-npx skills add zaks-io/skills --all -g
+npx skills add zaks-io/skills -g
 ```
 
 List available skills:
@@ -117,7 +117,7 @@ npx skills add zaks-io/skills --list
 Install one skill:
 
 ```sh
-npx skills add zaks-io/skills --skill ziw-setup --agent '*' -g -y
+npx skills add zaks-io/skills --skill ziw-setup
 ```
 
 ## Distribution

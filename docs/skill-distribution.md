@@ -110,7 +110,7 @@ npx skills update -p -y
 For first install or repos without a lockfile:
 
 ```sh
-npx skills add zaks-io/skills --all -y
+npx skills add zaks-io/skills
 ```
 
 Then inspect `git status --short`, keep only the generated skill dependency diff
