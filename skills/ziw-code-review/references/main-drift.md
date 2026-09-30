@@ -25,8 +25,8 @@ complete. Report incomplete intake and leave the checkpoint unchanged on failure
 
 ## Tracker intake
 
-Search for duplicates by problem, files, PR, and range before creating or updating
-issues. Use the configured review-debt intake route, label, project, or parent.
+Group findings that share one fix into one issue, then search for duplicates by
+problem, files, PR, and range before creating or updating issues. Use the configured review-debt intake route, label, project, or parent.
 If no dedicated route exists, use the configured normal repo route and report
 the setup gap. If the provider/location itself is unknown, report the blocker.
 
@@ -35,8 +35,9 @@ the setup gap. If the provider/location itself is unknown, report the blocker.
 - Use `kind-slice` only for one concrete PR with acceptance criteria and checks;
   otherwise use `kind-spec` or `kind-epic` for To Issues to slice.
 - Add `ready-for-agent` only when config allows review to create ready debt and
-  the full issue-body contract is satisfied. Otherwise use `needs-info` or
-  `ready-for-human` with the exact decision needed.
+  the full issue-body contract is satisfied. Otherwise leave the issue in the
+  configured review-debt intake route for triage. Use `needs-info` or
+  `ready-for-human` only when a specific decision is missing, and name it.
 - Include reviewed range and file evidence. Keep issue text metadata-only.
 
 Escalate findings needing product, security, customer, credential, provider, or

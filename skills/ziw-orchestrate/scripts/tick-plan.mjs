@@ -337,7 +337,14 @@ const prDisposition = (state, config, pr) => {
   if (decision.action === "ROUTE_HUMAN_MERGE") {
     return {
       bucket: "actions",
-      value: { target, kind: "route-human-merge", owner: "human", reason: "HUMAN_MERGE_REQUIRED" },
+      value: {
+        target,
+        kind: "route-human-merge",
+        owner: "human",
+        reason: /not configured/.test(decision.reason)
+          ? "MERGE_AUTHORITY_MISSING"
+          : "HUMAN_MERGE_REQUIRED",
+      },
     };
   }
   if (/hosted review/i.test(decision.reason)) {
@@ -370,6 +377,12 @@ const prDisposition = (state, config, pr) => {
     return {
       bucket: "waits",
       value: { target, signal: "hosted-review", reason: "HOSTED_REVIEW_PENDING" },
+    };
+  }
+  if (/finding|scope/i.test(decision.reason)) {
+    return {
+      bucket: "actions",
+      value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
     };
   }
   if (/conformance/i.test(decision.reason)) {
@@ -405,12 +418,6 @@ const prDisposition = (state, config, pr) => {
           pr.reviewDiffFingerprint ?? pr.reviewRelevantDiffFingerprint ?? pr.headSha
         }`,
       },
-    };
-  }
-  if (/finding|scope/i.test(decision.reason)) {
-    return {
-      bucket: "actions",
-      value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
     };
   }
   return { bucket: "holds", value: { target, reason: "MERGE_HELD" } };

@@ -33,6 +33,7 @@ Write entries at give-up, retry, repair, and stop points:
 - merge conflict
 - post-merge break
 - review-created ticket missing required issue shape
+- worker PR that could not be verified without a sibling ticket's change
 
 At the end of a bounded run, post one compact rollup with counts by category. Do
 not post rollups every tick unless the unattended run config asks for it.
@@ -48,7 +49,7 @@ Each entry is one compact metadata-only comment:
 ```text
 tick: <id or timestamp>
 ticket: <ISSUE-ID or "loop">
-category: ambiguous-ticket | dependency-wrong | file-collision | stuck-worker | review-thrash | review-debt-intake | merge-conflict | post-merge-break | config-gap | escalation
+category: ambiguous-ticket | over-sliced | dependency-wrong | file-collision | stuck-worker | review-thrash | review-debt-intake | merge-conflict | post-merge-break | config-gap | escalation
 what: <one line>
 cost: <ticks, retries, or wall-clock burned>
 signal: <what would have prevented it, and which upstream skill it points at>
@@ -81,6 +82,11 @@ Post the run rollup after the final action, not while work is still settling.
 ## Category Map
 
 - `ambiguous-ticket`: To Issues or triage needs clearer scope.
+- `over-sliced`: To Issues cut a fragment: a ticket with no consumer or
+  observable behavior of its own, a worker PR that had nothing verifiable
+  without a sibling ticket's change, or a diff that did not justify its own PR.
+  A slice with its own behavior that lacked a blocker edge is
+  `dependency-wrong`.
 - `dependency-wrong`: To Issues or triage dependency modeling was wrong.
 - `file-collision`: To Issues footprint prediction or serialization needs work.
 - `stuck-worker`: worker liveness or continuation tuning.

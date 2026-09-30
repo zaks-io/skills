@@ -42,6 +42,90 @@ Publish the SDK.
   );
 });
 
+test("extractLinearFootprint accepts heading variants writers actually use", () => {
+  for (const heading of [
+    "## Likely files/packages/artifacts",
+    "## Likely files, packages, and artifacts",
+    "### Likely files",
+    "## Likely files:",
+  ]) {
+    assert.deepEqual(
+      extractLinearFootprint(`${heading}\n\n- \`src/a.ts\`\n`),
+      ["src/a.ts"],
+      heading,
+    );
+  }
+});
+
+test("extractLinearFootprint keeps nested sections and ignores fences and prose", () => {
+  assert.deepEqual(
+    extractLinearFootprint(`
+## Likely files
+
+### Backend
+
+- \`api/x.ts\`
+
+### Frontend
+
+- \`web/y.tsx\`
+
+\`\`\`sh
+# regenerate
+\`\`\`
+
+- N/A for docs, and/or e.g. see https://example.com/page
+
+- \`web/z.tsx\`
+
+## In scope
+
+- \`src/not-footprint.ts\`
+`),
+    ["api/x.ts", "web/y.tsx", "web/z.tsx"],
+  );
+});
+
+test("extractLinearFootprint reads links, mixed bullets, and nested fences", () => {
+  assert.deepEqual(
+    extractLinearFootprint(`
+## Likely files
+
+### Likely files
+
+- [src/a.ts](https://github.com/o/r/blob/main/src/a.ts)
+- \`src/b.ts\` plus src/c.ts (verify with \`pnpm test\`)
+- \`Dockerfile\`
+
+### Frontend
+
+\`\`\`\`md
+\`\`\`
+\`\`\`\`
+
+- web/d.tsx
+`),
+    ["src/a.ts", "src/b.ts", "src/c.ts", "Dockerfile", "web/d.tsx"],
+  );
+});
+
+test("extractLinearFootprint keeps every path in annotated bullets", () => {
+  assert.deepEqual(
+    extractLinearFootprint(`
+## Likely files, packages, or artifacts
+
+- src/a.ts (new)
+- Updates packages/api/routes.ts and apps/web/page.tsx.
+- Overlap note: serialized after another ticket.
+
+## In scope
+
+- src/not-footprint.ts
+`),
+    ["src/a.ts", "packages/api/routes.ts", "apps/web/page.tsx"],
+  );
+});
+
 test("resolveLinearTeam supports key, exact name, and UUID selectors", async () => {
   const observed = [];
   const request = async (input) => {
@@ -113,7 +197,7 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
 });
 
 test("loadLinearSnapshot ignores canceled blockers", async () => {
-  const request = async (input) => {
+  let request = async (input) => {
     if (input.query.includes("teams(first")) {
       return {
         data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } },
@@ -128,10 +212,80 @@ test("loadLinearSnapshot ignores canceled blockers", async () => {
       },
     };
   };
+  const answer = request;
+  request = async (input) =>
+    input.query.includes("issue(id:")
+      ? { data: { issue: relationsIssue("SPL-2", "canceled") } }
+      : answer(input);
 
   const snapshot = await loadLinearSnapshot({ request, selector: "SPL", states: ["Todo"] });
 
   assert.deepEqual(snapshot.issues[0].blockedBy, []);
+});
+
+test("loadLinearSnapshot repoints closed blockers to their open canonical issue", async () => {
+  const lookups = {
+    "SPL-2": relationsIssue("SPL-2", "duplicate", { id: "OTHER-9", type: "started" }),
+    "SPL-5": relationsIssue("SPL-5", "canceled", { id: "SPL-8", type: "duplicate" }),
+    "SPL-8": relationsIssue("SPL-8", "duplicate", { id: "SPL-3", type: "unstarted" }),
+    "SPL-7": relationsIssue("SPL-7", "duplicate", { id: "SPL-9", type: "completed" }),
+    "SPL-10": relationsIssue("SPL-10", "canceled", { id: "SPL-11", type: "canceled" }),
+    "SPL-11": relationsIssue("SPL-11", "canceled", { id: "SPL-10", type: "canceled" }),
+  };
+  const looked = [];
+  const request = async (input) => {
+    if (input.query.includes("teams(first")) {
+      return { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } };
+    }
+    if (input.query.includes("issue(id:")) {
+      looked.push(input.variables.id);
+      return { data: { issue: lookups[input.variables.id] ?? null } };
+    }
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [
+            issue({ identifier: "SPL-1", blockedBy: "SPL-2", blockerState: "duplicate" }),
+            issue({ identifier: "SPL-4", blockedBy: "SPL-5", blockerState: "canceled" }),
+            issue({ identifier: "SPL-6", blockedBy: "SPL-7", blockerState: "duplicate" }),
+            issue({ identifier: "SPL-12", blockedBy: "SPL-10", blockerState: "canceled" }),
+            issue({ identifier: "SPL-13", blockedBy: "SPL-2", blockerState: "duplicate" }),
+          ],
+        },
+      },
+    };
+  };
+
+  const snapshot = await loadLinearSnapshot({ request, selector: "SPL" });
+  const blockers = Object.fromEntries(
+    snapshot.issues.map((item) => [item.identifier, item.blockedBy]),
+  );
+
+  assert.deepEqual(blockers["SPL-1"], ["OTHER-9"], "canonical in another team still blocks");
+  assert.deepEqual(blockers["SPL-4"], ["SPL-3"], "duplicate chains resolve to the open end");
+  assert.deepEqual(blockers["SPL-6"], [], "a completed canonical satisfies the blocker");
+  assert.deepEqual(blockers["SPL-12"], [], "a cycle of closed issues has no open work");
+  assert.equal(looked.filter((id) => id === "SPL-2").length, 1, "lookups are cached");
+});
+
+test("loadLinearSnapshot fails loud when a closed blocker cannot be looked up", async () => {
+  const request = async (input) => {
+    if (input.query.includes("teams(first")) {
+      return { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } };
+    }
+    if (input.query.includes("issue(id:")) return { data: { issue: null } };
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [issue({ identifier: "SPL-1", blockedBy: "SPL-2", blockerState: "canceled" })],
+        },
+      },
+    };
+  };
+
+  await assert.rejects(loadLinearSnapshot({ request, selector: "SPL" }), /SPL-2 was not found/);
 });
 
 test("selectScopedLinearIssues does not silently expand beyond direct blockers", () => {
@@ -313,6 +467,24 @@ function issue({
       pageInfo: { hasNextPage: false },
       nodes: blockedBy
         ? [{ type: "blocks", issue: { identifier: blockedBy, state: { type: blockerState } } }]
+        : [],
+    },
+  };
+}
+
+function relationsIssue(identifier, type, canonical) {
+  return {
+    identifier,
+    state: { type },
+    relations: {
+      pageInfo: { hasNextPage: false },
+      nodes: canonical
+        ? [
+            {
+              type: "duplicate",
+              relatedIssue: { identifier: canonical.id, state: { type: canonical.type } },
+            },
+          ]
         : [],
     },
   };

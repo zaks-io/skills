@@ -1189,3 +1189,93 @@ test("tick-plan does not fail when no Linear queue was queried", () => {
   });
   assert.equal(output.counts.startableTickets, 0);
 });
+
+function reviewedPrInput(evidence, reviewRequest, config = { mergeAuthority: "agent" }) {
+  return {
+    snapshot: {
+      repo: "zaks-io/mainstay",
+      prs: [
+        {
+          number: 7,
+          state: "open",
+          headSha: "h1",
+          reviewDiffFingerprint: "fp1",
+          isDraft: false,
+          changedFiles: 2,
+          checks: { state: "SUCCESS", failed: [], pending: [] },
+          mergeable: "MERGEABLE",
+          mergeStateStatus: "CLEAN",
+        },
+      ],
+    },
+    config,
+    state: {
+      reviewEvidenceByPr: { 7: evidence },
+      ...(reviewRequest ? { reviewRequestsByPr: { 7: reviewRequest } } : {}),
+    },
+  };
+}
+
+test("tick-plan routes current review findings to the worker instead of re-reviewing", () => {
+  const completed = { reviewDiffFingerprint: "fp1", status: "completed" };
+  const cases = [
+    { reviewVerdict: "NEEDS REVISION", blockingFindings: true, conformance: "FAIL" },
+    { reviewVerdict: "NEEDS REVISION", blockingFindings: true },
+    { hasReviewEvidence: true, reviewVerdict: "Ready to Merge", conformance: "FAIL" },
+    { hasReviewEvidence: true, reviewVerdict: "NEEDS REVISION" },
+    { reviewVerdict: "DO NOT MERGE" },
+  ];
+  for (const evidence of cases) {
+    const output = runCompactPlan(
+      reviewedPrInput({ reviewedDiffFingerprint: "fp1", ...evidence }, completed),
+    );
+    const kinds = output.actions.map((action) => action.kind);
+    assert.ok(kinds.includes("route-fix"), JSON.stringify(output.actions));
+    assert.ok(!kinds.includes("request-review"));
+    assert.ok(!kinds.includes("verify-conformance"));
+  }
+});
+
+test("tick-plan re-reviews once the worker pushes past stale findings", () => {
+  const output = runCompactPlan(
+    reviewedPrInput(
+      { reviewedDiffFingerprint: "fp0", reviewVerdict: "NEEDS REVISION", blockingFindings: true },
+      { reviewDiffFingerprint: "fp0", status: "completed" },
+    ),
+  );
+  assert.ok(output.actions.some((action) => action.kind === "request-review"));
+  assert.ok(!output.actions.some((action) => action.kind === "route-fix"));
+});
+
+test("tick-plan never arms auto-merge without configured merge authority", () => {
+  const clean = {
+    hasReviewEvidence: true,
+    reviewedDiffFingerprint: "fp1",
+    reviewVerdict: "Ready to Merge",
+  };
+  for (const config of [{}, { mergeAuthority: "" }]) {
+    const output = runCompactPlan(reviewedPrInput(clean, null, config));
+    const kinds = output.actions.map((action) => action.kind);
+    assert.ok(!kinds.includes("arm-auto-merge"), JSON.stringify(output.actions));
+    const human = output.actions.find((action) => action.kind === "route-human-merge");
+    assert.equal(human?.reason, "MERGE_AUTHORITY_MISSING");
+  }
+});
+
+test("tick-plan verifies a conformance FAIL recorded for an older head", () => {
+  const output = runCompactPlan(
+    reviewedPrInput(
+      {
+        hasReviewEvidence: true,
+        reviewedDiffFingerprint: "fp1",
+        reviewVerdict: "Ready to Merge",
+        conformance: "FAIL",
+        conformanceHeadSha: "h0",
+      },
+      { reviewDiffFingerprint: "fp1", status: "completed" },
+    ),
+  );
+  const kinds = output.actions.map((action) => action.kind);
+  assert.ok(kinds.includes("verify-conformance"), JSON.stringify(output.actions));
+  assert.ok(!kinds.includes("route-fix"));
+});

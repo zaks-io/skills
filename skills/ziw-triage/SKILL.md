@@ -6,11 +6,13 @@ argument-hint: "[project-url|team|repo|filter]"
 
 # Issue Triage
 
-Issue Triage manages the issue tracker backlog so Orchestrator can run. It turns
-tracker items into well-shaped, dependency-aware, agent-ready work or explicit
-human/To Issues follow-up.
+Issue Triage grooms the issue tracker so Orchestrator can run. It turns tracker
+items into well-shaped, dependency-aware, agent-ready work or explicit human or
+To Issues follow-up. It is script-driven tracker grooming, not research,
+implementation, code review, repo health monitoring, CI or deploy diagnosis,
+security scanning, or production triage.
 
-The end state is a useful `Todo` backlog:
+The end state is a clean `Todo` handoff queue:
 
 - every `Todo` implementation ticket is a one-PR `kind-slice`
 - ready work has `ready-for-agent`, the configured route, required labels,
@@ -21,16 +23,31 @@ The end state is a useful `Todo` backlog:
 - Orchestrator can consume the final `starts`, blocked-ready list, and next
   actions without re-triaging the same queue
 
-Default triage starts from the configured ready and intake states, configured
-active or PR-linked issues that need reconciliation, and direct blockers of those
-tickets. In most Linear repos this means `Todo`, `Triage`, active or PR-linked
-issues with stale workflow metadata, and any active issues that directly block
-those tickets. Do not include unrelated Linear `Backlog`, Duplicate, Done,
-canceled, icebox, or other parked/terminal states by default.
+## Inputs
 
-This skill is script-driven tracker grooming. It is not research,
-implementation, code review, repo health monitoring, CI diagnosis, deploy
-diagnosis, security scanning, or production triage.
+- Issue tracker project, team, repo label, board, roadmap, query, filter, or
+  explicit Linear `Backlog` state scope.
+- Repo path and `docs/agents/workflow/config.md`. Read config first; if it is
+  missing, run or request `ziw-setup` before broad cleanup.
+- Existing tracker statuses, labels, priorities, estimates, dependencies,
+  parents, children, duplicates, issue bodies, and comments.
+- Optional user instructions for dry run, first-run intake or Linear Backlog
+  backfill, Linear Backlog review, intake cleanup, priority policy, or orphan
+  routing.
+
+Before mutating the tracker, confirm from config: provider location, project,
+team, roadmap, and routing label; status names and mappings; ready, intake,
+active, and done states and Linear Backlog policy; readiness, type, risk,
+review-debt, worker environment, and route labels; readiness label policy and
+startable work criteria; priority, estimate, dependency, and orphan policies;
+agent-ready body contract; Issue Triage mutation authority; and dependency graph
+mechanism and blocker direction.
+
+If tracker metadata disagrees with config, create only exact label gaps that
+are safe to create. Never create or rename workflows, statuses, teams, projects,
+boards, roadmaps, or label taxonomies without explicit approval.
+
+## Evidence Boundary
 
 Read only:
 
@@ -42,304 +59,233 @@ Read only:
 - explicit user instructions
 - approved workflow script outputs from `skills/ziw-orchestrate/scripts`
 
-Run the scripts, read the output, inspect only the bounded tracker scope and its
-cited source-of-truth docs, then fix the tickets. The scripts are the observation
-layer for queue, PR, and worker state; the agent does not rediscover that state
-manually. No manual code search, implementation file reads, one-off `gh`
-queries, CI spelunking, deploy checks, log review, security tool runs, or broad
-repo health checks. If handoff quality depends on information that is not in the
-tracker, config, cited source-of-truth docs, or script output, leave the exact
-missing field for To Issues or a human.
+The scripts are the observation layer for queue, PR, and worker state; never
+rediscover it manually. No code search, implementation file reads, tests,
+one-off `gh` queries, PR list spelunking, branch, CI, or deploy checks, logs,
+alerts, security scans, package audits, or repo-health sweeps. Do not follow PR,
+CI, deploy, log, or unrelated external links.
 
-Tracker/MCP tools are for applying ticket mutations and reading specific ticket
-fields that the scripts do not return. Do not use MCP calls to rebuild the same
-inventory, PR state, dependency frontier, or readiness decisions that the scripts
-already compute.
+Use tracker/MCP tools only to apply mutations and read specific ticket fields
+the scripts do not return, never to rebuild the inventory, PR state, dependency
+frontier, or readiness decisions the scripts already compute.
 
-## Inputs
+When handoff quality depends on information outside this boundary, leave the
+exact missing field for To Issues or a human. When an issue needs verification
+the scripts did not provide, leave an Orchestrator next action such as "verify
+linked PR is merged and update status if complete."
 
-- Issue tracker project, team, repo label, board, roadmap, query, filter, or
-  explicit Linear `Backlog` state scope.
-- Repo path and `docs/agents/workflow/config.md`.
-- Existing tracker statuses, labels, priorities, estimates, dependencies,
-  parents, children, duplicates, issue bodies, and comments.
-- Optional user instructions for dry run, first-run intake backfill, first-run
-  Linear Backlog backfill, Linear Backlog review, intake cleanup, priority
-  policy, or orphan routing.
-
-## Context
-
-Read `docs/agents/workflow/config.md` first. If it is missing, run or request
-`ziw-setup` before broad cleanup.
-
-Confirm these config values before mutating the issue tracker:
-
-- provider location, project, team, roadmap, and routing label
-- status names and mappings
-- ready state, intake states, active states, done state, and Linear Backlog
-  policy
-- readiness, type, risk, review-debt, worker environment, and route labels
-- readiness label policy and startable work criteria
-- priority policy, estimate policy, dependency policy, and orphan policy
-- agent-ready issue body contract
-- Issue Triage mutation authority
-- dependency graph mechanism and blocker relationship direction
-
-If tracker metadata disagrees with config, update only exact label gaps that are
-safe to create. Do not create or rename workflows, statuses, teams, projects,
-boards, roadmaps, or label taxonomies without explicit approval.
-
-## Operating Loop
-
-Start each run by choosing one mode:
-
-- default backlog grooming
-- explicit issue, project, board, repo label, team, query, or filter
-- requested Linear Backlog or intake cleanup
-- dry run
+## Scope
 
 A normal `ziw-triage` invocation is a request to process the configured intake
 states. Complete implementation-ready intake tickets move from `Triage` to the
-configured ready state, usually `Todo`, without requiring the user to separately
-say "intake cleanup." Linear `Backlog` remains excluded unless explicitly
-requested. A dry run recommends the same transitions without applying them.
+configured ready state, usually `Todo`, without the user separately asking for
+intake cleanup. Linear `Backlog` remains excluded unless explicitly requested. A
+dry run recommends the same transitions without applying them.
 
-Then follow this order:
+Start each run by choosing one mode: default grooming; an explicit issue,
+project, board, repo label, team, query, or filter; requested Linear Backlog or
+intake cleanup; or dry run.
 
-1. State the bounded tracker scope, skipped states, allowed mutations, and
-   ready/Done rules from config.
-2. Run the configured workflow scripts before broad tracker reads:
-   `../ziw-orchestrate/scripts/tick-snapshot.mjs` for the compact queue snapshot,
-   `../ziw-orchestrate/scripts/tick-plan.mjs` for deterministic queue decisions,
-   and `../ziw-orchestrate/scripts/linear-dag-start.mjs` for
-   dependency/startability. Pass the configured repo, tracker team, route label,
-   and ready/intake states to `tick-snapshot.mjs`, usually
-   `--linear-states Todo,Triage`, so the snapshot bounds the queue and its direct
-   blockers. Build the scripts' compact JSON config and queue inputs from
-   verified values in the Markdown workflow config; do not pass
-   `docs/agents/workflow/config.md` directly to a script's `--config` flag. Use
-   the [planner input contract](../ziw-orchestrate/references/planner-input.md)
-   for accepted fields and types. Use
-   the normal compact JSON output for planning. `--pretty` only changes
-   formatting, and `--debug` is for diagnosing planner decisions. If a script
-   cannot run because credentials or inputs are missing, report the exact missing
-   input and use tracker tools only for the smallest bounded replacement query.
+Build the default issue set from config and script output, not exploration:
+
+1. Issues in the configured ready state, usually `Todo`. This is the main
+   cleanup target and becomes the clean Orchestrator handoff queue.
+2. Issues in configured intake or review-debt intake states that config says
+   Issue Triage normalizes, usually `Triage`.
+3. Active or PR-linked issues in the configured current-work scope only when
+   tracker or script evidence shows stale status, review, claim, or handoff
+   metadata that triage may repair.
+4. Direct active blockers of the issues in items 1 to 3, even outside `Todo` or
+   `Triage`.
+5. Non-done issues with the repo routing label, already in the configured ready
+   or intake states, that are missing configured project, parent, kind,
+   readiness, dependency, or body metadata.
+6. Issues from script output whose tracker metadata needs repair before
+   Orchestrator can use them.
+7. Recently updated issues only when already in ready, intake, or active states.
+
+By default, skip unrelated Linear `Backlog`, icebox, Duplicate, Done, canceled,
+and other parked or terminal states.
+If config treats Linear `Backlog`, icebox, someday, roadmap, or equivalent
+states as parked, skip them unless the user explicitly asks for Linear Backlog
+review, cleanup, or backfill. A generic "backlog" request follows the
+repo config's backlog-grooming scope, not the Linear `Backlog` status. Exclude
+the configured done state from readiness-label queues such as `ready-for-agent`
+or `ready-for-human` unless the user explicitly asks to audit Done cleanup.
+
+## Operating Loop
+
+1. State the bounded scope, skipped states, allowed mutations, and ready and
+   Done rules from config.
+2. Run the scripts before broad tracker reads:
+   `../ziw-orchestrate/scripts/tick-snapshot.mjs` for the compact queue
+   snapshot, `../ziw-orchestrate/scripts/tick-plan.mjs` for deterministic queue
+   decisions, and `../ziw-orchestrate/scripts/linear-dag-start.mjs` for
+   dependency and startability. Pass the configured repo, tracker team, route
+   label, and ready and intake states to `tick-snapshot.mjs`, usually
+   `--linear-states Todo,Triage`, so the snapshot bounds the queue and its
+   direct blockers. Build compact JSON config and queue inputs from verified
+   values in the Markdown config, per the
+   [planner input contract](../ziw-orchestrate/references/planner-input.md);
+   never pass `docs/agents/workflow/config.md` to a script's `--config` flag.
+   Plan from the normal compact output; `--pretty` only changes formatting and
+   `--debug` is for diagnosing planner decisions. If a script cannot run for
+   missing credentials or inputs, report the exact missing input and use
+   tracker tools only for the smallest bounded replacement query.
 3. Build the issue set from script output and targeted tracker queries. Include
    configured active or PR-linked issues only when the output or tracker fields
    show state, review, claim, or metadata needing reconciliation. Read cited
-   source-of-truth docs when needed to verify scope or dependency order.
-   When such a target or any of its direct `blockedBy` records is absent from
-   the snapshot, fetch the missing records with one bounded tracker query. Add
-   them to `linear.activeIssues` in the compact input before freezing the issue
-   set and rerunning the planner and DAG scripts. Do not fetch blockers of those
+   source-of-truth docs when needed to verify scope or dependency order. When
+   such a reconciliation target or any of its direct `blockedBy` records is
+   absent from the snapshot, fetch them with one bounded tracker query, add them
+   to `linear.activeIssues` in the compact input before freezing the issue set,
+   and rerun the planner and DAG scripts. Do not fetch blockers of those
    blockers or unrelated parked and terminal issues.
-4. Freeze the issue set. Do not expand it because a linked PR, branch, CI run,
+4. Freeze the issue set. Never expand it because a linked PR, branch, CI run,
    deploy, alert, or code path looks interesting.
 5. Classify every issue.
 6. Apply safe tracker updates in batches.
-7. Re-run the DAG/startability script over the updated issue set when
-   implementation `kind-slice` issues are in scope.
+7. Rerun the DAG script over the updated set when implementation `kind-slice`
+   issues are in scope.
 8. Report what changed, what remains blocked, and exactly what Orchestrator,
    To Issues, or a human should do next.
 
 If the issue set is empty, report the empty scoped result and stop.
 
-## Decision Routine
+Script outputs:
 
-Use script and tracker output to choose one action per issue:
-
-- **Fix now**: safe label, status, body, estimate, route, dependency, stale
-  readiness, review-evidence, or handoff-field repair is clear.
-- **Ready for Orchestrator**: the issue is a one-PR `kind-slice` with body,
-  route, readiness, required estimate, dependency encoding, and likely files,
-  packages, or artifacts recorded in its body.
-- **Blocked but shaped**: the issue is otherwise ready, but
-  `linear-dag-start.mjs` reports dependency blockers.
-- **Needs To Issues**: the issue is a container, vague plan, multi-PR scope,
-  missing split, or missing likely files, packages, or artifacts in its body.
-- **Needs human**: product, security, credential, customer, ADR, ownership,
-  priority, or acceptance-criteria decision is missing.
-- **Orchestrator action**: script output shows linked PR/status/check/review
-  state needs active workflow handling that triage should not perform.
-- **Park**: the tracker state is intentionally outside the current work queue.
-
-Do not invent a new investigation path. If the next action is not one of these,
-record a config gap or ask a specific human question.
-
-Use the script outputs directly:
-
-- `tick-snapshot.mjs` gives the compact queue, linked PR footprint, current heads,
-  checks, review state, and Linear queue metadata when credentials are available.
-- `tick-plan.mjs` gives ready-state promotions, review-evidence actions,
-  human-merge label actions, capacity/dispatch signals, and the deterministic
-  next workflow action.
-- `linear-dag-start.mjs` gives roots, frontier, starts, blockers, cycles, and
-  missing startability requirements.
+- `tick-snapshot.mjs`: compact queue, linked PR footprint, current heads,
+  checks, review state, and Linear queue metadata when credentials are
+  available.
+- `tick-plan.mjs`: ready-state promotions, review-evidence and human-merge label
+  actions, capacity and dispatch signals, and the deterministic next workflow
+  action.
+- `linear-dag-start.mjs`: roots, frontier, starts, blockers, cycles, and missing
+  startability requirements.
 
 Triage owns ticket repairs implied by those outputs. Orchestrator owns active
-delivery actions implied by those outputs.
-
-## Default Scope
-
-Default triage is `Todo` plus intake grooming in the tracker. Build the default
-issue set from configured tracker state and script output, not from ad hoc
-exploration:
-
-1. Issues in the configured ready state, usually `Todo`.
-2. Issues in configured intake or review-debt intake states that config says
-   Issue Triage should normalize, usually `Triage`.
-3. Active or PR-linked issues in the configured current-work scope when tracker
-   or script evidence shows stale status, review, claim, or handoff metadata that
-   triage is allowed to repair.
-4. Direct active blockers of those ready, intake, or reconciliation issues, even
-   when the blocker lives outside `Todo` or `Triage`.
-5. Non-done issues with the repo routing label that are missing configured
-   project, parent, kind, readiness, dependency, or body metadata only when they
-   are already in the configured ready or intake states.
-6. Issues from workflow script output whose tracker metadata needs repair before
-   Orchestrator can use them.
-7. Recently updated issues only when they are already in configured ready,
-   intake, or active tracker states.
-
-For default mode, the main cleanup target is the configured ready state. If
-config says that is `Todo`, make `Todo` the clean Orchestrator handoff queue.
-
-If config treats Linear `Backlog`, icebox, someday, roadmap, or equivalent
-states as parked/out-of-work-queue, skip them unless the user explicitly asks
-for Linear Backlog review, Linear Backlog cleanup, or Linear Backlog backfill. If
-the user says "backlog" generically, follow the repo config's backlog-grooming
-scope instead of assuming the Linear `Backlog` status is in scope.
-
-When building readiness-label queues such as `ready-for-agent` or
-`ready-for-human`, exclude the configured done state up front unless the user
-explicitly asks to audit Done cleanup.
+delivery actions implied by them.
 
 ## Classify Issues
 
-Classify each issue into exactly one primary outcome:
+Identify every clear, safe repair (label, status, body, estimate, route,
+dependency, stale readiness, review evidence, or handoff field) to apply in
+step 6, then give each issue exactly one primary outcome:
 
-- ready for Orchestrator: one-PR `kind-slice`, complete body contract, route,
-  labels, dependencies, and required estimate when configured
-- blocked but shaped: otherwise ready, with dependency blockers encoded
-- needs To Issues: container, spec, epic, vague plan, multi-PR work, missing
-  likely files/packages/artifacts in the body, or missing concrete scope split
-- needs human decision: product, security, credential, customer, ADR, ownership,
-  priority, or acceptance-criteria decision required
-- parked: intentionally not ready for agent work
-- duplicate or likely duplicate
-- orphan: missing route, project, parent, status, or owner metadata
-- config gap: required tracker field or policy is missing from config
-- Orchestrator action: script output shows active PR/check/review/status work
-  that belongs to Orchestrator
+- **Ready for Orchestrator**: a one-PR `kind-slice` that meets the readiness
+  contract, with dependencies encoded and likely files, packages, or artifacts
+  in its body.
+- **Blocked but shaped**: otherwise ready, `linear-dag-start.mjs` reports
+  dependency blockers, and those blockers are encoded.
+- **Needs To Issues**: container, spec, epic, vague plan, multi-PR work, missing
+  concrete scope split, missing likely files/packages/artifacts in the body, or
+  a fragment to merge: a scaffold, single layer, step, or the tests or docs for
+  an unmerged sibling's behavior, with no split reason in its body separating
+  it from that sibling. A dependency on a sibling alone is not a fragment, and
+  work for behavior that already shipped stands alone. A fragment To Issues
+  left `needs-info` behind a partner that is claimed, active, or linked to an
+  open PR is needs human decision until the partner is Done, then needs To
+  Issues.
+- **Needs human decision**: a product, security, credential, customer, ADR,
+  ownership, priority, or acceptance-criteria decision is missing.
+- **Orchestrator action**: script output shows active PR, check, review, or
+  status work that belongs to Orchestrator.
+- **Parked**: the tracker state is intentionally outside the current work
+  queue, or the issue is intentionally not ready for agent work.
+- **Duplicate** or likely duplicate.
+- **Orphan**: missing route, project, parent, status, or owner metadata.
+- **Config gap**: a required tracker field or policy is missing from config.
 
-Do not infer scope by reading code or linked artifacts outside the workflow
-scripts. If tracker text plus script output does not contain enough information
-to classify safely, choose `needs To Issues`, `needs human decision`, or
-`config gap`.
+Do not infer scope from code or linked artifacts outside the workflow scripts.
+If tracker text and script
+output cannot classify an issue safely, choose needs To Issues, needs human
+decision, or config gap. Never invent a new investigation path.
 
 ## Cleanup
 
 Apply obvious mechanical tracker updates:
 
-- route orphan issues into the configured project, team, repo label, or parent
-  when tracker evidence is direct
-- add missing configured labels for route, kind, type, risk, readiness, review
-  debt, and worker environment when policy allows
-- set exactly one `kind-*` value and clear conflicting kind labels
-- keep `kind-spec` and `kind-epic` as containers; never mark containers
-  `ready-for-agent`
-- normalize issue bodies to the configured agent-ready headings
-- preserve useful existing text and add missing headings without inventing facts
+- route orphans into the configured project, team, repo label, or parent when
+  tracker evidence is direct
+- add missing configured route, kind, type, risk, readiness, review-debt, and
+  worker environment labels when policy allows
+- set exactly one `kind-*` value and clear conflicting kind labels; keep
+  `kind-spec` and `kind-epic` as containers and never mark them
+  `ready-for-agent` or promote them
+- normalize bodies to the configured agent-ready headings, preserving useful
+  existing text and adding missing headings without inventing facts
 - add or preserve estimates only when config grants Issue Triage that authority
-- encode dependency blockers from tracker relationships or issue text
-- remove completed, canceled, duplicate, or unrelated blockers only when tracker
-  state makes that direct
+- encode dependency blockers from tracker relationships or issue text; repoint
+  a duplicate blocker to its open canonical issue, and remove completed,
+  canceled, or unrelated blockers, only when tracker state makes that direct
 - move complete `kind-slice` issues from configured intake states to the
   configured ready state during every normal triage run when the full readiness
   contract is complete, including the required labels, route, estimate, body,
-  and `ready-for-agent`; never promote `kind-spec` or `kind-epic` containers
+  and `ready-for-agent`
 - move complete `ready-for-agent` `kind-slice` issues from explicitly requested
-  Linear Backlog cleanup/backfill scope to the configured ready state when
+  Linear Backlog cleanup or backfill scope to the configured ready state when
   config grants promotion authority
 - leave parked Linear Backlog or equivalent states alone unless explicitly in
   scope
-- move or label not-ready `Todo` issues according to config: `needs-info`,
-  `ready-for-human`, configured intake, parked, or To Issues input. Do not leave
+- move or label not-ready `Todo` issues per config: `needs-info`,
+  `ready-for-human`, configured intake, parked, or To Issues input. Never leave
   vague tickets in `Todo` with no next owner
 - remove `ready-for-agent` from vague, duplicate, parent, human-owned,
-  multi-outcome, boundary-incomplete, or body-incomplete issues
+  multi-outcome, fragment, boundary-incomplete, or body-incomplete issues
 - mark implementation-ready slices `ready-for-agent` when no further human
   refinement is needed, even if dependency blockers remain
 - reconcile stale tracker state only from tracker evidence or approved script
-  output, such as a linked PR merged, an active PR needing review state, a
+  output, such as a merged linked PR, an active PR needing review state, a
   changed PR head invalidating review evidence, or a terminal ticket retaining a
-  readiness label
-- clear readiness labels when moving a ticket to the configured done state
+  readiness label; clear readiness labels when moving a ticket to the
+  configured done state
 - add, remove, or leave review evidence and human-merge labels only when script
   output provides the current PR head, check, review, draft, and unresolved
-  thread state required by config
-- add a concise tracker comment only when it helps a human or Orchestrator act
+  thread state config requires
+- add a concise tracker comment only when it helps a human or Orchestrator act;
+  never add noisy comments for small label edits
 
 Do not close, cancel, reprioritize across projects, rewrite product scope, or
 move active workflow states unless config or the user explicitly grants that
 authority.
 
-Do not manually verify linked PRs, branch state, CI, deploys, or code. Use only
-tracker text and script output. If an issue appears to need verification that the
-scripts did not provide, leave an Orchestrator next action such as "verify linked
-PR is merged and update status if complete."
-
 ## Readiness Contract
 
-An issue can receive `ready-for-agent` only when it is:
+An issue can receive `ready-for-agent` only when it is scoped to one PR and one
+primary outcome; not a fragment as defined in the issue tracker contract;
+assigned to the configured project, parent, or route; labeled with one clear
+kind and the required type and risk labels; estimated when config requires
+estimates before handoff; explicit about in-scope and out-of-scope work; and
+complete enough for Orchestrator to decide startability and dispatch.
 
-- scoped to one PR
-- scoped to one primary outcome
-- assigned to the configured project, parent, or route
-- labeled with one clear kind and required type/risk labels
-- estimated when config requires estimates before handoff
-- explicit about in-scope and out-of-scope work
-- complete enough for Orchestrator to decide startability and dispatch
+Required body: outcome; context docs or tracker links; likely files, packages,
+or artifacts; in scope; out of scope; acceptance criteria; required checks;
+security, privacy, data, and operational invariants; dependencies or blockers;
+and estimate when config stores estimates in the body.
 
-Required body content:
+Scope fields must be concrete. `In scope` lists only the behavior, files, docs,
+tests, and workflow state this PR may change. `Out of scope` lists adjacent
+outcomes, sibling tickets, optional polish, broad refactors, production actions,
+and follow-up behavior the worker must not deliver.
 
-- outcome
-- context docs or tracker links
-- likely files, packages, or artifacts
-- in scope
-- out of scope
-- acceptance criteria
-- required checks
-- security, privacy, data, and operational invariants
-- dependencies or blockers
-- estimate when config stores estimates in the body
+Take likely files, packages, or artifacts only from tracker text, config, To
+Issues output, or approved script output. If they are missing, withhold
+`ready-for-agent` and leave the issue for To Issues or human clarification.
 
-The scope fields must be concrete. `In scope` lists only the behavior, files,
-docs, tests, and workflow state this PR may change. `Out of scope` lists
-adjacent outcomes, sibling tickets, optional polish, broad refactors, production
-actions, and follow-up behavior the worker must not deliver.
-
-Populate likely files, packages, or artifacts only from existing tracker text,
-config, To Issues output, or approved script output. Do not search the repo to
-discover them. If they are missing, withhold `ready-for-agent` and leave the
-issue for To Issues or human clarification.
-
-If an issue carries `ready-for-agent` but the body says it is waiting on human
+When an issue carries `ready-for-agent` but its body says it waits on human
 setup, credentials, provider decisions, security judgment, or a
-`ready-for-human` rationale, treat the body as the stronger signal. Remove or
-withhold `ready-for-agent`, preserve the exact human decision needed, and report
-the contradiction.
+`ready-for-human` rationale, the body wins: remove or withhold
+`ready-for-agent`, preserve the exact human decision needed, and report the
+contradiction.
 
 ## Dependencies
 
-Encode dependencies from bounded, authoritative evidence:
-
-- explicit blocker text in the issue
-- tracker parent, child, related, blocker, or duplicate relationships
-- accepted sequencing in the scoped project's cited specs, roadmap, milestone,
-  or project docs
-- concrete producer-before-consumer, schema-before-reader, API-before-client, or
-  release-order prerequisites stated by those sources
+Encode dependencies only from bounded, authoritative evidence: explicit blocker
+text in the issue; tracker parent, child, related, blocker, or duplicate
+relationships; accepted sequencing in the scoped project's cited specs,
+roadmap, milestone, or project docs; and concrete
+producer-before-consumer, schema-before-reader, API-before-client, or
+release-order prerequisites stated by those sources.
 
 Use the smallest direct blocker graph that preserves the required order. Remove
 terminal blockers when tracker state makes that safe, detect missing direct
@@ -348,58 +294,48 @@ them. Do not inspect implementation code, PR diffs, branches, or deploy state to
 invent ordering. If the tracker and cited source-of-truth docs still leave the
 sequence ambiguous, leave the issue for To Issues or human clarification.
 
-Dependency blockers do not remove `ready-for-agent` or worker-environment
-labels. Encode dependency order with tracker relationships, blocker fields, or
-the dependencies/body section so Orchestrator can compute startability.
+Dependency blockers never remove `ready-for-agent` or worker-environment labels.
+Encode order with tracker relationships, blocker fields, or the dependencies
+body section so Orchestrator can compute startability.
 
 When the frozen scope contains implementation `kind-slice` tickets, run the
-dependency/startability script over the snapshot or a compact issue JSON:
+dependency and startability script over the snapshot or a compact issue JSON:
 
 ```sh
 node <skill-dir>/../ziw-orchestrate/scripts/linear-dag-start.mjs <snapshot-or-issues.json> --config <config.json>
 ```
 
-Use the DAG result to fix the queue:
+Fix the queue from the result:
 
 - `starts`: verify the full readiness contract before leaving the issue in
-  `Todo` with `ready-for-agent` and handing it to Orchestrator. The DAG checks
-  label/state eligibility, not body completeness. Missing structured footprint
-  data in the snapshot is distinct from missing likely files/packages/artifacts
-  in the issue body. Orchestrator owns footprint derivation and collision-safe
-  dispatch, including the unknown-footprint lane its dispatch policy allows.
+  `Todo` with `ready-for-agent` for Orchestrator. The DAG checks label and state
+  eligibility, not body completeness. Missing structured footprint data in the
+  snapshot differs from missing likely files/packages/artifacts in the body;
+  Orchestrator owns footprint derivation and collision-safe dispatch, including
+  the unknown-footprint lane its dispatch policy allows.
 - `frontier` but not `starts`: repair missing labels, kind, ready state, active
-  claim, open-PR metadata, or body fields when safe
-- `startableBlockers`: convert each blocker into a ticket repair, a To Issues
-  action, a human question, or an Orchestrator next action
+  claim, open-PR metadata, or body fields when safe.
+- `startableBlockers`: turn each blocker into a ticket repair, a To Issues
+  action, a human question, or an Orchestrator next action.
 - cycles and out-of-scope blockers: encode the correct relationship if direct;
-  otherwise mark for human/To Issues
+  otherwise mark for a human or To Issues.
 
 ## Human Clarification
 
-Ask the user only when a safe tracker update depends on a concrete decision.
-Keep questions short and tied to a specific issue.
-
-If the user is unavailable or the run is non-interactive:
-
-- add the configured human-input label or state
-- add one concise tracker comment only when it helps the human answer
-- include the exact question or next action in the final report
-- leave the issue out of `ready-for-agent`
+Ask the user only when a safe tracker update depends on a concrete decision,
+with a short question tied to a specific issue. When the user is unavailable or
+the run is non-interactive, add the configured human-input label or state, add
+one concise tracker comment only when it helps the human answer, include the
+exact question or next action in the final report, and leave the issue out of
+`ready-for-agent`.
 
 Never fabricate scope, acceptance criteria, likely files, priority, estimates,
 or dependency order to make a ticket look ready.
 
 ## Guardrails
 
-- Scripts first, no ad hoc exploration. Use approved workflow scripts and
-  tracker tools. Do not do manual code search, implementation file reads, tests,
-  one-off `gh` queries, PR list spelunking, branch checks, CI checks, deploy
-  checks, production logs, alerts, security scans, package audits, or
-  repo-health sweeps.
+- Stay inside the Evidence Boundary: scripts first, no ad hoc exploration.
 - Do not implement code, create PRs, merge, deploy, or mutate production.
-- Follow only cited source-of-truth project docs for scope and dependency
-  analysis. Do not follow PR, CI, deploy, log, or unrelated external links.
-- Do not create noisy comments for small label edits.
 - Do not create new label taxonomies unless config or the user explicitly names
   them.
 - Stop before destructive bulk changes if more than a small number of issues
@@ -410,20 +346,20 @@ or dependency order to make a ticket look ready.
 Report:
 
 - scripts run, script inputs, and any script fallback used
-- tracker scope reviewed and whether the run was dry-run, partial, or applied
-- Linear Backlog or intake states skipped or explicitly included
+- scope reviewed, whether the run was dry-run, partial, or applied, and the
+  Linear Backlog or intake states skipped or explicitly included
 - issues changed, unchanged, parked, and needing human decision
 - orphans routed or left with reasons
 - labels, priorities, estimates, body contracts, dependency relationships, and
   status recommendations updated
 - ready-state issues made agent-ready or left with exact missing fields
-- intake/review-debt issues promoted, left for To Issues, parked, or left for a
-  human decision
+- intake and review-debt issues promoted, left for To Issues, parked, or left
+  for a human decision
 - issues ready for Orchestrator, blocked-but-ready, missing metadata, missing
   body fields, duplicate, cyclic, or config-blocked
 - stale tracker state repaired from script output, including Done/readiness,
   review evidence, and human-merge label repairs
-- exact Orchestrator next actions for any linked PR/status verification needed
+- exact Orchestrator next actions for any linked PR or status verification
 - final `Todo` handoff: starts, blocked-ready, and not-ready tickets removed or
   marked with their exact next owner
 - user questions asked or exact human next actions left

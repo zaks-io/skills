@@ -63,9 +63,11 @@ startable issue, compare predicted footprints from To Issues against:
 Dispatch the largest non-colliding set that fits worker headroom. Hold colliding
 items as `file-collision` with "held, not skipped" evidence.
 
-If a startable ticket lacks predicted footprint, route it to triage or To Issues
-for repair before fanout. A single explicitly requested ticket may still run when
-no active work can collide with it.
+If the snapshot has no predicted footprint for a startable ticket, derive it in
+the same tick from the body's likely files, packages, or artifacts. Route the
+ticket to triage or To Issues only when the body itself lacks them. While that
+repair is pending, the first selected ticket may still start with an unknown
+footprint when there is no active work at all, as the main skill allows.
 
 Prefer the set that unlocks blocked dependents, then backlog priority. Fill every
 slot for which safe work exists.

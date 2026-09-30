@@ -67,8 +67,8 @@ A `kind-spec` or `kind-epic` **Ticket** that is input for planning and is never 
 _Avoid_: parent task, executable epic
 
 **Slice Ticket**:
-A `kind-slice` **Ticket** scoped to one independently shippable PR.
-_Avoid_: task, subtask, work item
+A `kind-slice` **Ticket** scoped to one independently shippable PR that delivers a whole outcome with its tests and docs.
+_Avoid_: task, subtask, work item, fragment
 
 **Agent-Ready Body**:
 The structured body required before a **Slice Ticket** can be handed to an implementation agent.

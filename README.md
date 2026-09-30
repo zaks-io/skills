@@ -309,6 +309,15 @@ is a one-PR ticket and the only kind a worker runs. Multi-PR work should stay
 under a container and be split into separate slices so a first linked PR cannot
 falsely close the whole scope.
 
+Slices are sized to be worth a PR. Each one costs a worker session, a check
+run, a review, and a merge, so To Issues cuts the fewest slices that ship
+safely: a slice is a whole outcome with its code, tests, docs, and migration.
+Work is separated only for a distinct outcome, size, rollout order, risk or
+authority, or readiness. A layer, a scaffold, a verification step, or the tests
+for an unmerged sibling's behavior is merged into the slice it serves unless a
+split reason keeps it apart, and work the plan does not ask for is never
+ticketed.
+
 Every ready `kind-slice` needs a hard boundary: one primary outcome, concrete
 `in scope`, and concrete `out of scope`. The out-of-scope field should name
 adjacent tickets, optional polish, broad refactors, production actions, and
@@ -393,8 +402,9 @@ updates confirmed current-truth specs, and keeps them `Draft` until you approve
 `Ready for slicing`. It never creates tracker tickets.
 
 To Issues is the ticketing front door. It turns a ready spec, complete PRD, or
-epic ticket into dependency-ordered `kind-slice` tickets, adopts any tickets you
-made by hand instead of duplicating them, applies the body contract, labels, and
+epic ticket into the fewest dependency-ordered `kind-slice` tickets that ship
+safely, adopts any tickets you made by hand instead of duplicating them, merges
+fragments into the outcome they belong to, applies the body contract, labels, and
 configured estimates, and emits a dependency graph and predicted file
 footprint. Run it whenever you want the tickets to match the plan; re-running
 converges. Draft specs return to Grill instead of producing ready slices.
@@ -450,7 +460,7 @@ policy, generated-artifact checks, and secret-scan range.
 
 The research behind this operating model is captured in
 [docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short
-version: keep one work loop, keep issues small and verifiable, measure outcomes,
+version: keep one work loop, keep issues focused and verifiable, measure outcomes,
 and add agent or skill complexity only when it improves delivery.
 
 ## The Skills
@@ -464,8 +474,9 @@ glue should stay under `.agents/` unless it proves portable.
 - `ziw-grill`: resolve material product, domain, scope, and architecture
   ambiguity one question at a time; update authoritative planning artifacts;
   and require explicit approval before a spec becomes ready for slicing.
-- `ziw-to-issues`: turn a spec, PRD, or epic ticket into dependency-ordered
-  one-PR `kind-slice` tickets, adopt hand-created tickets, apply the body
+- `ziw-to-issues`: turn a spec, PRD, or epic ticket into the fewest
+  dependency-ordered one-PR `kind-slice` tickets that ship safely, adopt
+  hand-created tickets, merge fragments, apply the body
   contract with explicit non-goals, labels, and configured estimates, and emit a
   dependency graph and file footprint.
 - `ziw-triage`: update current tracker labels, kinds, readiness, stale

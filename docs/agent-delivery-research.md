@@ -14,7 +14,9 @@ a coding agent.
   agentic complexity only when it improves measured delivery outcomes.
 - Treat Linear tickets as prompts. Small, well-scoped tickets with acceptance
   criteria, relevant artifacts, and verification commands are more likely to
-  merge.
+  merge. Small means one whole outcome, not one layer or step: every ticket pays
+  a fixed worker, check, review, and merge cost, so fragments cost more than
+  they save.
 - Keep skills narrow. A skill should earn its token cost by improving pass rate,
   review quality, safety, or cycle time.
 - Resolve material planning ambiguity before ticket slicing. Agents should not

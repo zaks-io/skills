@@ -65,7 +65,8 @@ contains:
 
 - outcome
 - context docs, with spec citations when the work comes from a spec
-- likely files, packages, or artifacts
+- likely files, packages, or artifacts, under a heading of that name with one
+  backticked path per bullet so Orchestrator can parse the footprint
 - in scope
 - out of scope
 - acceptance criteria
@@ -90,6 +91,19 @@ read the cited sections, not the whole spec corpus.
 
 If the work requires multiple PRs, keep it as a container or split it into
 multiple `kind-slice` issues. Do not mark a multi-PR scope as a ready slice.
+
+Do not mark a fragment as a ready slice either. A slice is a whole outcome with
+its code, tests, docs, config, and migration. A fragment has no consumer or
+observable behavior of its own in its PR, such as a scaffold, a single layer, a
+verification step, or the tests or docs for an unmerged sibling's behavior. It
+is not a fragment when its body records a split reason separating it from the
+sibling it serves, when it depends on a sibling but has its own behavior, or
+when the behavior it covers already shipped. Blocked slices stay ready. Route a
+fragment to To Issues as a merge candidate. While To Issues has left it
+`needs-info` behind a partner that is claimed, active, or linked to an open PR,
+it waits on the human answer instead; once the partner is Done, route it back
+to To Issues to close as covered or reshape. Only `ziw-to-issues` folds
+tickets, and it owns the split reasons and merge test.
 
 ## Estimate Rules
 
@@ -280,8 +294,12 @@ When turning roadmaps, specs, ADRs, or plans into issues:
 
 - extract only explicit capabilities, decisions, constraints, deferred work, and
   dependencies
-- create one-PR implementation slices
-- give each slice one primary outcome and concrete non-goals
+- create the fewest one-PR implementation slices that ship safely; do not split
+  by layer, artifact type, file, step, spec section, or acceptance criterion
+- give each slice one primary outcome with its tests and docs, and concrete
+  non-goals
+- ticket only work the source states; adjacent polish, cleanup, and follow-ups
+  the source does not ask for are non-goals, not tickets
 - group by the configured tracker location, milestone, and parent or workstream
   issue
 - apply repo routing, type, risk, area, and readiness labels from config

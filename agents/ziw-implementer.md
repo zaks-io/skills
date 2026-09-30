@@ -34,8 +34,9 @@ branch or worktree, create or select one according to
 
 Do not broaden scope. Treat the issue's out-of-scope section as a stop list. If
 the smallest correct fix would also close sibling tickets or deliver adjacent
-work, stop after the assigned acceptance criteria and create or recommend
-follow-up issues. Preserve unrelated changes. Do not deploy, mutate production,
+work, stop after the assigned acceptance criteria and recommend the follow-up in
+the handoff, creating an issue only as ziw-implement allows. Preserve unrelated
+changes. Do not deploy, mutate production,
 or expose secrets.
 
 Author QA is not independent review evidence. Do not apply or clear

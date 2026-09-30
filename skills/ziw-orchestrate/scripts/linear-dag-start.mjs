@@ -15,7 +15,10 @@ const DEFAULT_STARTABLE_STATES = ["todo"];
 const DEFAULT_STARTABLE_STATE_TYPES = ["unstarted"];
 const DEFAULT_READINESS_LABELS = ["ready-for-agent"];
 const DEFAULT_STARTABLE_KIND_LABELS = ["kind-slice"];
-const TERMINAL_STATE_TYPES = ["completed", "canceled"];
+const TERMINAL_STATE_TYPES = ["completed", "canceled", "duplicate"];
+// Raw inputs skip linear-snapshot's canonical lookup, so a duplicate blocker
+// keeps blocking until its canonical issue replaces it.
+const SATISFIED_BLOCKER_STATE_TYPES = ["completed", "canceled"];
 const NON_IMPLEMENTATION_READY_LABELS = new Set([
   "needs-info",
   "needs-triage",
@@ -77,7 +80,7 @@ const blockerRefs = (issue) =>
       ...toArray(issue?.dependsOn),
       ...toArray(issue?.dependencies),
     ]
-      .filter((blocker) => !TERMINAL_STATE_TYPES.includes(blockerStateType(blocker)))
+      .filter((blocker) => !SATISFIED_BLOCKER_STATE_TYPES.includes(blockerStateType(blocker)))
       .map(blockerId),
   );
 

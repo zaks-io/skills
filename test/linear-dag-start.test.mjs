@@ -299,3 +299,14 @@ test("CLI reports an empty DAG as a successfully drained scope", () => {
   assert.equal(output.totalIssues, 0);
   assert.deepEqual(output.starts, []);
 });
+
+test("linearDagStart keeps raw duplicate blockers blocking until canonicalized", () => {
+  const ready = { labels: ["kind-slice", "ready-for-agent"], state: "Todo" };
+  const output = linearDagStart([
+    { identifier: "LIN-1", blockedBy: [{ id: "LIN-2", stateType: "duplicate" }], ...ready },
+    { identifier: "LIN-3", blockedBy: [{ id: "LIN-4", stateType: "canceled" }], ...ready },
+    { identifier: "LIN-5", stateType: "duplicate", ...ready },
+  ]);
+
+  assert.deepEqual(output.starts, ["LIN-3"]);
+});
