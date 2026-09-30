@@ -15,7 +15,7 @@ const DEFAULT_STARTABLE_STATES = ["todo"];
 const DEFAULT_STARTABLE_STATE_TYPES = ["unstarted"];
 const DEFAULT_READINESS_LABELS = ["ready-for-agent"];
 const DEFAULT_STARTABLE_KIND_LABELS = ["kind-slice"];
-const TERMINAL_STATE_TYPES = ["completed", "canceled"];
+const TERMINAL_STATE_TYPES = ["completed", "canceled", "duplicate"];
 const NON_IMPLEMENTATION_READY_LABELS = new Set([
   "needs-info",
   "needs-triage",

@@ -111,8 +111,9 @@ agent cannot resolve the target repository and delegation is ambiguous.
 
 One decision for "is this PR safe to advance and merge," so the loop does not
 reconcile three separate descriptions at runtime. Risk tier comes from the PR /
-issue risk labels and the change shape. Merge authority comes from the repo's
-configured delivery mode; risk controls review depth, not merge authority.
+issue risk labels and the change shape. Merge authority comes from explicit repo
+config, and the delivery mode sets which risk tiers it may auto-merge; risk
+controls review depth, not merge authority.
 
 The organizing principle is reversibility. A merge whose mistake is recoverable
 (pre-production, revertible, no data destroyed) can be trusted to the gates and
@@ -120,11 +121,14 @@ the sampled audit. Very destructive or hard-to-reverse actions (production
 deploys, destructive data changes, irreversible migrations against retained
 data, credential and provider decisions) require a human check in every mode.
 
+Auto-merge needs an explicit agent merge authority in config. When merge
+authority is missing or blank, every tier routes to human merge.
+
 Delivery modes:
 
-- `production` (the default when config is silent): LOW and MEDIUM tiers may
-  auto-merge when green; HIGH routes to human merge unless config grants the
-  tier to the orchestrator.
+- `production` (the default delivery mode): with agent merge authority, LOW and
+  MEDIUM tiers may auto-merge when green; HIGH routes to human merge unless
+  config grants the tier to the orchestrator.
 - `velocity` (pre-production repos that opt in via config): every tier may
   auto-merge once its review depth is satisfied and the PR is green. The human
   reviews by exception and by sampled audit, not per PR.

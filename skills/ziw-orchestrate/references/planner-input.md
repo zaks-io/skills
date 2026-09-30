@@ -69,7 +69,9 @@ fields affect decisions.
 | Require conformance evidence | `requireConformanceEvidence`                               | Boolean                                                     |
 | Local budget stops           | `localBudgetSoftStopPercent`, `localBudgetHardStopPercent` | Both supplied, between 0 and 100, soft no greater than hard |
 
-Omitted optional policy fields retain the workflow helpers' existing defaults.
+Omitted optional policy fields retain the workflow helpers' existing defaults,
+except merge authority: an omitted or blank `mergeAuthority` routes every
+merge-ready PR to human merge. Always pass it from config.
 Validation never inserts defaults, removes fields, or converts types. Write
 `false`, not `"false"`, and `3`, not `"3"`. Empty label strings remain supported
 where the workflow uses them to disable a label. Policy enums use lowercase.

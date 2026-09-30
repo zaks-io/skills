@@ -120,7 +120,7 @@ const isOpenProductPr = (pr) =>
 
 const isActiveLinearClaim = (issue) => {
   const stateType = normalize(issue?.stateType ?? issue?.state?.type);
-  if (["completed", "canceled"].includes(stateType)) return false;
+  if (["completed", "canceled", "duplicate"].includes(stateType)) return false;
   return Boolean(
     issue?.activeClaim ??
     issue?.delegated ??

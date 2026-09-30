@@ -265,7 +265,8 @@ Worker headroom is still gated by file footprint. Before fanning out startable
 work, Orchestrator compares predicted file or package footprints against active
 PRs, active worker branches, and the candidates selected for the same tick. It
 dispatches only a non-colliding set, holds sibling hot-seam collisions as
-`file-collision`, and routes missing footprints to triage or To Issues.
+`file-collision`, derives a missing footprint from the body's likely files in
+the same tick, and routes to triage or To Issues only when the body lacks them.
 
 If the refreshed scope is completely blocked, Orchestrator stops the recurring
 loop for that scope instead of waking forever. Completely blocked means there are
@@ -291,11 +292,13 @@ materially changed diff. It merges through
 the configured code-host method only. If the host rejects that method, setup is
 stale and must be refreshed before another merge attempt.
 
-Merge authority follows the repo's configured delivery mode; risk controls
-review depth, not merge authority. The merge-eligibility helper in the
+Merge authority comes from explicit repo config, and the delivery mode sets which
+risk tiers it may auto-merge; risk controls review depth, not merge authority. The merge-eligibility helper in the
 executable contract decides auto-merge, human merge, or hold from delivery
 mode, risk tier, review depth, review evidence, and exhibited conformance.
-Production actions and unresolved human decisions never auto-merge in any mode.
+Missing merge authority, production actions, and unresolved human decisions
+never auto-merge in any mode. Blocking findings or a conformance FAIL on the
+current diff route back to the worker before any new review is requested.
 
 ## Ticket Kinds
 

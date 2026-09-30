@@ -255,6 +255,8 @@ Record each slice's predicted footprint in the configured location and shape so
 the orchestrator can avoid concurrent collisions. It is a prediction; workers
 may diverge.
 
+- Unless config names another shape, write them under `## Likely files,
+packages, or artifacts`, one backticked path per bullet.
 - List likely files, directories, or packages, including shared document
   surfaces such as dense markdown lists, status ledgers, registries,
   changelogs, config tables, and docs sections many slices edit.

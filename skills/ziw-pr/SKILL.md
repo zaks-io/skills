@@ -66,7 +66,10 @@ Record the skip in the final report.
 ## Checks
 
 Run the repo full local gate from config. If absent, discover it from package
-scripts, CI, Makefile, Justfile, lockfiles, and touched languages.
+scripts, CI, Makefile, Justfile, lockfiles, and touched languages. When Agent
+Implement reports the gate and threshold checks passing on the exact tree being
+committed, reuse those results; run only checks it skipped or that a later file,
+manifest, generated-artifact, or environment change invalidates.
 
 Use the configured command and runner for each check. Do not infer a test runner
 from filename alone, and do not replace the full gate with a package-local alias
@@ -114,18 +117,20 @@ Use the configured hosted bot review provider per the merge-safety rules in
 [../ziw-setup/references/operating-profile.md](../ziw-setup/references/operating-profile.md)
 and the `ziw-code-review` recommendation. CodeRabbit and Cursor Bugbot are both
 valid providers when repo config enables them. Use hosted bot review only for
-high-risk changes or when the user asks.
+high-risk changes, when repo policy requires it, or when the user asks.
 
 Do not post hosted-review commands or run a provider CLI until the provider,
 auto-review mode, trigger policy, and current hosted review state are resolved.
 If a hosted review is enabled, pending, or complete for the current
-review-relevant diff, wait
-instead of requesting another. Never use CodeRabbit CLI for an existing PR, and
+review-relevant diff, do not request another; report it as `auto pending` or
+`complete` and hand off.
+Evaluating its findings belongs to Orchestrator. Never use CodeRabbit CLI for an existing PR, and
 do not apply CodeRabbit commands to Cursor Bugbot. Use `@coderabbitai ignore` in
 the PR description only when CodeRabbit policy allows skipping optional
 auto-review. For Cursor Bugbot, use only the repo-configured trigger or
 automatic review policy; report `unresolved` if the trigger is unknown. Missing
-auth, rate limits, or credits are a recorded skip, not a blocker.
+auth, rate limits, or credits are a recorded skip, not a blocker, unless repo
+policy or the user requires that provider; then report `unresolved`.
 
 ## Commit
 
@@ -225,7 +230,7 @@ PR:     <url>
 Title:  <title>
 Risk:   <LOW|MEDIUM|HIGH>
 Checks: <commands and result>
-Review: author QA <skipped with reason|verdict>; hosted bot <provider skipped|CLI|PR review|auto pending|unresolved>
+Review: author QA <skipped with reason|verdict>; hosted bot <provider skipped|CLI|PR review|auto pending|complete|unresolved>
 Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
 PR state: <draft|ready-for-review>
 Scope: <matches issue|split needed|untracked, with reason>

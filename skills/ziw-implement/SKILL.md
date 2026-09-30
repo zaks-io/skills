@@ -94,13 +94,16 @@ stop for triage instead of choosing a broader interpretation.
   ticket work, optional polish, broad refactors, production actions, or "while
   you are there" cleanup unless it is directly required by an acceptance
   criterion.
-- If the smallest correct fix exposes adjacent work, create or recommend a
-  follow-up issue and keep the current diff limited to the assigned ticket.
+- If the smallest correct fix exposes adjacent work, keep the diff limited to
+  the assigned ticket and list the work as a recommended follow-up in the
+  handoff. Create an issue only for a concrete bug or gap this ticket cannot
+  absorb: search for duplicates first, group items that share one fix into one
+  issue, use the configured intake route, and leave readiness labels off so
+  triage or To Issues shapes it.
 - Preserve unrelated user changes.
 - Follow existing repo patterns and package boundaries.
 - Update tests, docs, generated artifacts, and status ledgers only when the
   behavior contract changed or the issue requires it.
-- Create follow-up tracker issues for adjacent work instead of broadening scope.
 - Never deploy production, rotate secrets, or mutate live customer data without
   explicit approval.
 
@@ -121,7 +124,8 @@ Treat implementation, verification, and PR creation as one pipeline:
    whether another pass would add evidence.
 6. Run `ziw-pr` to commit, push, create or update the PR, and update the issue
    tracker. Tell Create PR whether author QA ran or was skipped, why, whether
-   any result covers the current diff, and whether hosted bot escalation remains.
+   any result covers the current diff, which checks passed on the current tree,
+   and whether hosted bot escalation remains.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.

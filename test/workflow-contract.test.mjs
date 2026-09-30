@@ -923,7 +923,7 @@ test("velocity mode arms auto-merge for high risk once review depth is satisfied
       hostedReviewComplete: true,
       hostedReviewHeadSha: "abc123",
     },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", mergeAuthority: "agent" },
   );
 
   assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
@@ -934,7 +934,7 @@ test("velocity mode arms auto-merge for high risk once review depth is satisfied
 test("high-risk merges do not purchase a redundant second review by default", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, labels: ["risk-schema"] },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", mergeAuthority: "agent" },
   );
 
   assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
@@ -948,7 +948,7 @@ test("production mode routes high-risk merges to human authority", () => {
       hostedReviewComplete: true,
       hostedReviewHeadSha: "abc123",
     },
-    {},
+    { mergeAuthority: "agent" },
   );
 
   assert.equal(decision.action, workflowDecisionActions.routeHumanMerge);
@@ -984,7 +984,7 @@ test("conformance FAIL rows hold the merge at every tier", () => {
 test("medium-risk unverifiable conformance merges with a recorded intake gap", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, conformance: "unverifiable", labels: ["risk-normal"] },
-    { deliveryMode: "velocity" },
+    { deliveryMode: "velocity", mergeAuthority: "agent" },
   );
 
   assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
@@ -1024,13 +1024,16 @@ test("production actions and pending human decisions never auto-merge", () => {
 });
 
 test("production mode arms auto-merge for low and medium risk when green", () => {
-  const medium = mergeEligibilityDecision({ ...greenPr, labels: ["risk-normal"] }, {});
+  const medium = mergeEligibilityDecision(
+    { ...greenPr, labels: ["risk-normal"] },
+    { mergeAuthority: "agent" },
+  );
   assert.equal(medium.action, workflowDecisionActions.armAutoMerge);
   assert.equal(medium.mode, "production");
 
   const low = mergeEligibilityDecision(
     { ...greenPr, riskTier: "low" },
-    { requireConformanceEvidence: true },
+    { mergeAuthority: "agent", requireConformanceEvidence: true },
   );
   assert.equal(low.action, workflowDecisionActions.armAutoMerge);
   assert.equal(low.tier, "low");
@@ -1099,7 +1102,7 @@ test("a missing required conformance table holds the merge", () => {
 test("requireConformanceEvidence false lets repos without the table keep merging", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, conformance: undefined, labels: ["risk-normal"] },
-    { deliveryMode: "velocity", requireConformanceEvidence: false },
+    { deliveryMode: "velocity", mergeAuthority: "agent", requireConformanceEvidence: false },
   );
 
   assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
@@ -1172,15 +1175,56 @@ test("a code-host changes-requested verdict clears the human-merge label", () =>
   assert.equal(decision.action, workflowDecisionActions.clearHumanMergePrLabel);
 });
 
-test("both merge-path helpers agree on default authority for the same green PR", () => {
+test("both merge-path helpers agree on agent authority for the same green PR", () => {
   const state = { ...greenPr, prState: "open" };
+  const config = { mergeAuthority: "agent" };
 
-  const merge = mergeEligibilityDecision(state, {});
+  const merge = mergeEligibilityDecision(state, config);
   assert.equal(merge.action, workflowDecisionActions.armAutoMerge);
 
-  const label = humanMergePrLabelDecision(state, {});
+  const label = humanMergePrLabelDecision(state, config);
   assert.equal(label.action, workflowDecisionActions.leaveUnchanged);
   assert.equal(label.reason, "configured merge authority does not require human merge");
+});
+
+test("missing or blank merge authority fails closed to human merge", () => {
+  const state = { ...greenPr, prState: "open", labels: ["risk-normal"] };
+
+  for (const config of [{}, { mergeAuthority: "" }, { mergeAuthority: "  " }]) {
+    const merge = mergeEligibilityDecision(state, config);
+    assert.equal(merge.action, workflowDecisionActions.routeHumanMerge);
+    assert.match(merge.reason, /merge authority is not configured/);
+
+    const label = humanMergePrLabelDecision(state, config);
+    assert.equal(label.action, workflowDecisionActions.applyHumanMergePrLabel);
+  }
+});
+
+test("findings from a review of the current diff route to a fix before re-review", () => {
+  const needsRevision = {
+    prState: "open",
+    requiredChecksPassed: true,
+    reviewDiffFingerprint: "fp1",
+    reviewedDiffFingerprint: "fp1",
+    reviewVerdict: "NEEDS REVISION",
+  };
+  const config = { mergeAuthority: "agent" };
+
+  const blocking = mergeEligibilityDecision({ ...needsRevision, blockingFindings: true }, config);
+  assert.equal(blocking.action, workflowDecisionActions.holdMerge);
+  assert.match(blocking.reason, /blocking findings/);
+
+  const failed = mergeEligibilityDecision(
+    { ...needsRevision, reviewVerdict: "Ready to Merge", conformance: "FAIL" },
+    config,
+  );
+  assert.match(failed.reason, /route findings back to the worker/);
+
+  const stale = mergeEligibilityDecision(
+    { ...needsRevision, reviewDiffFingerprint: "fp2", blockingFindings: true },
+    config,
+  );
+  assert.match(stale.reason, /lacks clean code review evidence/);
 });
 
 test("default authority still routes high-risk work to human in production mode", () => {

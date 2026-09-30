@@ -215,9 +215,9 @@ Apply obvious mechanical tracker updates:
 - normalize bodies to the configured agent-ready headings, preserving useful
   existing text and adding missing headings without inventing facts
 - add or preserve estimates only when config grants Issue Triage that authority
-- encode dependency blockers from tracker relationships or issue text; remove
-  completed, canceled, duplicate, or unrelated blockers only when tracker state
-  makes that direct
+- encode dependency blockers from tracker relationships or issue text; repoint
+  a duplicate blocker to its open canonical issue, and remove completed,
+  canceled, or unrelated blockers, only when tracker state makes that direct
 - move complete `kind-slice` issues from configured intake states to the
   configured ready state during every normal triage run when the full readiness
   contract is complete, including the required labels, route, estimate, body,

@@ -14,6 +14,7 @@ const NON_IMPLEMENTATION_READY_LABELS = new Set([
   "ready-for-human",
   "wontfix",
 ]);
+const REVISION_REVIEW_VERDICTS = new Set(["needs revision", "do not merge"]);
 const CLEAN_REVIEW_VERDICTS = [
   "approve",
   "approved",
@@ -523,13 +524,26 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   });
 
   const facts = mergeReadinessFacts(state);
+  const conformance = normalize(state.conformance ?? state.conformanceVerdict);
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  const conformanceCoversHead =
+    state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead);
   if (!facts.open) return hold("PR is not open");
   if (facts.draft) return hold("draft PRs are pre-review and cannot merge");
+  // Findings from a review of the current diff need a fix, not another review.
+  if (state.reviewEvidenceCurrent === true || reviewCoversCurrentDiff(state)) {
+    const verdict = normalize(state.reviewVerdict ?? state.codeReviewVerdict);
+    if (facts.blockingFindings || REVISION_REVIEW_VERDICTS.has(verdict)) {
+      return hold("blocking findings or changes requested remain");
+    }
+    if (CONFORMANCE_FAIL.has(conformance) && conformanceCoversHead) {
+      return hold("conformance table has FAIL rows; route findings back to the worker");
+    }
+  }
   if (!facts.reviewEvidenceCurrent) {
     return hold("current review-relevant diff lacks clean code review evidence");
   }
   if (!facts.checksPassed) return hold("required checks are not confirmed passing");
-  if (facts.blockingFindings) return hold("blocking findings or changes requested remain");
   if (facts.unresolvedReviewThreads > 0) return hold("unresolved review threads remain");
   if (facts.hostedReviewBlocked) return hold("required hosted review is pending or incomplete");
   if (facts.scopeMismatch) return hold("diff does not match the linked issue scope");
@@ -538,17 +552,8 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   // systems of record, so first-party boolean evidence (reviewEvidenceCurrent,
   // a conformance verdict without conformanceHeadSha) is trusted as-is.
   // Third-party reviews require a matching review-diff fingerprint.
-  const conformance = normalize(state.conformance ?? state.conformanceVerdict);
   const requireConformance = config.requireConformanceEvidence === true;
-  const currentHead = state.currentPrHeadSha ?? state.headSha;
-  if (CONFORMANCE_FAIL.has(conformance)) {
-    return hold("conformance table has FAIL rows; route findings back to the worker");
-  }
-  if (
-    conformance &&
-    state.conformanceHeadSha != null &&
-    !shaEquals(state.conformanceHeadSha, currentHead)
-  ) {
+  if (conformance && !conformanceCoversHead) {
     return hold("conformance evidence does not cover the current PR head");
   }
   if (requireConformance) {
@@ -571,7 +576,10 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
     return routeHuman("production actions and unresolved human decisions never auto-merge");
   }
   const configuredAuthority = normalize(config.mergeAuthority);
-  if (configuredAuthority && !AGENT_MERGE_AUTHORITIES.includes(configuredAuthority)) {
+  if (!configuredAuthority) {
+    return routeHuman("merge authority is not configured; missing policy never grants auto-merge");
+  }
+  if (!AGENT_MERGE_AUTHORITIES.includes(configuredAuthority)) {
     return routeHuman("configured merge authority requires human merge");
   }
 

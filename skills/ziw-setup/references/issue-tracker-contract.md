@@ -65,7 +65,8 @@ contains:
 
 - outcome
 - context docs, with spec citations when the work comes from a spec
-- likely files, packages, or artifacts
+- likely files, packages, or artifacts, under a heading of that name with one
+  backticked path per bullet so Orchestrator can parse the footprint
 - in scope
 - out of scope
 - acceptance criteria
