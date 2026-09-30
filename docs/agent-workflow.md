@@ -159,9 +159,10 @@ config-gap finding when the conflict affects the workflow.
   external sources before asking, updates confirmed authoritative planning
   artifacts, and requires user approval before a spec becomes
   `Ready for slicing`. It does not create tracker tickets or implement code.
-- To Issues: the front door that turns a spec, PRD, or epic ticket into
-  dependency-ordered one-PR `kind-slice` tickets. Adopts hand-created tickets
-  instead of duplicating them, applies the agent-ready body contract and labels,
+- To Issues: the front door that turns a spec, PRD, or epic ticket into the
+  fewest dependency-ordered one-PR `kind-slice` tickets that ship safely. Adopts
+  hand-created tickets instead of duplicating them, merges fragments into the
+  outcome they belong to, applies the agent-ready body contract and labels,
   includes estimates when config defines an estimate policy, puts ready slices in
   the configured ready state, and emits a dependency graph, predicted file
   footprint, and, when slicing a spec, a coverage matrix mapping every
@@ -306,12 +307,19 @@ when the tracker label group does not.
 - `kind-slice`: a one-PR implementation ticket. The only kind a worker runs.
 
 Containers (`kind-spec`, `kind-epic`) are To Issues input, not work to ship.
-`kind-slice` work should close in one PR. If a plan needs scaffold, CI gate,
-data migration, preview flip, and final wiring, To Issues splits those into
-separate slices under a container so the first linked PR cannot falsely close the
-whole scope.
 To Issues reads them and emits `kind-slice` children. The orchestrator hard-
 refuses to dispatch a container even if it carries `ready-for-agent`.
+
+`kind-slice` work should close in one PR, and one PR should carry a whole
+outcome: the code in every layer it touches plus its tests, docs, config, and
+migration. Every slice costs a worker session, a check run, a review, a PR, and
+a merge, so To Issues cuts the fewest slices that ship safely. It separates work
+only for a distinct outcome, size, rollout order, risk or authority, or
+readiness. When rollout order forces several PRs, such as data cleanup before a
+schema change or a preview flip after the code it enables, each gated step is
+its own slice under a container so the first linked PR cannot falsely close the
+whole scope. A layer, a scaffold, a verification step, or the tests or docs for
+a sibling's behavior is a fragment that merges into the slice it serves.
 
 To Issues refuses a planning artifact marked `Draft`. It may preserve the
 artifact in a non-ready container when explicitly requested, but it does not

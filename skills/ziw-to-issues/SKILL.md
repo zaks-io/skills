@@ -1,6 +1,6 @@
 ---
 name: ziw-to-issues
-description: Use to turn a spec, PRD, or epic ticket into dependency-ordered one-PR implementation tickets, adopting any hand-created tickets, applying the agent-ready body contract, configured estimates, and kind labels, and emitting a dependency graph and predicted file footprint.
+description: Use to turn a spec, PRD, or epic ticket into the fewest dependency-ordered one-PR implementation tickets that ship safely, adopting and merging any hand-created tickets, applying the agent-ready body contract, configured estimates, and kind labels, and emitting a dependency graph and predicted file footprint.
 argument-hint: "[spec-doc|prd-ticket|epic-ticket|project]"
 ---
 
@@ -108,6 +108,18 @@ Before creating any ticket:
    ticket.
 5. When two existing tickets cover the same slice, converge on the canonical one
    and mark the other a duplicate; do not silently leave both. See Self-Healing.
+6. When unstarted existing tickets fail the merge test in Slice, fold them into
+   one canonical unstarted ticket: carry their scope, acceptance criteria, spec
+   citations, and footprint into it, re-estimate it, repoint dependency links
+   and coverage-matrix rows to it, and mark the rest duplicates of it.
+7. Never fold into or out of a ticket that is claimed, in an active state, or
+   linked to an open PR. A fragment whose partner is active stays open, blocked
+   by the partner, with `needs-info` asking whether the partner's PR already
+   covers it. Once the partner is Done, close it as covered or reshape it as its
+   own slice.
+8. Preserve existing tickets the plan does not cover, such as worker-filed
+   follow-ups or review debt, and report them. Do not fold them or mark them
+   duplicates.
 
 Adoption fixes mechanics and fills missing contract headings from evidence in the
 plan. It never invents scope or acceptance criteria. Where intent is unknowable,
@@ -115,23 +127,97 @@ apply `needs-info` and leave the exact question.
 
 ## Slice
 
-Cut work into thin, independently shippable, one-PR vertical slices.
+Cut work into the fewest one-PR slices that ship safely. Every slice costs a
+worker session, a full check run, a code review, a PR, and a merge, so each one
+must carry enough work to justify that overhead. Default to the larger slice and
+split only for a reason named below.
 
-- Each slice delivers a verifiable end-to-end behavior, not a layer.
-- Each slice is scoped to one PR.
-- Each slice has one primary outcome. Do not bundle "while you are there"
-  cleanup, polish, adjacent bug fixes, future-proofing, or sibling ticket work
-  into the same `kind-slice`.
-- Prefer a tracer-bullet first slice that proves the path end to end, then
-  slices that widen it.
-- Do not make a `kind-slice` whose Done state requires multiple PRs. Split
-  scaffold, CI gate, data migration, preview flip, and final wiring into separate
-  slices or keep them under a `kind-epic` container so a first linked PR cannot
-  falsely close the whole scope.
-- When adjacent outcomes are useful but not required for this PR, create sibling
-  slices, link them, and name them in this ticket's out-of-scope section.
+A slice is one outcome: a behavior or capability that a user, operator, or later
+slice can observe, together with everything needed to ship it. The code in every
+layer it touches, its tests, docs, config, fixtures, generated artifacts, and
+migration belong to that slice.
+
+- Each slice delivers a verifiable end-to-end behavior, is scoped to one PR, and
+  has one primary outcome.
+- Each slice traces to a requirement the source plan states. Work the plan does
+  not ask for, such as polish, cleanup, hardening, future-proofing, or
+  follow-ups the slicer thought of, is not a ticket. Name it in out-of-scope
+  when a worker would be tempted by it, and raise it as an open question on the
+  container when it seems to matter.
+- Do not bundle unrelated outcomes, adjacent bug fixes the plan does not
+  require, or work the plan assigns to another slice into one `kind-slice`. A
+  merge-test batch of trivial same-area items is one outcome, not a bundle.
+- Do not make a `kind-slice` whose Done state requires multiple PRs.
 - Leave vague ideas un-ticketed until scope is clear; record them as open
   questions rather than guessing scope.
+
+### Split Reasons
+
+Keep two pieces of work in separate slices only when one of these holds:
+
+- Distinct outcome: each is observable and useful on its own, and neither exists
+  only to serve the other.
+- Size: together they would not fit one reviewable PR, or would exceed the
+  configured estimate maximum. Make the first slice a tracer bullet that proves
+  the path end to end, then widen it in slices that each add observable
+  behavior.
+- Rollout order: steps must deploy in sequence with a gate between them, such as
+  data cleanup before a schema change, or a flag or preview flip after the code
+  it enables. Give each gated step its own slice under a `kind-epic` container
+  so a first linked PR cannot falsely close the whole scope.
+- Risk or authority: one part needs human planning, security judgment,
+  production approval, or a different risk label than the rest.
+- Readiness: one part waits on an open question or external dependency while
+  the rest can start now.
+
+These are not split reasons: a layer (schema, API, UI), an artifact type (tests,
+docs, types, config), a file or module, a step of doing the work (scaffold, wire
+up, clean up, verify), a spec section, or an acceptance criterion.
+
+### Merge Test
+
+A slice that matches any line below is a fragment, not a ticket, unless a split
+reason separates it from the slice it would fold into. Rollout order and risk
+or authority always win: a gated flag flip or an expand-only migration stays its
+own slice. Depending on a sibling does not make a slice a fragment; having no
+observable behavior of its own does. "Another slice" below means one that has
+not merged; work for behavior that already shipped stands alone.
+
+- It has no consumer or observable behavior in its own PR: scaffolding, types,
+  an interface, a stub, config, or wiring. Fold it into the first slice that
+  uses it.
+- It only adds tests, docs, fixtures, or generated artifacts for behavior
+  another slice in the plan delivers. Fold it into that slice.
+- It is a step, not a change: run the checks, verify the deploy, confirm the
+  migration, open the PR. Write it as an acceptance criterion or required check
+  on the slice it verifies.
+- It repeats one mechanical change across files, modules, or call sites. One
+  slice covers all of them unless size forces a split.
+- It is trivially small, such as a rename, copy tweak, config value, or one-line
+  fix, and the plan has other work in the same area. Fold it into that slice, or
+  batch trivial items that share an area, risk label, and required checks into
+  one slice whose single outcome covers the group, such as "settings copy
+  matches the spec". A small fix that is the whole request stays one ticket.
+- It shares most of its predicted footprint with the one slice it blocks or is
+  blocked by.
+
+### Consolidate Before Writing
+
+Draft the whole slice list before creating or editing any ticket, then make one
+pass over it:
+
+1. For each slice, name the split reason that separates it from every slice it
+   blocks, is blocked by, or shares files with.
+2. Apply the merge test to every slice, and merge each pair that has no split
+   reason.
+3. In a chain where each slice only unblocks the next, merge only the links
+   that have no split reason. A rollout gate between two links keeps them apart
+   even when the rest of the chain collapses.
+4. Confirm each merged slice still fits one PR. If it does not, split it on a
+   split reason, never on a layer or step.
+
+Record each slice's split reason in its dependencies or blockers section so
+triage can see why it stands apart, and list it in the run summary.
 
 ## Body Contract
 
@@ -188,11 +274,10 @@ label slugs, secret names, or environment values, put the exact configured
 literals or their config lookup location in the body. Do not rely on prior issue
 comments as the only source for hard values a worker must use.
 
-Prefer slices that match known strong agent-fit work: docs, tests, build or CI
-updates, small refactors with clear checks, scoped bugs with reproduction, and
-isolated UI changes with target states. Mark high-risk or ambiguous work for
-human planning when the plan does not settle the security, product, data, or
-architecture decision.
+Agent suitability decides readiness labels, not slice boundaries. Do not carve
+tests, docs, or a small refactor out of an outcome to produce an agent-fit
+ticket. Mark high-risk or ambiguous work for human planning when the plan does
+not settle the security, product, data, or architecture decision.
 
 For auth, bootstrap, claim, invitation, one-use grant, custody, or ownership
 slices, make the security invariants concrete before marking the ticket ready.
@@ -217,8 +302,8 @@ green preview does not prove the production deploy.
 
 Follow the Estimate Rules in
 [../ziw-setup/references/issue-tracker-contract.md](../ziw-setup/references/issue-tracker-contract.md):
-estimate each `kind-slice` after splitting to one PR, using only the
-configured field and scale, and omit estimates when config defines none. If
+estimate each `kind-slice` after consolidation, using only the configured field
+and scale, and omit estimates when config defines none. If
 estimates are required before `ready-for-agent` and a value is unknowable from
 the plan, leave the exact question, apply `needs-info` or `ready-for-human`,
 and do not mark the ticket ready.
@@ -233,9 +318,9 @@ For each `kind-slice`:
   authority
 - apply the configured worker environment label only when the environment
   approval criteria are met; dependency state is not a reason to withhold it
-- apply `ready-for-agent` only when the slice is scoped to one PR, routed,
-  type and risk labeled, estimated if required, has a concrete in-scope and
-  out-of-scope boundary, and is complete enough to verify
+- apply `ready-for-agent` only when the slice is scoped to one PR, survives the
+  merge test, is routed, type and risk labeled, estimated if required, has a
+  concrete in-scope and out-of-scope boundary, and is complete enough to verify
 - do not apply `ready-for-agent` when the body itself says human setup,
   credentials, provider decisions, or security judgment are still required
 - place ready `kind-slice` issues in the configured ready state, usually `Todo`,
@@ -262,10 +347,10 @@ run safe work in parallel.
 - Serialize slices that must not run concurrently even without a direct data
   dependency, such as shared schema or migration ordering, using the configured
   dependency mechanism.
-- When several slices converge on the same core files or regenerate the same
-  shared artifact, sequence the convergent slice to land first or immediately
-  adjacent to its siblings, or serialize the cohort. Same-base siblings all
-  conflict the moment one merges.
+- When several slices that survive the merge test converge on the same core
+  files or regenerate the same shared artifact, sequence the convergent slice to
+  land first or immediately adjacent to its siblings, or serialize the cohort.
+  Same-base siblings all conflict the moment one merges.
 - Encoding a dependency never removes `ready-for-agent`, the configured ready
   state, or a worker environment label.
 
@@ -280,7 +365,9 @@ colliding slices concurrently.
   markdown list blocks, status ledgers, registries, changelogs, config tables,
   and docs sections owned by many slices.
 - Keep it a prediction, not a guarantee; the worker may diverge.
-- Flag slices with heavy expected overlap so they are serialized or sequenced.
+- Treat heavy expected overlap between two slices as a merge candidate first.
+  Flag them for serializing or sequencing only when a split reason keeps them
+  apart.
 - Compare sibling slices after assigning individual footprints. Record hot files
   or packages and the safe fan-out pairs, so Orchestrator does not discover
   obvious collisions only after workers are already in flight.
@@ -296,6 +383,8 @@ as drift after merge.
   open question left as `needs-info`.
 - Use the spec's section anchors as rows, the same anchors the slices cite in
   context docs. Do not invent a separate requirement numbering.
+- A section is a coverage row, not a slice boundary. One slice usually covers
+  several sections; never create a slice to give a section its own row.
 - Mark sections that state no requirements, such as overviews and narrative
   context, as `not-applicable` explicitly. An anchor absent from the matrix is
   an uncovered gap, not an implied skip.
@@ -313,7 +402,8 @@ structure, escalate missing intent or authority, never leave a silent dead end,
 and record every fix. For To Issues specifically:
 
 - Heal a wrong or duplicate `kind-*`, a stale label that resolves to a verified
-  one, and a re-run duplicate by converging on the canonical ticket.
+  one, a re-run duplicate by converging on the canonical ticket, and an
+  over-split cohort by folding it into one canonical ticket.
 - Escalate with `needs-info` when scope or acceptance criteria are unknowable;
   never fabricate them to make a ticket look ready.
 - Report every heal and every escalated gap in the run summary.
@@ -324,6 +414,8 @@ and record every fix. For To Issues specifically:
 - Do not ship or mark ready a `kind-spec` or `kind-epic` container.
 - Do not duplicate existing tickets; adopt and converge.
 - Do not invent scope, acceptance criteria, or product decisions.
+- Do not ticket work the plan does not require, or a layer, step, or fragment of
+  another slice's outcome.
 - Do not create new label taxonomies or statuses without config or explicit user
   approval.
 - Keep ticket text metadata-only. Never paste secrets, customer data, signed
@@ -334,7 +426,8 @@ and record every fix. For To Issues specifically:
 Report:
 
 - source plan and target location
-- slices created, slices adopted, and duplicates converged
+- slices created, slices adopted, slices merged, and duplicates converged
+- slice count and the split reason that keeps each slice separate
 - kind labels set and any kind contradictions healed
 - estimates set, preserved, omitted by policy, or left with exact questions
 - tickets marked `ready-for-agent`, `needs-info`, or `ready-for-human`

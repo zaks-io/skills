@@ -9,8 +9,9 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   updates confirmed planning artifacts, and requires explicit user approval
   before a spec is ready for slicing. It does not create tracker tickets or
   implement code.
-- To Issues: turns a spec, PRD, or epic ticket into dependency-ordered one-PR
-  `kind-slice` tickets. Adopts hand-created tickets instead of duplicating them,
+- To Issues: turns a spec, PRD, or epic ticket into the fewest
+  dependency-ordered one-PR `kind-slice` tickets that ship safely. Adopts
+  hand-created tickets instead of duplicating them, merges fragments,
   applies the agent-ready body, labels, and configured estimates, and emits a
   dependency graph and file footprint. Creates tickets; it does not implement or
   move active work.
@@ -59,10 +60,14 @@ when the tracker label group does not.
 - `kind-slice`: a one-PR ticket. The only kind a worker runs. Only `kind-slice`
   is startable; the orchestrator hard-refuses to dispatch a container.
 
-`kind-slice` work should close in one PR. If a plan needs scaffold, CI gate,
-data migration, preview flip, and final wiring, To Issues splits those into
-separate slices under a container so the first linked PR cannot falsely close the
-whole scope.
+`kind-slice` work should close in one PR, and one PR should carry a whole
+outcome with its tests, docs, config, and migration. To Issues cuts the fewest
+slices that ship safely and separates work only for a distinct outcome, size,
+rollout order, risk or authority, or readiness. Steps that rollout order forces
+into several PRs, such as data cleanup before a schema change, become separate
+slices under a container so the first linked PR cannot falsely close the whole
+scope. A layer, scaffold, verification step, or the tests or docs for a
+sibling's behavior merges into the slice it serves.
 
 Every ready `kind-slice` needs one primary outcome and explicit `in scope` and
 `out of scope` sections. The out-of-scope section is the worker's stop list:

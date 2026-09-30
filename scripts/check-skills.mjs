@@ -166,7 +166,13 @@ for (const required of ["ziw-grill", "Status: Draft", "Status: Ready for slicing
 }
 
 const toIssuesText = readText(path.join(skillsDir, "ziw-to-issues", "SKILL.md"));
-for (const required of ["Draft", "Ready for slicing"]) {
+for (const required of [
+  "Draft",
+  "Ready for slicing",
+  "### Split Reasons",
+  "### Merge Test",
+  "### Consolidate Before Writing",
+]) {
   if (!toIssuesText.includes(required)) {
     fail(`skills/ziw-to-issues/SKILL.md must include ${required}`);
   }

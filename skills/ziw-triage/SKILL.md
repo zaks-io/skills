@@ -156,7 +156,8 @@ Use script and tracker output to choose one action per issue:
 - **Blocked but shaped**: the issue is otherwise ready, but
   `linear-dag-start.mjs` reports dependency blockers.
 - **Needs To Issues**: the issue is a container, vague plan, multi-PR scope,
-  missing split, or missing likely files, packages, or artifacts in its body.
+  missing split, a fragment as defined in the issue tracker contract, or
+  missing likely files, packages, or artifacts in its body.
 - **Needs human**: product, security, credential, customer, ADR, ownership,
   priority, or acceptance-criteria decision is missing.
 - **Orchestrator action**: script output shows linked PR/status/check/review
@@ -222,7 +223,11 @@ Classify each issue into exactly one primary outcome:
   labels, dependencies, and required estimate when configured
 - blocked but shaped: otherwise ready, with dependency blockers encoded
 - needs To Issues: container, spec, epic, vague plan, multi-PR work, missing
-  likely files/packages/artifacts in the body, or missing concrete scope split
+  likely files/packages/artifacts in the body, missing concrete scope split, or
+  a fragment to merge: a scaffold, single layer, step, or the tests or docs for
+  an unmerged sibling's behavior, with no rollout-order or risk-or-authority
+  split reason in its body. A dependency on a sibling alone is not a fragment,
+  and work for behavior that already shipped stands alone.
 - needs human decision: product, security, credential, customer, ADR, ownership,
   priority, or acceptance-criteria decision required
 - parked: intentionally not ready for agent work
@@ -267,7 +272,7 @@ Apply obvious mechanical tracker updates:
   `ready-for-human`, configured intake, parked, or To Issues input. Do not leave
   vague tickets in `Todo` with no next owner
 - remove `ready-for-agent` from vague, duplicate, parent, human-owned,
-  multi-outcome, boundary-incomplete, or body-incomplete issues
+  multi-outcome, fragment, boundary-incomplete, or body-incomplete issues
 - mark implementation-ready slices `ready-for-agent` when no further human
   refinement is needed, even if dependency blockers remain
 - reconcile stale tracker state only from tracker evidence or approved script
@@ -295,6 +300,7 @@ An issue can receive `ready-for-agent` only when it is:
 
 - scoped to one PR
 - scoped to one primary outcome
+- not a fragment as defined in the issue tracker contract
 - assigned to the configured project, parent, or route
 - labeled with one clear kind and required type/risk labels
 - estimated when config requires estimates before handoff
