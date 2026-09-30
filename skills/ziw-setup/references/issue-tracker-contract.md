@@ -95,11 +95,14 @@ Do not mark a fragment as a ready slice either. A slice is a whole outcome with
 its code, tests, docs, config, and migration. A fragment has no consumer or
 observable behavior of its own in its PR, such as a scaffold, a single layer, a
 verification step, or the tests or docs for an unmerged sibling's behavior. It
-is not a fragment when its body records a rollout-order or risk-or-authority
-split reason, when it depends on a sibling but has its own behavior, or when the
-behavior it covers already shipped. Blocked slices stay ready. Route a
-fragment to To Issues as a merge candidate. Only `ziw-to-issues` folds tickets,
-and it owns the split reasons and merge test.
+is not a fragment when its body records a split reason separating it from the
+sibling it serves, when it depends on a sibling but has its own behavior, or
+when the behavior it covers already shipped. Blocked slices stay ready. Route a
+fragment to To Issues as a merge candidate. While To Issues has left it
+`needs-info` behind a partner that is claimed, active, or linked to an open PR,
+it waits on the human answer instead; once the partner is Done, route it back
+to To Issues to close as covered or reshape. Only `ziw-to-issues` folds
+tickets, and it owns the split reasons and merge test.
 
 ## Estimate Rules
 
@@ -116,9 +119,6 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
   it as a readiness blocker.
 - Use only the configured scale. If a slice exceeds the configured maximum, split
   it or route it to human planning instead of inventing a larger value.
-- A slice at the bottom of the scale that blocks or is blocked by a sibling
-  under the same parent is a merge candidate. Report it for To Issues, which
-  folds it only when no split reason keeps the two apart.
 - Preserve existing human estimates unless config explicitly allows repair and
   current scope evidence proves the estimate is stale or outside the allowed
   scale.

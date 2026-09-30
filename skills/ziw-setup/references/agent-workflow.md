@@ -66,8 +66,9 @@ slices that ship safely and separates work only for a distinct outcome, size,
 rollout order, risk or authority, or readiness. Steps that rollout order forces
 into several PRs, such as data cleanup before a schema change, become separate
 slices under a container so the first linked PR cannot falsely close the whole
-scope. A layer, scaffold, verification step, or the tests or docs for a
-sibling's behavior merges into the slice it serves.
+scope. A layer, scaffold, verification step, or the tests or docs for an
+unmerged sibling's behavior merges into the slice it serves unless a split
+reason keeps it apart.
 
 Every ready `kind-slice` needs one primary outcome and explicit `in scope` and
 `out of scope` sections. The out-of-scope section is the worker's stop list:

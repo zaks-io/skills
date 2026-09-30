@@ -39,3 +39,25 @@ test("runtime triage prompts use configured intake and ready states", () => {
     assert.match(content, /source-of-truth/i);
   }
 });
+
+test("fragment contract agrees across To Issues, triage, and the tracker contract", () => {
+  const contract = read("skills/ziw-setup/references/issue-tracker-contract.md");
+  const triage = read("skills/ziw-triage/SKILL.md");
+  const toIssues = read("skills/ziw-to-issues/SKILL.md");
+
+  assert.match(
+    contract,
+    /not a fragment when its body records a\s+split reason separating it from the\s+sibling it serves/i,
+  );
+  assert.match(contract, /Only `ziw-to-issues`\s+folds\s+tickets/i);
+  assert.match(triage, /not a fragment as defined in the\s+issue tracker contract/i);
+  assert.match(triage, /with no split reason\s+in its body separating\s+it from that sibling/i);
+  assert.match(toIssues, /unless a split\s+reason separates it from its fold target/i);
+  for (const content of [contract, triage]) {
+    assert.doesNotMatch(content, /rollout-order or risk-or-authority\s+split reason/i);
+  }
+  const partnerStates = /claimed,\s+active,\s+or\s+linked\s+to\s+an\s+open\s+PR/i;
+  for (const content of [contract, triage, toIssues]) {
+    assert.match(content, partnerStates);
+  }
+});

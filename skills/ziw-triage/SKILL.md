@@ -180,9 +180,12 @@ step 6, then give each issue exactly one primary outcome:
 - **Needs To Issues**: container, spec, epic, vague plan, multi-PR work, missing
   concrete scope split, missing likely files/packages/artifacts in the body, or
   a fragment to merge: a scaffold, single layer, step, or the tests or docs for
-  an unmerged sibling's behavior, with no rollout-order or risk-or-authority
-  split reason in its body. A dependency on a sibling alone is not a fragment,
-  and work for behavior that already shipped stands alone.
+  an unmerged sibling's behavior, with no split reason in its body separating
+  it from that sibling. A dependency on a sibling alone is not a fragment, and
+  work for behavior that already shipped stands alone. A fragment To Issues
+  left `needs-info` behind a partner that is claimed, active, or linked to an
+  open PR is needs human decision until the partner is Done, then needs To
+  Issues.
 - **Needs human decision**: a product, security, credential, customer, ADR,
   ownership, priority, or acceptance-criteria decision is missing.
 - **Orchestrator action**: script output shows active PR, check, review, or

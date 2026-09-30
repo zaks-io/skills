@@ -123,8 +123,9 @@ section, or acceptance criterion.
 ### Merge Test
 
 A slice matching any line below is a fragment, not a ticket, unless a split
-reason separates it from its fold target. Rollout order and risk or authority
-always win: a gated flag flip or an expand-only migration stays its own slice.
+reason separates it from its fold target. Any split reason keeps it apart,
+including the no-behavior lines: a gated flag flip or an expand-only migration
+stays its own slice.
 Depending on a sibling does not make a fragment; lacking observable
 behavior of its own does. "Another slice" means an unmerged one; work for
 behavior that already shipped stands alone.
@@ -136,8 +137,7 @@ behavior that already shipped stands alone.
 - A step, not a change (run checks, verify deploy, confirm migration, open PR):
   make it an acceptance criterion or required check on the slice it verifies.
 - One mechanical change repeated across files, modules, or call sites: one
-  slice unless
-  size forces a split.
+  slice unless size forces a split.
 - Trivially small (rename, copy tweak, config value, one-line fix) with other
   planned work in the same area: fold it in, or batch trivial items that share
   area, risk label, and required checks into one slice whose single outcome

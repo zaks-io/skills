@@ -319,7 +319,8 @@ readiness. When rollout order forces several PRs, such as data cleanup before a
 schema change or a preview flip after the code it enables, each gated step is
 its own slice under a container so the first linked PR cannot falsely close the
 whole scope. A layer, a scaffold, a verification step, or the tests or docs for
-a sibling's behavior is a fragment that merges into the slice it serves.
+an unmerged sibling's behavior is a fragment that merges into the slice it
+serves unless a split reason keeps it apart.
 
 To Issues refuses a planning artifact marked `Draft`. It may preserve the
 artifact in a non-ready container when explicitly requested, but it does not

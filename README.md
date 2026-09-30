@@ -314,8 +314,9 @@ run, a review, and a merge, so To Issues cuts the fewest slices that ship
 safely: a slice is a whole outcome with its code, tests, docs, and migration.
 Work is separated only for a distinct outcome, size, rollout order, risk or
 authority, or readiness. A layer, a scaffold, a verification step, or the tests
-for a sibling's behavior is merged into the slice it serves, and work the plan
-does not ask for is never ticketed.
+for an unmerged sibling's behavior is merged into the slice it serves unless a
+split reason keeps it apart, and work the plan does not ask for is never
+ticketed.
 
 Every ready `kind-slice` needs a hard boundary: one primary outcome, concrete
 `in scope`, and concrete `out of scope`. The out-of-scope field should name
