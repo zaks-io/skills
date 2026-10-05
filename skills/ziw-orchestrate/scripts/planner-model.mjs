@@ -89,7 +89,7 @@ function normalizePrMaps(state, prs, legacy, legacyFields) {
 export function normalizePlannerModel({
   snapshot = {},
   state = {},
-  legacyStateFields = [],
+  legacyWorkerPaths = [],
   legacyPrMapFields = [],
 } = {}) {
   assertIdentityFieldNames(snapshot, "snapshot");
@@ -150,7 +150,7 @@ export function normalizePlannerModel({
     normalized.issueRefs = [...new Set(linked.map((reference) => reference.issueRef))];
     normalized.possibleIssueRefs = possibleIssueLinks(normalized, catalog);
     if (kind === "worker") {
-      const legacyWorker = legacy || legacyStateFields.includes(path.split("/")[1]);
+      const legacyWorker = legacy || legacyWorkerPaths.includes(path);
       const statuses = [record.state, record.status].filter((value) => value != null);
       const explicitlyLive = statuses.some((value) =>
         ["running", "active", "started"].includes(String(value).trim().toLowerCase()),
@@ -276,7 +276,7 @@ export function normalizePlannerModel({
   const claims = [
     ...array(normalizedSnapshot.linear?.issues),
     ...array(normalizedSnapshot.linear?.activeIssues),
-    ...array(normalizedState.tickets),
+    ...array(normalizedState.tickets ?? normalizedState.linearIssues),
     ...array(normalizedState.activeLinearIssues),
   ].filter(
     (issue) =>

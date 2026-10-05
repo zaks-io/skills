@@ -216,7 +216,8 @@ It translates documented legacy identity, scope, dependency, and receipt fields
 before any consumer runs. During migration, a separate legacy `--state` file
 can accompany a v3 snapshot: collector and planner validate/adapt that same file
 at the boundary. Inline v3 state must already be canonical; its retired fields
-remain errors. Legacy generic worker `id` is a receipt identity,
+remain errors. External canonical worker records keep v3 lifecycle rules even
+beside legacy records or maps. Legacy generic worker `id` is a receipt identity,
 never an issue alias. New producers and handoffs always use v3. Remove the
 adapter only after supported producers and downstream consumers use v3 and
 compatibility evaluation proves no supported input depends on legacy fields;

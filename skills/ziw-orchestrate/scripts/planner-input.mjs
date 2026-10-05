@@ -7,7 +7,7 @@ import {
   validateCanonicalState,
 } from "./planner-input-validator.mjs";
 import { normalizePlannerModel } from "./planner-model.mjs";
-import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
+import { adaptExternalPlannerState } from "./legacy-planner-input.mjs";
 
 const usage =
   "Usage: node tick-plan.mjs <snapshot-or-envelope.json> [--config config.json] [--state state.json] [--pretty] [--debug]";
@@ -63,13 +63,12 @@ export function loadPlannerInput(args) {
   validate(input, validateInput, "input");
   const configFile = readJson(values.config, "--config");
   let stateFile = readJson(values.state, "--state");
-  let legacyStateFile = false;
+  let legacyWorkerPaths = [];
   validate(configFile, validateConfig, "--config");
   if ((input.snapshot?.v ?? input.v) === 3) {
     if (!validateCanonicalState(stateFile)) {
       validate(stateFile, validateState, "--state");
-      stateFile = adaptLegacyPlannerInput({}, stateFile).state;
-      legacyStateFile = true;
+      ({ state: stateFile, legacyWorkerPaths } = adaptExternalPlannerState(stateFile));
     }
   } else validate(stateFile, validateState, "--state");
 
@@ -103,7 +102,7 @@ export function loadPlannerInput(args) {
     ...normalizePlannerModel({
       snapshot,
       state,
-      legacyStateFields: legacyStateFile ? Object.keys(stateFile) : [],
+      legacyWorkerPaths,
       legacyPrMapFields: values.state != null ? Object.keys(stateFile) : [],
     }),
     config,

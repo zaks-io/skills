@@ -1,3 +1,5 @@
+import { validateCanonicalState } from "./planner-input-validator.mjs";
+
 const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
 const text = (value) => String(value ?? "").trim();
 const ticketKey = (value) => /^[A-Z][A-Z0-9]*-\d+$/i.test(text(value));
@@ -218,5 +220,29 @@ export function adaptLegacyPlannerInput(snapshot = {}, state = {}) {
       worktrees: convert(snapshot.worktrees, "worktree", "snapshot/worktrees"),
     },
     state: normalizedState,
+  };
+}
+
+export function adaptExternalPlannerState(state) {
+  const canonical = {};
+  const legacy = {};
+  const legacyWorkerPaths = [];
+  for (const [name, value] of Object.entries(state)) {
+    if (validateCanonicalState({ [name]: value })) {
+      canonical[name] = value;
+    } else if (["dispatches", "ledgerDispatches", "activeWork", "workers"].includes(name)) {
+      canonical[name] = value.map((record, index) => {
+        if (validateCanonicalState({ [name]: [record] })) return record;
+        const path = `state/${name}/${index}`;
+        legacyWorkerPaths.push(path);
+        return convertLegacyRecord(record, "worker", path);
+      });
+    } else {
+      legacy[name] = value;
+    }
+  }
+  return {
+    state: { ...adaptLegacyPlannerInput({}, legacy).state, ...canonical },
+    legacyWorkerPaths,
   };
 }

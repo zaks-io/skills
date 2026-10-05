@@ -392,6 +392,114 @@ test("legacy anonymous state receipts keep observation and lifecycle semantics b
   }
 });
 
+test("legacy PR evidence aliases cannot turn an external canonical PR-associated worker into a returned worker", () => {
+  const value = input(
+    [
+      issue(),
+      issue({ issueKey: "ZAK-13", issueUuid: otherUuid }, { footprint: ["src/unrelated.ts"] }),
+    ],
+    {},
+    [pr({ issueKey: "ZAK-12" }, { headSha: "pr-head-22" })],
+  );
+  const state = {
+    dispatches: [
+      worker(
+        { issueKey: "ZAK-12" },
+        { sessionId: "canonical-live", state: undefined, hasPr: true, prNumber: 22 },
+      ),
+    ],
+    reviewDiffByPr: { "pr-head-22": "same-diff" },
+  };
+  const plan = plans(value, state);
+  assert.equal(plan.capacity.used, 1);
+  held(plan);
+  assert.deepEqual(
+    starts(plan).map((action) => action.target),
+    ["ticket:ZAK-13"],
+  );
+  assert.equal(plan.decisions.activeDispatches[0].workerRef, "session:canonical-live");
+});
+
+test("a legacy worker in a mixed external array cannot change another record's canonical lifecycle", () => {
+  const value = input(
+    [
+      issue(),
+      issue({ issueKey: "ZAK-13", issueUuid: otherUuid }),
+      issue({ issueKey: "ZAK-14" }, { footprint: ["src/unrelated.ts"] }),
+    ],
+    {},
+    [pr({ issueKey: "ZAK-12" }, { headSha: "pr-head-22" })],
+  );
+  const state = {
+    dispatches: [
+      worker(
+        { issueKey: "ZAK-12" },
+        { sessionId: "canonical-live", state: undefined, hasPr: true, prNumber: 22 },
+      ),
+      { id: "legacy-receipt", issueId: "ZAK-13", state: "running", footprint: ["src/legacy.ts"] },
+    ],
+  };
+  const plan = plans(value, state);
+  assert.equal(plan.capacity.used, 2);
+  held(plan, "ZAK-12");
+  held(plan, "ZAK-13");
+  assert.deepEqual(
+    starts(plan).map((action) => action.target),
+    ["ticket:ZAK-14"],
+  );
+  const contradictory = structuredClone(state);
+  contradictory.dispatches[0].state = "running";
+  contradictory.dispatches[0].returned = true;
+  for (const debug of [false, true]) {
+    const result = invoke(value, debug, contradictory);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /dispatches\/0.*contradictory worker lifecycle/);
+  }
+});
+
+for (const scoped of [false, true]) {
+  test(`${scoped ? "scoped" : "unscoped"} linearIssues claim corroborates a session-only worker like tickets`, () => {
+    const observations = ["tickets", "linearIssues"].map((field) => {
+      const value = input(
+        [
+          issue(),
+          issue({ issueKey: "ZAK-13", issueUuid: otherUuid }, { footprint: ["src/unrelated.ts"] }),
+        ],
+        {
+          dispatches: [worker({}, { sessionId: "confirmed-claim", state: "running" })],
+          [field]: [
+            issue(
+              { issueKey: "ZAK-12", issueUuid: uuid },
+              {
+                activeClaim: true,
+                sessionId: "confirmed-claim",
+                state: "In Progress",
+                stateType: "started",
+                footprint: ["src/active.ts"],
+              },
+            ),
+          ],
+          ...(scoped ? { scopeIssues: [{ issueKey: "ZAK-13" }] } : {}),
+        },
+      );
+      const plan = plans(value);
+      assert.equal(plan.capacity.used, 1);
+      assert.deepEqual(
+        starts(plan).map((action) => action.target),
+        ["ticket:ZAK-13"],
+      );
+      assert.equal(
+        plan.warnings.some((warning) => warning.reason === "WORKER_ISSUE_UNRESOLVED"),
+        false,
+      );
+      assert.equal(plan.decisions.activeDispatches[0].issueRef, "ZAK-12");
+      return decisions(plan);
+    });
+    assert.deepEqual(observations[0], observations[1]);
+  });
+}
+
 test("in-scope issue evidence cannot authorize a label action on an out-of-scope PR", () => {
   const value = input(
     [issue(), issue({ issueKey: "ZAK-13", issueUuid: otherUuid })],

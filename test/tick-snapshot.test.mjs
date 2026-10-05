@@ -593,3 +593,87 @@ test("terminal receipts for a deleted UUID skip alias lookup and preserve curren
     ),
   );
 });
+
+for (const mixedWorkers of [false, true]) {
+  test(`collector retains canonical live UUID lookup beside ${mixedWorkers ? "a legacy worker in the same array" : "legacy PR evidence map aliases"}`, (t) => {
+    const fixture = offlineCollector(t);
+    const canonicalWorker = {
+      sessionId: "canonical-live",
+      issueUuid: lookupUuid,
+      hasPr: true,
+      prNumber: 22,
+      footprint: ["src/canonical.ts"],
+    };
+    const state = {
+      dispatches: [
+        canonicalWorker,
+        ...(mixedWorkers
+          ? [
+              {
+                id: "legacy-live",
+                issueId: "SKI-13",
+                state: "running",
+                footprint: ["src/legacy.ts"],
+              },
+            ]
+          : []),
+      ],
+      pullRequests: [
+        {
+          number: 22,
+          headSha: "head-22",
+          state: "open",
+          isDraft: true,
+          changedFiles: 1,
+          linkedIssues: [{ issueKey: "SKI-12" }],
+          footprint: ["src/pr.ts"],
+        },
+      ],
+      reviewDiffByPr: { "head-22": "same-diff" },
+    };
+    const { snapshot, file } = collectState(fixture, state);
+    const calls = readFileSync(fixture.linearLog, "utf8").trim().split("\n").map(JSON.parse);
+    assert.equal(
+      calls.filter((call) => call.type === "lookup" && call.id === lookupUuid).length,
+      1,
+    );
+    assert.ok(
+      snapshot.linear.issueMetadata.some(
+        (issue) => issue.issueUuid === lookupUuid && issue.issueKey === "SKI-12",
+      ),
+    );
+    assert.deepEqual(snapshot.linear.identityDiagnostics, []);
+    const input = path.join(fixture.dir, "snapshot.json");
+    writeFileSync(input, JSON.stringify(snapshot));
+    const plans = [false, true].map((debug) =>
+      JSON.parse(
+        execFileSync(
+          process.execPath,
+          [tickPlan, input, "--state", file, ...(debug ? ["--debug"] : [])],
+          {
+            cwd: root,
+            encoding: "utf8",
+            env: fixture.env,
+          },
+        ),
+      ),
+    );
+    for (const planned of plans) {
+      assert.equal(planned.capacity.used, mixedWorkers ? 2 : 1);
+      assert.ok(
+        planned.holds.some(
+          (hold) => hold.target === "ticket:SKI-12" && hold.reason === "DELIVERY_ALREADY_ACTIVE",
+        ),
+      );
+      assert.equal(
+        planned.actions.some(
+          (action) => action.target === "ticket:SKI-13" && action.kind === "dispatch",
+        ),
+        !mixedWorkers,
+      );
+      assert.deepEqual(planned.warnings, []);
+    }
+    for (const field of ["actions", "holds", "waits", "warnings", "capacity"])
+      assert.deepEqual(plans[0][field], plans[1][field]);
+  });
+}

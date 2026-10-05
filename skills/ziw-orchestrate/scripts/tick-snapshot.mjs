@@ -22,7 +22,7 @@ import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs"
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
 import { localWorktrees } from "./worktree-snapshot.mjs";
 import { validateCanonicalState, validateState } from "./planner-input-validator.mjs";
-import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
+import { adaptExternalPlannerState } from "./legacy-planner-input.mjs";
 import { assertIdentityFieldNames } from "./planner-model.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
 
@@ -72,7 +72,7 @@ const stateIssueReferences = () => {
   if (!validateCanonicalState(state)) {
     if (!validateState(state)) fail("--state: invalid workflow state; regenerate worker receipts");
     try {
-      state = adaptLegacyPlannerInput({}, state).state;
+      state = adaptExternalPlannerState(state).state;
     } catch (error) {
       fail(`--state: ${error.message}`);
     }
