@@ -27,6 +27,19 @@ const linkedKey = (value) =>
     /^https:\/\/linear\.app\/[^/]+\/issue\/([A-Z][A-Z0-9]*-\d+)(?:[^a-z0-9]|$)/i,
   )?.[1];
 
+const legacyPrNumber = (value, path) => {
+  const match =
+    text(value).match(/^([1-9]\d*)$/) ??
+    text(value).match(/^PR-([1-9]\d*)$/i) ??
+    text(value).match(/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/([1-9]\d*)(?:$|[/?#])/);
+  const number = match ? Number(match[1]) : NaN;
+  if (!Number.isSafeInteger(number) || number < 1)
+    throw new Error(
+      `${path}: unresolved legacy PR target; supply PR number or exact GitHub PR URL`,
+    );
+  return number;
+};
+
 export function legacyIssueReference(record, path, { tracker = false } = {}) {
   if (typeof record === "string" || typeof record === "number") record = { identifier: record };
   const result = {};
@@ -121,6 +134,7 @@ export function convertLegacyRecord(record, kind, path) {
       if (!Number.isInteger(Number(number)) || Number(number) < 1)
         throw new Error(`${path}: missing PR number; refresh code-host evidence`);
       output.number = Number(number);
+      output.legacyPrAliases = [record.id].filter((value) => value != null).map(text);
       output.headSha = record.headSha ?? record.headRefOid ?? record.currentPrHeadSha;
       output.isDraft = Boolean(
         record.isDraft ?? record.draft ?? text(record.draftState).toLowerCase() === "draft",
@@ -191,7 +205,9 @@ export function adaptLegacyPlannerInput(snapshot = {}, state = {}) {
         ...(record.ticket != null
           ? legacyIssueReference(record.ticket, `state/reviewEvidenceChecks/${index}/ticket`)
           : {}),
-        ...(record.pr != null ? { prNumber: Number(record.pr) } : {}),
+        ...(record.pr != null
+          ? { prNumber: legacyPrNumber(record.pr, `state/reviewEvidenceChecks/${index}/pr`) }
+          : {}),
       };
     });
   return {

@@ -709,7 +709,7 @@ test("typed tracker dependencies carry both identifiers from provider relations"
   assert.equal("identifier" in output.issues[0], false);
 });
 
-test("referenced lookup rejects missing issues, conflicting pairs, and over-budget requests", async () => {
+test("referenced lookup diagnoses missing issues and rejects conflicting pairs or over-budget requests", async () => {
   const uuid = "11111111-2222-4333-8444-555555555555";
   const request = async ({ query }) => {
     if (query.includes("teams(first"))
@@ -725,9 +725,18 @@ test("referenced lookup rejects missing issues, conflicting pairs, and over-budg
     };
   };
   const base = { request, selector: "SPL" };
-  await assert.rejects(
-    loadLinearSnapshot({ ...base, issueRefs: [{ issueKey: "SPL-2" }] }),
-    /was not found/,
+  const missing = await loadLinearSnapshot({ ...base, issueRefs: [{ issueKey: "SPL-2" }] });
+  assert.deepEqual(missing.identityDiagnostics, [
+    {
+      code: "REFERENCED_ISSUE_NOT_FOUND",
+      path: "issueRefs/0",
+      issueKey: "SPL-2",
+      blockingStarts: true,
+    },
+  ]);
+  assert.equal(
+    missing.issueMetadata.some((issue) => issue.issueKey === "SPL-2"),
+    false,
   );
   await assert.rejects(
     loadLinearSnapshot({ ...base, issueRefs: [{ issueUuid: uuid, issueKey: "SPL-2" }] }),
@@ -750,5 +759,88 @@ test("referenced lookup rejects missing issues, conflicting pairs, and over-budg
   await assert.rejects(
     loadLinearSnapshot({ ...base, issueRefs: [{ issueId: uuid }] }),
     /typed issueKey/,
+  );
+});
+
+test("missing referenced lookup is cached and reports each deterministic source path", async () => {
+  const observed = [];
+  const request = async (input) => {
+    observed.push(input);
+    if (input.query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+    if (input.query.includes("issue(id:")) return { data: { issue: null } };
+    return {
+      data: {
+        issues: { pageInfo: { hasNextPage: false }, nodes: [issue({ identifier: "SPL-1" })] },
+      },
+    };
+  };
+  const output = await loadLinearSnapshot({
+    request,
+    selector: "SPL",
+    issueRefs: [{ issueKey: "SPL-2" }, { issueKey: "SPL-2" }, { issueKey: "SPL-2" }],
+    issueRefPaths: ["state/scopeIssues/0", "state/tickets/0/blockedBy/0", "state/scopeIssues/0"],
+  });
+  assert.deepEqual(output.identityDiagnostics, [
+    {
+      code: "REFERENCED_ISSUE_NOT_FOUND",
+      path: "state/scopeIssues/0",
+      issueKey: "SPL-2",
+      blockingStarts: true,
+    },
+    {
+      code: "REFERENCED_ISSUE_NOT_FOUND",
+      path: "state/tickets/0/blockedBy/0",
+      issueKey: "SPL-2",
+      blockingStarts: true,
+    },
+  ]);
+  assert.equal(observed.filter(({ query }) => query.includes("issue(id:")).length, 1);
+  assert.deepEqual(output.candidateIssues, [{ issueKey: "SPL-1" }]);
+});
+
+test("a dual-field reference fetches the missing alias for a key-only tracker record", async () => {
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  const requests = [];
+  const request = async (input) => {
+    requests.push(input);
+    if (input.query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+    if (input.query.includes("issue(id:"))
+      return { data: { issue: { ...issue({ identifier: "SPL-1" }), id: uuid } } };
+    return {
+      data: {
+        issues: { pageInfo: { hasNextPage: false }, nodes: [issue({ identifier: "SPL-1" })] },
+      },
+    };
+  };
+  const output = await loadLinearSnapshot({
+    request,
+    selector: "SPL",
+    issueRefs: [{ issueKey: "SPL-1", issueUuid: uuid }],
+  });
+  assert.deepEqual(output.identityDiagnostics, []);
+  assert.ok(
+    output.issueMetadata.some((item) => item.issueUuid === uuid && item.issueKey === "SPL-1"),
+  );
+  assert.deepEqual(output.candidateIssues, [{ issueKey: "SPL-1" }]);
+  assert.equal(requests.filter(({ query }) => query.includes("issue(id:")).length, 1);
+});
+
+test("malformed referenced lookup responses are provider failures rather than missing records", async () => {
+  const request = async ({ query }) => {
+    if (query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+    if (query.includes("issue(id:")) return { data: {} };
+    return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
+  };
+  await assert.rejects(
+    loadLinearSnapshot({
+      request,
+      selector: "SPL",
+      issueRefs: [{ issueKey: "SPL-2" }],
+      issueRefPaths: ["state/scopeIssues/0"],
+    }),
+    /state\/scopeIssues\/0:.*no issue field/,
   );
 });

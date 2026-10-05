@@ -39,12 +39,18 @@ const pr = (reference = { issueUuid: uuid }, extra = {}) => ({
   ...extra,
 });
 
-function invoke(value, debug = false) {
+function invoke(value, debug = false, overrideState) {
   const directory = mkdtempSync(path.join(tmpdir(), "ziw-delivery-contract-"));
   try {
     const file = path.join(directory, "input.json");
     writeFileSync(file, JSON.stringify(value));
-    return spawnSync(process.execPath, [script, file, ...(debug ? ["--debug"] : [])], {
+    const flags = [];
+    if (overrideState !== undefined) {
+      const stateFile = path.join(directory, "state.json");
+      writeFileSync(stateFile, JSON.stringify(overrideState));
+      flags.push("--state", stateFile);
+    }
+    return spawnSync(process.execPath, [script, file, ...flags, ...(debug ? ["--debug"] : [])], {
       encoding: "utf8",
     });
   } finally {
@@ -60,9 +66,9 @@ const decisions = (plan) => ({
   warnings: plan.warnings.toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
   wake: plan.wake,
 });
-function plans(value) {
+function plans(value, overrideState) {
   const outputs = [false, true].map((debug) => {
-    const result = invoke(value, debug);
+    const result = invoke(value, debug, overrideState);
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(result.stdout);
   });
@@ -74,6 +80,19 @@ function plans(value) {
   return outputs[1];
 }
 const starts = (plan) => plan.actions.filter((action) => action.kind === "dispatch");
+test("identity-only corroborating receipt inherits the confirmed worker association", () => {
+  const value = input([issue()], {
+    dispatches: [worker(undefined, { receiptId: "receipt-1" })],
+    workers: [{ receiptId: "receipt-1", state: "running" }],
+  });
+  const plan = plans(value);
+  assert.equal(plan.capacity.used, 1);
+  assert.equal(
+    plan.warnings.some((warning) => warning.reason === "WORKER_ISSUE_UNRESOLVED"),
+    false,
+  );
+  assert.deepEqual(starts(plan), []);
+});
 const held = (plan, reference = "ZAK-12") => {
   assert.equal(
     starts(plan).some((action) => action.target === `ticket:${reference}`),
@@ -121,6 +140,14 @@ for (const kind of ["worker", "PR"]) {
     );
     const plan = plans(value);
     assert.deepEqual(starts(plan), []);
+    assert.deepEqual(plan.decisions.linearDag.starts, []);
+    assert.deepEqual(plan.decisions.linearDag.readyStarts, []);
+    assert.equal(
+      plan.decisions.linearDag.nodes.some((node) => node.startable),
+      false,
+    );
+    assert.equal(plan.counts.linearDagStarts, 0);
+    assert.equal(plan.counts.linearDagReadyStarts, 0);
     assert.match(JSON.stringify(plan), /ISSUE_ALIAS_REQUIRED/);
     assert.match(JSON.stringify(plan), /lookup|resolve|tracker|alias/i);
   });
@@ -191,6 +218,133 @@ test("duplicate observations of one explicit session count once and union footpr
   assert.deepEqual(starts(plan), []);
   assert.ok(
     plan.holds.some((hold) => hold.target === "ticket:ZAK-13" && hold.reason === "FILE_COLLISION"),
+  );
+});
+
+test("receipt-only worker observation joins its dispatch session before CLI capacity counting", () => {
+  const plan = plans(
+    input(
+      [
+        issue(),
+        issue({ issueKey: "ZAK-13", issueUuid: otherUuid }, { footprint: ["src/unrelated.ts"] }),
+      ],
+      {
+        dispatches: [
+          worker({ issueKey: "ZAK-12" }, { sessionId: "session-1", receiptId: "receipt-1" }),
+        ],
+        workers: [worker({ issueUuid: uuid }, { sessionId: undefined, receiptId: "receipt-1" })],
+      },
+    ),
+  );
+  assert.equal(plan.capacity.used, 1);
+  assert.equal(plan.decisions.activeDispatches.filter((record) => record.workerRef).length, 1);
+  held(plan);
+  assert.deepEqual(
+    starts(plan).map((action) => action.target),
+    ["ticket:ZAK-13"],
+  );
+});
+
+for (const explicit of [true, false]) {
+  for (const scoped of [false, true]) {
+    test(`${scoped ? "scoped" : "unscoped"} repair worker PR association ${explicit ? "resolves explicit links and permits unrelated starts" : "does not promote branch hints to explicit links"}`, () => {
+      const value = input(
+        [
+          issue(),
+          issue({ issueKey: "ZAK-13", issueUuid: otherUuid }, { footprint: ["src/unrelated.ts"] }),
+        ],
+        { dispatches: [worker({}, { sessionId: "repair-1", prNumber: 22 })] },
+        [
+          pr(
+            {},
+            explicit
+              ? { linkedIssues: [{ issueUuid: uuid }] }
+              : { headRefName: "codex/zak-12-repair" },
+          ),
+        ],
+      );
+      if (scoped) value.state.scopeIssues = [{ issueKey: "ZAK-13" }];
+      const plan = plans(value);
+      assert.equal(plan.capacity.used, 1);
+      if (!scoped) held(plan);
+      if (explicit) {
+        assert.deepEqual(
+          starts(plan).map((action) => action.target),
+          ["ticket:ZAK-13"],
+        );
+        assert.equal(
+          plan.warnings.some((warning) => warning.reason === "WORKER_ISSUE_UNRESOLVED"),
+          false,
+        );
+      } else {
+        assert.deepEqual(starts(plan), []);
+        assert.ok(plan.warnings.some((warning) => warning.reason === "WORKER_ISSUE_UNRESOLVED"));
+      }
+    });
+  }
+}
+test("legacy anonymous state receipts keep observation and lifecycle semantics beside a v3 snapshot", () => {
+  const canonical = input();
+  const legacy = structuredClone(canonical);
+  legacy.snapshot.v = 2;
+  legacy.snapshot.linear.issues = [
+    {
+      identifier: "ZAK-12",
+      id: uuid,
+      state: "Todo",
+      stateType: "unstarted",
+      labels: ["kind-slice", "ready-for-agent", "example/repo"],
+      footprint: ["src/candidate.ts"],
+    },
+  ];
+  for (const [lifecycle, live] of [
+    [{ state: "running" }, true],
+    [{ hasPr: true }, false],
+    [{ hasPr: true, state: "running" }, true],
+    [{ hasPr: true, state: "returned", returned: true }, false],
+  ]) {
+    const state = { dispatches: [{ issueId: uuid, footprint: ["src/active.ts"], ...lifecycle }] };
+    const canonicalPlan = plans(canonical, state);
+    const legacyPlan = plans(legacy, state);
+    assert.deepEqual(decisions(canonicalPlan), decisions(legacyPlan));
+    assert.equal(canonicalPlan.capacity.used, live ? 1 : 0);
+    if (live) {
+      held(canonicalPlan);
+      assert.ok(canonicalPlan.decisions.activeDispatches[0].workerRef.startsWith("observation:"));
+    } else {
+      assert.deepEqual(
+        starts(canonicalPlan).map((action) => action.target),
+        ["ticket:ZAK-12"],
+      );
+    }
+  }
+});
+
+test("in-scope issue evidence cannot authorize a label action on an out-of-scope PR", () => {
+  const value = input(
+    [issue(), issue({ issueKey: "ZAK-13", issueUuid: otherUuid })],
+    {
+      scopeIssues: [{ issueKey: "ZAK-12" }],
+      reviewEvidenceChecks: [
+        { issueKey: "ZAK-12", prNumber: 22, hasReviewEvidence: true, blockingFindings: true },
+        { issueKey: "ZAK-12", prNumber: 23, hasReviewEvidence: true, blockingFindings: true },
+      ],
+    },
+    [pr(), pr({ issueUuid: otherUuid }, { number: 23 })],
+  );
+  const plan = plans(value);
+  assert.ok(
+    plan.actions.some(
+      (action) => action.target === "pr:22" && action.kind === "clear-review-evidence",
+    ),
+  );
+  assert.equal(
+    plan.actions.some((action) => action.target === "pr:23"),
+    false,
+  );
+  assert.equal(
+    plan.decisions.reviewEvidence.some((record) => record.actionTarget === "pr:23"),
+    false,
   );
 });
 

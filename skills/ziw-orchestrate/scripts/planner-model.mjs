@@ -45,10 +45,14 @@ function normalizePrMaps(state, prs, legacy) {
     if (value == null) return;
     const alias = String(value);
     const prior = aliases.get(alias);
-    aliases.set(alias, prior && prior !== number ? false : number);
+    aliases.set(alias, prior === false || (prior != null && prior !== number) ? false : number);
   };
   for (const pr of prs) {
-    for (const value of [pr.number, pr.url, ...(legacy ? [pr.headSha, pr.headRefName] : [])])
+    for (const value of [
+      pr.number,
+      pr.url,
+      ...(legacy ? [pr.headSha, pr.headRefName, ...array(pr.legacyPrAliases)] : []),
+    ])
       register(value, pr.number);
   }
   const result = { ...state };
@@ -76,7 +80,12 @@ function normalizePrMaps(state, prs, legacy) {
   return result;
 }
 
-export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
+export function normalizePlannerModel({
+  snapshot = {},
+  state = {},
+  legacyState = false,
+  allowLegacyPrMaps = false,
+} = {}) {
   assertIdentityFieldNames(snapshot, "snapshot");
   assertIdentityFieldNames(state, "state");
   const version = snapshot.v ?? 2;
@@ -96,7 +105,7 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
   for (const name of ["tickets", "linearIssues", "activeLinearIssues", "startableTickets"])
     collect(state[name], `state/${name}`);
   const catalog = buildIssueCatalog(records);
-  const diagnostics = [];
+  const diagnostics = [...array(snapshot.linear?.identityDiagnostics)];
   const normalize = (record, path, kind) => {
     const {
       issueKey: _issueKey,
@@ -141,6 +150,7 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
       );
       if (
         !legacy &&
+        !legacyState &&
         explicitlyLive &&
         (record.returned === true ||
           record.stopped === true ||
@@ -148,7 +158,7 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
       )
         throw new Error(`${path}: contradictory worker lifecycle; refresh provider status`);
       const live = !terminal(record) && record.occupiesWorkerSlot !== false;
-      if (!legacy && live && !record.sessionId && !record.receiptId)
+      if (!legacy && !legacyState && live && !record.sessionId && !record.receiptId)
         throw new Error(`${path}: live worker needs explicit sessionId or receiptId`);
       normalized.workerRef = record.sessionId
         ? `session:${record.sessionId}`
@@ -157,8 +167,6 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
           : live
             ? `observation:${path}`
             : null;
-      if (live && !normalized.issueRef && normalized.possibleIssueRefs.length === 0)
-        diagnostics.push({ code: "WORKER_ISSUE_UNRESOLVED", path, blockingStarts: true });
     }
     if (kind === "issue" && (record.sessionId || record.receiptId))
       normalized.workerRef = record.sessionId
@@ -239,13 +247,63 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
     prs: map(snapshot.prs, "pr", "snapshot/prs"),
     worktrees: map(snapshot.worktrees, "worktree", "snapshot/worktrees"),
   };
+  const prs = [...normalizedSnapshot.prs, ...array(normalizedState.pullRequests)];
+  const workerNames = ["dispatches", "ledgerDispatches", "activeWork", "workers"];
+  for (const name of workerNames) {
+    for (const [index, worker] of array(normalizedState[name]).entries()) {
+      if (!worker.issueRef && worker.issueRefs.length === 0 && worker.prNumber != null) {
+        const refs = [
+          ...new Set(
+            prs
+              .filter((pr) => pr.number === worker.prNumber)
+              .flatMap((pr) => [pr.issueRef, ...pr.issueRefs])
+              .filter(Boolean),
+          ),
+        ];
+        worker.issueRef = refs.length === 1 ? refs[0] : null;
+        worker.issueRefs = refs;
+      }
+    }
+  }
+  const workers = workerNames.flatMap((name) => array(normalizedState[name])).filter(isLiveWorker);
+  let linked;
+  do {
+    linked = false;
+    for (const worker of workers.filter((item) => !item.issueRef && item.issueRefs.length === 0)) {
+      const peers = workers.filter(
+        (peer) =>
+          (worker.sessionId && worker.sessionId === peer.sessionId) ||
+          (worker.receiptId && worker.receiptId === peer.receiptId),
+      );
+      const refs = [
+        ...new Set(peers.flatMap((peer) => [peer.issueRef, ...peer.issueRefs]).filter(Boolean)),
+      ];
+      if (refs.length) {
+        worker.issueRef = refs.length === 1 ? refs[0] : null;
+        worker.issueRefs = refs;
+        linked = true;
+      }
+    }
+  } while (linked);
+  for (const name of workerNames) {
+    for (const [index, worker] of array(normalizedState[name]).entries()) {
+      if (
+        isLiveWorker(worker) &&
+        worker.occupiesWorkerSlot !== false &&
+        !worker.issueRef &&
+        worker.issueRefs.length === 0 &&
+        worker.possibleIssueRefs.length === 0
+      )
+        diagnostics.push({
+          code: "WORKER_ISSUE_UNRESOLVED",
+          path: `state/${name}/${index}`,
+          blockingStarts: true,
+        });
+    }
+  }
   return {
     snapshot: normalizedSnapshot,
-    state: normalizePrMaps(
-      normalizedState,
-      [...normalizedSnapshot.prs, ...array(normalizedState.pullRequests)],
-      legacy,
-    ),
+    state: normalizePrMaps(normalizedState, prs, legacy || legacyState || allowLegacyPrMaps),
     diagnostics,
   };
 }

@@ -51,12 +51,19 @@ a worker's delivery to a PR preserves the worker slot until explicit provider
 lifecycle confirms return, stop, or failure. An associated `prNumber` is not
 return evidence. An active repair session still counts after PR creation.
 
+A terminal provider receipt for the same explicit session retires a tracker-only
+claim's worker slot while preserving its delivery and footprint reservation.
+A current live runtime observation keeps that session counted; historical
+terminal receipts cannot override it without freshness evidence. Receipt-only
+terminal history cannot retire a tracker claim because receipts may be reused.
+
 Use the role-specific fields and single tracker-backed catalog in
 [planner-input.md](planner-input.md). Conflicting identities fail clearly.
 Unresolved references require one bounded tracker lookup and replan; retain
 remaining diagnostics instead of trying alternate field interpretations.
 Branch/path and leading-title hints retain possible delivery reservations and
-risk, but cannot authorize a scoped PR action. Worktree path identity preserves
+may raise risk. Hint-only associations keep at least medium risk and cannot
+authorize a scoped PR action. Worktree path identity preserves
 unassociated file reservations without manufacturing an issue claim.
 
 Every tick advances actionable PR state and fills all remaining worker slots

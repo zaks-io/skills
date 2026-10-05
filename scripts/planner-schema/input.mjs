@@ -39,6 +39,22 @@ const snapshotProperties = {
       issues: array("issue"),
       activeIssues: array("issue"),
       issueMetadata: array("issue"),
+      identityDiagnostics: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["code", "path", "blockingStarts"],
+          properties: {
+            code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+            path: { type: "string", pattern: "\\S" },
+            blockingStarts: { const: true },
+            issueKey: canonicalDefinitions.issueReference.properties.issueKey,
+            issueUuid: canonicalDefinitions.issueReference.properties.issueUuid,
+          },
+          anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+        },
+      },
       unroutedIssueIds: { type: "array", items: text },
       candidateIssueIds: { type: "array", items: text },
       statesFilter: { type: "array", items: text },

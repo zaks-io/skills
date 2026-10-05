@@ -170,16 +170,26 @@ includes actual changed paths and previous filenames for renames;
 `changedFiles` remains a count. Started tracker work reserves files without
 inventing a session.
 
+A terminal provider receipt for the same explicit session retires a sticky
+tracker-only claim's slot while preserving its delivery and footprint
+reservation. A current live runtime observation keeps the session counted;
+historical terminal receipts cannot override it without freshness evidence.
+Receipt-only terminal history cannot retire a tracker claim because receipts
+may be reused.
+
 Inspect planner diagnostics before dispatching. `ISSUE_ALIAS_REQUIRED` asks for
 tracker alias evidence, `REQUESTED_ISSUE_UNKNOWN` asks for the requested tracker
 record, and `WORKER_ISSUE_UNRESOLVED` identifies an unassociated live worker.
-These are incomplete evidence, not an empty or completed queue.
+`snapshot.linear.identityDiagnostics` preserves a missing lookup as
+`REFERENCED_ISSUE_NOT_FOUND`, with its typed issue reference and referring state
+or PR path. These are incomplete evidence, not an empty or completed queue.
 
 Resolve missing references with one bounded read-only lookup and one replan
 for the current evidence. `loadLinearSnapshot({ issueRefs })` accepts typed
 references, looks up at most 50 unknown references, and adds their identity/risk
 metadata without expanding candidates. Supply the same transient `--state`
-file to snapshot collection and planning. The collector automatically resolves
+file to snapshot collection and planning, using either `--state <file>` or
+`--state=<file>`. The collector automatically resolves
 references from worker receipts, requested scope, dependencies, and PR links;
 agents do not enumerate those IDs again. Repeatable `--linear-issue-key` and
 `--linear-issue-uuid` flags add optional references when needed. If a reference

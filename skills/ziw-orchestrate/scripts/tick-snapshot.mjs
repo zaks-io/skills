@@ -16,6 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { parseArgs } from "node:util";
 
 import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs";
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
@@ -25,29 +26,42 @@ import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
 import { assertIdentityFieldNames } from "./planner-model.mjs";
 
 const startedAt = performance.now();
-const args = process.argv.slice(2);
-const pretty = args.includes("--pretty");
-const argValue = (flag) => {
-  const i = args.indexOf(flag);
-  return i >= 0 ? args[i + 1] : undefined;
-};
-const argValues = (flag) =>
-  args.flatMap((arg, index) => {
-    if (arg === flag) return args[index + 1] ? [args[index + 1]] : [];
-    if (arg.startsWith(`${flag}=`)) return [arg.slice(flag.length + 1)];
-    return [];
-  });
-
 const fail = (message) => {
   console.error(`tick-snapshot: ${message}`);
   process.exit(1);
 };
+const options = Object.fromEntries([
+  ...["repo", "limit", "linear-team", "linear-route-label", "state"].map((name) => [
+    name,
+    { type: "string" },
+  ]),
+  ...["linear-state", "linear-states", "linear-issue-key", "linear-issue-uuid"].map((name) => [
+    name,
+    { type: "string", multiple: true },
+  ]),
+  ...["pretty", "no-local-worktrees"].map((name) => [name, { type: "boolean" }]),
+]);
+let values;
+try {
+  ({ values } = parseArgs({ args: process.argv.slice(2), options }));
+  if (
+    Object.values(values).some((value) =>
+      typeof value === "string"
+        ? !value.trim()
+        : Array.isArray(value) && value.some((entry) => !entry.trim()),
+    )
+  )
+    throw new Error("empty option value");
+} catch {
+  fail("invalid arguments: value options, including --state, require a nonempty value");
+}
+const pretty = values.pretty ?? false;
+const argValue = (flag) => values[flag.slice(2)];
+const argValues = (flag) => values[flag.slice(2)] ?? [];
 
 const stateIssueReferences = () => {
   const file = argValue("--state");
-  if (args.includes("--state") && (!file || file.startsWith("--")))
-    fail("--state: expected a file path");
-  if (!file) return [];
+  if (!file) return { issueRefs: [], issueRefPaths: [] };
   let state;
   try {
     state = JSON.parse(readFileSync(file, "utf8"));
@@ -67,7 +81,17 @@ const stateIssueReferences = () => {
   } catch (error) {
     fail(error.message);
   }
-  const references = [...(state.scopeIssues ?? [])];
+  const references = [];
+  const paths = [];
+  const append = (reference, sourcePath) => {
+    references.push({
+      ...(reference.issueKey ? { issueKey: reference.issueKey } : {}),
+      ...(reference.issueUuid ? { issueUuid: reference.issueUuid } : {}),
+    });
+    paths.push(sourcePath);
+  };
+  for (const [index, reference] of (state.scopeIssues ?? []).entries())
+    append(reference, `--state/scopeIssues/${index}`);
   for (const name of [
     "tickets",
     "linearIssues",
@@ -80,15 +104,17 @@ const stateIssueReferences = () => {
     "pullRequests",
     "reviewEvidenceChecks",
   ]) {
-    for (const record of state[name] ?? []) {
-      if (record.issueKey || record.issueUuid)
-        references.push({ issueKey: record.issueKey, issueUuid: record.issueUuid });
-      references.push(...(record.blockedBy ?? []), ...(record.linkedIssues ?? []));
+    for (const [index, record] of (state[name] ?? []).entries()) {
+      const sourcePath = `--state/${name}/${index}`;
+      if (record.issueKey || record.issueUuid) append(record, sourcePath);
+      for (const field of ["blockedBy", "linkedIssues"])
+        for (const [position, reference] of (record[field] ?? []).entries())
+          append(reference, `${sourcePath}/${field}/${position}`);
     }
   }
-  return references;
+  return { issueRefs: references, issueRefPaths: paths };
 };
-const receiptIssueRefs = stateIssueReferences();
+const receiptReferences = stateIssueReferences();
 
 const gh = (ghArgs, input) => {
   try {
@@ -329,10 +355,18 @@ if (linearTeam && hasLinearCredential()) {
       states: linearStates,
       routeLabel: linearRouteLabel,
       issueRefs: [
-        ...receiptIssueRefs,
+        ...receiptReferences.issueRefs,
         ...prs.flatMap((pr) => pr.linkedIssues),
         ...argValues("--linear-issue-key").map((issueKey) => ({ issueKey })),
         ...argValues("--linear-issue-uuid").map((issueUuid) => ({ issueUuid })),
+      ],
+      issueRefPaths: [
+        ...receiptReferences.issueRefPaths,
+        ...prs.flatMap((pr, index) =>
+          pr.linkedIssues.map((_, position) => `snapshot/prs/${index}/linkedIssues/${position}`),
+        ),
+        ...argValues("--linear-issue-key").map((_, index) => `--linear-issue-key/${index}`),
+        ...argValues("--linear-issue-uuid").map((_, index) => `--linear-issue-uuid/${index}`),
       ],
     });
   } catch (error) {
@@ -341,7 +375,7 @@ if (linearTeam && hasLinearCredential()) {
 }
 
 let worktrees = [];
-if (!args.includes("--no-local-worktrees")) {
+if (!values["no-local-worktrees"]) {
   try {
     worktrees = localWorktrees({ baseline, repo });
   } catch (error) {
@@ -356,7 +390,7 @@ const snapshot = {
   sources: {
     github: "complete",
     linear: linear.skipped ? "missing" : "complete",
-    worktrees: args.includes("--no-local-worktrees") ? "skipped" : "complete",
+    worktrees: values["no-local-worktrees"] ? "skipped" : "complete",
   },
   baseline,
   footprint: {

@@ -63,11 +63,13 @@ export function loadPlannerInput(args) {
   validate(input, validateInput, "input");
   const configFile = readJson(values.config, "--config");
   let stateFile = readJson(values.state, "--state");
+  let legacyStateFile = false;
   validate(configFile, validateConfig, "--config");
   if ((input.snapshot?.v ?? input.v) === 3) {
     if (!validateCanonicalState(stateFile)) {
       validate(stateFile, validateState, "--state");
       stateFile = adaptLegacyPlannerInput({}, stateFile).state;
+      legacyStateFile = true;
     }
   } else validate(stateFile, validateState, "--state");
 
@@ -98,7 +100,12 @@ export function loadPlannerInput(args) {
     throw new Error("config: local budget thresholds must be supplied together with soft <= hard");
   }
   return {
-    ...normalizePlannerModel({ snapshot, state }),
+    ...normalizePlannerModel({
+      snapshot,
+      state,
+      legacyState: legacyStateFile,
+      allowLegacyPrMaps: values.state != null,
+    }),
     config,
     debug: values.debug ?? false,
     pretty: values.pretty ?? false,

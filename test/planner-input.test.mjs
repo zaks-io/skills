@@ -176,6 +176,110 @@ test("planner preserves documented override precedence and does not coerce value
   assert.equal(plan.actions[0].target, "ticket:SKI-1");
 });
 
+test("v3 snapshots accept external legacy PR evidence maps using URL, head, branch, and opaque PR aliases", (t) => {
+  const pr = {
+    number: 12,
+    riskTier: "low",
+    url: "https://github.com/zaks-io/example/pull/12",
+    headSha: "current-head",
+    headRefName: "feature/example",
+    reviewDiffFingerprint: "same-diff",
+    state: "open",
+    isDraft: false,
+    checks: { state: "SUCCESS" },
+  };
+  for (const alias of [pr.url, pr.headSha, pr.headRefName, "legacy-pr-node-12"]) {
+    const state = {
+      pullRequests: [{ ...pr, id: "legacy-pr-node-12" }],
+      reviewEvidenceByPr: {
+        [alias]: {
+          hasReviewEvidence: true,
+          reviewVerdict: "Approved",
+          independentReviewCount: 1,
+          reviewedHeadSha: pr.headSha,
+          reviewedDiffFingerprint: pr.reviewDiffFingerprint,
+        },
+      },
+    };
+    const observations = [2, 3].map((version) => {
+      const result = run(
+        t,
+        {
+          snapshot: { ...snapshot, v: version, prs: [pr] },
+          config: { mergeAuthority: "agent", requireConformanceEvidence: false },
+        },
+        { state },
+      );
+      assert.equal(result.status, 0, `${alias}, v${version}: ${result.stderr}`);
+      const plan = JSON.parse(result.stdout);
+      assert.ok(
+        plan.actions.some(
+          (action) => action.target === "pr:12" && action.kind === "arm-auto-merge",
+        ),
+      );
+      return {
+        actions: plan.actions,
+        waits: plan.waits,
+        holds: plan.holds,
+        capacity: plan.capacity,
+        wake: plan.wake,
+      };
+    });
+    assert.deepEqual(observations[0], observations[1], alias);
+  }
+});
+
+test("duplicate PR observations cannot resolve an ambiguous legacy branch alias by input order", (t) => {
+  const first = { number: 12, headRefName: "feature/shared", headSha: "first-head" };
+  const second = { number: 13, headRefName: "feature/shared", headSha: "second-head" };
+  for (const prs of [
+    [first, second, first],
+    [first, first, second],
+    [second, first, first],
+  ]) {
+    rejected(
+      run(
+        t,
+        { snapshot: { ...snapshot, v: 3, prs } },
+        {
+          state: { reviewEvidenceByPr: { "feature/shared": { reviewVerdict: "Approved" } } },
+        },
+      ),
+      /reviewEvidenceByPr.*ambiguous/,
+    );
+  }
+});
+
+test("legacy review-evidence PR targets parse numbers and URLs without emitting NaN", (t) => {
+  for (const target of [12, "12", "https://github.com/zaks-io/example/pull/12"]) {
+    const result = run(t, {
+      snapshot,
+      state: {
+        reviewEvidenceChecks: [{ pr: target, hasReviewEvidence: true, blockingFindings: true }],
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const plan = JSON.parse(result.stdout);
+    assert.ok(
+      plan.actions.some(
+        (action) => action.target === "pr:12" && action.kind === "clear-review-evidence",
+      ),
+    );
+    assert.equal(result.stdout.includes("NaN"), false);
+  }
+  for (const target of ["PR_node_identifier", "https://github.com/zaks-io/example/issues/12"]) {
+    rejected(
+      run(t, {
+        snapshot,
+        state: {
+          reviewEvidenceChecks: [{ pr: target, hasReviewEvidence: true, blockingFindings: true }],
+        },
+      }),
+      /reviewEvidenceChecks\/0.*(?:PR|pr)/,
+    );
+  }
+});
+
 test("planner rejects missing and unknown CLI options and empty input", (t) => {
   for (const args of [["--config"], ["--state"], ["--confg", "file.json"], ["--config="]]) {
     rejected(run(t, snapshot, { args }), /invalid arguments|expected a file path/);

@@ -280,6 +280,7 @@ export const canonicalDefinitions = {
       ...issueFields,
       number: { type: "integer", minimum: 1 },
       linkedIssues: { type: "array", items: { $ref: "#/definitions/issueReference" } },
+      legacyPrAliases: false,
       prNumber: false,
       receiptId: false,
       sessionId: false,

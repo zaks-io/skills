@@ -313,6 +313,7 @@ export async function loadLinearSnapshot({
   states = [],
   routeLabel,
   issueRefs = [],
+  issueRefPaths = [],
 }) {
   const team = await resolveLinearTeam(request, selector);
   const rawIssues = [];
@@ -340,7 +341,12 @@ export async function loadLinearSnapshot({
       ...(issueUuid ? { issueUuid } : {}),
     }),
   );
-  const referencedIssues = await loadReferencedIssues(request, issueRefs, issues);
+  const { issues: referencedIssues, diagnostics } = await loadReferencedIssues(
+    request,
+    issueRefs,
+    issues,
+    issueRefPaths,
+  );
   const metadata = [...issues, ...referencedIssues];
 
   return {
@@ -350,6 +356,7 @@ export async function loadLinearSnapshot({
     statesFilter: states,
     candidateScope: { routeLabel: routeLabel ?? null, states },
     candidateIssues,
+    identityDiagnostics: diagnostics,
     issueMetadata: metadata.map(({ issueKey, issueUuid, labels }) => ({
       ...(issueKey ? { issueKey } : {}),
       ...(issueUuid ? { issueUuid } : {}),
@@ -374,56 +381,93 @@ query($id: String!) {
   }
 }`;
 
-async function loadReferencedIssues(request, issueRefs, knownIssues) {
+async function loadReferencedIssues(request, issueRefs, knownIssues, issueRefPaths) {
   if (!Array.isArray(issueRefs)) throw new Error("Referenced Linear issues must be an array");
-  const refs = [
-    ...new Map(
-      issueRefs.map((ref) => {
-        if (
-          !ref ||
-          typeof ref !== "object" ||
-          Array.isArray(ref) ||
-          Object.keys(ref).some((name) => !["issueKey", "issueUuid"].includes(name)) ||
-          (!ref.issueKey && !ref.issueUuid) ||
-          (ref.issueKey !== undefined &&
-            (typeof ref.issueKey !== "string" ||
-              !/^[A-Za-z][A-Za-z0-9]*-[0-9]+$/.test(ref.issueKey))) ||
-          (ref.issueUuid !== undefined &&
-            (typeof ref.issueUuid !== "string" || !ISSUE_UUID.test(ref.issueUuid)))
-        ) {
-          throw new Error(
-            "Referenced Linear issues require valid typed issueKey or issueUuid fields",
-          );
-        }
-        return [JSON.stringify([ref.issueUuid?.toLowerCase(), ref.issueKey?.toUpperCase()]), ref];
-      }),
-    ).values(),
-  ];
+  if (
+    !Array.isArray(issueRefPaths) ||
+    issueRefPaths.some((path) => typeof path !== "string" || !path.trim())
+  )
+    throw new Error("Referenced Linear issue source paths must be nonblank strings");
+  const refs = issueRefs.map((ref, index) => {
+    if (
+      !ref ||
+      typeof ref !== "object" ||
+      Array.isArray(ref) ||
+      Object.keys(ref).some((name) => !["issueKey", "issueUuid"].includes(name)) ||
+      (!ref.issueKey && !ref.issueUuid) ||
+      (ref.issueKey !== undefined &&
+        (typeof ref.issueKey !== "string" ||
+          !/^[A-Za-z][A-Za-z0-9]*-[0-9]+$/.test(ref.issueKey))) ||
+      (ref.issueUuid !== undefined &&
+        (typeof ref.issueUuid !== "string" || !ISSUE_UUID.test(ref.issueUuid)))
+    )
+      throw new Error("Referenced Linear issues require valid typed issueKey or issueUuid fields");
+    return {
+      reference: {
+        ...(ref.issueKey ? { issueKey: ref.issueKey.toUpperCase() } : {}),
+        ...(ref.issueUuid ? { issueUuid: ref.issueUuid.toLowerCase() } : {}),
+      },
+      path: issueRefPaths[index] ?? `issueRefs/${index}`,
+    };
+  });
   const matches = (ref, issue) =>
-    (ref.issueUuid && issue.issueUuid?.toLowerCase() === ref.issueUuid.toLowerCase()) ||
-    (ref.issueKey && issue.issueKey?.toUpperCase() === ref.issueKey.toUpperCase());
-  const unresolved = refs.filter((ref) => !knownIssues.some((issue) => matches(ref, issue)));
-  if (unresolved.length > MAX_REFERENCED_ISSUES) {
+    (ref.issueUuid && issue.issueUuid?.toLowerCase() === ref.issueUuid) ||
+    (ref.issueKey && issue.issueKey?.toUpperCase() === ref.issueKey);
+  const hasRequestedIdentity = (ref, issue) =>
+    matches(ref, issue) && (!ref.issueKey || issue.issueKey) && (!ref.issueUuid || issue.issueUuid);
+  const unresolved = new Set(
+    refs
+      .filter(
+        ({ reference }) => !knownIssues.some((issue) => hasRequestedIdentity(reference, issue)),
+      )
+      .map(({ reference }) => reference.issueUuid ?? reference.issueKey),
+  );
+  if (unresolved.size > MAX_REFERENCED_ISSUES)
     throw new Error(`Referenced Linear issue lookup exceeds ${MAX_REFERENCED_ISSUES} issues`);
-  }
   const results = [];
-  for (const ref of refs) {
+  const lookups = new Map();
+  const diagnostics = new Map();
+  for (const { reference: ref, path } of refs) {
     let issue = [...knownIssues, ...results].find((issue) => matches(ref, issue));
-    if (!issue) {
-      const body = await request({
-        query: LINEAR_REFERENCED_ISSUE_QUERY,
-        variables: { id: ref.issueUuid ?? ref.issueKey },
-      });
-      if (!body.data?.issue) throw new Error("Referenced Linear issue was not found");
-      issue = normalizeLinearIssue(body.data.issue);
+    if (
+      (ref.issueKey && issue?.issueKey && issue.issueKey.toUpperCase() !== ref.issueKey) ||
+      (ref.issueUuid && issue?.issueUuid && issue.issueUuid.toLowerCase() !== ref.issueUuid)
+    )
+      throw new Error(`${path}: referenced Linear issue identity conflicts with tracker evidence`);
+    if (!issue || !hasRequestedIdentity(ref, issue)) {
+      const id = ref.issueUuid ?? ref.issueKey;
+      if (!lookups.has(id)) {
+        const body = await request({ query: LINEAR_REFERENCED_ISSUE_QUERY, variables: { id } });
+        if (!body.data || !Object.hasOwn(body.data, "issue"))
+          throw new Error(`${path}: referenced Linear issue lookup returned no issue field`);
+        lookups.set(id, body.data.issue);
+      }
+      const rawIssue = lookups.get(id);
+      if (!rawIssue) {
+        const diagnostic = {
+          code: "REFERENCED_ISSUE_NOT_FOUND",
+          path,
+          ...ref,
+          blockingStarts: true,
+        };
+        diagnostics.set(JSON.stringify(diagnostic), diagnostic);
+        continue;
+      }
+      issue = normalizeLinearIssue(rawIssue);
       results.push(issue);
     }
     if (
-      (ref.issueKey && issue.issueKey?.toUpperCase() !== ref.issueKey.toUpperCase()) ||
-      (ref.issueUuid && issue.issueUuid?.toLowerCase() !== ref.issueUuid.toLowerCase())
-    ) {
-      throw new Error("Referenced Linear issue identity conflicts with tracker evidence");
-    }
+      (ref.issueKey && issue.issueKey?.toUpperCase() !== ref.issueKey) ||
+      (ref.issueUuid && issue.issueUuid?.toLowerCase() !== ref.issueUuid)
+    )
+      throw new Error(`${path}: referenced Linear issue identity conflicts with tracker evidence`);
   }
-  return results;
+  return {
+    issues: results,
+    diagnostics: [...diagnostics.values()].sort(
+      (left, right) =>
+        left.path.localeCompare(right.path) ||
+        (left.issueUuid ?? left.issueKey).localeCompare(right.issueUuid ?? right.issueKey),
+    ),
+  };
 }

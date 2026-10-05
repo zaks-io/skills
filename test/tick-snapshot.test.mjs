@@ -168,10 +168,10 @@ globalThis.fetch = async (url, options) => {
     appendFileSync(${JSON.stringify(linearLog)}, JSON.stringify({ type: "lookup", id: variables.id }) + "\\n");
     const issueById = {
       ${JSON.stringify(lookupUuid)}: issue("SKI-12", ${JSON.stringify(lookupUuid)}),
-      ${JSON.stringify(outsideUuid)}: issue("SKI-999", ${JSON.stringify(outsideUuid)}, "zaks-io/another-repo")
+      ${JSON.stringify(outsideUuid)}: issue("SKI-999", ${JSON.stringify(outsideUuid)}, "zaks-io/another-repo"),
+      "SKI-11": { ...issue("SKI-11", "cccccccc-dddd-4eee-8fff-aaaaaaaaaaaa"), state: { name: "Done", type: "completed" } }
     };
-    if (!issueById[variables.id]) throw new Error("unexpected offline lookup identity");
-    data = { issue: issueById[variables.id] };
+    data = { issue: issueById[variables.id] ?? null };
   } else {
     appendFileSync(${JSON.stringify(linearLog)}, JSON.stringify({ type: "issues" }) + "\\n");
     data = { issues: { pageInfo: { hasNextPage: false }, nodes: [issue("SKI-12"), issue("SKI-13")] } };
@@ -394,3 +394,153 @@ test("tick-snapshot rejects --state without a file before gh", (t) => {
   assert.equal(existsSync(fixture.ghLog), false);
   assert.equal(existsSync(fixture.linearLog), false);
 });
+
+function collectState(fixture, state, stateSyntax = "separate") {
+  const file = path.join(fixture.dir, "state.json");
+  writeFileSync(file, JSON.stringify(state));
+  const stateArgs = stateSyntax === "equals" ? [`--state=${file}`] : ["--state", file];
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      fixture.preload,
+      script,
+      "--repo=zaks-io/skills",
+      "--linear-team=SKI",
+      "--linear-state=Todo",
+      "--no-local-worktrees",
+      ...stateArgs,
+    ],
+    { cwd: root, encoding: "utf8", env: fixture.env },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const snapshot = JSON.parse(result.stdout);
+  assert.equal(validateInput(snapshot), true, JSON.stringify(validateInput.errors));
+  return { snapshot, file };
+}
+
+for (const format of ["canonical", "legacy"]) {
+  test(`collector strips ${format} dependency lifecycle metadata from lookup references`, (t) => {
+    const fixture = offlineCollector(t);
+    const state =
+      format === "canonical"
+        ? {
+            tickets: [
+              { issueKey: "SKI-12", blockedBy: [{ issueKey: "SKI-11", stateType: "completed" }] },
+            ],
+          }
+        : {
+            tickets: [
+              {
+                identifier: "SKI-12",
+                blockers: [{ identifier: "SKI-11", state: { type: "completed" } }],
+              },
+            ],
+          };
+    const { snapshot } = collectState(fixture, state);
+    assert.deepEqual(snapshot.linear.identityDiagnostics, []);
+    assert.deepEqual(snapshot.linear.candidateIssues, [
+      { issueKey: "SKI-12" },
+      { issueKey: "SKI-13" },
+    ]);
+    assert.ok(snapshot.linear.issueMetadata.some((issue) => issue.issueKey === "SKI-11"));
+    assert.ok(!snapshot.linear.issues.some((issue) => issue.issueKey === "SKI-11"));
+    const calls = readFileSync(fixture.linearLog, "utf8").trim().split("\n").map(JSON.parse);
+    assert.equal(calls.filter((call) => call.type === "lookup" && call.id === "SKI-11").length, 1);
+  });
+}
+
+test("collector accepts --state=file and hydrates its references before planning", (t) => {
+  const fixture = offlineCollector(t);
+  const { snapshot, file } = collectState(
+    fixture,
+    {
+      dispatches: [
+        {
+          issueUuid: lookupUuid,
+          sessionId: "worker-12",
+          state: "running",
+          footprint: ["src/worker.ts"],
+        },
+      ],
+    },
+    "equals",
+  );
+  assert.ok(snapshot.linear.issueMetadata.some((issue) => issue.issueUuid === lookupUuid));
+  const input = path.join(fixture.dir, "snapshot.json");
+  writeFileSync(input, JSON.stringify(snapshot));
+  const planned = JSON.parse(
+    execFileSync(process.execPath, [tickPlan, input, `--state=${file}`], {
+      cwd: root,
+      encoding: "utf8",
+      env: fixture.env,
+    }),
+  );
+  assert.ok(
+    planned.holds.some(
+      (hold) => hold.reason === "DELIVERY_ALREADY_ACTIVE" && hold.target === "ticket:SKI-12",
+    ),
+  );
+  assert.ok(
+    planned.actions.some(
+      (action) => action.kind === "dispatch" && action.target === "ticket:SKI-13",
+    ),
+  );
+});
+
+test("missing scoped UUID preserves useful snapshot evidence and produces actionable planner holds", (t) => {
+  const fixture = offlineCollector(t);
+  const missingUuid = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+  const { snapshot, file } = collectState(fixture, { scopeIssues: [{ issueUuid: missingUuid }] });
+  assert.deepEqual(snapshot.linear.identityDiagnostics, [
+    {
+      code: "REFERENCED_ISSUE_NOT_FOUND",
+      path: "--state/scopeIssues/0",
+      issueUuid: missingUuid,
+      blockingStarts: true,
+    },
+  ]);
+  assert.equal(snapshot.baseline.green, true);
+  assert.deepEqual(snapshot.linear.candidateIssues, [
+    { issueKey: "SKI-12" },
+    { issueKey: "SKI-13" },
+  ]);
+  assert.deepEqual(
+    snapshot.linear.issueMetadata.map((issue) => issue.issueKey),
+    ["SKI-12", "SKI-13"],
+  );
+  const input = path.join(fixture.dir, "snapshot.json");
+  writeFileSync(input, JSON.stringify(snapshot));
+  const result = spawnSync(process.execPath, [tickPlan, input, "--state", file, "--debug"], {
+    cwd: root,
+    encoding: "utf8",
+    env: fixture.env,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const planned = JSON.parse(result.stdout);
+  assert.ok(!planned.actions.some((action) => action.kind === "dispatch"));
+  assert.ok(JSON.stringify(planned.warnings).includes(missingUuid));
+  assert.ok(JSON.stringify(planned.warnings).includes("--state/scopeIssues/0"));
+  assert.ok(JSON.stringify(planned.warnings).includes("REFERENCED_ISSUE_NOT_FOUND"));
+});
+
+for (const invalidArgs of [
+  ["--state="],
+  ["--state", "--no-local-worktrees"],
+  ["--linear-team"],
+  ["--linear-issue-key="],
+]) {
+  test(`collector rejects missing value ${invalidArgs.join(" ")} before either provider`, (t) => {
+    const fixture = offlineCollector(t);
+    const result = spawnSync(
+      process.execPath,
+      ["--import", fixture.preload, script, ...invalidArgs],
+      { cwd: root, encoding: "utf8", env: fixture.env },
+    );
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /invalid arguments/);
+    assert.equal(result.stdout, "");
+    assert.equal(existsSync(fixture.ghLog), false);
+    assert.equal(existsSync(fixture.linearLog), false);
+  });
+}

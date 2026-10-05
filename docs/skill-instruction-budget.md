@@ -4,7 +4,7 @@ Measured: 2026-10-05. Baseline: `23d958d6297e2908cdd17f2f2a3a99c0a0f7e4b4`.
 
 Identity contract comparison: `baf37e74fbaa8f132137dacdf93981431945bf57`.
 The redesign adds 101 entrypoint tokens across ten skills. Its detailed planner
-contract grows by 1,148 tokens for role fields, automatic collection, diagnostics
+contract grows by 1,265 tokens for role fields, automatic collection, diagnostics
 and migration. These instructions load only when assembling planner inputs.
 
 Counts use `tiktoken 0.14.0` with `o200k_base`, including each
@@ -50,8 +50,8 @@ references; project state and verification transcripts are excluded from config.
 | `testing.md`               |    315 | Behavioral regression coverage                                                 |
 | `friction-log.md`          |  1,627 | Encountered friction or run rollup                                             |
 | `project-config.md`        |  5,629 | Applicable setup field sections                                                |
-| `planner-input.md`         |  2,850 | Assembling orchestration JSON                                                  |
-| `dispatch-policy.md`       |  1,844 | Scope, routing, capacity, or collision decisions                               |
+| `planner-input.md`         |  2,967 | Assembling orchestration JSON                                                  |
+| `dispatch-policy.md`       |  1,919 | Scope, routing, capacity, or collision decisions                               |
 
 Direct Debug starts at 1,034 tokens, about 53% below
 Superpowers systematic-debugging's 2,183-token entrypoint measured with the same
@@ -85,8 +85,8 @@ These are file-load estimates, not observed runtime traces. Shared references
 already loaded in the same context need not be loaded again. Codex adapter
 prompts and global discovery metadata are not included in the path sums.
 
-Orchestrator with the planner input contract loads about 5,671
-estimated tokens. Dispatch policy adds 1,844 when that branch applies.
+Orchestrator with the planner input contract loads about 5,788
+estimated tokens. Dispatch policy adds 1,919 when that branch applies.
 The script fixes execute without loading their source into model context.
 
 ## Identity handoff references

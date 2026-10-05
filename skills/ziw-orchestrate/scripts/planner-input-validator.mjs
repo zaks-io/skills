@@ -45,6 +45,26 @@ const schema6 = {
           issues: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
           activeIssues: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
           issueMetadata: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
+          identityDiagnostics: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["code", "path", "blockingStarts"],
+              properties: {
+                code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+                path: { type: "string", pattern: "\\S" },
+                blockingStarts: { const: true },
+                issueKey: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                issueUuid: {
+                  type: "string",
+                  pattern:
+                    "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                },
+              },
+              anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+            },
+          },
           unroutedIssueIds: { type: "array", items: { type: "string" } },
           candidateIssueIds: false,
           statesFilter: { type: "array", items: { type: "string" } },
@@ -98,6 +118,26 @@ const schema6 = {
           issues: { type: "array", items: { $ref: "#/definitions/issue" } },
           activeIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
           issueMetadata: { type: "array", items: { $ref: "#/definitions/issue" } },
+          identityDiagnostics: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["code", "path", "blockingStarts"],
+              properties: {
+                code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+                path: { type: "string", pattern: "\\S" },
+                blockingStarts: { const: true },
+                issueKey: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                issueUuid: {
+                  type: "string",
+                  pattern:
+                    "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                },
+              },
+              anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+            },
+          },
           unroutedIssueIds: { type: "array", items: { type: "string" } },
           candidateIssueIds: { type: "array", items: { type: "string" } },
           statesFilter: { type: "array", items: { type: "string" } },
@@ -1542,6 +1582,26 @@ const schema6 = {
             issues: { type: "array", items: { $ref: "#/definitions/issue" } },
             activeIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
             issueMetadata: { type: "array", items: { $ref: "#/definitions/issue" } },
+            identityDiagnostics: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "path", "blockingStarts"],
+                properties: {
+                  code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+                  path: { type: "string", pattern: "\\S" },
+                  blockingStarts: { const: true },
+                  issueKey: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                  issueUuid: {
+                    type: "string",
+                    pattern:
+                      "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                  },
+                },
+                anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+              },
+            },
             unroutedIssueIds: { type: "array", items: { type: "string" } },
             candidateIssueIds: { type: "array", items: { type: "string" } },
             statesFilter: { type: "array", items: { type: "string" } },
@@ -2121,6 +2181,7 @@ const schema6 = {
         },
         number: { type: "integer", minimum: 1 },
         linkedIssues: { type: "array", items: { $ref: "#/definitions/canonical_issueReference" } },
+        legacyPrAliases: false,
         prNumber: false,
         receiptId: false,
         sessionId: false,
@@ -2961,6 +3022,26 @@ const schema6 = {
             issues: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
             activeIssues: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
             issueMetadata: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
+            identityDiagnostics: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "path", "blockingStarts"],
+                properties: {
+                  code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+                  path: { type: "string", pattern: "\\S" },
+                  blockingStarts: { const: true },
+                  issueKey: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                  issueUuid: {
+                    type: "string",
+                    pattern:
+                      "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                  },
+                },
+                anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+              },
+            },
             unroutedIssueIds: { type: "array", items: { type: "string" } },
             candidateIssueIds: false,
             statesFilter: { type: "array", items: { type: "string" } },
@@ -2989,6 +3070,12 @@ const schema6 = {
 };
 const func2 = Object.prototype.hasOwnProperty;
 const pattern0 = new RegExp("^[^\\s/]+/[^\\s/]+$", "u");
+const pattern7 = new RegExp("\\S", "u");
+const pattern3 = new RegExp("^[A-Za-z][A-Za-z0-9]*-[0-9]+$", "u");
+const pattern4 = new RegExp(
+  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+  "u",
+);
 const schema7 = {
   type: "object",
   properties: { state: { type: "string" }, failed: { type: "array" }, pending: { type: "array" } },
@@ -3302,6 +3389,7 @@ const schema8 = {
     },
     number: { type: "integer", minimum: 1 },
     linkedIssues: { type: "array", items: { $ref: "#/definitions/canonical_issueReference" } },
+    legacyPrAliases: false,
     prNumber: false,
     receiptId: false,
     sessionId: false,
@@ -3309,11 +3397,6 @@ const schema8 = {
 };
 const pattern1 = new RegExp(
   "^(?:[Pp][Aa][Ss][Ss]|[Ff][Aa][Ii][Ll](?:[Ee][Dd])?|[Uu][Nn][Vv][Ee][Rr][Ii][Ff][Ii][Aa][Bb][Ll][Ee])$",
-  "u",
-);
-const pattern3 = new RegExp("^[A-Za-z][A-Za-z0-9]*-[0-9]+$", "u");
-const pattern4 = new RegExp(
-  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
   "u",
 );
 const schema9 = {
@@ -7610,10 +7693,10 @@ function validate24(
         errors++;
       }
     }
-    if (data.prNumber !== undefined) {
+    if (data.legacyPrAliases !== undefined) {
       const err211 = {
-        instancePath: instancePath + "/prNumber",
-        schemaPath: "#/properties/prNumber/false schema",
+        instancePath: instancePath + "/legacyPrAliases",
+        schemaPath: "#/properties/legacyPrAliases/false schema",
         keyword: "false schema",
         params: {},
         message: "boolean schema is false",
@@ -7625,10 +7708,10 @@ function validate24(
       }
       errors++;
     }
-    if (data.receiptId !== undefined) {
+    if (data.prNumber !== undefined) {
       const err212 = {
-        instancePath: instancePath + "/receiptId",
-        schemaPath: "#/properties/receiptId/false schema",
+        instancePath: instancePath + "/prNumber",
+        schemaPath: "#/properties/prNumber/false schema",
         keyword: "false schema",
         params: {},
         message: "boolean schema is false",
@@ -7640,10 +7723,10 @@ function validate24(
       }
       errors++;
     }
-    if (data.sessionId !== undefined) {
+    if (data.receiptId !== undefined) {
       const err213 = {
-        instancePath: instancePath + "/sessionId",
-        schemaPath: "#/properties/sessionId/false schema",
+        instancePath: instancePath + "/receiptId",
+        schemaPath: "#/properties/receiptId/false schema",
         keyword: "false schema",
         params: {},
         message: "boolean schema is false",
@@ -7655,8 +7738,23 @@ function validate24(
       }
       errors++;
     }
+    if (data.sessionId !== undefined) {
+      const err214 = {
+        instancePath: instancePath + "/sessionId",
+        schemaPath: "#/properties/sessionId/false schema",
+        keyword: "false schema",
+        params: {},
+        message: "boolean schema is false",
+      };
+      if (vErrors === null) {
+        vErrors = [err214];
+      } else {
+        vErrors.push(err214);
+      }
+      errors++;
+    }
   } else {
-    const err214 = {
+    const err215 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -7664,9 +7762,9 @@ function validate24(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err214];
+      vErrors = [err215];
     } else {
-      vErrors.push(err214);
+      vErrors.push(err215);
     }
     errors++;
   }
@@ -7718,7 +7816,6 @@ const schema10 = {
     worktree: false,
   },
 };
-const pattern7 = new RegExp("\\S", "u");
 function validate30(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
@@ -11016,6 +11113,26 @@ const schema13 = {
         issues: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
         activeIssues: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
         issueMetadata: { type: "array", items: { $ref: "#/definitions/canonical_issue" } },
+        identityDiagnostics: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["code", "path", "blockingStarts"],
+            properties: {
+              code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+              path: { type: "string", pattern: "\\S" },
+              blockingStarts: { const: true },
+              issueKey: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+              issueUuid: {
+                type: "string",
+                pattern:
+                  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              },
+            },
+            anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+          },
+        },
         unroutedIssueIds: { type: "array", items: { type: "string" } },
         candidateIssueIds: false,
         statesFilter: { type: "array", items: { type: "string" } },
@@ -11436,29 +11553,364 @@ function validate39(
             errors++;
           }
         }
-        if (data14.unroutedIssueIds !== undefined) {
-          let data22 = data14.unroutedIssueIds;
+        if (data14.identityDiagnostics !== undefined) {
+          let data22 = data14.identityDiagnostics;
           if (Array.isArray(data22)) {
             const len5 = data22.length;
             for (let i5 = 0; i5 < len5; i5++) {
-              if (typeof data22[i5] !== "string") {
-                const err17 = {
-                  instancePath: instancePath + "/linear/unroutedIssueIds/" + i5,
+              let data23 = data22[i5];
+              const _errs43 = errors;
+              let valid15 = false;
+              const _errs44 = errors;
+              if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
+                if (data23.issueKey === undefined) {
+                  const err17 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath:
+                      "#/properties/linear/properties/identityDiagnostics/items/anyOf/0/required",
+                    keyword: "required",
+                    params: { missingProperty: "issueKey" },
+                    message: "must have required property '" + "issueKey" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err17];
+                  } else {
+                    vErrors.push(err17);
+                  }
+                  errors++;
+                }
+              }
+              var _valid0 = _errs44 === errors;
+              valid15 = valid15 || _valid0;
+              if (!valid15) {
+                const _errs45 = errors;
+                if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
+                  if (data23.issueUuid === undefined) {
+                    const err18 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/anyOf/1/required",
+                      keyword: "required",
+                      params: { missingProperty: "issueUuid" },
+                      message: "must have required property '" + "issueUuid" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err18];
+                    } else {
+                      vErrors.push(err18);
+                    }
+                    errors++;
+                  }
+                }
+                var _valid0 = _errs45 === errors;
+                valid15 = valid15 || _valid0;
+              }
+              if (!valid15) {
+                const err19 = {
+                  instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                  schemaPath: "#/properties/linear/properties/identityDiagnostics/items/anyOf",
+                  keyword: "anyOf",
+                  params: {},
+                  message: "must match a schema in anyOf",
+                };
+                if (vErrors === null) {
+                  vErrors = [err19];
+                } else {
+                  vErrors.push(err19);
+                }
+                errors++;
+              } else {
+                errors = _errs43;
+                if (vErrors !== null) {
+                  if (_errs43) {
+                    vErrors.length = _errs43;
+                  } else {
+                    vErrors = null;
+                  }
+                }
+              }
+              if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
+                if (data23.code === undefined) {
+                  const err20 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath: "#/properties/linear/properties/identityDiagnostics/items/required",
+                    keyword: "required",
+                    params: { missingProperty: "code" },
+                    message: "must have required property '" + "code" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err20];
+                  } else {
+                    vErrors.push(err20);
+                  }
+                  errors++;
+                }
+                if (data23.path === undefined) {
+                  const err21 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath: "#/properties/linear/properties/identityDiagnostics/items/required",
+                    keyword: "required",
+                    params: { missingProperty: "path" },
+                    message: "must have required property '" + "path" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err21];
+                  } else {
+                    vErrors.push(err21);
+                  }
+                  errors++;
+                }
+                if (data23.blockingStarts === undefined) {
+                  const err22 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath: "#/properties/linear/properties/identityDiagnostics/items/required",
+                    keyword: "required",
+                    params: { missingProperty: "blockingStarts" },
+                    message: "must have required property '" + "blockingStarts" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err22];
+                  } else {
+                    vErrors.push(err22);
+                  }
+                  errors++;
+                }
+                for (const key1 in data23) {
+                  if (
+                    !(
+                      key1 === "code" ||
+                      key1 === "path" ||
+                      key1 === "blockingStarts" ||
+                      key1 === "issueKey" ||
+                      key1 === "issueUuid"
+                    )
+                  ) {
+                    const err23 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/additionalProperties",
+                      keyword: "additionalProperties",
+                      params: { additionalProperty: key1 },
+                      message: "must NOT have additional properties",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err23];
+                    } else {
+                      vErrors.push(err23);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.code !== undefined) {
+                  if ("REFERENCED_ISSUE_NOT_FOUND" !== data23.code) {
+                    const err24 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/code",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/code/const",
+                      keyword: "const",
+                      params: { allowedValue: "REFERENCED_ISSUE_NOT_FOUND" },
+                      message: "must be equal to constant",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err24];
+                    } else {
+                      vErrors.push(err24);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.path !== undefined) {
+                  let data25 = data23.path;
+                  if (typeof data25 === "string") {
+                    if (!pattern7.test(data25)) {
+                      const err25 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/path",
+                        schemaPath:
+                          "#/properties/linear/properties/identityDiagnostics/items/properties/path/pattern",
+                        keyword: "pattern",
+                        params: { pattern: "\\S" },
+                        message: 'must match pattern "' + "\\S" + '"',
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err25];
+                      } else {
+                        vErrors.push(err25);
+                      }
+                      errors++;
+                    }
+                  } else {
+                    const err26 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/path",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/path/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err26];
+                    } else {
+                      vErrors.push(err26);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.blockingStarts !== undefined) {
+                  if (true !== data23.blockingStarts) {
+                    const err27 = {
+                      instancePath:
+                        instancePath + "/linear/identityDiagnostics/" + i5 + "/blockingStarts",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/blockingStarts/const",
+                      keyword: "const",
+                      params: { allowedValue: true },
+                      message: "must be equal to constant",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err27];
+                    } else {
+                      vErrors.push(err27);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.issueKey !== undefined) {
+                  let data27 = data23.issueKey;
+                  if (typeof data27 === "string") {
+                    if (!pattern3.test(data27)) {
+                      const err28 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/issueKey",
+                        schemaPath:
+                          "#/properties/linear/properties/identityDiagnostics/items/properties/issueKey/pattern",
+                        keyword: "pattern",
+                        params: { pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                        message: 'must match pattern "' + "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" + '"',
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err28];
+                      } else {
+                        vErrors.push(err28);
+                      }
+                      errors++;
+                    }
+                  } else {
+                    const err29 = {
+                      instancePath:
+                        instancePath + "/linear/identityDiagnostics/" + i5 + "/issueKey",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/issueKey/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err29];
+                    } else {
+                      vErrors.push(err29);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.issueUuid !== undefined) {
+                  let data28 = data23.issueUuid;
+                  if (typeof data28 === "string") {
+                    if (!pattern4.test(data28)) {
+                      const err30 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/issueUuid",
+                        schemaPath:
+                          "#/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/pattern",
+                        keyword: "pattern",
+                        params: {
+                          pattern:
+                            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        },
+                        message:
+                          'must match pattern "' +
+                          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" +
+                          '"',
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err30];
+                      } else {
+                        vErrors.push(err30);
+                      }
+                      errors++;
+                    }
+                  } else {
+                    const err31 = {
+                      instancePath:
+                        instancePath + "/linear/identityDiagnostics/" + i5 + "/issueUuid",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err31];
+                    } else {
+                      vErrors.push(err31);
+                    }
+                    errors++;
+                  }
+                }
+              } else {
+                const err32 = {
+                  instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                  schemaPath: "#/properties/linear/properties/identityDiagnostics/items/type",
+                  keyword: "type",
+                  params: { type: "object" },
+                  message: "must be object",
+                };
+                if (vErrors === null) {
+                  vErrors = [err32];
+                } else {
+                  vErrors.push(err32);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err33 = {
+              instancePath: instancePath + "/linear/identityDiagnostics",
+              schemaPath: "#/properties/linear/properties/identityDiagnostics/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err33];
+            } else {
+              vErrors.push(err33);
+            }
+            errors++;
+          }
+        }
+        if (data14.unroutedIssueIds !== undefined) {
+          let data29 = data14.unroutedIssueIds;
+          if (Array.isArray(data29)) {
+            const len6 = data29.length;
+            for (let i6 = 0; i6 < len6; i6++) {
+              if (typeof data29[i6] !== "string") {
+                const err34 = {
+                  instancePath: instancePath + "/linear/unroutedIssueIds/" + i6,
                   schemaPath: "#/properties/linear/properties/unroutedIssueIds/items/type",
                   keyword: "type",
                   params: { type: "string" },
                   message: "must be string",
                 };
                 if (vErrors === null) {
-                  vErrors = [err17];
+                  vErrors = [err34];
                 } else {
-                  vErrors.push(err17);
+                  vErrors.push(err34);
                 }
                 errors++;
               }
             }
           } else {
-            const err18 = {
+            const err35 = {
               instancePath: instancePath + "/linear/unroutedIssueIds",
               schemaPath: "#/properties/linear/properties/unroutedIssueIds/type",
               keyword: "type",
@@ -11466,15 +11918,15 @@ function validate39(
               message: "must be array",
             };
             if (vErrors === null) {
-              vErrors = [err18];
+              vErrors = [err35];
             } else {
-              vErrors.push(err18);
+              vErrors.push(err35);
             }
             errors++;
           }
         }
         if (data14.candidateIssueIds !== undefined) {
-          const err19 = {
+          const err36 = {
             instancePath: instancePath + "/linear/candidateIssueIds",
             schemaPath: "#/properties/linear/properties/candidateIssueIds/false schema",
             keyword: "false schema",
@@ -11482,35 +11934,35 @@ function validate39(
             message: "boolean schema is false",
           };
           if (vErrors === null) {
-            vErrors = [err19];
+            vErrors = [err36];
           } else {
-            vErrors.push(err19);
+            vErrors.push(err36);
           }
           errors++;
         }
         if (data14.statesFilter !== undefined) {
-          let data25 = data14.statesFilter;
-          if (Array.isArray(data25)) {
-            const len6 = data25.length;
-            for (let i6 = 0; i6 < len6; i6++) {
-              if (typeof data25[i6] !== "string") {
-                const err20 = {
-                  instancePath: instancePath + "/linear/statesFilter/" + i6,
+          let data32 = data14.statesFilter;
+          if (Array.isArray(data32)) {
+            const len7 = data32.length;
+            for (let i7 = 0; i7 < len7; i7++) {
+              if (typeof data32[i7] !== "string") {
+                const err37 = {
+                  instancePath: instancePath + "/linear/statesFilter/" + i7,
                   schemaPath: "#/properties/linear/properties/statesFilter/items/type",
                   keyword: "type",
                   params: { type: "string" },
                   message: "must be string",
                 };
                 if (vErrors === null) {
-                  vErrors = [err20];
+                  vErrors = [err37];
                 } else {
-                  vErrors.push(err20);
+                  vErrors.push(err37);
                 }
                 errors++;
               }
             }
           } else {
-            const err21 = {
+            const err38 = {
               instancePath: instancePath + "/linear/statesFilter",
               schemaPath: "#/properties/linear/properties/statesFilter/type",
               keyword: "type",
@@ -11518,20 +11970,20 @@ function validate39(
               message: "must be array",
             };
             if (vErrors === null) {
-              vErrors = [err21];
+              vErrors = [err38];
             } else {
-              vErrors.push(err21);
+              vErrors.push(err38);
             }
             errors++;
           }
         }
         if (data14.activeScope !== undefined) {
-          let data27 = data14.activeScope;
-          if (data27 && typeof data27 == "object" && !Array.isArray(data27)) {
-            if (data27.routeLabel !== undefined) {
-              let data28 = data27.routeLabel;
-              if (typeof data28 !== "string" && data28 !== null) {
-                const err22 = {
+          let data34 = data14.activeScope;
+          if (data34 && typeof data34 == "object" && !Array.isArray(data34)) {
+            if (data34.routeLabel !== undefined) {
+              let data35 = data34.routeLabel;
+              if (typeof data35 !== "string" && data35 !== null) {
+                const err39 = {
                   instancePath: instancePath + "/linear/activeScope/routeLabel",
                   schemaPath:
                     "#/properties/linear/properties/activeScope/properties/routeLabel/type",
@@ -11543,15 +11995,15 @@ function validate39(
                   message: "must be string,null",
                 };
                 if (vErrors === null) {
-                  vErrors = [err22];
+                  vErrors = [err39];
                 } else {
-                  vErrors.push(err22);
+                  vErrors.push(err39);
                 }
                 errors++;
               }
             }
           } else {
-            const err23 = {
+            const err40 = {
               instancePath: instancePath + "/linear/activeScope",
               schemaPath: "#/properties/linear/properties/activeScope/type",
               keyword: "type",
@@ -11559,20 +12011,20 @@ function validate39(
               message: "must be object",
             };
             if (vErrors === null) {
-              vErrors = [err23];
+              vErrors = [err40];
             } else {
-              vErrors.push(err23);
+              vErrors.push(err40);
             }
             errors++;
           }
         }
         if (data14.candidateScope !== undefined) {
-          let data29 = data14.candidateScope;
-          if (data29 && typeof data29 == "object" && !Array.isArray(data29)) {
-            if (data29.routeLabel !== undefined) {
-              let data30 = data29.routeLabel;
-              if (typeof data30 !== "string" && data30 !== null) {
-                const err24 = {
+          let data36 = data14.candidateScope;
+          if (data36 && typeof data36 == "object" && !Array.isArray(data36)) {
+            if (data36.routeLabel !== undefined) {
+              let data37 = data36.routeLabel;
+              if (typeof data37 !== "string" && data37 !== null) {
+                const err41 = {
                   instancePath: instancePath + "/linear/candidateScope/routeLabel",
                   schemaPath:
                     "#/properties/linear/properties/candidateScope/properties/routeLabel/type",
@@ -11584,21 +12036,21 @@ function validate39(
                   message: "must be string,null",
                 };
                 if (vErrors === null) {
-                  vErrors = [err24];
+                  vErrors = [err41];
                 } else {
-                  vErrors.push(err24);
+                  vErrors.push(err41);
                 }
                 errors++;
               }
             }
-            if (data29.states !== undefined) {
-              let data31 = data29.states;
-              if (Array.isArray(data31)) {
-                const len7 = data31.length;
-                for (let i7 = 0; i7 < len7; i7++) {
-                  if (typeof data31[i7] !== "string") {
-                    const err25 = {
-                      instancePath: instancePath + "/linear/candidateScope/states/" + i7,
+            if (data36.states !== undefined) {
+              let data38 = data36.states;
+              if (Array.isArray(data38)) {
+                const len8 = data38.length;
+                for (let i8 = 0; i8 < len8; i8++) {
+                  if (typeof data38[i8] !== "string") {
+                    const err42 = {
+                      instancePath: instancePath + "/linear/candidateScope/states/" + i8,
                       schemaPath:
                         "#/properties/linear/properties/candidateScope/properties/states/items/type",
                       keyword: "type",
@@ -11606,15 +12058,15 @@ function validate39(
                       message: "must be string",
                     };
                     if (vErrors === null) {
-                      vErrors = [err25];
+                      vErrors = [err42];
                     } else {
-                      vErrors.push(err25);
+                      vErrors.push(err42);
                     }
                     errors++;
                   }
                 }
               } else {
-                const err26 = {
+                const err43 = {
                   instancePath: instancePath + "/linear/candidateScope/states",
                   schemaPath:
                     "#/properties/linear/properties/candidateScope/properties/states/type",
@@ -11623,15 +12075,15 @@ function validate39(
                   message: "must be array",
                 };
                 if (vErrors === null) {
-                  vErrors = [err26];
+                  vErrors = [err43];
                 } else {
-                  vErrors.push(err26);
+                  vErrors.push(err43);
                 }
                 errors++;
               }
             }
           } else {
-            const err27 = {
+            const err44 = {
               instancePath: instancePath + "/linear/candidateScope",
               schemaPath: "#/properties/linear/properties/candidateScope/type",
               keyword: "type",
@@ -11639,15 +12091,15 @@ function validate39(
               message: "must be object",
             };
             if (vErrors === null) {
-              vErrors = [err27];
+              vErrors = [err44];
             } else {
-              vErrors.push(err27);
+              vErrors.push(err44);
             }
             errors++;
           }
         }
         if (data14.candidateIssueRefs !== undefined) {
-          const err28 = {
+          const err45 = {
             instancePath: instancePath + "/linear/candidateIssueRefs",
             schemaPath: "#/properties/linear/properties/candidateIssueRefs/false schema",
             keyword: "false schema",
@@ -11655,22 +12107,22 @@ function validate39(
             message: "boolean schema is false",
           };
           if (vErrors === null) {
-            vErrors = [err28];
+            vErrors = [err45];
           } else {
-            vErrors.push(err28);
+            vErrors.push(err45);
           }
           errors++;
         }
         if (data14.candidateIssues !== undefined) {
-          let data34 = data14.candidateIssues;
-          if (Array.isArray(data34)) {
-            const len8 = data34.length;
-            for (let i8 = 0; i8 < len8; i8++) {
+          let data41 = data14.candidateIssues;
+          if (Array.isArray(data41)) {
+            const len9 = data41.length;
+            for (let i9 = 0; i9 < len9; i9++) {
               if (
-                !validate27(data34[i8], {
-                  instancePath: instancePath + "/linear/candidateIssues/" + i8,
-                  parentData: data34,
-                  parentDataProperty: i8,
+                !validate27(data41[i9], {
+                  instancePath: instancePath + "/linear/candidateIssues/" + i9,
+                  parentData: data41,
+                  parentDataProperty: i9,
                   rootData,
                 })
               ) {
@@ -11679,7 +12131,7 @@ function validate39(
               }
             }
           } else {
-            const err29 = {
+            const err46 = {
               instancePath: instancePath + "/linear/candidateIssues",
               schemaPath: "#/properties/linear/properties/candidateIssues/type",
               keyword: "type",
@@ -11687,15 +12139,15 @@ function validate39(
               message: "must be array",
             };
             if (vErrors === null) {
-              vErrors = [err29];
+              vErrors = [err46];
             } else {
-              vErrors.push(err29);
+              vErrors.push(err46);
             }
             errors++;
           }
         }
       } else {
-        const err30 = {
+        const err47 = {
           instancePath: instancePath + "/linear",
           schemaPath: "#/properties/linear/type",
           keyword: "type",
@@ -11703,17 +12155,17 @@ function validate39(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err30];
+          vErrors = [err47];
         } else {
-          vErrors.push(err30);
+          vErrors.push(err47);
         }
         errors++;
       }
     }
     if (data.usage !== undefined) {
-      let data36 = data.usage;
-      if (!(data36 && typeof data36 == "object" && !Array.isArray(data36))) {
-        const err31 = {
+      let data43 = data.usage;
+      if (!(data43 && typeof data43 == "object" && !Array.isArray(data43))) {
+        const err48 = {
           instancePath: instancePath + "/usage",
           schemaPath: "#/properties/usage/type",
           keyword: "type",
@@ -11721,15 +12173,15 @@ function validate39(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err31];
+          vErrors = [err48];
         } else {
-          vErrors.push(err31);
+          vErrors.push(err48);
         }
         errors++;
       }
     }
   } else {
-    const err32 = {
+    const err49 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -11737,9 +12189,9 @@ function validate39(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err32];
+      vErrors = [err49];
     } else {
-      vErrors.push(err32);
+      vErrors.push(err49);
     }
     errors++;
   }
@@ -14932,7 +15384,7 @@ const schema15 = {
     scopeIssues: { type: "array", items: { $ref: "#/definitions/canonical_issueReference" } },
   },
 };
-const pattern23 = new RegExp("^[1-9][0-9]*$", "u");
+const pattern29 = new RegExp("^[1-9][0-9]*$", "u");
 const schema16 = {
   type: "object",
   properties: {
@@ -26710,7 +27162,7 @@ function validate50(
         for (const key1 in data24) {
           const _errs39 = errors;
           if (typeof key1 === "string") {
-            if (!pattern23.test(key1)) {
+            if (!pattern29.test(key1)) {
               const err15 = {
                 instancePath: instancePath + "/reviewEvidenceByPr",
                 schemaPath: "#/properties/reviewEvidenceByPr/propertyNames/pattern",
@@ -26782,7 +27234,7 @@ function validate50(
         for (const key3 in data26) {
           const _errs44 = errors;
           if (typeof key3 === "string") {
-            if (!pattern23.test(key3)) {
+            if (!pattern29.test(key3)) {
               const err18 = {
                 instancePath: instancePath + "/reviewEvidence",
                 schemaPath: "#/properties/reviewEvidence/propertyNames/pattern",
@@ -26852,7 +27304,7 @@ function validate50(
         for (const key5 in data28) {
           const _errs49 = errors;
           if (typeof key5 === "string") {
-            if (!pattern23.test(key5)) {
+            if (!pattern29.test(key5)) {
               const err21 = {
                 instancePath: instancePath + "/hostedReviewByPr",
                 schemaPath: "#/properties/hostedReviewByPr/propertyNames/pattern",
@@ -26922,7 +27374,7 @@ function validate50(
         for (const key7 in data30) {
           const _errs54 = errors;
           if (typeof key7 === "string") {
-            if (!pattern23.test(key7)) {
+            if (!pattern29.test(key7)) {
               const err24 = {
                 instancePath: instancePath + "/reviewRequestsByPr",
                 schemaPath: "#/properties/reviewRequestsByPr/propertyNames/pattern",
@@ -26994,7 +27446,7 @@ function validate50(
         for (const key9 in data32) {
           const _errs59 = errors;
           if (typeof key9 === "string") {
-            if (!pattern23.test(key9)) {
+            if (!pattern29.test(key9)) {
               const err27 = {
                 instancePath: instancePath + "/reviewRequestByPr",
                 schemaPath: "#/properties/reviewRequestByPr/propertyNames/pattern",
@@ -40401,6 +40853,26 @@ const schema25 = {
         issues: { type: "array", items: { $ref: "#/definitions/issue" } },
         activeIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
         issueMetadata: { type: "array", items: { $ref: "#/definitions/issue" } },
+        identityDiagnostics: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["code", "path", "blockingStarts"],
+            properties: {
+              code: { const: "REFERENCED_ISSUE_NOT_FOUND" },
+              path: { type: "string", pattern: "\\S" },
+              blockingStarts: { const: true },
+              issueKey: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+              issueUuid: {
+                type: "string",
+                pattern:
+                  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              },
+            },
+            anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+          },
+        },
         unroutedIssueIds: { type: "array", items: { type: "string" } },
         candidateIssueIds: { type: "array", items: { type: "string" } },
         statesFilter: { type: "array", items: { type: "string" } },
@@ -40849,55 +41321,65 @@ function validate88(
             errors++;
           }
         }
-        if (data14.unroutedIssueIds !== undefined) {
-          let data22 = data14.unroutedIssueIds;
+        if (data14.identityDiagnostics !== undefined) {
+          let data22 = data14.identityDiagnostics;
           if (Array.isArray(data22)) {
             const len5 = data22.length;
             for (let i5 = 0; i5 < len5; i5++) {
-              if (typeof data22[i5] !== "string") {
-                const err19 = {
-                  instancePath: instancePath + "/linear/unroutedIssueIds/" + i5,
-                  schemaPath: "#/properties/linear/properties/unroutedIssueIds/items/type",
-                  keyword: "type",
-                  params: { type: "string" },
-                  message: "must be string",
-                };
-                if (vErrors === null) {
-                  vErrors = [err19];
-                } else {
-                  vErrors.push(err19);
+              let data23 = data22[i5];
+              const _errs44 = errors;
+              let valid15 = false;
+              const _errs45 = errors;
+              if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
+                if (data23.issueKey === undefined) {
+                  const err19 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath:
+                      "#/properties/linear/properties/identityDiagnostics/items/anyOf/0/required",
+                    keyword: "required",
+                    params: { missingProperty: "issueKey" },
+                    message: "must have required property '" + "issueKey" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err19];
+                  } else {
+                    vErrors.push(err19);
+                  }
+                  errors++;
                 }
-                errors++;
               }
-            }
-          } else {
-            const err20 = {
-              instancePath: instancePath + "/linear/unroutedIssueIds",
-              schemaPath: "#/properties/linear/properties/unroutedIssueIds/type",
-              keyword: "type",
-              params: { type: "array" },
-              message: "must be array",
-            };
-            if (vErrors === null) {
-              vErrors = [err20];
-            } else {
-              vErrors.push(err20);
-            }
-            errors++;
-          }
-        }
-        if (data14.candidateIssueIds !== undefined) {
-          let data24 = data14.candidateIssueIds;
-          if (Array.isArray(data24)) {
-            const len6 = data24.length;
-            for (let i6 = 0; i6 < len6; i6++) {
-              if (typeof data24[i6] !== "string") {
+              var _valid0 = _errs45 === errors;
+              valid15 = valid15 || _valid0;
+              if (!valid15) {
+                const _errs46 = errors;
+                if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
+                  if (data23.issueUuid === undefined) {
+                    const err20 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/anyOf/1/required",
+                      keyword: "required",
+                      params: { missingProperty: "issueUuid" },
+                      message: "must have required property '" + "issueUuid" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err20];
+                    } else {
+                      vErrors.push(err20);
+                    }
+                    errors++;
+                  }
+                }
+                var _valid0 = _errs46 === errors;
+                valid15 = valid15 || _valid0;
+              }
+              if (!valid15) {
                 const err21 = {
-                  instancePath: instancePath + "/linear/candidateIssueIds/" + i6,
-                  schemaPath: "#/properties/linear/properties/candidateIssueIds/items/type",
-                  keyword: "type",
-                  params: { type: "string" },
-                  message: "must be string",
+                  instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                  schemaPath: "#/properties/linear/properties/identityDiagnostics/items/anyOf",
+                  keyword: "anyOf",
+                  params: {},
+                  message: "must match a schema in anyOf",
                 };
                 if (vErrors === null) {
                   vErrors = [err21];
@@ -40905,137 +41387,130 @@ function validate88(
                   vErrors.push(err21);
                 }
                 errors++;
-              }
-            }
-          } else {
-            const err22 = {
-              instancePath: instancePath + "/linear/candidateIssueIds",
-              schemaPath: "#/properties/linear/properties/candidateIssueIds/type",
-              keyword: "type",
-              params: { type: "array" },
-              message: "must be array",
-            };
-            if (vErrors === null) {
-              vErrors = [err22];
-            } else {
-              vErrors.push(err22);
-            }
-            errors++;
-          }
-        }
-        if (data14.statesFilter !== undefined) {
-          let data26 = data14.statesFilter;
-          if (Array.isArray(data26)) {
-            const len7 = data26.length;
-            for (let i7 = 0; i7 < len7; i7++) {
-              if (typeof data26[i7] !== "string") {
-                const err23 = {
-                  instancePath: instancePath + "/linear/statesFilter/" + i7,
-                  schemaPath: "#/properties/linear/properties/statesFilter/items/type",
-                  keyword: "type",
-                  params: { type: "string" },
-                  message: "must be string",
-                };
-                if (vErrors === null) {
-                  vErrors = [err23];
-                } else {
-                  vErrors.push(err23);
+              } else {
+                errors = _errs44;
+                if (vErrors !== null) {
+                  if (_errs44) {
+                    vErrors.length = _errs44;
+                  } else {
+                    vErrors = null;
+                  }
                 }
-                errors++;
               }
-            }
-          } else {
-            const err24 = {
-              instancePath: instancePath + "/linear/statesFilter",
-              schemaPath: "#/properties/linear/properties/statesFilter/type",
-              keyword: "type",
-              params: { type: "array" },
-              message: "must be array",
-            };
-            if (vErrors === null) {
-              vErrors = [err24];
-            } else {
-              vErrors.push(err24);
-            }
-            errors++;
-          }
-        }
-        if (data14.activeScope !== undefined) {
-          let data28 = data14.activeScope;
-          if (data28 && typeof data28 == "object" && !Array.isArray(data28)) {
-            if (data28.routeLabel !== undefined) {
-              let data29 = data28.routeLabel;
-              if (typeof data29 !== "string" && data29 !== null) {
-                const err25 = {
-                  instancePath: instancePath + "/linear/activeScope/routeLabel",
-                  schemaPath:
-                    "#/properties/linear/properties/activeScope/properties/routeLabel/type",
-                  keyword: "type",
-                  params: {
-                    type: schema25.properties.linear.properties.activeScope.properties.routeLabel
-                      .type,
-                  },
-                  message: "must be string,null",
-                };
-                if (vErrors === null) {
-                  vErrors = [err25];
-                } else {
-                  vErrors.push(err25);
+              if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
+                if (data23.code === undefined) {
+                  const err22 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath: "#/properties/linear/properties/identityDiagnostics/items/required",
+                    keyword: "required",
+                    params: { missingProperty: "code" },
+                    message: "must have required property '" + "code" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err22];
+                  } else {
+                    vErrors.push(err22);
+                  }
+                  errors++;
                 }
-                errors++;
-              }
-            }
-          } else {
-            const err26 = {
-              instancePath: instancePath + "/linear/activeScope",
-              schemaPath: "#/properties/linear/properties/activeScope/type",
-              keyword: "type",
-              params: { type: "object" },
-              message: "must be object",
-            };
-            if (vErrors === null) {
-              vErrors = [err26];
-            } else {
-              vErrors.push(err26);
-            }
-            errors++;
-          }
-        }
-        if (data14.candidateScope !== undefined) {
-          let data30 = data14.candidateScope;
-          if (data30 && typeof data30 == "object" && !Array.isArray(data30)) {
-            if (data30.routeLabel !== undefined) {
-              let data31 = data30.routeLabel;
-              if (typeof data31 !== "string" && data31 !== null) {
-                const err27 = {
-                  instancePath: instancePath + "/linear/candidateScope/routeLabel",
-                  schemaPath:
-                    "#/properties/linear/properties/candidateScope/properties/routeLabel/type",
-                  keyword: "type",
-                  params: {
-                    type: schema25.properties.linear.properties.candidateScope.properties.routeLabel
-                      .type,
-                  },
-                  message: "must be string,null",
-                };
-                if (vErrors === null) {
-                  vErrors = [err27];
-                } else {
-                  vErrors.push(err27);
+                if (data23.path === undefined) {
+                  const err23 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath: "#/properties/linear/properties/identityDiagnostics/items/required",
+                    keyword: "required",
+                    params: { missingProperty: "path" },
+                    message: "must have required property '" + "path" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err23];
+                  } else {
+                    vErrors.push(err23);
+                  }
+                  errors++;
                 }
-                errors++;
-              }
-            }
-            if (data30.states !== undefined) {
-              let data32 = data30.states;
-              if (Array.isArray(data32)) {
-                const len8 = data32.length;
-                for (let i8 = 0; i8 < len8; i8++) {
-                  if (typeof data32[i8] !== "string") {
-                    const err28 = {
-                      instancePath: instancePath + "/linear/candidateScope/states/" + i8,
+                if (data23.blockingStarts === undefined) {
+                  const err24 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath: "#/properties/linear/properties/identityDiagnostics/items/required",
+                    keyword: "required",
+                    params: { missingProperty: "blockingStarts" },
+                    message: "must have required property '" + "blockingStarts" + "'",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err24];
+                  } else {
+                    vErrors.push(err24);
+                  }
+                  errors++;
+                }
+                for (const key1 in data23) {
+                  if (
+                    !(
+                      key1 === "code" ||
+                      key1 === "path" ||
+                      key1 === "blockingStarts" ||
+                      key1 === "issueKey" ||
+                      key1 === "issueUuid"
+                    )
+                  ) {
+                    const err25 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
                       schemaPath:
-                        "#/properties/linear/properties/candidateScope/properties/states/items/type",
+                        "#/properties/linear/properties/identityDiagnostics/items/additionalProperties",
+                      keyword: "additionalProperties",
+                      params: { additionalProperty: key1 },
+                      message: "must NOT have additional properties",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err25];
+                    } else {
+                      vErrors.push(err25);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.code !== undefined) {
+                  if ("REFERENCED_ISSUE_NOT_FOUND" !== data23.code) {
+                    const err26 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/code",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/code/const",
+                      keyword: "const",
+                      params: { allowedValue: "REFERENCED_ISSUE_NOT_FOUND" },
+                      message: "must be equal to constant",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err26];
+                    } else {
+                      vErrors.push(err26);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.path !== undefined) {
+                  let data25 = data23.path;
+                  if (typeof data25 === "string") {
+                    if (!pattern7.test(data25)) {
+                      const err27 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/path",
+                        schemaPath:
+                          "#/properties/linear/properties/identityDiagnostics/items/properties/path/pattern",
+                        keyword: "pattern",
+                        params: { pattern: "\\S" },
+                        message: 'must match pattern "' + "\\S" + '"',
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err27];
+                      } else {
+                        vErrors.push(err27);
+                      }
+                      errors++;
+                    }
+                  } else {
+                    const err28 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/path",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/path/type",
                       keyword: "type",
                       params: { type: "string" },
                       message: "must be string",
@@ -41048,8 +41523,340 @@ function validate88(
                     errors++;
                   }
                 }
+                if (data23.blockingStarts !== undefined) {
+                  if (true !== data23.blockingStarts) {
+                    const err29 = {
+                      instancePath:
+                        instancePath + "/linear/identityDiagnostics/" + i5 + "/blockingStarts",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/blockingStarts/const",
+                      keyword: "const",
+                      params: { allowedValue: true },
+                      message: "must be equal to constant",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err29];
+                    } else {
+                      vErrors.push(err29);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.issueKey !== undefined) {
+                  let data27 = data23.issueKey;
+                  if (typeof data27 === "string") {
+                    if (!pattern3.test(data27)) {
+                      const err30 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/issueKey",
+                        schemaPath:
+                          "#/properties/linear/properties/identityDiagnostics/items/properties/issueKey/pattern",
+                        keyword: "pattern",
+                        params: { pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                        message: 'must match pattern "' + "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" + '"',
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err30];
+                      } else {
+                        vErrors.push(err30);
+                      }
+                      errors++;
+                    }
+                  } else {
+                    const err31 = {
+                      instancePath:
+                        instancePath + "/linear/identityDiagnostics/" + i5 + "/issueKey",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/issueKey/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err31];
+                    } else {
+                      vErrors.push(err31);
+                    }
+                    errors++;
+                  }
+                }
+                if (data23.issueUuid !== undefined) {
+                  let data28 = data23.issueUuid;
+                  if (typeof data28 === "string") {
+                    if (!pattern4.test(data28)) {
+                      const err32 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/issueUuid",
+                        schemaPath:
+                          "#/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/pattern",
+                        keyword: "pattern",
+                        params: {
+                          pattern:
+                            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        },
+                        message:
+                          'must match pattern "' +
+                          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" +
+                          '"',
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err32];
+                      } else {
+                        vErrors.push(err32);
+                      }
+                      errors++;
+                    }
+                  } else {
+                    const err33 = {
+                      instancePath:
+                        instancePath + "/linear/identityDiagnostics/" + i5 + "/issueUuid",
+                      schemaPath:
+                        "#/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err33];
+                    } else {
+                      vErrors.push(err33);
+                    }
+                    errors++;
+                  }
+                }
               } else {
-                const err29 = {
+                const err34 = {
+                  instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                  schemaPath: "#/properties/linear/properties/identityDiagnostics/items/type",
+                  keyword: "type",
+                  params: { type: "object" },
+                  message: "must be object",
+                };
+                if (vErrors === null) {
+                  vErrors = [err34];
+                } else {
+                  vErrors.push(err34);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err35 = {
+              instancePath: instancePath + "/linear/identityDiagnostics",
+              schemaPath: "#/properties/linear/properties/identityDiagnostics/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err35];
+            } else {
+              vErrors.push(err35);
+            }
+            errors++;
+          }
+        }
+        if (data14.unroutedIssueIds !== undefined) {
+          let data29 = data14.unroutedIssueIds;
+          if (Array.isArray(data29)) {
+            const len6 = data29.length;
+            for (let i6 = 0; i6 < len6; i6++) {
+              if (typeof data29[i6] !== "string") {
+                const err36 = {
+                  instancePath: instancePath + "/linear/unroutedIssueIds/" + i6,
+                  schemaPath: "#/properties/linear/properties/unroutedIssueIds/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err36];
+                } else {
+                  vErrors.push(err36);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err37 = {
+              instancePath: instancePath + "/linear/unroutedIssueIds",
+              schemaPath: "#/properties/linear/properties/unroutedIssueIds/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err37];
+            } else {
+              vErrors.push(err37);
+            }
+            errors++;
+          }
+        }
+        if (data14.candidateIssueIds !== undefined) {
+          let data31 = data14.candidateIssueIds;
+          if (Array.isArray(data31)) {
+            const len7 = data31.length;
+            for (let i7 = 0; i7 < len7; i7++) {
+              if (typeof data31[i7] !== "string") {
+                const err38 = {
+                  instancePath: instancePath + "/linear/candidateIssueIds/" + i7,
+                  schemaPath: "#/properties/linear/properties/candidateIssueIds/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err38];
+                } else {
+                  vErrors.push(err38);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err39 = {
+              instancePath: instancePath + "/linear/candidateIssueIds",
+              schemaPath: "#/properties/linear/properties/candidateIssueIds/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err39];
+            } else {
+              vErrors.push(err39);
+            }
+            errors++;
+          }
+        }
+        if (data14.statesFilter !== undefined) {
+          let data33 = data14.statesFilter;
+          if (Array.isArray(data33)) {
+            const len8 = data33.length;
+            for (let i8 = 0; i8 < len8; i8++) {
+              if (typeof data33[i8] !== "string") {
+                const err40 = {
+                  instancePath: instancePath + "/linear/statesFilter/" + i8,
+                  schemaPath: "#/properties/linear/properties/statesFilter/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err40];
+                } else {
+                  vErrors.push(err40);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err41 = {
+              instancePath: instancePath + "/linear/statesFilter",
+              schemaPath: "#/properties/linear/properties/statesFilter/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err41];
+            } else {
+              vErrors.push(err41);
+            }
+            errors++;
+          }
+        }
+        if (data14.activeScope !== undefined) {
+          let data35 = data14.activeScope;
+          if (data35 && typeof data35 == "object" && !Array.isArray(data35)) {
+            if (data35.routeLabel !== undefined) {
+              let data36 = data35.routeLabel;
+              if (typeof data36 !== "string" && data36 !== null) {
+                const err42 = {
+                  instancePath: instancePath + "/linear/activeScope/routeLabel",
+                  schemaPath:
+                    "#/properties/linear/properties/activeScope/properties/routeLabel/type",
+                  keyword: "type",
+                  params: {
+                    type: schema25.properties.linear.properties.activeScope.properties.routeLabel
+                      .type,
+                  },
+                  message: "must be string,null",
+                };
+                if (vErrors === null) {
+                  vErrors = [err42];
+                } else {
+                  vErrors.push(err42);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err43 = {
+              instancePath: instancePath + "/linear/activeScope",
+              schemaPath: "#/properties/linear/properties/activeScope/type",
+              keyword: "type",
+              params: { type: "object" },
+              message: "must be object",
+            };
+            if (vErrors === null) {
+              vErrors = [err43];
+            } else {
+              vErrors.push(err43);
+            }
+            errors++;
+          }
+        }
+        if (data14.candidateScope !== undefined) {
+          let data37 = data14.candidateScope;
+          if (data37 && typeof data37 == "object" && !Array.isArray(data37)) {
+            if (data37.routeLabel !== undefined) {
+              let data38 = data37.routeLabel;
+              if (typeof data38 !== "string" && data38 !== null) {
+                const err44 = {
+                  instancePath: instancePath + "/linear/candidateScope/routeLabel",
+                  schemaPath:
+                    "#/properties/linear/properties/candidateScope/properties/routeLabel/type",
+                  keyword: "type",
+                  params: {
+                    type: schema25.properties.linear.properties.candidateScope.properties.routeLabel
+                      .type,
+                  },
+                  message: "must be string,null",
+                };
+                if (vErrors === null) {
+                  vErrors = [err44];
+                } else {
+                  vErrors.push(err44);
+                }
+                errors++;
+              }
+            }
+            if (data37.states !== undefined) {
+              let data39 = data37.states;
+              if (Array.isArray(data39)) {
+                const len9 = data39.length;
+                for (let i9 = 0; i9 < len9; i9++) {
+                  if (typeof data39[i9] !== "string") {
+                    const err45 = {
+                      instancePath: instancePath + "/linear/candidateScope/states/" + i9,
+                      schemaPath:
+                        "#/properties/linear/properties/candidateScope/properties/states/items/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err45];
+                    } else {
+                      vErrors.push(err45);
+                    }
+                    errors++;
+                  }
+                }
+              } else {
+                const err46 = {
                   instancePath: instancePath + "/linear/candidateScope/states",
                   schemaPath:
                     "#/properties/linear/properties/candidateScope/properties/states/type",
@@ -41058,15 +41865,15 @@ function validate88(
                   message: "must be array",
                 };
                 if (vErrors === null) {
-                  vErrors = [err29];
+                  vErrors = [err46];
                 } else {
-                  vErrors.push(err29);
+                  vErrors.push(err46);
                 }
                 errors++;
               }
             }
           } else {
-            const err30 = {
+            const err47 = {
               instancePath: instancePath + "/linear/candidateScope",
               schemaPath: "#/properties/linear/properties/candidateScope/type",
               keyword: "type",
@@ -41074,15 +41881,15 @@ function validate88(
               message: "must be object",
             };
             if (vErrors === null) {
-              vErrors = [err30];
+              vErrors = [err47];
             } else {
-              vErrors.push(err30);
+              vErrors.push(err47);
             }
             errors++;
           }
         }
       } else {
-        const err31 = {
+        const err48 = {
           instancePath: instancePath + "/linear",
           schemaPath: "#/properties/linear/type",
           keyword: "type",
@@ -41090,17 +41897,17 @@ function validate88(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err31];
+          vErrors = [err48];
         } else {
-          vErrors.push(err31);
+          vErrors.push(err48);
         }
         errors++;
       }
     }
     if (data.usage !== undefined) {
-      let data34 = data.usage;
-      if (!(data34 && typeof data34 == "object" && !Array.isArray(data34))) {
-        const err32 = {
+      let data41 = data.usage;
+      if (!(data41 && typeof data41 == "object" && !Array.isArray(data41))) {
+        const err49 = {
           instancePath: instancePath + "/usage",
           schemaPath: "#/properties/usage/type",
           keyword: "type",
@@ -41108,15 +41915,15 @@ function validate88(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err32];
+          vErrors = [err49];
         } else {
-          vErrors.push(err32);
+          vErrors.push(err49);
         }
         errors++;
       }
     }
   } else {
-    const err33 = {
+    const err50 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -41124,9 +41931,9 @@ function validate88(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err33];
+      vErrors = [err50];
     } else {
-      vErrors.push(err33);
+      vErrors.push(err50);
     }
     errors++;
   }
@@ -52639,29 +53446,370 @@ function validate21(
               errors++;
             }
           }
-          if (data17.unroutedIssueIds !== undefined) {
-            let data25 = data17.unroutedIssueIds;
+          if (data17.identityDiagnostics !== undefined) {
+            let data25 = data17.identityDiagnostics;
             if (Array.isArray(data25)) {
               const len5 = data25.length;
               for (let i5 = 0; i5 < len5; i5++) {
-                if (typeof data25[i5] !== "string") {
-                  const err25 = {
-                    instancePath: instancePath + "/linear/unroutedIssueIds/" + i5,
+                let data26 = data25[i5];
+                const _errs54 = errors;
+                let valid20 = false;
+                const _errs55 = errors;
+                if (data26 && typeof data26 == "object" && !Array.isArray(data26)) {
+                  if (data26.issueKey === undefined) {
+                    const err25 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/then/properties/linear/properties/identityDiagnostics/items/anyOf/0/required",
+                      keyword: "required",
+                      params: { missingProperty: "issueKey" },
+                      message: "must have required property '" + "issueKey" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err25];
+                    } else {
+                      vErrors.push(err25);
+                    }
+                    errors++;
+                  }
+                }
+                var _valid2 = _errs55 === errors;
+                valid20 = valid20 || _valid2;
+                if (!valid20) {
+                  const _errs56 = errors;
+                  if (data26 && typeof data26 == "object" && !Array.isArray(data26)) {
+                    if (data26.issueUuid === undefined) {
+                      const err26 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/anyOf/1/required",
+                        keyword: "required",
+                        params: { missingProperty: "issueUuid" },
+                        message: "must have required property '" + "issueUuid" + "'",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err26];
+                      } else {
+                        vErrors.push(err26);
+                      }
+                      errors++;
+                    }
+                  }
+                  var _valid2 = _errs56 === errors;
+                  valid20 = valid20 || _valid2;
+                }
+                if (!valid20) {
+                  const err27 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath:
+                      "#/then/properties/linear/properties/identityDiagnostics/items/anyOf",
+                    keyword: "anyOf",
+                    params: {},
+                    message: "must match a schema in anyOf",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err27];
+                  } else {
+                    vErrors.push(err27);
+                  }
+                  errors++;
+                } else {
+                  errors = _errs54;
+                  if (vErrors !== null) {
+                    if (_errs54) {
+                      vErrors.length = _errs54;
+                    } else {
+                      vErrors = null;
+                    }
+                  }
+                }
+                if (data26 && typeof data26 == "object" && !Array.isArray(data26)) {
+                  if (data26.code === undefined) {
+                    const err28 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/then/properties/linear/properties/identityDiagnostics/items/required",
+                      keyword: "required",
+                      params: { missingProperty: "code" },
+                      message: "must have required property '" + "code" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err28];
+                    } else {
+                      vErrors.push(err28);
+                    }
+                    errors++;
+                  }
+                  if (data26.path === undefined) {
+                    const err29 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/then/properties/linear/properties/identityDiagnostics/items/required",
+                      keyword: "required",
+                      params: { missingProperty: "path" },
+                      message: "must have required property '" + "path" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err29];
+                    } else {
+                      vErrors.push(err29);
+                    }
+                    errors++;
+                  }
+                  if (data26.blockingStarts === undefined) {
+                    const err30 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                      schemaPath:
+                        "#/then/properties/linear/properties/identityDiagnostics/items/required",
+                      keyword: "required",
+                      params: { missingProperty: "blockingStarts" },
+                      message: "must have required property '" + "blockingStarts" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err30];
+                    } else {
+                      vErrors.push(err30);
+                    }
+                    errors++;
+                  }
+                  for (const key1 in data26) {
+                    if (
+                      !(
+                        key1 === "code" ||
+                        key1 === "path" ||
+                        key1 === "blockingStarts" ||
+                        key1 === "issueKey" ||
+                        key1 === "issueUuid"
+                      )
+                    ) {
+                      const err31 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/additionalProperties",
+                        keyword: "additionalProperties",
+                        params: { additionalProperty: key1 },
+                        message: "must NOT have additional properties",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err31];
+                      } else {
+                        vErrors.push(err31);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data26.code !== undefined) {
+                    if ("REFERENCED_ISSUE_NOT_FOUND" !== data26.code) {
+                      const err32 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/code",
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/properties/code/const",
+                        keyword: "const",
+                        params: { allowedValue: "REFERENCED_ISSUE_NOT_FOUND" },
+                        message: "must be equal to constant",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err32];
+                      } else {
+                        vErrors.push(err32);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data26.path !== undefined) {
+                    let data28 = data26.path;
+                    if (typeof data28 === "string") {
+                      if (!pattern7.test(data28)) {
+                        const err33 = {
+                          instancePath:
+                            instancePath + "/linear/identityDiagnostics/" + i5 + "/path",
+                          schemaPath:
+                            "#/then/properties/linear/properties/identityDiagnostics/items/properties/path/pattern",
+                          keyword: "pattern",
+                          params: { pattern: "\\S" },
+                          message: 'must match pattern "' + "\\S" + '"',
+                        };
+                        if (vErrors === null) {
+                          vErrors = [err33];
+                        } else {
+                          vErrors.push(err33);
+                        }
+                        errors++;
+                      }
+                    } else {
+                      const err34 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i5 + "/path",
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/properties/path/type",
+                        keyword: "type",
+                        params: { type: "string" },
+                        message: "must be string",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err34];
+                      } else {
+                        vErrors.push(err34);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data26.blockingStarts !== undefined) {
+                    if (true !== data26.blockingStarts) {
+                      const err35 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/blockingStarts",
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/properties/blockingStarts/const",
+                        keyword: "const",
+                        params: { allowedValue: true },
+                        message: "must be equal to constant",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err35];
+                      } else {
+                        vErrors.push(err35);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data26.issueKey !== undefined) {
+                    let data30 = data26.issueKey;
+                    if (typeof data30 === "string") {
+                      if (!pattern3.test(data30)) {
+                        const err36 = {
+                          instancePath:
+                            instancePath + "/linear/identityDiagnostics/" + i5 + "/issueKey",
+                          schemaPath:
+                            "#/then/properties/linear/properties/identityDiagnostics/items/properties/issueKey/pattern",
+                          keyword: "pattern",
+                          params: { pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                          message: 'must match pattern "' + "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" + '"',
+                        };
+                        if (vErrors === null) {
+                          vErrors = [err36];
+                        } else {
+                          vErrors.push(err36);
+                        }
+                        errors++;
+                      }
+                    } else {
+                      const err37 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/issueKey",
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/properties/issueKey/type",
+                        keyword: "type",
+                        params: { type: "string" },
+                        message: "must be string",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err37];
+                      } else {
+                        vErrors.push(err37);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data26.issueUuid !== undefined) {
+                    let data31 = data26.issueUuid;
+                    if (typeof data31 === "string") {
+                      if (!pattern4.test(data31)) {
+                        const err38 = {
+                          instancePath:
+                            instancePath + "/linear/identityDiagnostics/" + i5 + "/issueUuid",
+                          schemaPath:
+                            "#/then/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/pattern",
+                          keyword: "pattern",
+                          params: {
+                            pattern:
+                              "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                          },
+                          message:
+                            'must match pattern "' +
+                            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" +
+                            '"',
+                        };
+                        if (vErrors === null) {
+                          vErrors = [err38];
+                        } else {
+                          vErrors.push(err38);
+                        }
+                        errors++;
+                      }
+                    } else {
+                      const err39 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i5 + "/issueUuid",
+                        schemaPath:
+                          "#/then/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/type",
+                        keyword: "type",
+                        params: { type: "string" },
+                        message: "must be string",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err39];
+                      } else {
+                        vErrors.push(err39);
+                      }
+                      errors++;
+                    }
+                  }
+                } else {
+                  const err40 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i5,
+                    schemaPath:
+                      "#/then/properties/linear/properties/identityDiagnostics/items/type",
+                    keyword: "type",
+                    params: { type: "object" },
+                    message: "must be object",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err40];
+                  } else {
+                    vErrors.push(err40);
+                  }
+                  errors++;
+                }
+              }
+            } else {
+              const err41 = {
+                instancePath: instancePath + "/linear/identityDiagnostics",
+                schemaPath: "#/then/properties/linear/properties/identityDiagnostics/type",
+                keyword: "type",
+                params: { type: "array" },
+                message: "must be array",
+              };
+              if (vErrors === null) {
+                vErrors = [err41];
+              } else {
+                vErrors.push(err41);
+              }
+              errors++;
+            }
+          }
+          if (data17.unroutedIssueIds !== undefined) {
+            let data32 = data17.unroutedIssueIds;
+            if (Array.isArray(data32)) {
+              const len6 = data32.length;
+              for (let i6 = 0; i6 < len6; i6++) {
+                if (typeof data32[i6] !== "string") {
+                  const err42 = {
+                    instancePath: instancePath + "/linear/unroutedIssueIds/" + i6,
                     schemaPath: "#/then/properties/linear/properties/unroutedIssueIds/items/type",
                     keyword: "type",
                     params: { type: "string" },
                     message: "must be string",
                   };
                   if (vErrors === null) {
-                    vErrors = [err25];
+                    vErrors = [err42];
                   } else {
-                    vErrors.push(err25);
+                    vErrors.push(err42);
                   }
                   errors++;
                 }
               }
             } else {
-              const err26 = {
+              const err43 = {
                 instancePath: instancePath + "/linear/unroutedIssueIds",
                 schemaPath: "#/then/properties/linear/properties/unroutedIssueIds/type",
                 keyword: "type",
@@ -52669,15 +53817,15 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err26];
+                vErrors = [err43];
               } else {
-                vErrors.push(err26);
+                vErrors.push(err43);
               }
               errors++;
             }
           }
           if (data17.candidateIssueIds !== undefined) {
-            const err27 = {
+            const err44 = {
               instancePath: instancePath + "/linear/candidateIssueIds",
               schemaPath: "#/then/properties/linear/properties/candidateIssueIds/false schema",
               keyword: "false schema",
@@ -52685,35 +53833,35 @@ function validate21(
               message: "boolean schema is false",
             };
             if (vErrors === null) {
-              vErrors = [err27];
+              vErrors = [err44];
             } else {
-              vErrors.push(err27);
+              vErrors.push(err44);
             }
             errors++;
           }
           if (data17.statesFilter !== undefined) {
-            let data28 = data17.statesFilter;
-            if (Array.isArray(data28)) {
-              const len6 = data28.length;
-              for (let i6 = 0; i6 < len6; i6++) {
-                if (typeof data28[i6] !== "string") {
-                  const err28 = {
-                    instancePath: instancePath + "/linear/statesFilter/" + i6,
+            let data35 = data17.statesFilter;
+            if (Array.isArray(data35)) {
+              const len7 = data35.length;
+              for (let i7 = 0; i7 < len7; i7++) {
+                if (typeof data35[i7] !== "string") {
+                  const err45 = {
+                    instancePath: instancePath + "/linear/statesFilter/" + i7,
                     schemaPath: "#/then/properties/linear/properties/statesFilter/items/type",
                     keyword: "type",
                     params: { type: "string" },
                     message: "must be string",
                   };
                   if (vErrors === null) {
-                    vErrors = [err28];
+                    vErrors = [err45];
                   } else {
-                    vErrors.push(err28);
+                    vErrors.push(err45);
                   }
                   errors++;
                 }
               }
             } else {
-              const err29 = {
+              const err46 = {
                 instancePath: instancePath + "/linear/statesFilter",
                 schemaPath: "#/then/properties/linear/properties/statesFilter/type",
                 keyword: "type",
@@ -52721,20 +53869,20 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err29];
+                vErrors = [err46];
               } else {
-                vErrors.push(err29);
+                vErrors.push(err46);
               }
               errors++;
             }
           }
           if (data17.activeScope !== undefined) {
-            let data30 = data17.activeScope;
-            if (data30 && typeof data30 == "object" && !Array.isArray(data30)) {
-              if (data30.routeLabel !== undefined) {
-                let data31 = data30.routeLabel;
-                if (typeof data31 !== "string" && data31 !== null) {
-                  const err30 = {
+            let data37 = data17.activeScope;
+            if (data37 && typeof data37 == "object" && !Array.isArray(data37)) {
+              if (data37.routeLabel !== undefined) {
+                let data38 = data37.routeLabel;
+                if (typeof data38 !== "string" && data38 !== null) {
+                  const err47 = {
                     instancePath: instancePath + "/linear/activeScope/routeLabel",
                     schemaPath:
                       "#/then/properties/linear/properties/activeScope/properties/routeLabel/type",
@@ -52746,15 +53894,15 @@ function validate21(
                     message: "must be string,null",
                   };
                   if (vErrors === null) {
-                    vErrors = [err30];
+                    vErrors = [err47];
                   } else {
-                    vErrors.push(err30);
+                    vErrors.push(err47);
                   }
                   errors++;
                 }
               }
             } else {
-              const err31 = {
+              const err48 = {
                 instancePath: instancePath + "/linear/activeScope",
                 schemaPath: "#/then/properties/linear/properties/activeScope/type",
                 keyword: "type",
@@ -52762,20 +53910,20 @@ function validate21(
                 message: "must be object",
               };
               if (vErrors === null) {
-                vErrors = [err31];
+                vErrors = [err48];
               } else {
-                vErrors.push(err31);
+                vErrors.push(err48);
               }
               errors++;
             }
           }
           if (data17.candidateScope !== undefined) {
-            let data32 = data17.candidateScope;
-            if (data32 && typeof data32 == "object" && !Array.isArray(data32)) {
-              if (data32.routeLabel !== undefined) {
-                let data33 = data32.routeLabel;
-                if (typeof data33 !== "string" && data33 !== null) {
-                  const err32 = {
+            let data39 = data17.candidateScope;
+            if (data39 && typeof data39 == "object" && !Array.isArray(data39)) {
+              if (data39.routeLabel !== undefined) {
+                let data40 = data39.routeLabel;
+                if (typeof data40 !== "string" && data40 !== null) {
+                  const err49 = {
                     instancePath: instancePath + "/linear/candidateScope/routeLabel",
                     schemaPath:
                       "#/then/properties/linear/properties/candidateScope/properties/routeLabel/type",
@@ -52787,21 +53935,21 @@ function validate21(
                     message: "must be string,null",
                   };
                   if (vErrors === null) {
-                    vErrors = [err32];
+                    vErrors = [err49];
                   } else {
-                    vErrors.push(err32);
+                    vErrors.push(err49);
                   }
                   errors++;
                 }
               }
-              if (data32.states !== undefined) {
-                let data34 = data32.states;
-                if (Array.isArray(data34)) {
-                  const len7 = data34.length;
-                  for (let i7 = 0; i7 < len7; i7++) {
-                    if (typeof data34[i7] !== "string") {
-                      const err33 = {
-                        instancePath: instancePath + "/linear/candidateScope/states/" + i7,
+              if (data39.states !== undefined) {
+                let data41 = data39.states;
+                if (Array.isArray(data41)) {
+                  const len8 = data41.length;
+                  for (let i8 = 0; i8 < len8; i8++) {
+                    if (typeof data41[i8] !== "string") {
+                      const err50 = {
+                        instancePath: instancePath + "/linear/candidateScope/states/" + i8,
                         schemaPath:
                           "#/then/properties/linear/properties/candidateScope/properties/states/items/type",
                         keyword: "type",
@@ -52809,15 +53957,15 @@ function validate21(
                         message: "must be string",
                       };
                       if (vErrors === null) {
-                        vErrors = [err33];
+                        vErrors = [err50];
                       } else {
-                        vErrors.push(err33);
+                        vErrors.push(err50);
                       }
                       errors++;
                     }
                   }
                 } else {
-                  const err34 = {
+                  const err51 = {
                     instancePath: instancePath + "/linear/candidateScope/states",
                     schemaPath:
                       "#/then/properties/linear/properties/candidateScope/properties/states/type",
@@ -52826,15 +53974,15 @@ function validate21(
                     message: "must be array",
                   };
                   if (vErrors === null) {
-                    vErrors = [err34];
+                    vErrors = [err51];
                   } else {
-                    vErrors.push(err34);
+                    vErrors.push(err51);
                   }
                   errors++;
                 }
               }
             } else {
-              const err35 = {
+              const err52 = {
                 instancePath: instancePath + "/linear/candidateScope",
                 schemaPath: "#/then/properties/linear/properties/candidateScope/type",
                 keyword: "type",
@@ -52842,15 +53990,15 @@ function validate21(
                 message: "must be object",
               };
               if (vErrors === null) {
-                vErrors = [err35];
+                vErrors = [err52];
               } else {
-                vErrors.push(err35);
+                vErrors.push(err52);
               }
               errors++;
             }
           }
           if (data17.candidateIssueRefs !== undefined) {
-            const err36 = {
+            const err53 = {
               instancePath: instancePath + "/linear/candidateIssueRefs",
               schemaPath: "#/then/properties/linear/properties/candidateIssueRefs/false schema",
               keyword: "false schema",
@@ -52858,22 +54006,22 @@ function validate21(
               message: "boolean schema is false",
             };
             if (vErrors === null) {
-              vErrors = [err36];
+              vErrors = [err53];
             } else {
-              vErrors.push(err36);
+              vErrors.push(err53);
             }
             errors++;
           }
           if (data17.candidateIssues !== undefined) {
-            let data37 = data17.candidateIssues;
-            if (Array.isArray(data37)) {
-              const len8 = data37.length;
-              for (let i8 = 0; i8 < len8; i8++) {
+            let data44 = data17.candidateIssues;
+            if (Array.isArray(data44)) {
+              const len9 = data44.length;
+              for (let i9 = 0; i9 < len9; i9++) {
                 if (
-                  !validate27(data37[i8], {
-                    instancePath: instancePath + "/linear/candidateIssues/" + i8,
-                    parentData: data37,
-                    parentDataProperty: i8,
+                  !validate27(data44[i9], {
+                    instancePath: instancePath + "/linear/candidateIssues/" + i9,
+                    parentData: data44,
+                    parentDataProperty: i9,
                     rootData,
                   })
                 ) {
@@ -52883,7 +54031,7 @@ function validate21(
                 }
               }
             } else {
-              const err37 = {
+              const err54 = {
                 instancePath: instancePath + "/linear/candidateIssues",
                 schemaPath: "#/then/properties/linear/properties/candidateIssues/type",
                 keyword: "type",
@@ -52891,15 +54039,15 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err37];
+                vErrors = [err54];
               } else {
-                vErrors.push(err37);
+                vErrors.push(err54);
               }
               errors++;
             }
           }
         } else {
-          const err38 = {
+          const err55 = {
             instancePath: instancePath + "/linear",
             schemaPath: "#/then/properties/linear/type",
             keyword: "type",
@@ -52907,17 +54055,17 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err38];
+            vErrors = [err55];
           } else {
-            vErrors.push(err38);
+            vErrors.push(err55);
           }
           errors++;
         }
       }
       if (data.usage !== undefined) {
-        let data39 = data.usage;
-        if (!(data39 && typeof data39 == "object" && !Array.isArray(data39))) {
-          const err39 = {
+        let data46 = data.usage;
+        if (!(data46 && typeof data46 == "object" && !Array.isArray(data46))) {
+          const err56 = {
             instancePath: instancePath + "/usage",
             schemaPath: "#/then/properties/usage/type",
             keyword: "type",
@@ -52925,9 +54073,9 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err39];
+            vErrors = [err56];
           } else {
-            vErrors.push(err39);
+            vErrors.push(err56);
           }
           errors++;
         }
@@ -52985,7 +54133,7 @@ function validate21(
         }
       }
     } else {
-      const err40 = {
+      const err57 = {
         instancePath,
         schemaPath: "#/then/type",
         keyword: "type",
@@ -52993,9 +54141,9 @@ function validate21(
         message: "must be object",
       };
       if (vErrors === null) {
-        vErrors = [err40];
+        vErrors = [err57];
       } else {
-        vErrors.push(err40);
+        vErrors.push(err57);
       }
       errors++;
     }
@@ -53003,30 +54151,30 @@ function validate21(
     valid0 = _valid0;
     ifClause0 = "then";
   } else {
-    const _errs79 = errors;
+    const _errs95 = errors;
     if (data && typeof data == "object" && !Array.isArray(data)) {
-      for (const key1 in data) {
-        if (!func2.call(schema6.else.properties, key1)) {
-          const err41 = {
+      for (const key2 in data) {
+        if (!func2.call(schema6.else.properties, key2)) {
+          const err58 = {
             instancePath,
             schemaPath: "#/else/additionalProperties",
             keyword: "additionalProperties",
-            params: { additionalProperty: key1 },
+            params: { additionalProperty: key2 },
             message: "must NOT have additional properties",
           };
           if (vErrors === null) {
-            vErrors = [err41];
+            vErrors = [err58];
           } else {
-            vErrors.push(err41);
+            vErrors.push(err58);
           }
           errors++;
         }
       }
       if (data.repo !== undefined) {
-        let data44 = data.repo;
-        if (typeof data44 === "string") {
-          if (!pattern0.test(data44)) {
-            const err42 = {
+        let data51 = data.repo;
+        if (typeof data51 === "string") {
+          if (!pattern0.test(data51)) {
+            const err59 = {
               instancePath: instancePath + "/repo",
               schemaPath: "#/else/properties/repo/pattern",
               keyword: "pattern",
@@ -53034,14 +54182,14 @@ function validate21(
               message: 'must match pattern "' + "^[^\\s/]+/[^\\s/]+$" + '"',
             };
             if (vErrors === null) {
-              vErrors = [err42];
+              vErrors = [err59];
             } else {
-              vErrors.push(err42);
+              vErrors.push(err59);
             }
             errors++;
           }
         } else {
-          const err43 = {
+          const err60 = {
             instancePath: instancePath + "/repo",
             schemaPath: "#/else/properties/repo/type",
             keyword: "type",
@@ -53049,17 +54197,17 @@ function validate21(
             message: "must be string",
           };
           if (vErrors === null) {
-            vErrors = [err43];
+            vErrors = [err60];
           } else {
-            vErrors.push(err43);
+            vErrors.push(err60);
           }
           errors++;
         }
       }
       if (data.v !== undefined) {
-        let data45 = data.v;
-        if (!(typeof data45 == "number" && !(data45 % 1) && !isNaN(data45) && isFinite(data45))) {
-          const err44 = {
+        let data52 = data.v;
+        if (!(typeof data52 == "number" && !(data52 % 1) && !isNaN(data52) && isFinite(data52))) {
+          const err61 = {
             instancePath: instancePath + "/v",
             schemaPath: "#/else/properties/v/type",
             keyword: "type",
@@ -53067,15 +54215,15 @@ function validate21(
             message: "must be integer",
           };
           if (vErrors === null) {
-            vErrors = [err44];
+            vErrors = [err61];
           } else {
-            vErrors.push(err44);
+            vErrors.push(err61);
           }
           errors++;
         }
-        if (typeof data45 == "number" && isFinite(data45)) {
-          if (data45 > 2 || isNaN(data45)) {
-            const err45 = {
+        if (typeof data52 == "number" && isFinite(data52)) {
+          if (data52 > 2 || isNaN(data52)) {
+            const err62 = {
               instancePath: instancePath + "/v",
               schemaPath: "#/else/properties/v/maximum",
               keyword: "maximum",
@@ -53083,14 +54231,14 @@ function validate21(
               message: "must be <= 2",
             };
             if (vErrors === null) {
-              vErrors = [err45];
+              vErrors = [err62];
             } else {
-              vErrors.push(err45);
+              vErrors.push(err62);
             }
             errors++;
           }
-          if (data45 < 1 || isNaN(data45)) {
-            const err46 = {
+          if (data52 < 1 || isNaN(data52)) {
+            const err63 = {
               instancePath: instancePath + "/v",
               schemaPath: "#/else/properties/v/minimum",
               keyword: "minimum",
@@ -53098,9 +54246,9 @@ function validate21(
               message: "must be >= 1",
             };
             if (vErrors === null) {
-              vErrors = [err46];
+              vErrors = [err63];
             } else {
-              vErrors.push(err46);
+              vErrors.push(err63);
             }
             errors++;
           }
@@ -53108,7 +54256,7 @@ function validate21(
       }
       if (data.generatedAt !== undefined) {
         if (typeof data.generatedAt !== "string") {
-          const err47 = {
+          const err64 = {
             instancePath: instancePath + "/generatedAt",
             schemaPath: "#/else/properties/generatedAt/type",
             keyword: "type",
@@ -53116,17 +54264,17 @@ function validate21(
             message: "must be string",
           };
           if (vErrors === null) {
-            vErrors = [err47];
+            vErrors = [err64];
           } else {
-            vErrors.push(err47);
+            vErrors.push(err64);
           }
           errors++;
         }
       }
       if (data.sources !== undefined) {
-        let data47 = data.sources;
-        if (!(data47 && typeof data47 == "object" && !Array.isArray(data47))) {
-          const err48 = {
+        let data54 = data.sources;
+        if (!(data54 && typeof data54 == "object" && !Array.isArray(data54))) {
+          const err65 = {
             instancePath: instancePath + "/sources",
             schemaPath: "#/else/properties/sources/type",
             keyword: "type",
@@ -53134,20 +54282,20 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err48];
+            vErrors = [err65];
           } else {
-            vErrors.push(err48);
+            vErrors.push(err65);
           }
           errors++;
         }
       }
       if (data.baseline !== undefined) {
-        let data48 = data.baseline;
-        if (data48 && typeof data48 == "object" && !Array.isArray(data48)) {
-          if (data48.branch !== undefined) {
-            let data49 = data48.branch;
-            if (typeof data49 !== "string" && data49 !== null) {
-              const err49 = {
+        let data55 = data.baseline;
+        if (data55 && typeof data55 == "object" && !Array.isArray(data55)) {
+          if (data55.branch !== undefined) {
+            let data56 = data55.branch;
+            if (typeof data56 !== "string" && data56 !== null) {
+              const err66 = {
                 instancePath: instancePath + "/baseline/branch",
                 schemaPath: "#/else/properties/baseline/properties/branch/type",
                 keyword: "type",
@@ -53155,17 +54303,17 @@ function validate21(
                 message: "must be string,null",
               };
               if (vErrors === null) {
-                vErrors = [err49];
+                vErrors = [err66];
               } else {
-                vErrors.push(err49);
+                vErrors.push(err66);
               }
               errors++;
             }
           }
-          if (data48.headSha !== undefined) {
-            let data50 = data48.headSha;
-            if (typeof data50 !== "string" && data50 !== null) {
-              const err50 = {
+          if (data55.headSha !== undefined) {
+            let data57 = data55.headSha;
+            if (typeof data57 !== "string" && data57 !== null) {
+              const err67 = {
                 instancePath: instancePath + "/baseline/headSha",
                 schemaPath: "#/else/properties/baseline/properties/headSha/type",
                 keyword: "type",
@@ -53173,16 +54321,16 @@ function validate21(
                 message: "must be string,null",
               };
               if (vErrors === null) {
-                vErrors = [err50];
+                vErrors = [err67];
               } else {
-                vErrors.push(err50);
+                vErrors.push(err67);
               }
               errors++;
             }
           }
-          if (data48.green !== undefined) {
-            if (typeof data48.green !== "boolean") {
-              const err51 = {
+          if (data55.green !== undefined) {
+            if (typeof data55.green !== "boolean") {
+              const err68 = {
                 instancePath: instancePath + "/baseline/green",
                 schemaPath: "#/else/properties/baseline/properties/green/type",
                 keyword: "type",
@@ -53190,18 +54338,18 @@ function validate21(
                 message: "must be boolean",
               };
               if (vErrors === null) {
-                vErrors = [err51];
+                vErrors = [err68];
               } else {
-                vErrors.push(err51);
+                vErrors.push(err68);
               }
               errors++;
             }
           }
-          if (data48.checks !== undefined) {
+          if (data55.checks !== undefined) {
             if (
-              !validate76(data48.checks, {
+              !validate76(data55.checks, {
                 instancePath: instancePath + "/baseline/checks",
-                parentData: data48,
+                parentData: data55,
                 parentDataProperty: "checks",
                 rootData,
               })
@@ -53211,7 +54359,7 @@ function validate21(
             }
           }
         } else {
-          const err52 = {
+          const err69 = {
             instancePath: instancePath + "/baseline",
             schemaPath: "#/else/properties/baseline/type",
             keyword: "type",
@@ -53219,17 +54367,17 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err52];
+            vErrors = [err69];
           } else {
-            vErrors.push(err52);
+            vErrors.push(err69);
           }
           errors++;
         }
       }
       if (data.footprint !== undefined) {
-        let data53 = data.footprint;
-        if (!(data53 && typeof data53 == "object" && !Array.isArray(data53))) {
-          const err53 = {
+        let data60 = data.footprint;
+        if (!(data60 && typeof data60 == "object" && !Array.isArray(data60))) {
+          const err70 = {
             instancePath: instancePath + "/footprint",
             schemaPath: "#/else/properties/footprint/type",
             keyword: "type",
@@ -53237,23 +54385,23 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err53];
+            vErrors = [err70];
           } else {
-            vErrors.push(err53);
+            vErrors.push(err70);
           }
           errors++;
         }
       }
       if (data.prs !== undefined) {
-        let data54 = data.prs;
-        if (Array.isArray(data54)) {
-          const len9 = data54.length;
-          for (let i9 = 0; i9 < len9; i9++) {
+        let data61 = data.prs;
+        if (Array.isArray(data61)) {
+          const len10 = data61.length;
+          for (let i10 = 0; i10 < len10; i10++) {
             if (
-              !validate78(data54[i9], {
-                instancePath: instancePath + "/prs/" + i9,
-                parentData: data54,
-                parentDataProperty: i9,
+              !validate78(data61[i10], {
+                instancePath: instancePath + "/prs/" + i10,
+                parentData: data61,
+                parentDataProperty: i10,
                 rootData,
               })
             ) {
@@ -53262,7 +54410,7 @@ function validate21(
             }
           }
         } else {
-          const err54 = {
+          const err71 = {
             instancePath: instancePath + "/prs",
             schemaPath: "#/else/properties/prs/type",
             keyword: "type",
@@ -53270,23 +54418,23 @@ function validate21(
             message: "must be array",
           };
           if (vErrors === null) {
-            vErrors = [err54];
+            vErrors = [err71];
           } else {
-            vErrors.push(err54);
+            vErrors.push(err71);
           }
           errors++;
         }
       }
       if (data.worktrees !== undefined) {
-        let data56 = data.worktrees;
-        if (Array.isArray(data56)) {
-          const len10 = data56.length;
-          for (let i10 = 0; i10 < len10; i10++) {
+        let data63 = data.worktrees;
+        if (Array.isArray(data63)) {
+          const len11 = data63.length;
+          for (let i11 = 0; i11 < len11; i11++) {
             if (
-              !validate82(data56[i10], {
-                instancePath: instancePath + "/worktrees/" + i10,
-                parentData: data56,
-                parentDataProperty: i10,
+              !validate82(data63[i11], {
+                instancePath: instancePath + "/worktrees/" + i11,
+                parentData: data63,
+                parentDataProperty: i11,
                 rootData,
               })
             ) {
@@ -53295,7 +54443,7 @@ function validate21(
             }
           }
         } else {
-          const err55 = {
+          const err72 = {
             instancePath: instancePath + "/worktrees",
             schemaPath: "#/else/properties/worktrees/type",
             keyword: "type",
@@ -53303,20 +54451,20 @@ function validate21(
             message: "must be array",
           };
           if (vErrors === null) {
-            vErrors = [err55];
+            vErrors = [err72];
           } else {
-            vErrors.push(err55);
+            vErrors.push(err72);
           }
           errors++;
         }
       }
       if (data.linear !== undefined) {
-        let data58 = data.linear;
-        if (data58 && typeof data58 == "object" && !Array.isArray(data58)) {
-          if (data58.skipped !== undefined) {
-            let data59 = data58.skipped;
-            if (typeof data59 !== "string" && data59 !== null) {
-              const err56 = {
+        let data65 = data.linear;
+        if (data65 && typeof data65 == "object" && !Array.isArray(data65)) {
+          if (data65.skipped !== undefined) {
+            let data66 = data65.skipped;
+            if (typeof data66 !== "string" && data66 !== null) {
+              const err73 = {
                 instancePath: instancePath + "/linear/skipped",
                 schemaPath: "#/else/properties/linear/properties/skipped/type",
                 keyword: "type",
@@ -53324,56 +54472,22 @@ function validate21(
                 message: "must be string,null",
               };
               if (vErrors === null) {
-                vErrors = [err56];
+                vErrors = [err73];
               } else {
-                vErrors.push(err56);
+                vErrors.push(err73);
               }
               errors++;
             }
           }
-          if (data58.issues !== undefined) {
-            let data60 = data58.issues;
-            if (Array.isArray(data60)) {
-              const len11 = data60.length;
-              for (let i11 = 0; i11 < len11; i11++) {
-                if (
-                  !validate84(data60[i11], {
-                    instancePath: instancePath + "/linear/issues/" + i11,
-                    parentData: data60,
-                    parentDataProperty: i11,
-                    rootData,
-                  })
-                ) {
-                  vErrors =
-                    vErrors === null ? validate84.errors : vErrors.concat(validate84.errors);
-                  errors = vErrors.length;
-                }
-              }
-            } else {
-              const err57 = {
-                instancePath: instancePath + "/linear/issues",
-                schemaPath: "#/else/properties/linear/properties/issues/type",
-                keyword: "type",
-                params: { type: "array" },
-                message: "must be array",
-              };
-              if (vErrors === null) {
-                vErrors = [err57];
-              } else {
-                vErrors.push(err57);
-              }
-              errors++;
-            }
-          }
-          if (data58.activeIssues !== undefined) {
-            let data62 = data58.activeIssues;
-            if (Array.isArray(data62)) {
-              const len12 = data62.length;
+          if (data65.issues !== undefined) {
+            let data67 = data65.issues;
+            if (Array.isArray(data67)) {
+              const len12 = data67.length;
               for (let i12 = 0; i12 < len12; i12++) {
                 if (
-                  !validate84(data62[i12], {
-                    instancePath: instancePath + "/linear/activeIssues/" + i12,
-                    parentData: data62,
+                  !validate84(data67[i12], {
+                    instancePath: instancePath + "/linear/issues/" + i12,
+                    parentData: data67,
                     parentDataProperty: i12,
                     rootData,
                   })
@@ -53384,30 +54498,30 @@ function validate21(
                 }
               }
             } else {
-              const err58 = {
-                instancePath: instancePath + "/linear/activeIssues",
-                schemaPath: "#/else/properties/linear/properties/activeIssues/type",
+              const err74 = {
+                instancePath: instancePath + "/linear/issues",
+                schemaPath: "#/else/properties/linear/properties/issues/type",
                 keyword: "type",
                 params: { type: "array" },
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err58];
+                vErrors = [err74];
               } else {
-                vErrors.push(err58);
+                vErrors.push(err74);
               }
               errors++;
             }
           }
-          if (data58.issueMetadata !== undefined) {
-            let data64 = data58.issueMetadata;
-            if (Array.isArray(data64)) {
-              const len13 = data64.length;
+          if (data65.activeIssues !== undefined) {
+            let data69 = data65.activeIssues;
+            if (Array.isArray(data69)) {
+              const len13 = data69.length;
               for (let i13 = 0; i13 < len13; i13++) {
                 if (
-                  !validate84(data64[i13], {
-                    instancePath: instancePath + "/linear/issueMetadata/" + i13,
-                    parentData: data64,
+                  !validate84(data69[i13], {
+                    instancePath: instancePath + "/linear/activeIssues/" + i13,
+                    parentData: data69,
                     parentDataProperty: i13,
                     rootData,
                   })
@@ -53418,7 +54532,41 @@ function validate21(
                 }
               }
             } else {
-              const err59 = {
+              const err75 = {
+                instancePath: instancePath + "/linear/activeIssues",
+                schemaPath: "#/else/properties/linear/properties/activeIssues/type",
+                keyword: "type",
+                params: { type: "array" },
+                message: "must be array",
+              };
+              if (vErrors === null) {
+                vErrors = [err75];
+              } else {
+                vErrors.push(err75);
+              }
+              errors++;
+            }
+          }
+          if (data65.issueMetadata !== undefined) {
+            let data71 = data65.issueMetadata;
+            if (Array.isArray(data71)) {
+              const len14 = data71.length;
+              for (let i14 = 0; i14 < len14; i14++) {
+                if (
+                  !validate84(data71[i14], {
+                    instancePath: instancePath + "/linear/issueMetadata/" + i14,
+                    parentData: data71,
+                    parentDataProperty: i14,
+                    rootData,
+                  })
+                ) {
+                  vErrors =
+                    vErrors === null ? validate84.errors : vErrors.concat(validate84.errors);
+                  errors = vErrors.length;
+                }
+              }
+            } else {
+              const err76 = {
                 instancePath: instancePath + "/linear/issueMetadata",
                 schemaPath: "#/else/properties/linear/properties/issueMetadata/type",
                 keyword: "type",
@@ -53426,36 +54574,377 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err59];
+                vErrors = [err76];
               } else {
-                vErrors.push(err59);
+                vErrors.push(err76);
               }
               errors++;
             }
           }
-          if (data58.unroutedIssueIds !== undefined) {
-            let data66 = data58.unroutedIssueIds;
-            if (Array.isArray(data66)) {
-              const len14 = data66.length;
-              for (let i14 = 0; i14 < len14; i14++) {
-                if (typeof data66[i14] !== "string") {
-                  const err60 = {
-                    instancePath: instancePath + "/linear/unroutedIssueIds/" + i14,
+          if (data65.identityDiagnostics !== undefined) {
+            let data73 = data65.identityDiagnostics;
+            if (Array.isArray(data73)) {
+              const len15 = data73.length;
+              for (let i15 = 0; i15 < len15; i15++) {
+                let data74 = data73[i15];
+                const _errs140 = errors;
+                let valid47 = false;
+                const _errs141 = errors;
+                if (data74 && typeof data74 == "object" && !Array.isArray(data74)) {
+                  if (data74.issueKey === undefined) {
+                    const err77 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                      schemaPath:
+                        "#/else/properties/linear/properties/identityDiagnostics/items/anyOf/0/required",
+                      keyword: "required",
+                      params: { missingProperty: "issueKey" },
+                      message: "must have required property '" + "issueKey" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err77];
+                    } else {
+                      vErrors.push(err77);
+                    }
+                    errors++;
+                  }
+                }
+                var _valid3 = _errs141 === errors;
+                valid47 = valid47 || _valid3;
+                if (!valid47) {
+                  const _errs142 = errors;
+                  if (data74 && typeof data74 == "object" && !Array.isArray(data74)) {
+                    if (data74.issueUuid === undefined) {
+                      const err78 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/anyOf/1/required",
+                        keyword: "required",
+                        params: { missingProperty: "issueUuid" },
+                        message: "must have required property '" + "issueUuid" + "'",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err78];
+                      } else {
+                        vErrors.push(err78);
+                      }
+                      errors++;
+                    }
+                  }
+                  var _valid3 = _errs142 === errors;
+                  valid47 = valid47 || _valid3;
+                }
+                if (!valid47) {
+                  const err79 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                    schemaPath:
+                      "#/else/properties/linear/properties/identityDiagnostics/items/anyOf",
+                    keyword: "anyOf",
+                    params: {},
+                    message: "must match a schema in anyOf",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err79];
+                  } else {
+                    vErrors.push(err79);
+                  }
+                  errors++;
+                } else {
+                  errors = _errs140;
+                  if (vErrors !== null) {
+                    if (_errs140) {
+                      vErrors.length = _errs140;
+                    } else {
+                      vErrors = null;
+                    }
+                  }
+                }
+                if (data74 && typeof data74 == "object" && !Array.isArray(data74)) {
+                  if (data74.code === undefined) {
+                    const err80 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                      schemaPath:
+                        "#/else/properties/linear/properties/identityDiagnostics/items/required",
+                      keyword: "required",
+                      params: { missingProperty: "code" },
+                      message: "must have required property '" + "code" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err80];
+                    } else {
+                      vErrors.push(err80);
+                    }
+                    errors++;
+                  }
+                  if (data74.path === undefined) {
+                    const err81 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                      schemaPath:
+                        "#/else/properties/linear/properties/identityDiagnostics/items/required",
+                      keyword: "required",
+                      params: { missingProperty: "path" },
+                      message: "must have required property '" + "path" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err81];
+                    } else {
+                      vErrors.push(err81);
+                    }
+                    errors++;
+                  }
+                  if (data74.blockingStarts === undefined) {
+                    const err82 = {
+                      instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                      schemaPath:
+                        "#/else/properties/linear/properties/identityDiagnostics/items/required",
+                      keyword: "required",
+                      params: { missingProperty: "blockingStarts" },
+                      message: "must have required property '" + "blockingStarts" + "'",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err82];
+                    } else {
+                      vErrors.push(err82);
+                    }
+                    errors++;
+                  }
+                  for (const key3 in data74) {
+                    if (
+                      !(
+                        key3 === "code" ||
+                        key3 === "path" ||
+                        key3 === "blockingStarts" ||
+                        key3 === "issueKey" ||
+                        key3 === "issueUuid"
+                      )
+                    ) {
+                      const err83 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/additionalProperties",
+                        keyword: "additionalProperties",
+                        params: { additionalProperty: key3 },
+                        message: "must NOT have additional properties",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err83];
+                      } else {
+                        vErrors.push(err83);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data74.code !== undefined) {
+                    if ("REFERENCED_ISSUE_NOT_FOUND" !== data74.code) {
+                      const err84 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i15 + "/code",
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/properties/code/const",
+                        keyword: "const",
+                        params: { allowedValue: "REFERENCED_ISSUE_NOT_FOUND" },
+                        message: "must be equal to constant",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err84];
+                      } else {
+                        vErrors.push(err84);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data74.path !== undefined) {
+                    let data76 = data74.path;
+                    if (typeof data76 === "string") {
+                      if (!pattern7.test(data76)) {
+                        const err85 = {
+                          instancePath:
+                            instancePath + "/linear/identityDiagnostics/" + i15 + "/path",
+                          schemaPath:
+                            "#/else/properties/linear/properties/identityDiagnostics/items/properties/path/pattern",
+                          keyword: "pattern",
+                          params: { pattern: "\\S" },
+                          message: 'must match pattern "' + "\\S" + '"',
+                        };
+                        if (vErrors === null) {
+                          vErrors = [err85];
+                        } else {
+                          vErrors.push(err85);
+                        }
+                        errors++;
+                      }
+                    } else {
+                      const err86 = {
+                        instancePath: instancePath + "/linear/identityDiagnostics/" + i15 + "/path",
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/properties/path/type",
+                        keyword: "type",
+                        params: { type: "string" },
+                        message: "must be string",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err86];
+                      } else {
+                        vErrors.push(err86);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data74.blockingStarts !== undefined) {
+                    if (true !== data74.blockingStarts) {
+                      const err87 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i15 + "/blockingStarts",
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/properties/blockingStarts/const",
+                        keyword: "const",
+                        params: { allowedValue: true },
+                        message: "must be equal to constant",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err87];
+                      } else {
+                        vErrors.push(err87);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data74.issueKey !== undefined) {
+                    let data78 = data74.issueKey;
+                    if (typeof data78 === "string") {
+                      if (!pattern3.test(data78)) {
+                        const err88 = {
+                          instancePath:
+                            instancePath + "/linear/identityDiagnostics/" + i15 + "/issueKey",
+                          schemaPath:
+                            "#/else/properties/linear/properties/identityDiagnostics/items/properties/issueKey/pattern",
+                          keyword: "pattern",
+                          params: { pattern: "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                          message: 'must match pattern "' + "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" + '"',
+                        };
+                        if (vErrors === null) {
+                          vErrors = [err88];
+                        } else {
+                          vErrors.push(err88);
+                        }
+                        errors++;
+                      }
+                    } else {
+                      const err89 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i15 + "/issueKey",
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/properties/issueKey/type",
+                        keyword: "type",
+                        params: { type: "string" },
+                        message: "must be string",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err89];
+                      } else {
+                        vErrors.push(err89);
+                      }
+                      errors++;
+                    }
+                  }
+                  if (data74.issueUuid !== undefined) {
+                    let data79 = data74.issueUuid;
+                    if (typeof data79 === "string") {
+                      if (!pattern4.test(data79)) {
+                        const err90 = {
+                          instancePath:
+                            instancePath + "/linear/identityDiagnostics/" + i15 + "/issueUuid",
+                          schemaPath:
+                            "#/else/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/pattern",
+                          keyword: "pattern",
+                          params: {
+                            pattern:
+                              "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                          },
+                          message:
+                            'must match pattern "' +
+                            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" +
+                            '"',
+                        };
+                        if (vErrors === null) {
+                          vErrors = [err90];
+                        } else {
+                          vErrors.push(err90);
+                        }
+                        errors++;
+                      }
+                    } else {
+                      const err91 = {
+                        instancePath:
+                          instancePath + "/linear/identityDiagnostics/" + i15 + "/issueUuid",
+                        schemaPath:
+                          "#/else/properties/linear/properties/identityDiagnostics/items/properties/issueUuid/type",
+                        keyword: "type",
+                        params: { type: "string" },
+                        message: "must be string",
+                      };
+                      if (vErrors === null) {
+                        vErrors = [err91];
+                      } else {
+                        vErrors.push(err91);
+                      }
+                      errors++;
+                    }
+                  }
+                } else {
+                  const err92 = {
+                    instancePath: instancePath + "/linear/identityDiagnostics/" + i15,
+                    schemaPath:
+                      "#/else/properties/linear/properties/identityDiagnostics/items/type",
+                    keyword: "type",
+                    params: { type: "object" },
+                    message: "must be object",
+                  };
+                  if (vErrors === null) {
+                    vErrors = [err92];
+                  } else {
+                    vErrors.push(err92);
+                  }
+                  errors++;
+                }
+              }
+            } else {
+              const err93 = {
+                instancePath: instancePath + "/linear/identityDiagnostics",
+                schemaPath: "#/else/properties/linear/properties/identityDiagnostics/type",
+                keyword: "type",
+                params: { type: "array" },
+                message: "must be array",
+              };
+              if (vErrors === null) {
+                vErrors = [err93];
+              } else {
+                vErrors.push(err93);
+              }
+              errors++;
+            }
+          }
+          if (data65.unroutedIssueIds !== undefined) {
+            let data80 = data65.unroutedIssueIds;
+            if (Array.isArray(data80)) {
+              const len16 = data80.length;
+              for (let i16 = 0; i16 < len16; i16++) {
+                if (typeof data80[i16] !== "string") {
+                  const err94 = {
+                    instancePath: instancePath + "/linear/unroutedIssueIds/" + i16,
                     schemaPath: "#/else/properties/linear/properties/unroutedIssueIds/items/type",
                     keyword: "type",
                     params: { type: "string" },
                     message: "must be string",
                   };
                   if (vErrors === null) {
-                    vErrors = [err60];
+                    vErrors = [err94];
                   } else {
-                    vErrors.push(err60);
+                    vErrors.push(err94);
                   }
                   errors++;
                 }
               }
             } else {
-              const err61 = {
+              const err95 = {
                 instancePath: instancePath + "/linear/unroutedIssueIds",
                 schemaPath: "#/else/properties/linear/properties/unroutedIssueIds/type",
                 keyword: "type",
@@ -53463,36 +54952,36 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err61];
+                vErrors = [err95];
               } else {
-                vErrors.push(err61);
+                vErrors.push(err95);
               }
               errors++;
             }
           }
-          if (data58.candidateIssueIds !== undefined) {
-            let data68 = data58.candidateIssueIds;
-            if (Array.isArray(data68)) {
-              const len15 = data68.length;
-              for (let i15 = 0; i15 < len15; i15++) {
-                if (typeof data68[i15] !== "string") {
-                  const err62 = {
-                    instancePath: instancePath + "/linear/candidateIssueIds/" + i15,
+          if (data65.candidateIssueIds !== undefined) {
+            let data82 = data65.candidateIssueIds;
+            if (Array.isArray(data82)) {
+              const len17 = data82.length;
+              for (let i17 = 0; i17 < len17; i17++) {
+                if (typeof data82[i17] !== "string") {
+                  const err96 = {
+                    instancePath: instancePath + "/linear/candidateIssueIds/" + i17,
                     schemaPath: "#/else/properties/linear/properties/candidateIssueIds/items/type",
                     keyword: "type",
                     params: { type: "string" },
                     message: "must be string",
                   };
                   if (vErrors === null) {
-                    vErrors = [err62];
+                    vErrors = [err96];
                   } else {
-                    vErrors.push(err62);
+                    vErrors.push(err96);
                   }
                   errors++;
                 }
               }
             } else {
-              const err63 = {
+              const err97 = {
                 instancePath: instancePath + "/linear/candidateIssueIds",
                 schemaPath: "#/else/properties/linear/properties/candidateIssueIds/type",
                 keyword: "type",
@@ -53500,36 +54989,36 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err63];
+                vErrors = [err97];
               } else {
-                vErrors.push(err63);
+                vErrors.push(err97);
               }
               errors++;
             }
           }
-          if (data58.statesFilter !== undefined) {
-            let data70 = data58.statesFilter;
-            if (Array.isArray(data70)) {
-              const len16 = data70.length;
-              for (let i16 = 0; i16 < len16; i16++) {
-                if (typeof data70[i16] !== "string") {
-                  const err64 = {
-                    instancePath: instancePath + "/linear/statesFilter/" + i16,
+          if (data65.statesFilter !== undefined) {
+            let data84 = data65.statesFilter;
+            if (Array.isArray(data84)) {
+              const len18 = data84.length;
+              for (let i18 = 0; i18 < len18; i18++) {
+                if (typeof data84[i18] !== "string") {
+                  const err98 = {
+                    instancePath: instancePath + "/linear/statesFilter/" + i18,
                     schemaPath: "#/else/properties/linear/properties/statesFilter/items/type",
                     keyword: "type",
                     params: { type: "string" },
                     message: "must be string",
                   };
                   if (vErrors === null) {
-                    vErrors = [err64];
+                    vErrors = [err98];
                   } else {
-                    vErrors.push(err64);
+                    vErrors.push(err98);
                   }
                   errors++;
                 }
               }
             } else {
-              const err65 = {
+              const err99 = {
                 instancePath: instancePath + "/linear/statesFilter",
                 schemaPath: "#/else/properties/linear/properties/statesFilter/type",
                 keyword: "type",
@@ -53537,20 +55026,20 @@ function validate21(
                 message: "must be array",
               };
               if (vErrors === null) {
-                vErrors = [err65];
+                vErrors = [err99];
               } else {
-                vErrors.push(err65);
+                vErrors.push(err99);
               }
               errors++;
             }
           }
-          if (data58.activeScope !== undefined) {
-            let data72 = data58.activeScope;
-            if (data72 && typeof data72 == "object" && !Array.isArray(data72)) {
-              if (data72.routeLabel !== undefined) {
-                let data73 = data72.routeLabel;
-                if (typeof data73 !== "string" && data73 !== null) {
-                  const err66 = {
+          if (data65.activeScope !== undefined) {
+            let data86 = data65.activeScope;
+            if (data86 && typeof data86 == "object" && !Array.isArray(data86)) {
+              if (data86.routeLabel !== undefined) {
+                let data87 = data86.routeLabel;
+                if (typeof data87 !== "string" && data87 !== null) {
+                  const err100 = {
                     instancePath: instancePath + "/linear/activeScope/routeLabel",
                     schemaPath:
                       "#/else/properties/linear/properties/activeScope/properties/routeLabel/type",
@@ -53562,15 +55051,15 @@ function validate21(
                     message: "must be string,null",
                   };
                   if (vErrors === null) {
-                    vErrors = [err66];
+                    vErrors = [err100];
                   } else {
-                    vErrors.push(err66);
+                    vErrors.push(err100);
                   }
                   errors++;
                 }
               }
             } else {
-              const err67 = {
+              const err101 = {
                 instancePath: instancePath + "/linear/activeScope",
                 schemaPath: "#/else/properties/linear/properties/activeScope/type",
                 keyword: "type",
@@ -53578,20 +55067,20 @@ function validate21(
                 message: "must be object",
               };
               if (vErrors === null) {
-                vErrors = [err67];
+                vErrors = [err101];
               } else {
-                vErrors.push(err67);
+                vErrors.push(err101);
               }
               errors++;
             }
           }
-          if (data58.candidateScope !== undefined) {
-            let data74 = data58.candidateScope;
-            if (data74 && typeof data74 == "object" && !Array.isArray(data74)) {
-              if (data74.routeLabel !== undefined) {
-                let data75 = data74.routeLabel;
-                if (typeof data75 !== "string" && data75 !== null) {
-                  const err68 = {
+          if (data65.candidateScope !== undefined) {
+            let data88 = data65.candidateScope;
+            if (data88 && typeof data88 == "object" && !Array.isArray(data88)) {
+              if (data88.routeLabel !== undefined) {
+                let data89 = data88.routeLabel;
+                if (typeof data89 !== "string" && data89 !== null) {
+                  const err102 = {
                     instancePath: instancePath + "/linear/candidateScope/routeLabel",
                     schemaPath:
                       "#/else/properties/linear/properties/candidateScope/properties/routeLabel/type",
@@ -53603,21 +55092,21 @@ function validate21(
                     message: "must be string,null",
                   };
                   if (vErrors === null) {
-                    vErrors = [err68];
+                    vErrors = [err102];
                   } else {
-                    vErrors.push(err68);
+                    vErrors.push(err102);
                   }
                   errors++;
                 }
               }
-              if (data74.states !== undefined) {
-                let data76 = data74.states;
-                if (Array.isArray(data76)) {
-                  const len17 = data76.length;
-                  for (let i17 = 0; i17 < len17; i17++) {
-                    if (typeof data76[i17] !== "string") {
-                      const err69 = {
-                        instancePath: instancePath + "/linear/candidateScope/states/" + i17,
+              if (data88.states !== undefined) {
+                let data90 = data88.states;
+                if (Array.isArray(data90)) {
+                  const len19 = data90.length;
+                  for (let i19 = 0; i19 < len19; i19++) {
+                    if (typeof data90[i19] !== "string") {
+                      const err103 = {
+                        instancePath: instancePath + "/linear/candidateScope/states/" + i19,
                         schemaPath:
                           "#/else/properties/linear/properties/candidateScope/properties/states/items/type",
                         keyword: "type",
@@ -53625,15 +55114,15 @@ function validate21(
                         message: "must be string",
                       };
                       if (vErrors === null) {
-                        vErrors = [err69];
+                        vErrors = [err103];
                       } else {
-                        vErrors.push(err69);
+                        vErrors.push(err103);
                       }
                       errors++;
                     }
                   }
                 } else {
-                  const err70 = {
+                  const err104 = {
                     instancePath: instancePath + "/linear/candidateScope/states",
                     schemaPath:
                       "#/else/properties/linear/properties/candidateScope/properties/states/type",
@@ -53642,15 +55131,15 @@ function validate21(
                     message: "must be array",
                   };
                   if (vErrors === null) {
-                    vErrors = [err70];
+                    vErrors = [err104];
                   } else {
-                    vErrors.push(err70);
+                    vErrors.push(err104);
                   }
                   errors++;
                 }
               }
             } else {
-              const err71 = {
+              const err105 = {
                 instancePath: instancePath + "/linear/candidateScope",
                 schemaPath: "#/else/properties/linear/properties/candidateScope/type",
                 keyword: "type",
@@ -53658,15 +55147,15 @@ function validate21(
                 message: "must be object",
               };
               if (vErrors === null) {
-                vErrors = [err71];
+                vErrors = [err105];
               } else {
-                vErrors.push(err71);
+                vErrors.push(err105);
               }
               errors++;
             }
           }
         } else {
-          const err72 = {
+          const err106 = {
             instancePath: instancePath + "/linear",
             schemaPath: "#/else/properties/linear/type",
             keyword: "type",
@@ -53674,17 +55163,17 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err72];
+            vErrors = [err106];
           } else {
-            vErrors.push(err72);
+            vErrors.push(err106);
           }
           errors++;
         }
       }
       if (data.usage !== undefined) {
-        let data78 = data.usage;
-        if (!(data78 && typeof data78 == "object" && !Array.isArray(data78))) {
-          const err73 = {
+        let data92 = data.usage;
+        if (!(data92 && typeof data92 == "object" && !Array.isArray(data92))) {
+          const err107 = {
             instancePath: instancePath + "/usage",
             schemaPath: "#/else/properties/usage/type",
             keyword: "type",
@@ -53692,9 +55181,9 @@ function validate21(
             message: "must be object",
           };
           if (vErrors === null) {
-            vErrors = [err73];
+            vErrors = [err107];
           } else {
-            vErrors.push(err73);
+            vErrors.push(err107);
           }
           errors++;
         }
@@ -53752,7 +55241,7 @@ function validate21(
         }
       }
     } else {
-      const err74 = {
+      const err108 = {
         instancePath,
         schemaPath: "#/else/type",
         keyword: "type",
@@ -53760,18 +55249,18 @@ function validate21(
         message: "must be object",
       };
       if (vErrors === null) {
-        vErrors = [err74];
+        vErrors = [err108];
       } else {
-        vErrors.push(err74);
+        vErrors.push(err108);
       }
       errors++;
     }
-    var _valid0 = _errs79 === errors;
+    var _valid0 = _errs95 === errors;
     valid0 = _valid0;
     ifClause0 = "else";
   }
   if (!valid0) {
-    const err75 = {
+    const err109 = {
       instancePath,
       schemaPath: "#/if",
       keyword: "if",
@@ -53779,9 +55268,9 @@ function validate21(
       message: 'must match "' + ifClause0 + '" schema',
     };
     if (vErrors === null) {
-      vErrors = [err75];
+      vErrors = [err109];
     } else {
-      vErrors.push(err75);
+      vErrors.push(err109);
     }
     errors++;
   }
@@ -58190,7 +59679,7 @@ function validate141(
         for (const key1 in data24) {
           const _errs39 = errors;
           if (typeof key1 === "string") {
-            if (!pattern23.test(key1)) {
+            if (!pattern29.test(key1)) {
               const err15 = {
                 instancePath: instancePath + "/reviewEvidenceByPr",
                 schemaPath: "#/properties/reviewEvidenceByPr/propertyNames/pattern",
@@ -58262,7 +59751,7 @@ function validate141(
         for (const key3 in data26) {
           const _errs44 = errors;
           if (typeof key3 === "string") {
-            if (!pattern23.test(key3)) {
+            if (!pattern29.test(key3)) {
               const err18 = {
                 instancePath: instancePath + "/reviewEvidence",
                 schemaPath: "#/properties/reviewEvidence/propertyNames/pattern",
@@ -58332,7 +59821,7 @@ function validate141(
         for (const key5 in data28) {
           const _errs49 = errors;
           if (typeof key5 === "string") {
-            if (!pattern23.test(key5)) {
+            if (!pattern29.test(key5)) {
               const err21 = {
                 instancePath: instancePath + "/hostedReviewByPr",
                 schemaPath: "#/properties/hostedReviewByPr/propertyNames/pattern",
@@ -58402,7 +59891,7 @@ function validate141(
         for (const key7 in data30) {
           const _errs54 = errors;
           if (typeof key7 === "string") {
-            if (!pattern23.test(key7)) {
+            if (!pattern29.test(key7)) {
               const err24 = {
                 instancePath: instancePath + "/reviewRequestsByPr",
                 schemaPath: "#/properties/reviewRequestsByPr/propertyNames/pattern",
@@ -58474,7 +59963,7 @@ function validate141(
         for (const key9 in data32) {
           const _errs59 = errors;
           if (typeof key9 === "string") {
-            if (!pattern23.test(key9)) {
+            if (!pattern29.test(key9)) {
               const err27 = {
                 instancePath: instancePath + "/reviewRequestByPr",
                 schemaPath: "#/properties/reviewRequestByPr/propertyNames/pattern",

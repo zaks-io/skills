@@ -45,6 +45,7 @@ function mergeWorker(left, right) {
     sessionId: left.sessionId ?? right.sessionId,
     receiptId: left.receiptId ?? right.receiptId,
     issueRef: left.issueRef ?? right.issueRef,
+    issueRefs: union(left.issueRefs, right.issueRefs),
     workerRef: left.sessionId
       ? left.workerRef
       : right.sessionId
@@ -133,6 +134,20 @@ export function reconcileActiveDelivery({
   }
   for (const issue of linearIssues) {
     if (!isActiveLinearClaim(issue) && !isStartedLinearIssue(issue)) continue;
+    const endedTrackerSession =
+      Boolean(issue.sessionId) &&
+      records.some(
+        (record) =>
+          !isLiveDispatch(record) &&
+          sameValue(record.sessionId, issue.sessionId) &&
+          (!record.issueRef || record.issueRef === issue.issueRef),
+      ) &&
+      !records.some(
+        (record) =>
+          isLiveDispatch(record) &&
+          record.occupiesWorkerSlot !== false &&
+          sameValue(record.sessionId, issue.sessionId),
+      );
     const item = {
       issueRef: issue.issueRef,
       worktree: issue.worktree ?? issue.path,
@@ -143,8 +158,15 @@ export function reconcileActiveDelivery({
       workerRef: issue.workerRef,
       footprint: toArray(issue.footprint),
       state: "running",
-      source: isActiveLinearClaim(issue) ? "linear-active-claim" : "linear-started-reservation",
-      occupiesWorkerSlot: Boolean(issue.sessionId || issue.receiptId) && isActiveLinearClaim(issue),
+      source: endedTrackerSession
+        ? "linear-returned-claim-reservation"
+        : isActiveLinearClaim(issue)
+          ? "linear-active-claim"
+          : "linear-started-reservation",
+      occupiesWorkerSlot:
+        Boolean(issue.sessionId || issue.receiptId) &&
+        isActiveLinearClaim(issue) &&
+        !endedTrackerSession,
     };
     transferPrFootprint(item);
     if (item.occupiesWorkerSlot) addWorker(item);
@@ -228,7 +250,9 @@ export function reconcileActiveDelivery({
       coversIssue(pr, issue.issueRef),
     );
     const refs = new Set(matches.map((issue) => issue.issueRef));
-    if (refs.size > 1 && normalize(pr.riskTier ?? pr.tier) !== "high") pr.riskTier = "medium";
+    const hintOnly = refs.size > 0 && !pr.issueRef && toArray(pr.issueRefs).length === 0;
+    if ((refs.size > 1 || hintOnly) && normalize(pr.riskTier ?? pr.tier) !== "high")
+      pr.riskTier = "medium";
     const labels = matches.flatMap((issue) => toArray(issue.labels));
     if (labels.length) pr.issueLabels = union(pr.issueLabels, labels);
   }

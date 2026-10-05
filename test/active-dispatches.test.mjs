@@ -8,7 +8,9 @@ import {
 } from "../skills/ziw-orchestrate/scripts/active-dispatches.mjs";
 import {
   activeWorkerCapacity,
+  mergeEligibilityDecision,
   riskTier,
+  workflowDecisionActions,
 } from "../skills/ziw-orchestrate/scripts/workflow-contract.mjs";
 
 const worker = (sessionId, issueRef = "MAIN-1", extra = {}) => ({
@@ -418,4 +420,139 @@ test("tracker claims preserve explicit worktree metadata to absorb matching file
     ),
   );
   assert.ok(result.dispatches.every((item) => item.footprint.includes("src/worktree")));
+});
+
+test("receipt-only worker observation coalesces into its confirmed session before capacity", () => {
+  const result = reconcileActiveDelivery({
+    state: {
+      dispatches: [worker("one", "MAIN-1", { receiptId: "r1" })],
+      workers: [{ receiptId: "r1", workerRef: "receipt:r1", issueRef: "MAIN-1", state: "running" }],
+    },
+  });
+  assert.equal(result.dispatches.length, 1);
+  assert.equal(result.dispatches[0].workerRef, "session:one");
+  assert.equal(activeWorkerCapacity(result).used, 1);
+});
+
+for (const association of [
+  { possibleIssueRefs: ["MAIN-1"] },
+  { issueRef: "MAIN-1" },
+  { issueRefs: ["MAIN-1"] },
+]) {
+  test(`hint-only low-risk labels cannot grant low-only merge authority ${JSON.stringify(association)}`, () => {
+    const result = reconcileActiveDelivery({
+      issuesForPrMetadata: [{ issueRef: "MAIN-1", labels: ["risk-docs"] }],
+      pullRequests: [{ number: 1, ...association }],
+    });
+    const pr = result.pullRequests[0];
+    const config = {
+      lowRiskLabels: ["risk-docs"],
+      mergeAuthority: "agent",
+      autoMergeRiskTiers: ["low"],
+    };
+    const hinted = Boolean(association.possibleIssueRefs);
+    assert.equal(riskTier(pr, config), hinted ? "medium" : "low");
+    const decision = mergeEligibilityDecision(
+      {
+        ...pr,
+        independentReviewCount: 1,
+        open: true,
+        draft: false,
+        reviewEvidenceCurrent: true,
+        requiredChecksPassed: true,
+        unresolvedReviewThreads: 0,
+        conformance: "pass",
+        currentPrHeadSha: "abc123",
+      },
+      config,
+    );
+    assert.equal(
+      decision.action,
+      hinted ? workflowDecisionActions.routeHumanMerge : workflowDecisionActions.armAutoMerge,
+    );
+  });
+}
+
+test("single hint-only association can raise high risk but cannot lower a medium floor", () => {
+  for (const labels of [["risk-docs"], ["risk-schema"]]) {
+    const result = run([], {
+      issuesForPrMetadata: [{ issueRef: "MAIN-1", labels }],
+      pullRequests: [{ number: 1, possibleIssueRefs: ["MAIN-1"], riskTier: "low" }],
+    });
+    assert.equal(
+      riskTier(result.pullRequests[0], { lowRiskLabels: ["risk-docs"] }),
+      labels.includes("risk-schema") ? "high" : "medium",
+    );
+  }
+});
+
+test("terminal session receipt retires a sticky tracker-only claim while preserving its reservation", () => {
+  const result = run([worker("one", "MAIN-1", { state: "returned" })], {
+    snapshot: {
+      linear: {
+        activeIssues: [
+          {
+            issueRef: "MAIN-1",
+            activeClaim: true,
+            sessionId: "one",
+            workerRef: "session:one",
+            footprint: ["src/claimed"],
+          },
+        ],
+      },
+    },
+  });
+  assert.equal(activeWorkerCapacity(result).used, 0);
+  assert.equal(result.dispatches.length, 1);
+  assert.equal(result.dispatches[0].occupiesWorkerSlot, false);
+  assert.deepEqual(result.dispatches[0].footprint, ["src/claimed"]);
+  assert.equal(issuesWithDeliveryEvidence([{ issueRef: "MAIN-1" }], result)[0].activeClaim, true);
+});
+
+test("current runtime observation keeps its session despite a historical terminal receipt and tracker claim", () => {
+  const records = [
+    worker("one", "MAIN-1", { state: "returned" }),
+    worker("one", "MAIN-1", { state: "running" }),
+  ];
+  for (const dispatches of [records, [...records].reverse()]) {
+    const result = run(dispatches, {
+      snapshot: {
+        linear: {
+          activeIssues: [
+            {
+              issueRef: "MAIN-1",
+              activeClaim: true,
+              sessionId: "one",
+              workerRef: "session:one",
+              footprint: ["src/claimed"],
+            },
+          ],
+        },
+      },
+    });
+    assert.equal(activeWorkerCapacity(result).used, 1);
+    assert.equal(result.dispatches.length, 1);
+    assert.deepEqual(result.dispatches[0].footprint, ["src/claimed"]);
+  }
+});
+
+test("receipt-only terminal history cannot retire a tracker claim without stable session evidence", () => {
+  const result = run(
+    [{ receiptId: "reused", workerRef: "receipt:reused", issueRef: "MAIN-1", state: "returned" }],
+    {
+      snapshot: {
+        linear: {
+          activeIssues: [
+            {
+              issueRef: "MAIN-1",
+              activeClaim: true,
+              receiptId: "reused",
+              workerRef: "receipt:reused",
+            },
+          ],
+        },
+      },
+    },
+  );
+  assert.equal(activeWorkerCapacity(result).used, 1);
 });

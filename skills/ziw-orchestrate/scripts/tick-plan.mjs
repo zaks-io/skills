@@ -491,6 +491,15 @@ const linearDag = restrictLinearDag(
   linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null,
   scope,
 );
+const blockingIdentityDiagnostics = diagnostics.some((diagnostic) => diagnostic.blockingStarts);
+if (linearDag && blockingIdentityDiagnostics) {
+  linearDag.starts = [];
+  linearDag.readyStarts = [];
+  for (const node of linearDag.nodes) {
+    node.startable = false;
+    node.startableBlockers.push("unresolved delivery identity evidence");
+  }
+}
 const linearNodesById = new Map((linearDag?.nodes ?? []).map((node) => [node.issueRef, node]));
 const downstreamCount = (rootId) => {
   const seen = new Set();
@@ -552,10 +561,10 @@ const planningState = {
   pullRequests,
   previews: toArray(state.previews),
   dispatches: activeDispatches,
-  activeWork: toArray(state.activeWork),
-  startableTickets: diagnostics.some((diagnostic) => diagnostic.blockingStarts)
-    ? []
-    : [...startableTicketsById.values()],
+  workers: [],
+  activeWork: [],
+  ledgerDispatches: [],
+  startableTickets: blockingIdentityDiagnostics ? [] : [...startableTicketsById.values()],
 };
 
 const readyStatePromotions = toArray(state.tickets ?? snapshot.linear?.issues)
@@ -569,9 +578,9 @@ const reviewEvidence = toArray(state.reviewEvidenceChecks)
   .filter(
     (evidence) =>
       state.scopeIssueRefs == null ||
-      (evidence.issueRef
-        ? state.scopeIssueRefs.includes(evidence.issueRef)
-        : actionPullRequests.some((pr) => pr.number === evidence.prNumber)),
+      (evidence.prNumber != null
+        ? actionPullRequests.some((pr) => pr.number === evidence.prNumber)
+        : state.scopeIssueRefs.includes(evidence.issueRef)),
   )
   .map((evidence) => ({
     target: evidence.prNumber ?? evidence.issueRef,
@@ -605,6 +614,7 @@ const warnings = diagnostics.map((diagnostic) => ({
   reason: diagnostic.code,
   path: diagnostic.path,
   ...(diagnostic.issueUuid ? { issueUuid: diagnostic.issueUuid } : {}),
+  ...(diagnostic.issueKey ? { issueKey: diagnostic.issueKey } : {}),
 }));
 
 for (const reservation of activeDispatches.filter((item) => item.occupiesWorkerSlot === false)) {
