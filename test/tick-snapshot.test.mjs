@@ -544,3 +544,52 @@ for (const invalidArgs of [
     assert.equal(existsSync(fixture.linearLog), false);
   });
 }
+
+test("terminal receipts for a deleted UUID skip alias lookup and preserve current ready dispatch", (t) => {
+  const fixture = offlineCollector(t);
+  const deletedUuid = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+  const state = {
+    dispatches: [
+      { sessionId: "historical-returned", issueUuid: deletedUuid, returned: true },
+      {
+        sessionId: "current-live",
+        issueUuid: lookupUuid,
+        state: "running",
+        footprint: ["src/current-worker.ts"],
+      },
+    ],
+    ledgerDispatches: [{ sessionId: "historical-failed", issueUuid: deletedUuid, state: "failed" }],
+    activeWork: [{ sessionId: "historical-completed", issueUuid: deletedUuid, state: "completed" }],
+    workers: [{ sessionId: "historical-stopped", issueUuid: deletedUuid, stopped: true }],
+  };
+  const { snapshot, file } = collectState(fixture, state);
+  const calls = readFileSync(fixture.linearLog, "utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(calls.filter((call) => call.type === "lookup" && call.id === deletedUuid).length, 0);
+  assert.equal(calls.filter((call) => call.type === "lookup" && call.id === lookupUuid).length, 1);
+  assert.deepEqual(snapshot.linear.identityDiagnostics, []);
+  assert.deepEqual(snapshot.linear.candidateIssues, [
+    { issueKey: "SKI-12" },
+    { issueKey: "SKI-13" },
+  ]);
+  const input = path.join(fixture.dir, "snapshot.json");
+  writeFileSync(input, JSON.stringify(snapshot));
+  const planned = JSON.parse(
+    execFileSync(process.execPath, [tickPlan, input, "--state", file], {
+      cwd: root,
+      encoding: "utf8",
+      env: fixture.env,
+    }),
+  );
+  assert.equal(planned.capacity.used, 1);
+  assert.deepEqual(planned.warnings, []);
+  assert.ok(
+    planned.holds.some(
+      (hold) => hold.target === "ticket:SKI-12" && hold.reason === "DELIVERY_ALREADY_ACTIVE",
+    ),
+  );
+  assert.ok(
+    planned.actions.some(
+      (action) => action.target === "ticket:SKI-13" && action.kind === "dispatch",
+    ),
+  );
+});

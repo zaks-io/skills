@@ -3161,8 +3161,16 @@
           "type": "array",
           "items": { "$ref": "#/definitions/canonical_reviewEvidenceCheck" }
         },
-        "reviewDiffByPr": { "type": "object", "additionalProperties": { "type": "string" } },
-        "continuationByPr": { "type": "object", "additionalProperties": { "type": "string" } },
+        "reviewDiffByPr": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "propertyNames": { "pattern": "^[1-9][0-9]*$" }
+        },
+        "continuationByPr": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "propertyNames": { "pattern": "^[1-9][0-9]*$" }
+        },
         "readyStatePromotionOptions": {
           "type": "object",
           "additionalProperties": false,

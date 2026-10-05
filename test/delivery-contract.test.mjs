@@ -253,7 +253,18 @@ for (const explicit of [true, false]) {
           issue(),
           issue({ issueKey: "ZAK-13", issueUuid: otherUuid }, { footprint: ["src/unrelated.ts"] }),
         ],
-        { dispatches: [worker({}, { sessionId: "repair-1", prNumber: 22 })] },
+        {
+          dispatches: [
+            worker(
+              {},
+              {
+                sessionId: "repair-1",
+                prNumber: 22,
+                ...(explicit ? { branch: "codex/zak-13-old-hint" } : {}),
+              },
+            ),
+          ],
+        },
         [
           pr(
             {},
@@ -283,6 +294,67 @@ for (const explicit of [true, false]) {
     });
   }
 }
+
+for (const scoped of [false, true]) {
+  test(`${scoped ? "scoped" : "unscoped"} session-only runtime observation inherits its tracker claim and clears obsolete text hints`, () => {
+    const value = input(
+      [
+        issue(),
+        issue({ issueKey: "ZAK-13", issueUuid: otherUuid }, { footprint: ["src/unrelated.ts"] }),
+      ],
+      {
+        dispatches: [
+          worker({}, { sessionId: "confirmed-session", branch: "codex/zak-13-old-hint" }),
+        ],
+      },
+    );
+    value.snapshot.linear.activeIssues = [
+      issue(
+        { issueKey: "ZAK-12", issueUuid: uuid },
+        {
+          sessionId: "confirmed-session",
+          activeClaim: true,
+          state: "In Progress",
+          stateType: "started",
+          footprint: ["src/active.ts"],
+        },
+      ),
+    ];
+    if (scoped) value.state.scopeIssues = [{ issueKey: "ZAK-13" }];
+    const plan = plans(value);
+    assert.equal(plan.capacity.used, 1);
+    assert.deepEqual(
+      starts(plan).map((action) => action.target),
+      ["ticket:ZAK-13"],
+    );
+    assert.equal(
+      plan.warnings.some((warning) => warning.reason === "WORKER_ISSUE_UNRESOLVED"),
+      false,
+    );
+    assert.equal(plan.decisions.activeDispatches[0].issueRef, "ZAK-12");
+    if (!scoped) held(plan);
+  });
+}
+
+test("one session cannot cover a multi-issue PR and a disjoint direct issue", () => {
+  const value = input(
+    [issue(), issue({ issueKey: "ZAK-13", issueUuid: otherUuid }), issue({ issueKey: "ZAK-14" })],
+    {
+      dispatches: [
+        worker({}, { sessionId: "same-session", prNumber: 22 }),
+        worker({ issueKey: "ZAK-14" }, { sessionId: "same-session" }),
+      ],
+    },
+    [pr({}, { linkedIssues: [{ issueUuid: uuid }, { issueUuid: otherUuid }] })],
+  );
+  for (const debug of [false, true]) {
+    const result = invoke(value, debug);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /worker.*issueRef.*conflict/i);
+  }
+});
+
 test("legacy anonymous state receipts keep observation and lifecycle semantics beside a v3 snapshot", () => {
   const canonical = input();
   const legacy = structuredClone(canonical);

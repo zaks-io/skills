@@ -437,13 +437,20 @@ async function loadReferencedIssues(request, issueRefs, knownIssues, issueRefPat
     if (!issue || !hasRequestedIdentity(ref, issue)) {
       const id = ref.issueUuid ?? ref.issueKey;
       if (!lookups.has(id)) {
-        const body = await request({ query: LINEAR_REFERENCED_ISSUE_QUERY, variables: { id } });
-        if (!body.data || !Object.hasOwn(body.data, "issue"))
+        let body;
+        try {
+          body = await request({ query: LINEAR_REFERENCED_ISSUE_QUERY, variables: { id } });
+        } catch {
+          throw new Error(
+            `${path}: referenced Linear issue lookup failed; refresh tracker connection or access`,
+          );
+        }
+        if (!body?.data || !Object.hasOwn(body.data, "issue"))
           throw new Error(`${path}: referenced Linear issue lookup returned no issue field`);
         lookups.set(id, body.data.issue);
       }
       const rawIssue = lookups.get(id);
-      if (!rawIssue) {
+      if (rawIssue === null) {
         const diagnostic = {
           code: "REFERENCED_ISSUE_NOT_FOUND",
           path,
@@ -453,6 +460,8 @@ async function loadReferencedIssues(request, issueRefs, knownIssues, issueRefPat
         diagnostics.set(JSON.stringify(diagnostic), diagnostic);
         continue;
       }
+      if (!rawIssue || typeof rawIssue !== "object" || Array.isArray(rawIssue))
+        throw new Error(`${path}: referenced Linear issue lookup returned malformed issue record`);
       issue = normalizeLinearIssue(rawIssue);
       results.push(issue);
     }

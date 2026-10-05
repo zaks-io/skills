@@ -103,8 +103,8 @@ export function loadPlannerInput(args) {
     ...normalizePlannerModel({
       snapshot,
       state,
-      legacyState: legacyStateFile,
-      allowLegacyPrMaps: values.state != null,
+      legacyStateFields: legacyStateFile ? Object.keys(stateFile) : [],
+      legacyPrMapFields: values.state != null ? Object.keys(stateFile) : [],
     }),
     config,
     debug: values.debug ?? false,

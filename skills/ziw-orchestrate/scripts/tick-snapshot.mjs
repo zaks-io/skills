@@ -24,6 +24,7 @@ import { localWorktrees } from "./worktree-snapshot.mjs";
 import { validateCanonicalState, validateState } from "./planner-input-validator.mjs";
 import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
 import { assertIdentityFieldNames } from "./planner-model.mjs";
+import { isLiveWorker } from "./worker-lifecycle.mjs";
 
 const startedAt = performance.now();
 const fail = (message) => {
@@ -105,6 +106,11 @@ const stateIssueReferences = () => {
     "reviewEvidenceChecks",
   ]) {
     for (const [index, record] of (state[name] ?? []).entries()) {
+      if (
+        ["dispatches", "ledgerDispatches", "activeWork", "workers"].includes(name) &&
+        !isLiveWorker(record)
+      )
+        continue;
       const sourcePath = `--state/${name}/${index}`;
       if (record.issueKey || record.issueUuid) append(record, sourcePath);
       for (const field of ["blockedBy", "linkedIssues"])

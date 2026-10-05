@@ -190,12 +190,17 @@ references, looks up at most 50 unknown references, and adds their identity/risk
 metadata without expanding candidates. Supply the same transient `--state`
 file to snapshot collection and planning, using either `--state <file>` or
 `--state=<file>`. The collector automatically resolves
-references from worker receipts, requested scope, dependencies, and PR links;
-agents do not enumerate those IDs again. Repeatable `--linear-issue-key` and
+references from live worker receipts, requested scope, dependencies, and PR links;
+terminal receipt history does not trigger lookups. Agents do not enumerate those
+IDs again. Repeatable `--linear-issue-key` and
 `--linear-issue-uuid` flags add optional references when needed. If a reference
 is missing or contradictory after that lookup, retain the diagnostic
 and request the concrete missing evidence. Do not spin on alternate ID fields
-or cache lookup outcomes in Repo Config.
+or cache lookup outcomes in Repo Config. A confirmed missing record, returned as
+`issue: null`, preserves the snapshot with a blocking diagnostic. Transport,
+GraphQL, or malformed-response failures abort collection with the referring
+source path; they never masquerade as missing records. Provider error text is
+omitted because it may contain sensitive values.
 
 ## Review evidence and legacy boundary
 

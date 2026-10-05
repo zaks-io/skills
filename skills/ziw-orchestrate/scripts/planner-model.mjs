@@ -39,7 +39,7 @@ export function assertIdentityFieldNames(value, path = "input") {
   }
 }
 
-function normalizePrMaps(state, prs, legacy) {
+function normalizePrMaps(state, prs, legacy, legacyFields) {
   const aliases = new Map();
   const register = (value, number) => {
     if (value == null) return;
@@ -51,7 +51,9 @@ function normalizePrMaps(state, prs, legacy) {
     for (const value of [
       pr.number,
       pr.url,
-      ...(legacy ? [pr.headSha, pr.headRefName, ...array(pr.legacyPrAliases)] : []),
+      ...(legacy || legacyFields.size
+        ? [pr.headSha, pr.headRefName, ...array(pr.legacyPrAliases)]
+        : []),
     ])
       register(value, pr.number);
   }
@@ -68,7 +70,11 @@ function normalizePrMaps(state, prs, legacy) {
     if (state[name] == null) continue;
     const mapped = {};
     for (const [alias, evidence] of Object.entries(state[name])) {
-      const number = /^\d+$/.test(alias) ? Number(alias) : legacy ? aliases.get(alias) : null;
+      const number = /^\d+$/.test(alias)
+        ? Number(alias)
+        : legacy || legacyFields.has(name)
+          ? aliases.get(alias)
+          : null;
       if (!Number.isInteger(number) || number < 1)
         throw new Error(`state/${name}: PR reference is unknown or ambiguous; supply PR number`);
       if (mapped[number] && JSON.stringify(mapped[number]) !== JSON.stringify(evidence))
@@ -83,8 +89,8 @@ function normalizePrMaps(state, prs, legacy) {
 export function normalizePlannerModel({
   snapshot = {},
   state = {},
-  legacyState = false,
-  allowLegacyPrMaps = false,
+  legacyStateFields = [],
+  legacyPrMapFields = [],
 } = {}) {
   assertIdentityFieldNames(snapshot, "snapshot");
   assertIdentityFieldNames(state, "state");
@@ -144,13 +150,13 @@ export function normalizePlannerModel({
     normalized.issueRefs = [...new Set(linked.map((reference) => reference.issueRef))];
     normalized.possibleIssueRefs = possibleIssueLinks(normalized, catalog);
     if (kind === "worker") {
+      const legacyWorker = legacy || legacyStateFields.includes(path.split("/")[1]);
       const statuses = [record.state, record.status].filter((value) => value != null);
       const explicitlyLive = statuses.some((value) =>
         ["running", "active", "started"].includes(String(value).trim().toLowerCase()),
       );
       if (
-        !legacy &&
-        !legacyState &&
+        !legacyWorker &&
         explicitlyLive &&
         (record.returned === true ||
           record.stopped === true ||
@@ -158,7 +164,7 @@ export function normalizePlannerModel({
       )
         throw new Error(`${path}: contradictory worker lifecycle; refresh provider status`);
       const live = !terminal(record) && record.occupiesWorkerSlot !== false;
-      if (!legacy && !legacyState && live && !record.sessionId && !record.receiptId)
+      if (!legacyWorker && live && !record.sessionId && !record.receiptId)
         throw new Error(`${path}: live worker needs explicit sessionId or receiptId`);
       normalized.workerRef = record.sessionId
         ? `session:${record.sessionId}`
@@ -262,15 +268,27 @@ export function normalizePlannerModel({
         ];
         worker.issueRef = refs.length === 1 ? refs[0] : null;
         worker.issueRefs = refs;
+        if (refs.length) worker.possibleIssueRefs = [];
       }
     }
   }
   const workers = workerNames.flatMap((name) => array(normalizedState[name])).filter(isLiveWorker);
+  const claims = [
+    ...array(normalizedSnapshot.linear?.issues),
+    ...array(normalizedSnapshot.linear?.activeIssues),
+    ...array(normalizedState.tickets),
+    ...array(normalizedState.activeLinearIssues),
+  ].filter(
+    (issue) =>
+      issue.activeClaim &&
+      (issue.sessionId || issue.receiptId) &&
+      !["completed", "canceled", "duplicate"].includes(issue.stateType ?? issue.state?.type),
+  );
   let linked;
   do {
     linked = false;
     for (const worker of workers.filter((item) => !item.issueRef && item.issueRefs.length === 0)) {
-      const peers = workers.filter(
+      const peers = [...workers, ...claims].filter(
         (peer) =>
           (worker.sessionId && worker.sessionId === peer.sessionId) ||
           (worker.receiptId && worker.receiptId === peer.receiptId),
@@ -281,6 +299,7 @@ export function normalizePlannerModel({
       if (refs.length) {
         worker.issueRef = refs.length === 1 ? refs[0] : null;
         worker.issueRefs = refs;
+        worker.possibleIssueRefs = [];
         linked = true;
       }
     }
@@ -303,7 +322,7 @@ export function normalizePlannerModel({
   }
   return {
     snapshot: normalizedSnapshot,
-    state: normalizePrMaps(normalizedState, prs, legacy || legacyState || allowLegacyPrMaps),
+    state: normalizePrMaps(normalizedState, prs, legacy, new Set(legacyPrMapFields)),
     diagnostics,
   };
 }

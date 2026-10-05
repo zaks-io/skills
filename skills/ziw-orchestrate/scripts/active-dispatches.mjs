@@ -34,6 +34,10 @@ export const completedByMergedPullRequest = (worktree, mergedPullRequests = []) 
   });
 
 function mergeWorker(left, right) {
+  const leftRefs = union(left.issueRef, left.issueRefs).filter(Boolean);
+  const rightRefs = union(right.issueRef, right.issueRefs).filter(Boolean);
+  if (leftRefs.length && rightRefs.length && !leftRefs.some((ref) => rightRefs.includes(ref)))
+    throw new Error("worker issueRef conflict for shared sessionId or receiptId");
   for (const field of ["sessionId", "issueRef"]) {
     if (left[field] && right[field] && left[field] !== right[field]) {
       throw new Error(`worker ${field} conflict for shared sessionId or receiptId`);

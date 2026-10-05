@@ -2978,8 +2978,16 @@ const schema6 = {
           type: "array",
           items: { $ref: "#/definitions/canonical_reviewEvidenceCheck" },
         },
-        reviewDiffByPr: { type: "object", additionalProperties: { type: "string" } },
-        continuationByPr: { type: "object", additionalProperties: { type: "string" } },
+        reviewDiffByPr: {
+          type: "object",
+          additionalProperties: { type: "string" },
+          propertyNames: { pattern: "^[1-9][0-9]*$" },
+        },
+        continuationByPr: {
+          type: "object",
+          additionalProperties: { type: "string" },
+          propertyNames: { pattern: "^[1-9][0-9]*$" },
+        },
         readyStatePromotionOptions: {
           type: "object",
           additionalProperties: false,
@@ -15367,8 +15375,16 @@ const schema15 = {
       type: "array",
       items: { $ref: "#/definitions/canonical_reviewEvidenceCheck" },
     },
-    reviewDiffByPr: { type: "object", additionalProperties: { type: "string" } },
-    continuationByPr: { type: "object", additionalProperties: { type: "string" } },
+    reviewDiffByPr: {
+      type: "object",
+      additionalProperties: { type: "string" },
+      propertyNames: { pattern: "^[1-9][0-9]*$" },
+    },
+    continuationByPr: {
+      type: "object",
+      additionalProperties: { type: "string" },
+      propertyNames: { pattern: "^[1-9][0-9]*$" },
+    },
     readyStatePromotionOptions: {
       type: "object",
       additionalProperties: false,
@@ -27549,50 +27565,48 @@ function validate50(
       let data36 = data.reviewDiffByPr;
       if (data36 && typeof data36 == "object" && !Array.isArray(data36)) {
         for (const key11 in data36) {
-          if (typeof data36[key11] !== "string") {
-            const err31 = {
-              instancePath:
-                instancePath + "/reviewDiffByPr/" + key11.replace(/~/g, "~0").replace(/\//g, "~1"),
-              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
-              keyword: "type",
-              params: { type: "string" },
-              message: "must be string",
+          const _errs67 = errors;
+          if (typeof key11 === "string") {
+            if (!pattern29.test(key11)) {
+              const err31 = {
+                instancePath: instancePath + "/reviewDiffByPr",
+                schemaPath: "#/properties/reviewDiffByPr/propertyNames/pattern",
+                keyword: "pattern",
+                params: { pattern: "^[1-9][0-9]*$" },
+                message: 'must match pattern "' + "^[1-9][0-9]*$" + '"',
+                propertyName: key11,
+              };
+              if (vErrors === null) {
+                vErrors = [err31];
+              } else {
+                vErrors.push(err31);
+              }
+              errors++;
+            }
+          }
+          var valid35 = _errs67 === errors;
+          if (!valid35) {
+            const err32 = {
+              instancePath: instancePath + "/reviewDiffByPr",
+              schemaPath: "#/properties/reviewDiffByPr/propertyNames",
+              keyword: "propertyNames",
+              params: { propertyName: key11 },
+              message: "property name must be valid",
             };
             if (vErrors === null) {
-              vErrors = [err31];
+              vErrors = [err32];
             } else {
-              vErrors.push(err31);
+              vErrors.push(err32);
             }
             errors++;
           }
         }
-      } else {
-        const err32 = {
-          instancePath: instancePath + "/reviewDiffByPr",
-          schemaPath: "#/properties/reviewDiffByPr/type",
-          keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
-        };
-        if (vErrors === null) {
-          vErrors = [err32];
-        } else {
-          vErrors.push(err32);
-        }
-        errors++;
-      }
-    }
-    if (data.continuationByPr !== undefined) {
-      let data38 = data.continuationByPr;
-      if (data38 && typeof data38 == "object" && !Array.isArray(data38)) {
-        for (const key12 in data38) {
-          if (typeof data38[key12] !== "string") {
+        for (const key12 in data36) {
+          if (typeof data36[key12] !== "string") {
             const err33 = {
               instancePath:
-                instancePath +
-                "/continuationByPr/" +
-                key12.replace(/~/g, "~0").replace(/\//g, "~1"),
-              schemaPath: "#/properties/continuationByPr/additionalProperties/type",
+                instancePath + "/reviewDiffByPr/" + key12.replace(/~/g, "~0").replace(/\//g, "~1"),
+              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
               keyword: "type",
               params: { type: "string" },
               message: "must be string",
@@ -27607,8 +27621,8 @@ function validate50(
         }
       } else {
         const err34 = {
-          instancePath: instancePath + "/continuationByPr",
-          schemaPath: "#/properties/continuationByPr/type",
+          instancePath: instancePath + "/reviewDiffByPr",
+          schemaPath: "#/properties/reviewDiffByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -27621,38 +27635,37 @@ function validate50(
         errors++;
       }
     }
-    if (data.readyStatePromotionOptions !== undefined) {
-      let data40 = data.readyStatePromotionOptions;
-      if (data40 && typeof data40 == "object" && !Array.isArray(data40)) {
-        for (const key13 in data40) {
-          if (
-            !(key13 === "requestedReadyStatePromotion" || key13 === "requestedLinearBacklogReview")
-          ) {
-            const err35 = {
-              instancePath: instancePath + "/readyStatePromotionOptions",
-              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
-              keyword: "additionalProperties",
-              params: { additionalProperty: key13 },
-              message: "must NOT have additional properties",
-            };
-            if (vErrors === null) {
-              vErrors = [err35];
-            } else {
-              vErrors.push(err35);
+    if (data.continuationByPr !== undefined) {
+      let data38 = data.continuationByPr;
+      if (data38 && typeof data38 == "object" && !Array.isArray(data38)) {
+        for (const key13 in data38) {
+          const _errs73 = errors;
+          if (typeof key13 === "string") {
+            if (!pattern29.test(key13)) {
+              const err35 = {
+                instancePath: instancePath + "/continuationByPr",
+                schemaPath: "#/properties/continuationByPr/propertyNames/pattern",
+                keyword: "pattern",
+                params: { pattern: "^[1-9][0-9]*$" },
+                message: 'must match pattern "' + "^[1-9][0-9]*$" + '"',
+                propertyName: key13,
+              };
+              if (vErrors === null) {
+                vErrors = [err35];
+              } else {
+                vErrors.push(err35);
+              }
+              errors++;
             }
-            errors++;
           }
-        }
-        if (data40.requestedReadyStatePromotion !== undefined) {
-          if (typeof data40.requestedReadyStatePromotion !== "boolean") {
+          var valid37 = _errs73 === errors;
+          if (!valid37) {
             const err36 = {
-              instancePath:
-                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
-              schemaPath:
-                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
-              keyword: "type",
-              params: { type: "boolean" },
-              message: "must be boolean",
+              instancePath: instancePath + "/continuationByPr",
+              schemaPath: "#/properties/continuationByPr/propertyNames",
+              keyword: "propertyNames",
+              params: { propertyName: key13 },
+              message: "property name must be valid",
             };
             if (vErrors === null) {
               vErrors = [err36];
@@ -27662,16 +27675,17 @@ function validate50(
             errors++;
           }
         }
-        if (data40.requestedLinearBacklogReview !== undefined) {
-          if (typeof data40.requestedLinearBacklogReview !== "boolean") {
+        for (const key14 in data38) {
+          if (typeof data38[key14] !== "string") {
             const err37 = {
               instancePath:
-                instancePath + "/readyStatePromotionOptions/requestedLinearBacklogReview",
-              schemaPath:
-                "#/properties/readyStatePromotionOptions/properties/requestedLinearBacklogReview/type",
+                instancePath +
+                "/continuationByPr/" +
+                key14.replace(/~/g, "~0").replace(/\//g, "~1"),
+              schemaPath: "#/properties/continuationByPr/additionalProperties/type",
               keyword: "type",
-              params: { type: "boolean" },
-              message: "must be boolean",
+              params: { type: "string" },
+              message: "must be string",
             };
             if (vErrors === null) {
               vErrors = [err37];
@@ -27683,8 +27697,8 @@ function validate50(
         }
       } else {
         const err38 = {
-          instancePath: instancePath + "/readyStatePromotionOptions",
-          schemaPath: "#/properties/readyStatePromotionOptions/type",
+          instancePath: instancePath + "/continuationByPr",
+          schemaPath: "#/properties/continuationByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -27697,82 +27711,90 @@ function validate50(
         errors++;
       }
     }
+    if (data.readyStatePromotionOptions !== undefined) {
+      let data40 = data.readyStatePromotionOptions;
+      if (data40 && typeof data40 == "object" && !Array.isArray(data40)) {
+        for (const key15 in data40) {
+          if (
+            !(key15 === "requestedReadyStatePromotion" || key15 === "requestedLinearBacklogReview")
+          ) {
+            const err39 = {
+              instancePath: instancePath + "/readyStatePromotionOptions",
+              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
+              keyword: "additionalProperties",
+              params: { additionalProperty: key15 },
+              message: "must NOT have additional properties",
+            };
+            if (vErrors === null) {
+              vErrors = [err39];
+            } else {
+              vErrors.push(err39);
+            }
+            errors++;
+          }
+        }
+        if (data40.requestedReadyStatePromotion !== undefined) {
+          if (typeof data40.requestedReadyStatePromotion !== "boolean") {
+            const err40 = {
+              instancePath:
+                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
+              schemaPath:
+                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
+              keyword: "type",
+              params: { type: "boolean" },
+              message: "must be boolean",
+            };
+            if (vErrors === null) {
+              vErrors = [err40];
+            } else {
+              vErrors.push(err40);
+            }
+            errors++;
+          }
+        }
+        if (data40.requestedLinearBacklogReview !== undefined) {
+          if (typeof data40.requestedLinearBacklogReview !== "boolean") {
+            const err41 = {
+              instancePath:
+                instancePath + "/readyStatePromotionOptions/requestedLinearBacklogReview",
+              schemaPath:
+                "#/properties/readyStatePromotionOptions/properties/requestedLinearBacklogReview/type",
+              keyword: "type",
+              params: { type: "boolean" },
+              message: "must be boolean",
+            };
+            if (vErrors === null) {
+              vErrors = [err41];
+            } else {
+              vErrors.push(err41);
+            }
+            errors++;
+          }
+        }
+      } else {
+        const err42 = {
+          instancePath: instancePath + "/readyStatePromotionOptions",
+          schemaPath: "#/properties/readyStatePromotionOptions/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err42];
+        } else {
+          vErrors.push(err42);
+        }
+        errors++;
+      }
+    }
     if (data.activeSignalExpected !== undefined) {
       if (typeof data.activeSignalExpected !== "boolean") {
-        const err39 = {
+        const err43 = {
           instancePath: instancePath + "/activeSignalExpected",
           schemaPath: "#/properties/activeSignalExpected/type",
           keyword: "type",
           params: { type: "boolean" },
           message: "must be boolean",
-        };
-        if (vErrors === null) {
-          vErrors = [err39];
-        } else {
-          vErrors.push(err39);
-        }
-        errors++;
-      }
-    }
-    if (data.localBudgetUsagePercent !== undefined) {
-      let data44 = data.localBudgetUsagePercent;
-      if (typeof data44 == "number" && isFinite(data44)) {
-        if (data44 < 0 || isNaN(data44)) {
-          const err40 = {
-            instancePath: instancePath + "/localBudgetUsagePercent",
-            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
-            keyword: "minimum",
-            params: { comparison: ">=", limit: 0 },
-            message: "must be >= 0",
-          };
-          if (vErrors === null) {
-            vErrors = [err40];
-          } else {
-            vErrors.push(err40);
-          }
-          errors++;
-        }
-      } else {
-        const err41 = {
-          instancePath: instancePath + "/localBudgetUsagePercent",
-          schemaPath: "#/properties/localBudgetUsagePercent/type",
-          keyword: "type",
-          params: { type: "number" },
-          message: "must be number",
-        };
-        if (vErrors === null) {
-          vErrors = [err41];
-        } else {
-          vErrors.push(err41);
-        }
-        errors++;
-      }
-    }
-    if (data.tokenBudgetRemaining !== undefined) {
-      let data45 = data.tokenBudgetRemaining;
-      if (typeof data45 == "number" && isFinite(data45)) {
-        if (data45 < 0 || isNaN(data45)) {
-          const err42 = {
-            instancePath: instancePath + "/tokenBudgetRemaining",
-            schemaPath: "#/properties/tokenBudgetRemaining/minimum",
-            keyword: "minimum",
-            params: { comparison: ">=", limit: 0 },
-            message: "must be >= 0",
-          };
-          if (vErrors === null) {
-            vErrors = [err42];
-          } else {
-            vErrors.push(err42);
-          }
-          errors++;
-        }
-      } else {
-        const err43 = {
-          instancePath: instancePath + "/tokenBudgetRemaining",
-          schemaPath: "#/properties/tokenBudgetRemaining/type",
-          keyword: "type",
-          params: { type: "number" },
-          message: "must be number",
         };
         if (vErrors === null) {
           vErrors = [err43];
@@ -27782,13 +27804,13 @@ function validate50(
         errors++;
       }
     }
-    if (data.timeBudgetRemainingMinutes !== undefined) {
-      let data46 = data.timeBudgetRemainingMinutes;
-      if (typeof data46 == "number" && isFinite(data46)) {
-        if (data46 < 0 || isNaN(data46)) {
+    if (data.localBudgetUsagePercent !== undefined) {
+      let data44 = data.localBudgetUsagePercent;
+      if (typeof data44 == "number" && isFinite(data44)) {
+        if (data44 < 0 || isNaN(data44)) {
           const err44 = {
-            instancePath: instancePath + "/timeBudgetRemainingMinutes",
-            schemaPath: "#/properties/timeBudgetRemainingMinutes/minimum",
+            instancePath: instancePath + "/localBudgetUsagePercent",
+            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
             keyword: "minimum",
             params: { comparison: ">=", limit: 0 },
             message: "must be >= 0",
@@ -27802,8 +27824,8 @@ function validate50(
         }
       } else {
         const err45 = {
-          instancePath: instancePath + "/timeBudgetRemainingMinutes",
-          schemaPath: "#/properties/timeBudgetRemainingMinutes/type",
+          instancePath: instancePath + "/localBudgetUsagePercent",
+          schemaPath: "#/properties/localBudgetUsagePercent/type",
           keyword: "type",
           params: { type: "number" },
           message: "must be number",
@@ -27812,6 +27834,74 @@ function validate50(
           vErrors = [err45];
         } else {
           vErrors.push(err45);
+        }
+        errors++;
+      }
+    }
+    if (data.tokenBudgetRemaining !== undefined) {
+      let data45 = data.tokenBudgetRemaining;
+      if (typeof data45 == "number" && isFinite(data45)) {
+        if (data45 < 0 || isNaN(data45)) {
+          const err46 = {
+            instancePath: instancePath + "/tokenBudgetRemaining",
+            schemaPath: "#/properties/tokenBudgetRemaining/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err46];
+          } else {
+            vErrors.push(err46);
+          }
+          errors++;
+        }
+      } else {
+        const err47 = {
+          instancePath: instancePath + "/tokenBudgetRemaining",
+          schemaPath: "#/properties/tokenBudgetRemaining/type",
+          keyword: "type",
+          params: { type: "number" },
+          message: "must be number",
+        };
+        if (vErrors === null) {
+          vErrors = [err47];
+        } else {
+          vErrors.push(err47);
+        }
+        errors++;
+      }
+    }
+    if (data.timeBudgetRemainingMinutes !== undefined) {
+      let data46 = data.timeBudgetRemainingMinutes;
+      if (typeof data46 == "number" && isFinite(data46)) {
+        if (data46 < 0 || isNaN(data46)) {
+          const err48 = {
+            instancePath: instancePath + "/timeBudgetRemainingMinutes",
+            schemaPath: "#/properties/timeBudgetRemainingMinutes/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err48];
+          } else {
+            vErrors.push(err48);
+          }
+          errors++;
+        }
+      } else {
+        const err49 = {
+          instancePath: instancePath + "/timeBudgetRemainingMinutes",
+          schemaPath: "#/properties/timeBudgetRemainingMinutes/type",
+          keyword: "type",
+          params: { type: "number" },
+          message: "must be number",
+        };
+        if (vErrors === null) {
+          vErrors = [err49];
+        } else {
+          vErrors.push(err49);
         }
         errors++;
       }
@@ -27834,7 +27924,7 @@ function validate50(
           }
         }
       } else {
-        const err46 = {
+        const err50 = {
           instancePath: instancePath + "/scopeIssues",
           schemaPath: "#/properties/scopeIssues/type",
           keyword: "type",
@@ -27842,15 +27932,15 @@ function validate50(
           message: "must be array",
         };
         if (vErrors === null) {
-          vErrors = [err46];
+          vErrors = [err50];
         } else {
-          vErrors.push(err46);
+          vErrors.push(err50);
         }
         errors++;
       }
     }
   } else {
-    const err47 = {
+    const err51 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -27858,9 +27948,9 @@ function validate50(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err47];
+      vErrors = [err51];
     } else {
-      vErrors.push(err47);
+      vErrors.push(err51);
     }
     errors++;
   }
@@ -60066,50 +60156,48 @@ function validate141(
       let data36 = data.reviewDiffByPr;
       if (data36 && typeof data36 == "object" && !Array.isArray(data36)) {
         for (const key11 in data36) {
-          if (typeof data36[key11] !== "string") {
-            const err31 = {
-              instancePath:
-                instancePath + "/reviewDiffByPr/" + key11.replace(/~/g, "~0").replace(/\//g, "~1"),
-              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
-              keyword: "type",
-              params: { type: "string" },
-              message: "must be string",
+          const _errs67 = errors;
+          if (typeof key11 === "string") {
+            if (!pattern29.test(key11)) {
+              const err31 = {
+                instancePath: instancePath + "/reviewDiffByPr",
+                schemaPath: "#/properties/reviewDiffByPr/propertyNames/pattern",
+                keyword: "pattern",
+                params: { pattern: "^[1-9][0-9]*$" },
+                message: 'must match pattern "' + "^[1-9][0-9]*$" + '"',
+                propertyName: key11,
+              };
+              if (vErrors === null) {
+                vErrors = [err31];
+              } else {
+                vErrors.push(err31);
+              }
+              errors++;
+            }
+          }
+          var valid35 = _errs67 === errors;
+          if (!valid35) {
+            const err32 = {
+              instancePath: instancePath + "/reviewDiffByPr",
+              schemaPath: "#/properties/reviewDiffByPr/propertyNames",
+              keyword: "propertyNames",
+              params: { propertyName: key11 },
+              message: "property name must be valid",
             };
             if (vErrors === null) {
-              vErrors = [err31];
+              vErrors = [err32];
             } else {
-              vErrors.push(err31);
+              vErrors.push(err32);
             }
             errors++;
           }
         }
-      } else {
-        const err32 = {
-          instancePath: instancePath + "/reviewDiffByPr",
-          schemaPath: "#/properties/reviewDiffByPr/type",
-          keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
-        };
-        if (vErrors === null) {
-          vErrors = [err32];
-        } else {
-          vErrors.push(err32);
-        }
-        errors++;
-      }
-    }
-    if (data.continuationByPr !== undefined) {
-      let data38 = data.continuationByPr;
-      if (data38 && typeof data38 == "object" && !Array.isArray(data38)) {
-        for (const key12 in data38) {
-          if (typeof data38[key12] !== "string") {
+        for (const key12 in data36) {
+          if (typeof data36[key12] !== "string") {
             const err33 = {
               instancePath:
-                instancePath +
-                "/continuationByPr/" +
-                key12.replace(/~/g, "~0").replace(/\//g, "~1"),
-              schemaPath: "#/properties/continuationByPr/additionalProperties/type",
+                instancePath + "/reviewDiffByPr/" + key12.replace(/~/g, "~0").replace(/\//g, "~1"),
+              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
               keyword: "type",
               params: { type: "string" },
               message: "must be string",
@@ -60124,8 +60212,8 @@ function validate141(
         }
       } else {
         const err34 = {
-          instancePath: instancePath + "/continuationByPr",
-          schemaPath: "#/properties/continuationByPr/type",
+          instancePath: instancePath + "/reviewDiffByPr",
+          schemaPath: "#/properties/reviewDiffByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -60138,38 +60226,37 @@ function validate141(
         errors++;
       }
     }
-    if (data.readyStatePromotionOptions !== undefined) {
-      let data40 = data.readyStatePromotionOptions;
-      if (data40 && typeof data40 == "object" && !Array.isArray(data40)) {
-        for (const key13 in data40) {
-          if (
-            !(key13 === "requestedReadyStatePromotion" || key13 === "requestedLinearBacklogReview")
-          ) {
-            const err35 = {
-              instancePath: instancePath + "/readyStatePromotionOptions",
-              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
-              keyword: "additionalProperties",
-              params: { additionalProperty: key13 },
-              message: "must NOT have additional properties",
-            };
-            if (vErrors === null) {
-              vErrors = [err35];
-            } else {
-              vErrors.push(err35);
+    if (data.continuationByPr !== undefined) {
+      let data38 = data.continuationByPr;
+      if (data38 && typeof data38 == "object" && !Array.isArray(data38)) {
+        for (const key13 in data38) {
+          const _errs73 = errors;
+          if (typeof key13 === "string") {
+            if (!pattern29.test(key13)) {
+              const err35 = {
+                instancePath: instancePath + "/continuationByPr",
+                schemaPath: "#/properties/continuationByPr/propertyNames/pattern",
+                keyword: "pattern",
+                params: { pattern: "^[1-9][0-9]*$" },
+                message: 'must match pattern "' + "^[1-9][0-9]*$" + '"',
+                propertyName: key13,
+              };
+              if (vErrors === null) {
+                vErrors = [err35];
+              } else {
+                vErrors.push(err35);
+              }
+              errors++;
             }
-            errors++;
           }
-        }
-        if (data40.requestedReadyStatePromotion !== undefined) {
-          if (typeof data40.requestedReadyStatePromotion !== "boolean") {
+          var valid37 = _errs73 === errors;
+          if (!valid37) {
             const err36 = {
-              instancePath:
-                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
-              schemaPath:
-                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
-              keyword: "type",
-              params: { type: "boolean" },
-              message: "must be boolean",
+              instancePath: instancePath + "/continuationByPr",
+              schemaPath: "#/properties/continuationByPr/propertyNames",
+              keyword: "propertyNames",
+              params: { propertyName: key13 },
+              message: "property name must be valid",
             };
             if (vErrors === null) {
               vErrors = [err36];
@@ -60179,16 +60266,17 @@ function validate141(
             errors++;
           }
         }
-        if (data40.requestedLinearBacklogReview !== undefined) {
-          if (typeof data40.requestedLinearBacklogReview !== "boolean") {
+        for (const key14 in data38) {
+          if (typeof data38[key14] !== "string") {
             const err37 = {
               instancePath:
-                instancePath + "/readyStatePromotionOptions/requestedLinearBacklogReview",
-              schemaPath:
-                "#/properties/readyStatePromotionOptions/properties/requestedLinearBacklogReview/type",
+                instancePath +
+                "/continuationByPr/" +
+                key14.replace(/~/g, "~0").replace(/\//g, "~1"),
+              schemaPath: "#/properties/continuationByPr/additionalProperties/type",
               keyword: "type",
-              params: { type: "boolean" },
-              message: "must be boolean",
+              params: { type: "string" },
+              message: "must be string",
             };
             if (vErrors === null) {
               vErrors = [err37];
@@ -60200,8 +60288,8 @@ function validate141(
         }
       } else {
         const err38 = {
-          instancePath: instancePath + "/readyStatePromotionOptions",
-          schemaPath: "#/properties/readyStatePromotionOptions/type",
+          instancePath: instancePath + "/continuationByPr",
+          schemaPath: "#/properties/continuationByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -60214,82 +60302,90 @@ function validate141(
         errors++;
       }
     }
+    if (data.readyStatePromotionOptions !== undefined) {
+      let data40 = data.readyStatePromotionOptions;
+      if (data40 && typeof data40 == "object" && !Array.isArray(data40)) {
+        for (const key15 in data40) {
+          if (
+            !(key15 === "requestedReadyStatePromotion" || key15 === "requestedLinearBacklogReview")
+          ) {
+            const err39 = {
+              instancePath: instancePath + "/readyStatePromotionOptions",
+              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
+              keyword: "additionalProperties",
+              params: { additionalProperty: key15 },
+              message: "must NOT have additional properties",
+            };
+            if (vErrors === null) {
+              vErrors = [err39];
+            } else {
+              vErrors.push(err39);
+            }
+            errors++;
+          }
+        }
+        if (data40.requestedReadyStatePromotion !== undefined) {
+          if (typeof data40.requestedReadyStatePromotion !== "boolean") {
+            const err40 = {
+              instancePath:
+                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
+              schemaPath:
+                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
+              keyword: "type",
+              params: { type: "boolean" },
+              message: "must be boolean",
+            };
+            if (vErrors === null) {
+              vErrors = [err40];
+            } else {
+              vErrors.push(err40);
+            }
+            errors++;
+          }
+        }
+        if (data40.requestedLinearBacklogReview !== undefined) {
+          if (typeof data40.requestedLinearBacklogReview !== "boolean") {
+            const err41 = {
+              instancePath:
+                instancePath + "/readyStatePromotionOptions/requestedLinearBacklogReview",
+              schemaPath:
+                "#/properties/readyStatePromotionOptions/properties/requestedLinearBacklogReview/type",
+              keyword: "type",
+              params: { type: "boolean" },
+              message: "must be boolean",
+            };
+            if (vErrors === null) {
+              vErrors = [err41];
+            } else {
+              vErrors.push(err41);
+            }
+            errors++;
+          }
+        }
+      } else {
+        const err42 = {
+          instancePath: instancePath + "/readyStatePromotionOptions",
+          schemaPath: "#/properties/readyStatePromotionOptions/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err42];
+        } else {
+          vErrors.push(err42);
+        }
+        errors++;
+      }
+    }
     if (data.activeSignalExpected !== undefined) {
       if (typeof data.activeSignalExpected !== "boolean") {
-        const err39 = {
+        const err43 = {
           instancePath: instancePath + "/activeSignalExpected",
           schemaPath: "#/properties/activeSignalExpected/type",
           keyword: "type",
           params: { type: "boolean" },
           message: "must be boolean",
-        };
-        if (vErrors === null) {
-          vErrors = [err39];
-        } else {
-          vErrors.push(err39);
-        }
-        errors++;
-      }
-    }
-    if (data.localBudgetUsagePercent !== undefined) {
-      let data44 = data.localBudgetUsagePercent;
-      if (typeof data44 == "number" && isFinite(data44)) {
-        if (data44 < 0 || isNaN(data44)) {
-          const err40 = {
-            instancePath: instancePath + "/localBudgetUsagePercent",
-            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
-            keyword: "minimum",
-            params: { comparison: ">=", limit: 0 },
-            message: "must be >= 0",
-          };
-          if (vErrors === null) {
-            vErrors = [err40];
-          } else {
-            vErrors.push(err40);
-          }
-          errors++;
-        }
-      } else {
-        const err41 = {
-          instancePath: instancePath + "/localBudgetUsagePercent",
-          schemaPath: "#/properties/localBudgetUsagePercent/type",
-          keyword: "type",
-          params: { type: "number" },
-          message: "must be number",
-        };
-        if (vErrors === null) {
-          vErrors = [err41];
-        } else {
-          vErrors.push(err41);
-        }
-        errors++;
-      }
-    }
-    if (data.tokenBudgetRemaining !== undefined) {
-      let data45 = data.tokenBudgetRemaining;
-      if (typeof data45 == "number" && isFinite(data45)) {
-        if (data45 < 0 || isNaN(data45)) {
-          const err42 = {
-            instancePath: instancePath + "/tokenBudgetRemaining",
-            schemaPath: "#/properties/tokenBudgetRemaining/minimum",
-            keyword: "minimum",
-            params: { comparison: ">=", limit: 0 },
-            message: "must be >= 0",
-          };
-          if (vErrors === null) {
-            vErrors = [err42];
-          } else {
-            vErrors.push(err42);
-          }
-          errors++;
-        }
-      } else {
-        const err43 = {
-          instancePath: instancePath + "/tokenBudgetRemaining",
-          schemaPath: "#/properties/tokenBudgetRemaining/type",
-          keyword: "type",
-          params: { type: "number" },
-          message: "must be number",
         };
         if (vErrors === null) {
           vErrors = [err43];
@@ -60299,13 +60395,13 @@ function validate141(
         errors++;
       }
     }
-    if (data.timeBudgetRemainingMinutes !== undefined) {
-      let data46 = data.timeBudgetRemainingMinutes;
-      if (typeof data46 == "number" && isFinite(data46)) {
-        if (data46 < 0 || isNaN(data46)) {
+    if (data.localBudgetUsagePercent !== undefined) {
+      let data44 = data.localBudgetUsagePercent;
+      if (typeof data44 == "number" && isFinite(data44)) {
+        if (data44 < 0 || isNaN(data44)) {
           const err44 = {
-            instancePath: instancePath + "/timeBudgetRemainingMinutes",
-            schemaPath: "#/properties/timeBudgetRemainingMinutes/minimum",
+            instancePath: instancePath + "/localBudgetUsagePercent",
+            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
             keyword: "minimum",
             params: { comparison: ">=", limit: 0 },
             message: "must be >= 0",
@@ -60319,8 +60415,8 @@ function validate141(
         }
       } else {
         const err45 = {
-          instancePath: instancePath + "/timeBudgetRemainingMinutes",
-          schemaPath: "#/properties/timeBudgetRemainingMinutes/type",
+          instancePath: instancePath + "/localBudgetUsagePercent",
+          schemaPath: "#/properties/localBudgetUsagePercent/type",
           keyword: "type",
           params: { type: "number" },
           message: "must be number",
@@ -60329,6 +60425,74 @@ function validate141(
           vErrors = [err45];
         } else {
           vErrors.push(err45);
+        }
+        errors++;
+      }
+    }
+    if (data.tokenBudgetRemaining !== undefined) {
+      let data45 = data.tokenBudgetRemaining;
+      if (typeof data45 == "number" && isFinite(data45)) {
+        if (data45 < 0 || isNaN(data45)) {
+          const err46 = {
+            instancePath: instancePath + "/tokenBudgetRemaining",
+            schemaPath: "#/properties/tokenBudgetRemaining/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err46];
+          } else {
+            vErrors.push(err46);
+          }
+          errors++;
+        }
+      } else {
+        const err47 = {
+          instancePath: instancePath + "/tokenBudgetRemaining",
+          schemaPath: "#/properties/tokenBudgetRemaining/type",
+          keyword: "type",
+          params: { type: "number" },
+          message: "must be number",
+        };
+        if (vErrors === null) {
+          vErrors = [err47];
+        } else {
+          vErrors.push(err47);
+        }
+        errors++;
+      }
+    }
+    if (data.timeBudgetRemainingMinutes !== undefined) {
+      let data46 = data.timeBudgetRemainingMinutes;
+      if (typeof data46 == "number" && isFinite(data46)) {
+        if (data46 < 0 || isNaN(data46)) {
+          const err48 = {
+            instancePath: instancePath + "/timeBudgetRemainingMinutes",
+            schemaPath: "#/properties/timeBudgetRemainingMinutes/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err48];
+          } else {
+            vErrors.push(err48);
+          }
+          errors++;
+        }
+      } else {
+        const err49 = {
+          instancePath: instancePath + "/timeBudgetRemainingMinutes",
+          schemaPath: "#/properties/timeBudgetRemainingMinutes/type",
+          keyword: "type",
+          params: { type: "number" },
+          message: "must be number",
+        };
+        if (vErrors === null) {
+          vErrors = [err49];
+        } else {
+          vErrors.push(err49);
         }
         errors++;
       }
@@ -60351,7 +60515,7 @@ function validate141(
           }
         }
       } else {
-        const err46 = {
+        const err50 = {
           instancePath: instancePath + "/scopeIssues",
           schemaPath: "#/properties/scopeIssues/type",
           keyword: "type",
@@ -60359,15 +60523,15 @@ function validate141(
           message: "must be array",
         };
         if (vErrors === null) {
-          vErrors = [err46];
+          vErrors = [err50];
         } else {
-          vErrors.push(err46);
+          vErrors.push(err50);
         }
         errors++;
       }
     }
   } else {
-    const err47 = {
+    const err51 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -60375,9 +60539,9 @@ function validate141(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err47];
+      vErrors = [err51];
     } else {
-      vErrors.push(err47);
+      vErrors.push(err51);
     }
     errors++;
   }

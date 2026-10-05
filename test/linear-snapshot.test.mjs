@@ -828,10 +828,36 @@ test("a dual-field reference fetches the missing alias for a key-only tracker re
 });
 
 test("malformed referenced lookup responses are provider failures rather than missing records", async () => {
+  for (const response of [
+    { data: {} },
+    undefined,
+    { data: { issue: false } },
+    { data: { issue: undefined } },
+  ]) {
+    const request = async ({ query }) => {
+      if (query.includes("teams(first"))
+        return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+      if (query.includes("issue(id:")) return response;
+      return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
+    };
+    await assert.rejects(
+      loadLinearSnapshot({
+        request,
+        selector: "SPL",
+        issueRefs: [{ issueKey: "SPL-2" }],
+        issueRefPaths: ["state/scopeIssues/0"],
+      }),
+      /state\/scopeIssues\/0:.*(?:no issue field|malformed issue record)/,
+    );
+  }
+});
+
+test("referenced request failures name their source path and redact provider text", async () => {
+  const privateMarker = "provider-private-response-marker";
   const request = async ({ query }) => {
     if (query.includes("teams(first"))
       return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
-    if (query.includes("issue(id:")) return { data: {} };
+    if (query.includes("issue(id:")) throw new Error(privateMarker);
     return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
   };
   await assert.rejects(
@@ -839,8 +865,14 @@ test("malformed referenced lookup responses are provider failures rather than mi
       request,
       selector: "SPL",
       issueRefs: [{ issueKey: "SPL-2" }],
-      issueRefPaths: ["state/scopeIssues/0"],
+      issueRefPaths: ["--state/workers/1"],
     }),
-    /state\/scopeIssues\/0:.*no issue field/,
+    (error) => {
+      assert.match(error.message, /--state\/workers\/1: referenced Linear issue lookup failed/);
+      assert.match(error.message, /tracker connection or access/);
+      assert.equal(error.message.includes(privateMarker), false);
+      assert.equal(error.cause, undefined);
+      return true;
+    },
   );
 });

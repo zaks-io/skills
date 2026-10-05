@@ -280,6 +280,41 @@ test("legacy review-evidence PR targets parse numbers and URLs without emitting 
   }
 });
 
+test("an unrelated legacy preview override cannot relax inline canonical worker lifecycle validation", (t) => {
+  const input = {
+    snapshot: { ...snapshot, v: 3 },
+    state: { dispatches: [{ sessionId: "inline-session", state: "running", returned: true }] },
+  };
+  const state = { previews: [{ id: "legacy-preview", state: "active" }] };
+  for (const args of [[], ["--debug"]])
+    rejected(
+      run(t, input, { state, args }),
+      /state\/dispatches\/0.*contradictory worker lifecycle/,
+    );
+});
+
+for (const field of ["reviewDiffByPr", "continuationByPr"]) {
+  test(`an external empty state file cannot legalize inline canonical ${field} alias keys`, (t) => {
+    const pr = {
+      number: 12,
+      headSha: "inline-head",
+      headRefName: "feature/inline",
+      url: "https://github.com/zaks-io/example/pull/12",
+    };
+    for (const alias of [pr.headSha, pr.headRefName, pr.url]) {
+      const input = {
+        snapshot: { ...snapshot, v: 3, prs: [pr] },
+        state: { [field]: { [alias]: field === "reviewDiffByPr" ? "same-diff" : "repair-worker" } },
+      };
+      for (const args of [[], ["--debug"]])
+        rejected(
+          run(t, input, { state: {}, args }),
+          new RegExp(`state/${field}.*(?:unknown|ambiguous|pattern)`),
+        );
+    }
+  });
+}
+
 test("planner rejects missing and unknown CLI options and empty input", (t) => {
   for (const args of [["--config"], ["--state"], ["--confg", "file.json"], ["--config="]]) {
     rejected(run(t, snapshot, { args }), /invalid arguments|expected a file path/);

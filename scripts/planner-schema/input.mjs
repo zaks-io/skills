@@ -171,6 +171,14 @@ export const canonicalState = {
     ),
     worktrees: array("worktree"),
     previews: array("preview"),
+    reviewDiffByPr: {
+      ...state.properties.reviewDiffByPr,
+      propertyNames: { pattern: "^[1-9][0-9]*$" },
+    },
+    continuationByPr: {
+      ...state.properties.continuationByPr,
+      propertyNames: { pattern: "^[1-9][0-9]*$" },
+    },
   },
 };
 export const canonicalInput = {
