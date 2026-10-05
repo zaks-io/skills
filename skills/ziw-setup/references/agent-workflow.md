@@ -263,9 +263,9 @@ For issue-assigned delegation:
   state instead of staying in Linear Backlog because blockers remain.
 - The issue needs the repo routing label or metadata the integration uses to
   choose the preconfigured environment, when the repo requires one.
-- The issue needs the configured repo-route label (such as `<org>/<repo>`) so the
-  assigned agent can resolve which repository to clone. A missing repo-route
-  label is a hard block on delegation: heal it inline when the tracker team maps
+- All repository-scoped dispatch requires the configured repo-route label
+  (such as `<org>/<repo>`). Issue-assigned agents also use it to resolve which
+  repository to clone. A missing label blocks dispatch: repair it when the team maps
   unambiguously to one repo, otherwise escalate `needs-info`.
 - Agent Orchestrator starts work by assigning the selected tracker-exposed agent.
 - The assigned agent executes the ticket in its configured environment and
@@ -337,7 +337,8 @@ and writes the systems of record:
 - claim records: configured issue tracker fields, assignments, labels, and
   comments
 - review evidence labels: configured issue tracker labels plus adjacent comments
-  or fields that record PR URL and reviewed head SHA
+  or fields that record PR URL, reviewed head SHA, diff fingerprint, explicit
+  verdict, and completed independent reviewer identity/count
 - code-host human-merge PR label: configured GitHub or code-host label for PRs
   that are merge-ready except for required human merge authority
 - branch and PR state: configured code host

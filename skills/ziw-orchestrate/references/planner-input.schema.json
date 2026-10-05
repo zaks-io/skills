@@ -26,7 +26,22 @@
       "properties": {
         "skipped": { "type": ["string", "null"] },
         "issues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
-        "activeIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } }
+        "activeIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+        "issueMetadata": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+        "unroutedIssueIds": { "type": "array", "items": { "type": "string" } },
+        "candidateIssueIds": { "type": "array", "items": { "type": "string" } },
+        "statesFilter": { "type": "array", "items": { "type": "string" } },
+        "activeScope": {
+          "type": "object",
+          "properties": { "routeLabel": { "type": ["string", "null"] } }
+        },
+        "candidateScope": {
+          "type": "object",
+          "properties": {
+            "routeLabel": { "type": ["string", "null"] },
+            "states": { "type": "array", "items": { "type": "string" } }
+          }
+        }
       }
     },
     "usage": { "type": "object" },
@@ -1463,6 +1478,7 @@
           "type": "array",
           "items": { "$ref": "#/definitions/startableTicket" }
         },
+        "scopeIssueIds": { "type": "array", "items": { "type": "string", "pattern": "\\S" } },
         "dispatches": { "type": "array", "items": { "$ref": "#/definitions/work" } },
         "ledgerDispatches": { "type": "array", "items": { "$ref": "#/definitions/work" } },
         "activeWork": { "type": "array", "items": { "$ref": "#/definitions/work" } },
@@ -1534,7 +1550,22 @@
           "properties": {
             "skipped": { "type": ["string", "null"] },
             "issues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
-            "activeIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } }
+            "activeIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+            "issueMetadata": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+            "unroutedIssueIds": { "type": "array", "items": { "type": "string" } },
+            "candidateIssueIds": { "type": "array", "items": { "type": "string" } },
+            "statesFilter": { "type": "array", "items": { "type": "string" } },
+            "activeScope": {
+              "type": "object",
+              "properties": { "routeLabel": { "type": ["string", "null"] } }
+            },
+            "candidateScope": {
+              "type": "object",
+              "properties": {
+                "routeLabel": { "type": ["string", "null"] },
+                "states": { "type": "array", "items": { "type": "string" } }
+              }
+            }
           }
         },
         "usage": { "type": "object" }

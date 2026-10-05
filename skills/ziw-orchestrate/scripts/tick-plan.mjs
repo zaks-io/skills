@@ -21,12 +21,14 @@
 import { createHash } from "node:crypto";
 
 import { loadPlannerInput } from "./planner-input.mjs";
-import { reconcileActiveDelivery } from "./active-dispatches.mjs";
+import { issuesWithDeliveryEvidence, reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
+import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
 import {
   activeDeliveryFootprint,
   capacityDecision,
   dispatchSelectionDecision,
+  hasCompletedIndependentReview,
   hostedReviewEscalationDecision,
   humanMergePrLabelDecision,
   mergeEligibilityDecision,
@@ -106,6 +108,15 @@ const evidenceForPr = (state, pr) => {
     .map((key) => String(key ?? "").trim())
     .filter(Boolean);
   const explicit = Object.assign({}, ...keys.map((key) => byPr[key] ?? {}));
+  const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
+  const reviewedFingerprint =
+    explicit.reviewedDiffFingerprint ?? explicit.reviewedReviewDiffFingerprint;
+  const currentRevisionVerdict =
+    currentFingerprint &&
+    normalize(currentFingerprint) === normalize(reviewedFingerprint) &&
+    ["needs revision", "do not merge"].includes(
+      normalize(explicit.reviewVerdict ?? explicit.codeReviewVerdict),
+    );
   const currentApprovals = Object.values(pr.latestReviews ?? {}).filter(
     (review) =>
       normalize(review.state) === "approved" &&
@@ -118,26 +129,43 @@ const evidenceForPr = (state, pr) => {
           independentReviewCount: currentApprovals.length,
           reviewEvidenceCurrent: true,
           reviewedHeadSha: pr.headSha,
+          reviewedDiffFingerprint: currentFingerprint,
+          reviewedReviewDiffFingerprint: currentFingerprint,
           reviewVerdict: "Ready to Merge",
+          changesRequested: Boolean(explicit.changesRequested || currentRevisionVerdict),
         }
       : {};
   if (currentApprovals.length > 0) return { ...explicit, ...githubEvidence };
 
-  const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
-  const reviewedFingerprint =
-    explicit.reviewedDiffFingerprint ?? explicit.reviewRelevantDiffFingerprint;
-  if (currentFingerprint && normalize(currentFingerprint) === normalize(reviewedFingerprint)) {
+  if (
+    currentFingerprint &&
+    reviewedFingerprint &&
+    normalize(currentFingerprint) !== normalize(reviewedFingerprint)
+  ) {
     return {
       ...explicit,
-      hasReviewEvidence: true,
-      independentReviewCount: Math.max(Number(explicit.independentReviewCount) || 0, 1),
+      reviewEvidenceCurrent: false,
+      hasReviewEvidence: false,
       reviewDiffFingerprint: currentFingerprint,
-      reviewedDiffFingerprint: reviewedFingerprint,
-      reviewedHeadSha: pr.headSha,
-      reviewVerdict: explicit.reviewVerdict ?? "Ready to Merge",
     };
   }
-  return explicit;
+  if (currentFingerprint && normalize(currentFingerprint) === normalize(reviewedFingerprint)) {
+    const completed = hasCompletedIndependentReview(explicit);
+    return {
+      ...explicit,
+      hasReviewEvidence: completed,
+      reviewEvidenceCurrent: completed,
+      reviewDiffFingerprint: currentFingerprint,
+      reviewedDiffFingerprint: reviewedFingerprint,
+      ...(completed ? { reviewedHeadSha: pr.headSha } : {}),
+    };
+  }
+  return {
+    ...explicit,
+    hasReviewEvidence: hasCompletedIndependentReview(explicit),
+    reviewEvidenceCurrent:
+      hasCompletedIndependentReview(explicit) && explicit.reviewEvidenceCurrent === true,
+  };
 };
 
 const reviewDiffFingerprintForPr = (state, pr) =>
@@ -424,22 +452,59 @@ const prDisposition = (state, config, pr) => {
 };
 
 const initialPullRequests = mergePrLists(snapshot.prs, state.pullRequests);
+const scope = linearDispatchScope(snapshot, state);
 const delivery = reconcileActiveDelivery({
-  snapshot,
-  state,
+  snapshot: {
+    ...snapshot,
+    linear: {
+      ...snapshot.linear,
+      issues: toArray(snapshot.linear?.issues).filter(scope.matchesReservation),
+      activeIssues: toArray(snapshot.linear?.activeIssues).filter(scope.matchesReservation),
+    },
+  },
+  state: {
+    ...state,
+    ...(state.tickets == null ? {} : { tickets: state.tickets.filter(scope.matchesReservation) }),
+    ...(state.linearIssues == null
+      ? {}
+      : { linearIssues: state.linearIssues.filter(scope.matchesReservation) }),
+    startableTickets: toArray(state.startableTickets).filter(scope.matchesReservation),
+    activeLinearIssues: toArray(state.activeLinearIssues).filter(scope.matchesReservation),
+  },
   pullRequests: initialPullRequests,
+  issuesForPrMetadata: [
+    ...toArray(snapshot.linear?.issueMetadata),
+    ...toArray(snapshot.linear?.issues),
+    ...toArray(snapshot.linear?.activeIssues),
+    ...toArray(state.tickets ?? state.linearIssues),
+  ],
 });
 const pullRequests = delivery.pullRequests;
+const actionPullRequests =
+  state.scopeIssueIds == null
+    ? pullRequests
+    : pullRequests.filter((pr) =>
+        issuesWithDeliveryEvidence(
+          state.scopeIssueIds.map((identifier) => ({ identifier })),
+          { pullRequests: [pr] },
+        ).some((issue) => issue.openPr),
+      );
 const activeDispatches = delivery.dispatches;
 const linearQueried =
   (snapshot.linear?.skipped == null && Array.isArray(snapshot.linear?.issues)) ||
   state.tickets != null ||
   state.linearIssues != null;
-const linearIssues = extractLinearIssues({
-  snapshot,
-  state: { tickets: state.tickets ?? state.linearIssues },
-});
-const linearDag = linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null;
+const linearIssues = issuesWithDeliveryEvidence(
+  extractLinearIssues({
+    snapshot,
+    state: { tickets: state.tickets ?? state.linearIssues },
+  }),
+  { pullRequests, dispatches: activeDispatches },
+);
+const linearDag = restrictLinearDag(
+  linearIssues.length > 0 ? linearDagStart(linearIssues, config) : null,
+  scope,
+);
 const linearNodesById = new Map((linearDag?.nodes ?? []).map((node) => [node.id, node]));
 const downstreamCount = (rootId) => {
   const seen = new Set();
@@ -467,11 +532,28 @@ const linearStartableTickets =
       footprint: node.footprint,
       unlockCount: downstreamCount(node.id),
     })) ?? [];
-const explicitStartableTickets = toArray(state.startableTickets);
+const issueById = new Map(
+  linearIssues.map((issue) => [normalize(issue.identifier ?? issue.id ?? issue.key), issue]),
+);
+const explicitStartableTickets = issuesWithDeliveryEvidence(
+  toArray(state.startableTickets).map((ticket) => ({
+    ...issueById.get(normalize(ticket.id ?? ticket.identifier)),
+    ...ticket,
+  })),
+  { pullRequests, dispatches: activeDispatches },
+);
+const excludedCandidates = [];
 const startableTicketsById = new Map(linearStartableTickets.map((ticket) => [ticket.id, ticket]));
 for (const ticket of explicitStartableTickets) {
   const id = ticket.id ?? ticket.identifier;
   if (!id) continue;
+  if (!scope.matchesCandidate(ticket) || ticket.activeClaim || ticket.openPr) {
+    excludedCandidates.push({
+      target: `ticket:${id}`,
+      reason: scope.matchesCandidate(ticket) ? "DELIVERY_ALREADY_ACTIVE" : "OUT_OF_SCOPE",
+    });
+    continue;
+  }
   startableTicketsById.set(id, { ...(startableTicketsById.get(id) ?? {}), ...ticket, id });
 }
 const planningState = {
@@ -483,28 +565,40 @@ const planningState = {
   startableTickets: [...startableTicketsById.values()],
 };
 
-const readyStatePromotions = toArray(state.tickets ?? snapshot.linear?.issues).map((ticket) => ({
-  ticket: ticket.id ?? ticket.identifier ?? ticket.url,
-  ...readyStatePromotionDecision(ticket, config, state.readyStatePromotionOptions ?? {}),
-}));
+const readyStatePromotions = toArray(state.tickets ?? snapshot.linear?.issues)
+  .filter(scope.matchesCandidate)
+  .map((ticket) => ({
+    ticket: ticket.id ?? ticket.identifier ?? ticket.url,
+    ...readyStatePromotionDecision(ticket, config, state.readyStatePromotionOptions ?? {}),
+  }));
 
-const reviewEvidence = toArray(state.reviewEvidenceChecks).map((evidence) => ({
-  target: evidence.pr ?? evidence.ticket ?? evidence.currentPrHeadSha,
-  actionTarget:
-    evidence.pr != null
-      ? `pr:${evidence.pr}`
-      : evidence.ticket != null
-        ? `ticket:${evidence.ticket}`
-        : null,
-  ...reviewEvidenceDecision(evidence),
-}));
+const reviewEvidence = toArray(state.reviewEvidenceChecks)
+  .filter(
+    (evidence) =>
+      state.scopeIssueIds == null ||
+      (evidence.ticket != null
+        ? state.scopeIssueIds.some((id) => normalize(id) === normalize(evidence.ticket))
+        : actionPullRequests.some((pr) =>
+            [pr.number, pr.id, pr.url].some((key) => normalize(key) === normalize(evidence.pr)),
+          )),
+  )
+  .map((evidence) => ({
+    target: evidence.pr ?? evidence.ticket ?? evidence.currentPrHeadSha,
+    actionTarget:
+      evidence.pr != null
+        ? `pr:${evidence.pr}`
+        : evidence.ticket != null
+          ? `ticket:${evidence.ticket}`
+          : null,
+    ...reviewEvidenceDecision(evidence),
+  }));
 
-const hostedReviews = pullRequests
+const hostedReviews = actionPullRequests
   .map((pr) => hostedReviewDecisionForPr(state, config, pr))
   .filter(Boolean);
 const capacity = capacityDecision(planningState, config);
 const dispatch = dispatchSelectionDecision(planningState, config);
-const humanMergeLabels = pullRequests.map((pr) => humanMergeDecisionForPr(state, config, pr));
+const humanMergeLabels = actionPullRequests.map((pr) => humanMergeDecisionForPr(state, config, pr));
 const trackerStateUpdates = toArray(dispatch.selected).map((ticket) => ({
   ticket: ticket.id,
   targetState: config.inProgressState ?? "In Progress",
@@ -515,10 +609,38 @@ const selectedDispatches = dispatch.selected?.length ?? 0;
 const dispatchActions = [];
 const prActions = [];
 const waits = [];
-const holds = [];
+const holds = [...excludedCandidates];
 const warnings = [];
 
-for (const pr of pullRequests) {
+for (const reservation of activeDispatches.filter((item) => item.occupiesWorkerSlot === false)) {
+  const id = reservation.issueId ?? reservation.id;
+  if (
+    state.scopeIssueIds != null &&
+    !state.scopeIssueIds.some((key) => normalize(key) === normalize(id))
+  )
+    continue;
+  if (holds.some((hold) => hold.target === `ticket:${id}`)) continue;
+  holds.push({
+    target: `ticket:${id}`,
+    reason: "DELIVERY_ALREADY_ACTIVE",
+    source: reservation.source,
+  });
+}
+
+for (const node of linearDag?.nodes ?? []) {
+  if (!scope.matchesCandidate(node) || (!node.activeClaim && !node.openPr)) continue;
+  if (holds.some((hold) => hold.target === `ticket:${node.id}`)) continue;
+  holds.push({
+    target: `ticket:${node.id}`,
+    reason: "DELIVERY_ALREADY_ACTIVE",
+    source:
+      activeDispatches.find(
+        (dispatch) => normalize(dispatch.issueId ?? dispatch.id) === normalize(node.id),
+      )?.source ?? "open-pr-or-claim",
+  });
+}
+
+for (const pr of actionPullRequests) {
   const disposition = prDisposition(state, config, pr);
   ({ actions: prActions, waits, holds })[disposition.bucket].push(disposition.value);
 }
@@ -535,11 +657,12 @@ for (const ticket of dispatch.selected ?? []) {
     target: `ticket:${ticket.id}`,
     kind: "dispatch",
     owner:
-      ticket.worker === "remote"
+      ticket.workerPath ??
+      (ticket.worker === "remote"
         ? (config.remoteWorkerPath ?? "remote-worker")
         : ticket.worker === "local"
           ? (config.localWorkerPath ?? "local-worker")
-          : (config.defaultWorkerPath ?? "implementation-worker"),
+          : (config.defaultWorkerPath ?? "implementation-worker")),
     reason: "STARTABLE",
     targetState: config.inProgressState ?? "In Progress",
   });
@@ -594,6 +717,12 @@ const labelActions = [
 const actions = [...dispatchActions, ...labelActions, ...prActions];
 
 if (!linearQueried) warnings.push({ reason: "TRACKER_STATE_MISSING" });
+if (toArray(snapshot.linear?.unroutedIssueIds).length > 0) {
+  warnings.push({
+    reason: "UNROUTED_TRACKER_ISSUES",
+    count: snapshot.linear.unroutedIssueIds.length,
+  });
+}
 const wakeState =
   actions.length > 0
     ? "act-now"

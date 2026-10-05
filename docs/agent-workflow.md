@@ -106,10 +106,15 @@ and is always reconciled against the tracker and code host.
 
 Capacity reconciliation synthesizes missing dispatches from active tracker
 claims in the repo route-label domain and from dirty or baseline-unmerged local
-worktrees. It retains worktrees without issue keys by branch or head identity,
+worktrees. Started tracker work reserves files without inventing agent sessions.
+It retains worktrees without issue keys by branch or worktree identity,
 uses merged-PR head evidence for squash merges, ignores completed clean
 worktrees, and deduplicates all of that evidence against open PRs before planning
 new starts.
+Conflicting session or issue identities stay separate even at the same commit.
+Open PR and live claim evidence prevents another dispatch for the same ticket.
+Scoped candidate IDs are distinct from dependency records, and repository,
+requested state, and requested ticket-set boundaries survive planner merging.
 
 The friction intake is retrospective and is intentionally not a system of
 record for delivery decisions. All workflow roles file complaints in the
@@ -154,6 +159,9 @@ instruction handling.
 `skills/ziw-orchestrate/scripts/tick-snapshot.mjs` gathers compact code-host
 state for a tick. `skills/ziw-orchestrate/scripts/linear-graphql.mjs` provides a
 small macOS encrypted credential wrapper for batch Linear GraphQL reads.
+Setup checks platform support before input, hides terminal and readline echo,
+and replaces ciphertext atomically using a unique Keychain account. Failed
+replacement preserves the previous usable credential pair.
 `skills/ziw-orchestrate/scripts/tick-plan.mjs` turns compact snapshot, config,
 and queue JSON into deterministic next-action decisions. The orchestrator should
 use those scripts instead of re-reading PR lists, draft state, check rollups, and
@@ -239,12 +247,15 @@ ready-for-review PR is non-draft.
 The configured review evidence label, such as `code-review-passed`, is not a
 workflow status. It means the linked PR's review-relevant diff passed the
 configured code review gate. Record the PR URL, reviewed head SHA, and diff
-fingerprint. A new commit clears it only when that review-relevant diff changes.
+fingerprint, explicit verdict, and completed independent reviewer identity/count.
+A new commit clears it only when that review-relevant diff changes.
 The bundled snapshot defines that fingerprint as SHA-256 over the sorted changed
 file records: status, current path, previous path, Git blob SHA, additions,
 deletions, and total changes. Snapshot adapters must emit an equivalent
 content-sensitive fingerprint or omit it and fail closed. A head SHA is only a
 backward-compatible request key, not proof that review evidence is current.
+Matching fingerprints preserve completed clean reviews; they never create a
+verdict or a review count.
 
 The configured code-host human-merge PR label, such as `needs-human-merge`, is
 a merge-ready signal. Apply it only to open non-draft PRs that are ready to merge
@@ -492,13 +503,14 @@ move to the ready state during requested Linear Backlog review or backfill.
 Dependencies, blocker relationships, and active blocked states gate whether
 Orchestrator may start or delegate the work; Linear Backlog does not.
 
-Before assigning issue-assigned work, Orchestrator must verify the issue is
+Before dispatching tracker work, Orchestrator must verify the issue is
 implementation-ready and unblocked using tracker status, labels, provider blocker
 relationships, body blockers, existing claims, and open PR state. It must also
 verify the configured repo-route label (such as `<org>/<repo>`) is present, since
-the assigned agent needs it to resolve which repository to clone; a missing
-repo-route label is a hard block on delegation, healed inline when the team maps
-unambiguously to one repo or escalated as `needs-info` otherwise. It must not
+repository-scoped snapshots require an exact route match. A missing
+repo-route label blocks dispatch; repair it inline when the team maps
+unambiguously to one repo or escalate `needs-info` otherwise. Issue-assigned
+agents also use this label to resolve which repository to clone. Orchestrator must not
 mutate a real issue to discover whether a delegation field or agent name works.
 If the user explicitly chooses issue-assigned agents and an implementation-ready
 issue is missing only the configured worker environment metadata, Orchestrator

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   extractLinearFootprint,
   loadLinearSnapshot,
+  linearIssueMatchesRoute,
   resolveLinearTeam,
   selectActiveLinearIssues,
   selectScopedLinearIssues,
@@ -193,6 +194,8 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
     ["SPL-1", "SPL-2"],
   );
   assert.deepEqual(snapshot.activeIssues, []);
+  assert.deepEqual(snapshot.candidateIssueIds, ["SPL-1"]);
+  assert.deepEqual(snapshot.candidateScope, { routeLabel: null, states: ["Todo"] });
   assert.deepEqual(snapshot.issues[0].footprint, ["apps/api/src/index.ts"]);
 });
 
@@ -301,6 +304,125 @@ test("selectScopedLinearIssues does not silently expand beyond direct blockers",
   );
 });
 
+test("linearIssueMatchesRoute accepts exact case-insensitive names and never prefix routes", () => {
+  assert.equal(linearIssueMatchesRoute({ labels: "zaks-io/splitch" }, "zaks-io/splitch"), true);
+  assert.equal(
+    linearIssueMatchesRoute({ labels: { name: "zaks-io/splitch" } }, "zaks-io/splitch"),
+    true,
+  );
+  assert.equal(linearIssueMatchesRoute({ labels: [" ZAKS-IO/SPLITCH "] }, "zaks-io/splitch"), true);
+  assert.equal(
+    linearIssueMatchesRoute({ labels: [{ name: "zaks-io/splitch" }] }, "zaks-io/splitch"),
+    true,
+  );
+  assert.equal(
+    linearIssueMatchesRoute({ labels: ["zaks-io/splitch-other"] }, "zaks-io/splitch"),
+    false,
+  );
+  assert.equal(linearIssueMatchesRoute({ labels: [] }, "zaks-io/splitch"), false);
+  assert.equal(linearIssueMatchesRoute({ labels: [] }), true);
+});
+
+test("loadLinearSnapshot restricts candidates by route and state while retaining direct blockers", async () => {
+  const route = "zaks-io/splitch";
+  const request = async ({ query }) => {
+    if (query.includes("teams(first")) {
+      return { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } };
+    }
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false },
+          nodes: [
+            issue({ identifier: "SPL-1", labels: [route], blockedBy: "SPL-2" }),
+            issue({ identifier: "SPL-2", labels: ["zaks-io/other"] }),
+            issue({ identifier: "SPL-3", labels: ["zaks-io/other"] }),
+            issue({ identifier: "SPL-4", labels: [route], state: "Backlog" }),
+            issue({ identifier: "SPL-5" }),
+            issue({
+              identifier: "SPL-6",
+              labels: [route],
+              state: "In Progress",
+              blockedBy: "SPL-7",
+            }),
+            issue({ identifier: "SPL-7", labels: [route] }),
+          ],
+        },
+      },
+    };
+  };
+  const snapshot = await loadLinearSnapshot({
+    request,
+    selector: "SPL",
+    states: ["Todo"],
+    routeLabel: route,
+  });
+  assert.deepEqual(snapshot.candidateIssueIds, ["SPL-1", "SPL-7"]);
+  assert.deepEqual(snapshot.candidateScope, { routeLabel: route, states: ["Todo"] });
+  assert.deepEqual(snapshot.unroutedIssueIds, ["SPL-5"]);
+  assert.deepEqual(snapshot.issueMetadata, [
+    { identifier: "SPL-1", labels: [route] },
+    { identifier: "SPL-2", labels: ["zaks-io/other"] },
+    { identifier: "SPL-3", labels: ["zaks-io/other"] },
+    { identifier: "SPL-4", labels: [route] },
+    { identifier: "SPL-5", labels: ["kind-slice", "ready-for-agent"] },
+    { identifier: "SPL-6", labels: [route] },
+    { identifier: "SPL-7", labels: [route] },
+  ]);
+  assert.deepEqual(
+    snapshot.issues.map((item) => item.identifier),
+    ["SPL-1", "SPL-2", "SPL-7"],
+  );
+  assert.deepEqual(
+    snapshot.activeIssues.map((item) => item.identifier),
+    ["SPL-6", "SPL-7"],
+  );
+});
+
+test("loadLinearSnapshot emits no configured-route candidates when all route labels are missing", async () => {
+  const request = async ({ query }) =>
+    query.includes("teams(first")
+      ? { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } }
+      : {
+          data: {
+            issues: { pageInfo: { hasNextPage: false }, nodes: [issue({ identifier: "SPL-1" })] },
+          },
+        };
+  const snapshot = await loadLinearSnapshot({
+    request,
+    selector: "SPL",
+    routeLabel: "zaks-io/splitch",
+  });
+  assert.deepEqual(snapshot.candidateIssueIds, []);
+  assert.deepEqual(snapshot.unroutedIssueIds, ["SPL-1"]);
+  assert.deepEqual(snapshot.issues, []);
+  assert.deepEqual(snapshot.activeIssues, []);
+});
+
+test("requested states do not make an otherwise dispatchable direct blocker a candidate", async () => {
+  const request = async ({ query }) =>
+    query.includes("teams(first")
+      ? { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } }
+      : {
+          data: {
+            issues: {
+              pageInfo: { hasNextPage: false },
+              nodes: [
+                issue({ identifier: "SPL-1", state: "In Progress", blockedBy: "SPL-2" }),
+                issue({ identifier: "SPL-2", state: "Todo" }),
+              ],
+            },
+          },
+        };
+  const snapshot = await loadLinearSnapshot({ request, selector: "SPL", states: ["In Progress"] });
+  assert.deepEqual(
+    snapshot.issues.map((item) => item.identifier),
+    ["SPL-1", "SPL-2"],
+  );
+  assert.deepEqual(snapshot.candidateIssueIds, ["SPL-1"]);
+  assert.deepEqual(snapshot.unroutedIssueIds, []);
+});
+
 test("selectActiveLinearIssues scopes active claims to the repo route label", () => {
   const issues = [
     normalizedIssue({ identifier: "SPL-1", labels: ["zaks-io/splitch"], workerSession: "bc-1" }),
@@ -353,7 +475,7 @@ test("selectActiveLinearIssues includes only direct blockers of routed active cl
   );
 });
 
-test("selectActiveLinearIssues falls back to team scope when route labels are unused", () => {
+test("selectActiveLinearIssues never falls back when a configured route is unused", () => {
   const issues = [
     normalizedIssue({ identifier: "SPL-1", labels: ["kind-slice"], workerSession: "bc-1" }),
     normalizedIssue({ identifier: "SPL-2", labels: ["kind-slice"], assignee: "Isaac" }),
@@ -361,7 +483,7 @@ test("selectActiveLinearIssues falls back to team scope when route labels are un
 
   assert.deepEqual(
     selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
-    ["SPL-1"],
+    [],
   );
 });
 
@@ -445,6 +567,7 @@ function normalizedIssue({
 function issue({
   identifier,
   state = "Todo",
+  labels = ["kind-slice", "ready-for-agent"],
   description = "",
   blockedBy,
   blockerState = "started",
@@ -459,9 +582,9 @@ function issue({
     updatedAt: "2026-07-17T00:00:00.000Z",
     state: {
       name: state,
-      type: ["Todo", "Backlog", "Triage"].includes(state) ? "unstarted" : "started",
+      type: { Todo: "unstarted", Backlog: "backlog", Triage: "triage" }[state] ?? "started",
     },
-    labels: { nodes: [{ name: "kind-slice" }, { name: "ready-for-agent" }] },
+    labels: { nodes: labels.map((name) => ({ name })) },
     assignee: null,
     inverseRelations: {
       pageInfo: { hasNextPage: false },
@@ -489,3 +612,27 @@ function relationsIssue(identifier, type, canonical) {
     },
   };
 }
+
+test("default unrouted warnings exclude intake and parked work but requested states remain visible", async () => {
+  const request = async ({ query }) =>
+    query.includes("teams(first")
+      ? { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } }
+      : {
+          data: {
+            issues: {
+              pageInfo: { hasNextPage: false },
+              nodes: [
+                issue({ identifier: "SPL-1", state: "Todo" }),
+                issue({ identifier: "SPL-2", state: "Triage" }),
+                issue({ identifier: "SPL-3", state: "Backlog" }),
+                issue({ identifier: "SPL-4", state: "In Progress" }),
+              ],
+            },
+          },
+        };
+  const base = { request, selector: "SPL", routeLabel: "zaks-io/splitch" };
+  assert.deepEqual((await loadLinearSnapshot(base)).unroutedIssueIds, ["SPL-1"]);
+  assert.deepEqual((await loadLinearSnapshot({ ...base, states: ["Backlog"] })).unroutedIssueIds, [
+    "SPL-3",
+  ]);
+});

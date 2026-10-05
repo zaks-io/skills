@@ -88,7 +88,7 @@ cache them here.
   - `ready-for-human`: human planning, review, approval, security judgment, or setup is required
 - Readiness-label query policy: exclude `Done` unless explicitly auditing Done cleanup
 - Worker environment policy: local-worktree only; issue-assigned remote delegation disabled
-- Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, complete body with explicit non-goals, configured required estimate when enabled, no active blockers, no active claim or open PR; issue-assigned work also requires `zaks-io/skills` route label and verified worker path
+- Startable work criteria: `kind-slice`, `Todo`, `ready-for-agent`, complete body with explicit non-goals, configured required estimate when enabled, `zaks-io/skills` route label, no active blockers, no active claim or open PR; issue-assigned work also requires a verified worker path
 - Done cleanup: remove `ready-for-agent` when moving an issue to `Done`
 - Agent suitability policy: default agent work includes docs, tests, CI/lint updates, small local refactors, scoped bugs with reproduction, and isolated skill wording changes; human planning required for auth, secrets, PII, payments, production, destructive data, broad refactors, cross-repo work, unclear workflow policy, or performance work without benchmarks
 - Kind labels: `kind-spec`, `kind-epic`, `kind-slice`

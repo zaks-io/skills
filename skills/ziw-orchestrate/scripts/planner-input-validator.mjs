@@ -30,6 +30,18 @@ const schema6 = {
         skipped: { type: ["string", "null"] },
         issues: { type: "array", items: { $ref: "#/definitions/issue" } },
         activeIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
+        issueMetadata: { type: "array", items: { $ref: "#/definitions/issue" } },
+        unroutedIssueIds: { type: "array", items: { type: "string" } },
+        candidateIssueIds: { type: "array", items: { type: "string" } },
+        statesFilter: { type: "array", items: { type: "string" } },
+        activeScope: { type: "object", properties: { routeLabel: { type: ["string", "null"] } } },
+        candidateScope: {
+          type: "object",
+          properties: {
+            routeLabel: { type: ["string", "null"] },
+            states: { type: "array", items: { type: "string" } },
+          },
+        },
       },
     },
     usage: { type: "object" },
@@ -1388,6 +1400,7 @@ const schema6 = {
         linearIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
         activeLinearIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
         startableTickets: { type: "array", items: { $ref: "#/definitions/startableTicket" } },
+        scopeIssueIds: { type: "array", items: { type: "string", pattern: "\\S" } },
         dispatches: { type: "array", items: { $ref: "#/definitions/work" } },
         ledgerDispatches: { type: "array", items: { $ref: "#/definitions/work" } },
         activeWork: { type: "array", items: { $ref: "#/definitions/work" } },
@@ -1460,6 +1473,21 @@ const schema6 = {
             skipped: { type: ["string", "null"] },
             issues: { type: "array", items: { $ref: "#/definitions/issue" } },
             activeIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
+            issueMetadata: { type: "array", items: { $ref: "#/definitions/issue" } },
+            unroutedIssueIds: { type: "array", items: { type: "string" } },
+            candidateIssueIds: { type: "array", items: { type: "string" } },
+            statesFilter: { type: "array", items: { type: "string" } },
+            activeScope: {
+              type: "object",
+              properties: { routeLabel: { type: ["string", "null"] } },
+            },
+            candidateScope: {
+              type: "object",
+              properties: {
+                routeLabel: { type: ["string", "null"] },
+                states: { type: "array", items: { type: "string" } },
+              },
+            },
           },
         },
         usage: { type: "object" },
@@ -14459,12 +14487,24 @@ const schema11 = {
         skipped: { type: ["string", "null"] },
         issues: { type: "array", items: { $ref: "#/definitions/issue" } },
         activeIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
+        issueMetadata: { type: "array", items: { $ref: "#/definitions/issue" } },
+        unroutedIssueIds: { type: "array", items: { type: "string" } },
+        candidateIssueIds: { type: "array", items: { type: "string" } },
+        statesFilter: { type: "array", items: { type: "string" } },
+        activeScope: { type: "object", properties: { routeLabel: { type: ["string", "null"] } } },
+        candidateScope: {
+          type: "object",
+          properties: {
+            routeLabel: { type: ["string", "null"] },
+            states: { type: "array", items: { type: "string" } },
+          },
+        },
       },
     },
     usage: { type: "object" },
   },
 };
-function validate33(
+function validate34(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -14848,8 +14888,273 @@ function validate33(
             errors++;
           }
         }
+        if (data14.issueMetadata !== undefined) {
+          let data20 = data14.issueMetadata;
+          if (Array.isArray(data20)) {
+            const len4 = data20.length;
+            for (let i4 = 0; i4 < len4; i4++) {
+              if (
+                !validate30(data20[i4], {
+                  instancePath: instancePath + "/linear/issueMetadata/" + i4,
+                  parentData: data20,
+                  parentDataProperty: i4,
+                  rootData,
+                })
+              ) {
+                vErrors = vErrors === null ? validate30.errors : vErrors.concat(validate30.errors);
+                errors = vErrors.length;
+              }
+            }
+          } else {
+            const err17 = {
+              instancePath: instancePath + "/linear/issueMetadata",
+              schemaPath: "#/properties/linear/properties/issueMetadata/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err17];
+            } else {
+              vErrors.push(err17);
+            }
+            errors++;
+          }
+        }
+        if (data14.unroutedIssueIds !== undefined) {
+          let data22 = data14.unroutedIssueIds;
+          if (Array.isArray(data22)) {
+            const len5 = data22.length;
+            for (let i5 = 0; i5 < len5; i5++) {
+              if (typeof data22[i5] !== "string") {
+                const err18 = {
+                  instancePath: instancePath + "/linear/unroutedIssueIds/" + i5,
+                  schemaPath: "#/properties/linear/properties/unroutedIssueIds/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err18];
+                } else {
+                  vErrors.push(err18);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err19 = {
+              instancePath: instancePath + "/linear/unroutedIssueIds",
+              schemaPath: "#/properties/linear/properties/unroutedIssueIds/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err19];
+            } else {
+              vErrors.push(err19);
+            }
+            errors++;
+          }
+        }
+        if (data14.candidateIssueIds !== undefined) {
+          let data24 = data14.candidateIssueIds;
+          if (Array.isArray(data24)) {
+            const len6 = data24.length;
+            for (let i6 = 0; i6 < len6; i6++) {
+              if (typeof data24[i6] !== "string") {
+                const err20 = {
+                  instancePath: instancePath + "/linear/candidateIssueIds/" + i6,
+                  schemaPath: "#/properties/linear/properties/candidateIssueIds/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err20];
+                } else {
+                  vErrors.push(err20);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err21 = {
+              instancePath: instancePath + "/linear/candidateIssueIds",
+              schemaPath: "#/properties/linear/properties/candidateIssueIds/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err21];
+            } else {
+              vErrors.push(err21);
+            }
+            errors++;
+          }
+        }
+        if (data14.statesFilter !== undefined) {
+          let data26 = data14.statesFilter;
+          if (Array.isArray(data26)) {
+            const len7 = data26.length;
+            for (let i7 = 0; i7 < len7; i7++) {
+              if (typeof data26[i7] !== "string") {
+                const err22 = {
+                  instancePath: instancePath + "/linear/statesFilter/" + i7,
+                  schemaPath: "#/properties/linear/properties/statesFilter/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err22];
+                } else {
+                  vErrors.push(err22);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err23 = {
+              instancePath: instancePath + "/linear/statesFilter",
+              schemaPath: "#/properties/linear/properties/statesFilter/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err23];
+            } else {
+              vErrors.push(err23);
+            }
+            errors++;
+          }
+        }
+        if (data14.activeScope !== undefined) {
+          let data28 = data14.activeScope;
+          if (data28 && typeof data28 == "object" && !Array.isArray(data28)) {
+            if (data28.routeLabel !== undefined) {
+              let data29 = data28.routeLabel;
+              if (typeof data29 !== "string" && data29 !== null) {
+                const err24 = {
+                  instancePath: instancePath + "/linear/activeScope/routeLabel",
+                  schemaPath:
+                    "#/properties/linear/properties/activeScope/properties/routeLabel/type",
+                  keyword: "type",
+                  params: {
+                    type: schema11.properties.linear.properties.activeScope.properties.routeLabel
+                      .type,
+                  },
+                  message: "must be string,null",
+                };
+                if (vErrors === null) {
+                  vErrors = [err24];
+                } else {
+                  vErrors.push(err24);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err25 = {
+              instancePath: instancePath + "/linear/activeScope",
+              schemaPath: "#/properties/linear/properties/activeScope/type",
+              keyword: "type",
+              params: { type: "object" },
+              message: "must be object",
+            };
+            if (vErrors === null) {
+              vErrors = [err25];
+            } else {
+              vErrors.push(err25);
+            }
+            errors++;
+          }
+        }
+        if (data14.candidateScope !== undefined) {
+          let data30 = data14.candidateScope;
+          if (data30 && typeof data30 == "object" && !Array.isArray(data30)) {
+            if (data30.routeLabel !== undefined) {
+              let data31 = data30.routeLabel;
+              if (typeof data31 !== "string" && data31 !== null) {
+                const err26 = {
+                  instancePath: instancePath + "/linear/candidateScope/routeLabel",
+                  schemaPath:
+                    "#/properties/linear/properties/candidateScope/properties/routeLabel/type",
+                  keyword: "type",
+                  params: {
+                    type: schema11.properties.linear.properties.candidateScope.properties.routeLabel
+                      .type,
+                  },
+                  message: "must be string,null",
+                };
+                if (vErrors === null) {
+                  vErrors = [err26];
+                } else {
+                  vErrors.push(err26);
+                }
+                errors++;
+              }
+            }
+            if (data30.states !== undefined) {
+              let data32 = data30.states;
+              if (Array.isArray(data32)) {
+                const len8 = data32.length;
+                for (let i8 = 0; i8 < len8; i8++) {
+                  if (typeof data32[i8] !== "string") {
+                    const err27 = {
+                      instancePath: instancePath + "/linear/candidateScope/states/" + i8,
+                      schemaPath:
+                        "#/properties/linear/properties/candidateScope/properties/states/items/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err27];
+                    } else {
+                      vErrors.push(err27);
+                    }
+                    errors++;
+                  }
+                }
+              } else {
+                const err28 = {
+                  instancePath: instancePath + "/linear/candidateScope/states",
+                  schemaPath:
+                    "#/properties/linear/properties/candidateScope/properties/states/type",
+                  keyword: "type",
+                  params: { type: "array" },
+                  message: "must be array",
+                };
+                if (vErrors === null) {
+                  vErrors = [err28];
+                } else {
+                  vErrors.push(err28);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err29 = {
+              instancePath: instancePath + "/linear/candidateScope",
+              schemaPath: "#/properties/linear/properties/candidateScope/type",
+              keyword: "type",
+              params: { type: "object" },
+              message: "must be object",
+            };
+            if (vErrors === null) {
+              vErrors = [err29];
+            } else {
+              vErrors.push(err29);
+            }
+            errors++;
+          }
+        }
       } else {
-        const err17 = {
+        const err30 = {
           instancePath: instancePath + "/linear",
           schemaPath: "#/properties/linear/type",
           keyword: "type",
@@ -14857,17 +15162,17 @@ function validate33(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err17];
+          vErrors = [err30];
         } else {
-          vErrors.push(err17);
+          vErrors.push(err30);
         }
         errors++;
       }
     }
     if (data.usage !== undefined) {
-      let data20 = data.usage;
-      if (!(data20 && typeof data20 == "object" && !Array.isArray(data20))) {
-        const err18 = {
+      let data34 = data.usage;
+      if (!(data34 && typeof data34 == "object" && !Array.isArray(data34))) {
+        const err31 = {
           instancePath: instancePath + "/usage",
           schemaPath: "#/properties/usage/type",
           keyword: "type",
@@ -14875,15 +15180,15 @@ function validate33(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err18];
+          vErrors = [err31];
         } else {
-          vErrors.push(err18);
+          vErrors.push(err31);
         }
         errors++;
       }
     }
   } else {
-    const err19 = {
+    const err32 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -14891,13 +15196,13 @@ function validate33(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err19];
+      vErrors = [err32];
     } else {
-      vErrors.push(err19);
+      vErrors.push(err32);
     }
     errors++;
   }
-  validate33.errors = vErrors;
+  validate34.errors = vErrors;
   return errors === 0;
 }
 const schema12 = {
@@ -15032,7 +15337,7 @@ const schema12 = {
     },
   },
 };
-function validate40(
+function validate42(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -18020,7 +18325,7 @@ function validate40(
     }
     errors++;
   }
-  validate40.errors = vErrors;
+  validate42.errors = vErrors;
   return errors === 0;
 }
 const schema13 = {
@@ -18033,6 +18338,7 @@ const schema13 = {
     linearIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
     activeLinearIssues: { type: "array", items: { $ref: "#/definitions/issue" } },
     startableTickets: { type: "array", items: { $ref: "#/definitions/startableTicket" } },
+    scopeIssueIds: { type: "array", items: { type: "string", pattern: "\\S" } },
     dispatches: { type: "array", items: { $ref: "#/definitions/work" } },
     ledgerDispatches: { type: "array", items: { $ref: "#/definitions/work" } },
     activeWork: { type: "array", items: { $ref: "#/definitions/work" } },
@@ -18109,7 +18415,7 @@ const schema14 = {
     },
   ],
 };
-function validate47(
+function validate49(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -18603,7 +18909,7 @@ function validate47(
     }
     errors++;
   }
-  validate47.errors = vErrors;
+  validate49.errors = vErrors;
   return errors === 0;
 }
 const schema15 = {
@@ -18773,7 +19079,7 @@ const schema15 = {
     },
   },
 };
-function validate56(
+function validate58(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -21503,7 +21809,7 @@ function validate56(
     }
     errors++;
   }
-  validate56.errors = vErrors;
+  validate58.errors = vErrors;
   return errors === 0;
 }
 const schema16 = {
@@ -21709,7 +22015,7 @@ const schema16 = {
     },
   ],
 };
-function validate62(
+function validate64(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -24907,10 +25213,10 @@ function validate62(
     }
     errors++;
   }
-  validate62.errors = vErrors;
+  validate64.errors = vErrors;
   return errors === 0;
 }
-function validate42(
+function validate44(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -25106,14 +25412,14 @@ function validate42(
         const len4 = data9.length;
         for (let i4 = 0; i4 < len4; i4++) {
           if (
-            !validate47(data9[i4], {
+            !validate49(data9[i4], {
               instancePath: instancePath + "/startableTickets/" + i4,
               parentData: data9,
               parentDataProperty: i4,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate47.errors : vErrors.concat(validate47.errors);
+            vErrors = vErrors === null ? validate49.errors : vErrors.concat(validate49.errors);
             errors = vErrors.length;
           }
         }
@@ -25133,93 +25439,48 @@ function validate42(
         errors++;
       }
     }
-    if (data.dispatches !== undefined) {
-      let data11 = data.dispatches;
+    if (data.scopeIssueIds !== undefined) {
+      let data11 = data.scopeIssueIds;
       if (Array.isArray(data11)) {
         const len5 = data11.length;
         for (let i5 = 0; i5 < len5; i5++) {
-          if (
-            !validate28(data11[i5], {
-              instancePath: instancePath + "/dispatches/" + i5,
-              parentData: data11,
-              parentDataProperty: i5,
-              rootData,
-            })
-          ) {
-            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
-            errors = vErrors.length;
-          }
-        }
-      } else {
-        const err8 = {
-          instancePath: instancePath + "/dispatches",
-          schemaPath: "#/properties/dispatches/type",
-          keyword: "type",
-          params: { type: "array" },
-          message: "must be array",
-        };
-        if (vErrors === null) {
-          vErrors = [err8];
-        } else {
-          vErrors.push(err8);
-        }
-        errors++;
-      }
-    }
-    if (data.ledgerDispatches !== undefined) {
-      let data13 = data.ledgerDispatches;
-      if (Array.isArray(data13)) {
-        const len6 = data13.length;
-        for (let i6 = 0; i6 < len6; i6++) {
-          if (
-            !validate28(data13[i6], {
-              instancePath: instancePath + "/ledgerDispatches/" + i6,
-              parentData: data13,
-              parentDataProperty: i6,
-              rootData,
-            })
-          ) {
-            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
-            errors = vErrors.length;
-          }
-        }
-      } else {
-        const err9 = {
-          instancePath: instancePath + "/ledgerDispatches",
-          schemaPath: "#/properties/ledgerDispatches/type",
-          keyword: "type",
-          params: { type: "array" },
-          message: "must be array",
-        };
-        if (vErrors === null) {
-          vErrors = [err9];
-        } else {
-          vErrors.push(err9);
-        }
-        errors++;
-      }
-    }
-    if (data.activeWork !== undefined) {
-      let data15 = data.activeWork;
-      if (Array.isArray(data15)) {
-        const len7 = data15.length;
-        for (let i7 = 0; i7 < len7; i7++) {
-          if (
-            !validate28(data15[i7], {
-              instancePath: instancePath + "/activeWork/" + i7,
-              parentData: data15,
-              parentDataProperty: i7,
-              rootData,
-            })
-          ) {
-            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
-            errors = vErrors.length;
+          let data12 = data11[i5];
+          if (typeof data12 === "string") {
+            if (!pattern1.test(data12)) {
+              const err8 = {
+                instancePath: instancePath + "/scopeIssueIds/" + i5,
+                schemaPath: "#/properties/scopeIssueIds/items/pattern",
+                keyword: "pattern",
+                params: { pattern: "\\S" },
+                message: 'must match pattern "' + "\\S" + '"',
+              };
+              if (vErrors === null) {
+                vErrors = [err8];
+              } else {
+                vErrors.push(err8);
+              }
+              errors++;
+            }
+          } else {
+            const err9 = {
+              instancePath: instancePath + "/scopeIssueIds/" + i5,
+              schemaPath: "#/properties/scopeIssueIds/items/type",
+              keyword: "type",
+              params: { type: "string" },
+              message: "must be string",
+            };
+            if (vErrors === null) {
+              vErrors = [err9];
+            } else {
+              vErrors.push(err9);
+            }
+            errors++;
           }
         }
       } else {
         const err10 = {
-          instancePath: instancePath + "/activeWork",
-          schemaPath: "#/properties/activeWork/type",
+          instancePath: instancePath + "/scopeIssueIds",
+          schemaPath: "#/properties/scopeIssueIds/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -25232,16 +25493,16 @@ function validate42(
         errors++;
       }
     }
-    if (data.workers !== undefined) {
-      let data17 = data.workers;
-      if (Array.isArray(data17)) {
-        const len8 = data17.length;
-        for (let i8 = 0; i8 < len8; i8++) {
+    if (data.dispatches !== undefined) {
+      let data13 = data.dispatches;
+      if (Array.isArray(data13)) {
+        const len6 = data13.length;
+        for (let i6 = 0; i6 < len6; i6++) {
           if (
-            !validate28(data17[i8], {
-              instancePath: instancePath + "/workers/" + i8,
-              parentData: data17,
-              parentDataProperty: i8,
+            !validate28(data13[i6], {
+              instancePath: instancePath + "/dispatches/" + i6,
+              parentData: data13,
+              parentDataProperty: i6,
               rootData,
             })
           ) {
@@ -25251,8 +25512,8 @@ function validate42(
         }
       } else {
         const err11 = {
-          instancePath: instancePath + "/workers",
-          schemaPath: "#/properties/workers/type",
+          instancePath: instancePath + "/dispatches",
+          schemaPath: "#/properties/dispatches/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -25265,16 +25526,16 @@ function validate42(
         errors++;
       }
     }
-    if (data.worktrees !== undefined) {
-      let data19 = data.worktrees;
-      if (Array.isArray(data19)) {
-        const len9 = data19.length;
-        for (let i9 = 0; i9 < len9; i9++) {
+    if (data.ledgerDispatches !== undefined) {
+      let data15 = data.ledgerDispatches;
+      if (Array.isArray(data15)) {
+        const len7 = data15.length;
+        for (let i7 = 0; i7 < len7; i7++) {
           if (
-            !validate28(data19[i9], {
-              instancePath: instancePath + "/worktrees/" + i9,
-              parentData: data19,
-              parentDataProperty: i9,
+            !validate28(data15[i7], {
+              instancePath: instancePath + "/ledgerDispatches/" + i7,
+              parentData: data15,
+              parentDataProperty: i7,
               rootData,
             })
           ) {
@@ -25284,8 +25545,8 @@ function validate42(
         }
       } else {
         const err12 = {
-          instancePath: instancePath + "/worktrees",
-          schemaPath: "#/properties/worktrees/type",
+          instancePath: instancePath + "/ledgerDispatches",
+          schemaPath: "#/properties/ledgerDispatches/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -25298,16 +25559,16 @@ function validate42(
         errors++;
       }
     }
-    if (data.previews !== undefined) {
-      let data21 = data.previews;
-      if (Array.isArray(data21)) {
-        const len10 = data21.length;
-        for (let i10 = 0; i10 < len10; i10++) {
+    if (data.activeWork !== undefined) {
+      let data17 = data.activeWork;
+      if (Array.isArray(data17)) {
+        const len8 = data17.length;
+        for (let i8 = 0; i8 < len8; i8++) {
           if (
-            !validate28(data21[i10], {
-              instancePath: instancePath + "/previews/" + i10,
-              parentData: data21,
-              parentDataProperty: i10,
+            !validate28(data17[i8], {
+              instancePath: instancePath + "/activeWork/" + i8,
+              parentData: data17,
+              parentDataProperty: i8,
               rootData,
             })
           ) {
@@ -25317,8 +25578,8 @@ function validate42(
         }
       } else {
         const err13 = {
-          instancePath: instancePath + "/previews",
-          schemaPath: "#/properties/previews/type",
+          instancePath: instancePath + "/activeWork",
+          schemaPath: "#/properties/activeWork/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -25331,32 +25592,30 @@ function validate42(
         errors++;
       }
     }
-    if (data.reviewEvidenceByPr !== undefined) {
-      let data23 = data.reviewEvidenceByPr;
-      if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
-        for (const key1 in data23) {
+    if (data.workers !== undefined) {
+      let data19 = data.workers;
+      if (Array.isArray(data19)) {
+        const len9 = data19.length;
+        for (let i9 = 0; i9 < len9; i9++) {
           if (
-            !validate56(data23[key1], {
-              instancePath:
-                instancePath +
-                "/reviewEvidenceByPr/" +
-                key1.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data23,
-              parentDataProperty: key1,
+            !validate28(data19[i9], {
+              instancePath: instancePath + "/workers/" + i9,
+              parentData: data19,
+              parentDataProperty: i9,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err14 = {
-          instancePath: instancePath + "/reviewEvidenceByPr",
-          schemaPath: "#/properties/reviewEvidenceByPr/type",
+          instancePath: instancePath + "/workers",
+          schemaPath: "#/properties/workers/type",
           keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
+          params: { type: "array" },
+          message: "must be array",
         };
         if (vErrors === null) {
           vErrors = [err14];
@@ -25366,30 +25625,30 @@ function validate42(
         errors++;
       }
     }
-    if (data.reviewEvidence !== undefined) {
-      let data25 = data.reviewEvidence;
-      if (data25 && typeof data25 == "object" && !Array.isArray(data25)) {
-        for (const key2 in data25) {
+    if (data.worktrees !== undefined) {
+      let data21 = data.worktrees;
+      if (Array.isArray(data21)) {
+        const len10 = data21.length;
+        for (let i10 = 0; i10 < len10; i10++) {
           if (
-            !validate56(data25[key2], {
-              instancePath:
-                instancePath + "/reviewEvidence/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data25,
-              parentDataProperty: key2,
+            !validate28(data21[i10], {
+              instancePath: instancePath + "/worktrees/" + i10,
+              parentData: data21,
+              parentDataProperty: i10,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err15 = {
-          instancePath: instancePath + "/reviewEvidence",
-          schemaPath: "#/properties/reviewEvidence/type",
+          instancePath: instancePath + "/worktrees",
+          schemaPath: "#/properties/worktrees/type",
           keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
+          params: { type: "array" },
+          message: "must be array",
         };
         if (vErrors === null) {
           vErrors = [err15];
@@ -25399,30 +25658,30 @@ function validate42(
         errors++;
       }
     }
-    if (data.hostedReviewByPr !== undefined) {
-      let data27 = data.hostedReviewByPr;
-      if (data27 && typeof data27 == "object" && !Array.isArray(data27)) {
-        for (const key3 in data27) {
+    if (data.previews !== undefined) {
+      let data23 = data.previews;
+      if (Array.isArray(data23)) {
+        const len11 = data23.length;
+        for (let i11 = 0; i11 < len11; i11++) {
           if (
-            !validate56(data27[key3], {
-              instancePath:
-                instancePath + "/hostedReviewByPr/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data27,
-              parentDataProperty: key3,
+            !validate28(data23[i11], {
+              instancePath: instancePath + "/previews/" + i11,
+              parentData: data23,
+              parentDataProperty: i11,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err16 = {
-          instancePath: instancePath + "/hostedReviewByPr",
-          schemaPath: "#/properties/hostedReviewByPr/type",
+          instancePath: instancePath + "/previews",
+          schemaPath: "#/properties/previews/type",
           keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
+          params: { type: "array" },
+          message: "must be array",
         };
         if (vErrors === null) {
           vErrors = [err16];
@@ -25432,29 +25691,29 @@ function validate42(
         errors++;
       }
     }
-    if (data.reviewRequestsByPr !== undefined) {
-      let data29 = data.reviewRequestsByPr;
-      if (data29 && typeof data29 == "object" && !Array.isArray(data29)) {
-        for (const key4 in data29) {
+    if (data.reviewEvidenceByPr !== undefined) {
+      let data25 = data.reviewEvidenceByPr;
+      if (data25 && typeof data25 == "object" && !Array.isArray(data25)) {
+        for (const key1 in data25) {
           if (
-            !validate56(data29[key4], {
+            !validate58(data25[key1], {
               instancePath:
                 instancePath +
-                "/reviewRequestsByPr/" +
-                key4.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data29,
-              parentDataProperty: key4,
+                "/reviewEvidenceByPr/" +
+                key1.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data25,
+              parentDataProperty: key1,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err17 = {
-          instancePath: instancePath + "/reviewRequestsByPr",
-          schemaPath: "#/properties/reviewRequestsByPr/type",
+          instancePath: instancePath + "/reviewEvidenceByPr",
+          schemaPath: "#/properties/reviewEvidenceByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -25467,29 +25726,27 @@ function validate42(
         errors++;
       }
     }
-    if (data.reviewRequestByPr !== undefined) {
-      let data31 = data.reviewRequestByPr;
-      if (data31 && typeof data31 == "object" && !Array.isArray(data31)) {
-        for (const key5 in data31) {
+    if (data.reviewEvidence !== undefined) {
+      let data27 = data.reviewEvidence;
+      if (data27 && typeof data27 == "object" && !Array.isArray(data27)) {
+        for (const key2 in data27) {
           if (
-            !validate56(data31[key5], {
+            !validate58(data27[key2], {
               instancePath:
-                instancePath +
-                "/reviewRequestByPr/" +
-                key5.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data31,
-              parentDataProperty: key5,
+                instancePath + "/reviewEvidence/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data27,
+              parentDataProperty: key2,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err18 = {
-          instancePath: instancePath + "/reviewRequestByPr",
-          schemaPath: "#/properties/reviewRequestByPr/type",
+          instancePath: instancePath + "/reviewEvidence",
+          schemaPath: "#/properties/reviewEvidence/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -25502,30 +25759,30 @@ function validate42(
         errors++;
       }
     }
-    if (data.reviewEvidenceChecks !== undefined) {
-      let data33 = data.reviewEvidenceChecks;
-      if (Array.isArray(data33)) {
-        const len11 = data33.length;
-        for (let i11 = 0; i11 < len11; i11++) {
+    if (data.hostedReviewByPr !== undefined) {
+      let data29 = data.hostedReviewByPr;
+      if (data29 && typeof data29 == "object" && !Array.isArray(data29)) {
+        for (const key3 in data29) {
           if (
-            !validate62(data33[i11], {
-              instancePath: instancePath + "/reviewEvidenceChecks/" + i11,
-              parentData: data33,
-              parentDataProperty: i11,
+            !validate58(data29[key3], {
+              instancePath:
+                instancePath + "/hostedReviewByPr/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data29,
+              parentDataProperty: key3,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate62.errors : vErrors.concat(validate62.errors);
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err19 = {
-          instancePath: instancePath + "/reviewEvidenceChecks",
-          schemaPath: "#/properties/reviewEvidenceChecks/type",
+          instancePath: instancePath + "/hostedReviewByPr",
+          schemaPath: "#/properties/hostedReviewByPr/type",
           keyword: "type",
-          params: { type: "array" },
-          message: "must be array",
+          params: { type: "object" },
+          message: "must be object",
         };
         if (vErrors === null) {
           vErrors = [err19];
@@ -25535,31 +25792,64 @@ function validate42(
         errors++;
       }
     }
-    if (data.reviewDiffByPr !== undefined) {
-      let data35 = data.reviewDiffByPr;
-      if (data35 && typeof data35 == "object" && !Array.isArray(data35)) {
-        for (const key6 in data35) {
-          if (typeof data35[key6] !== "string") {
-            const err20 = {
+    if (data.reviewRequestsByPr !== undefined) {
+      let data31 = data.reviewRequestsByPr;
+      if (data31 && typeof data31 == "object" && !Array.isArray(data31)) {
+        for (const key4 in data31) {
+          if (
+            !validate58(data31[key4], {
               instancePath:
-                instancePath + "/reviewDiffByPr/" + key6.replace(/~/g, "~0").replace(/\//g, "~1"),
-              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
-              keyword: "type",
-              params: { type: "string" },
-              message: "must be string",
-            };
-            if (vErrors === null) {
-              vErrors = [err20];
-            } else {
-              vErrors.push(err20);
-            }
-            errors++;
+                instancePath +
+                "/reviewRequestsByPr/" +
+                key4.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data31,
+              parentDataProperty: key4,
+              rootData,
+            })
+          ) {
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
+            errors = vErrors.length;
+          }
+        }
+      } else {
+        const err20 = {
+          instancePath: instancePath + "/reviewRequestsByPr",
+          schemaPath: "#/properties/reviewRequestsByPr/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err20];
+        } else {
+          vErrors.push(err20);
+        }
+        errors++;
+      }
+    }
+    if (data.reviewRequestByPr !== undefined) {
+      let data33 = data.reviewRequestByPr;
+      if (data33 && typeof data33 == "object" && !Array.isArray(data33)) {
+        for (const key5 in data33) {
+          if (
+            !validate58(data33[key5], {
+              instancePath:
+                instancePath +
+                "/reviewRequestByPr/" +
+                key5.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data33,
+              parentDataProperty: key5,
+              rootData,
+            })
+          ) {
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
+            errors = vErrors.length;
           }
         }
       } else {
         const err21 = {
-          instancePath: instancePath + "/reviewDiffByPr",
-          schemaPath: "#/properties/reviewDiffByPr/type",
+          instancePath: instancePath + "/reviewRequestByPr",
+          schemaPath: "#/properties/reviewRequestByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -25572,75 +25862,88 @@ function validate42(
         errors++;
       }
     }
-    if (data.continuationByPr !== undefined) {
-      let data37 = data.continuationByPr;
+    if (data.reviewEvidenceChecks !== undefined) {
+      let data35 = data.reviewEvidenceChecks;
+      if (Array.isArray(data35)) {
+        const len12 = data35.length;
+        for (let i12 = 0; i12 < len12; i12++) {
+          if (
+            !validate64(data35[i12], {
+              instancePath: instancePath + "/reviewEvidenceChecks/" + i12,
+              parentData: data35,
+              parentDataProperty: i12,
+              rootData,
+            })
+          ) {
+            vErrors = vErrors === null ? validate64.errors : vErrors.concat(validate64.errors);
+            errors = vErrors.length;
+          }
+        }
+      } else {
+        const err22 = {
+          instancePath: instancePath + "/reviewEvidenceChecks",
+          schemaPath: "#/properties/reviewEvidenceChecks/type",
+          keyword: "type",
+          params: { type: "array" },
+          message: "must be array",
+        };
+        if (vErrors === null) {
+          vErrors = [err22];
+        } else {
+          vErrors.push(err22);
+        }
+        errors++;
+      }
+    }
+    if (data.reviewDiffByPr !== undefined) {
+      let data37 = data.reviewDiffByPr;
       if (data37 && typeof data37 == "object" && !Array.isArray(data37)) {
-        for (const key7 in data37) {
-          if (typeof data37[key7] !== "string") {
-            const err22 = {
+        for (const key6 in data37) {
+          if (typeof data37[key6] !== "string") {
+            const err23 = {
+              instancePath:
+                instancePath + "/reviewDiffByPr/" + key6.replace(/~/g, "~0").replace(/\//g, "~1"),
+              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
+              keyword: "type",
+              params: { type: "string" },
+              message: "must be string",
+            };
+            if (vErrors === null) {
+              vErrors = [err23];
+            } else {
+              vErrors.push(err23);
+            }
+            errors++;
+          }
+        }
+      } else {
+        const err24 = {
+          instancePath: instancePath + "/reviewDiffByPr",
+          schemaPath: "#/properties/reviewDiffByPr/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err24];
+        } else {
+          vErrors.push(err24);
+        }
+        errors++;
+      }
+    }
+    if (data.continuationByPr !== undefined) {
+      let data39 = data.continuationByPr;
+      if (data39 && typeof data39 == "object" && !Array.isArray(data39)) {
+        for (const key7 in data39) {
+          if (typeof data39[key7] !== "string") {
+            const err25 = {
               instancePath:
                 instancePath + "/continuationByPr/" + key7.replace(/~/g, "~0").replace(/\//g, "~1"),
               schemaPath: "#/properties/continuationByPr/additionalProperties/type",
               keyword: "type",
               params: { type: "string" },
               message: "must be string",
-            };
-            if (vErrors === null) {
-              vErrors = [err22];
-            } else {
-              vErrors.push(err22);
-            }
-            errors++;
-          }
-        }
-      } else {
-        const err23 = {
-          instancePath: instancePath + "/continuationByPr",
-          schemaPath: "#/properties/continuationByPr/type",
-          keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
-        };
-        if (vErrors === null) {
-          vErrors = [err23];
-        } else {
-          vErrors.push(err23);
-        }
-        errors++;
-      }
-    }
-    if (data.readyStatePromotionOptions !== undefined) {
-      let data39 = data.readyStatePromotionOptions;
-      if (data39 && typeof data39 == "object" && !Array.isArray(data39)) {
-        for (const key8 in data39) {
-          if (
-            !(key8 === "requestedReadyStatePromotion" || key8 === "requestedLinearBacklogReview")
-          ) {
-            const err24 = {
-              instancePath: instancePath + "/readyStatePromotionOptions",
-              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
-              keyword: "additionalProperties",
-              params: { additionalProperty: key8 },
-              message: "must NOT have additional properties",
-            };
-            if (vErrors === null) {
-              vErrors = [err24];
-            } else {
-              vErrors.push(err24);
-            }
-            errors++;
-          }
-        }
-        if (data39.requestedReadyStatePromotion !== undefined) {
-          if (typeof data39.requestedReadyStatePromotion !== "boolean") {
-            const err25 = {
-              instancePath:
-                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
-              schemaPath:
-                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
-              keyword: "type",
-              params: { type: "boolean" },
-              message: "must be boolean",
             };
             if (vErrors === null) {
               vErrors = [err25];
@@ -25650,9 +25953,66 @@ function validate42(
             errors++;
           }
         }
-        if (data39.requestedLinearBacklogReview !== undefined) {
-          if (typeof data39.requestedLinearBacklogReview !== "boolean") {
-            const err26 = {
+      } else {
+        const err26 = {
+          instancePath: instancePath + "/continuationByPr",
+          schemaPath: "#/properties/continuationByPr/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err26];
+        } else {
+          vErrors.push(err26);
+        }
+        errors++;
+      }
+    }
+    if (data.readyStatePromotionOptions !== undefined) {
+      let data41 = data.readyStatePromotionOptions;
+      if (data41 && typeof data41 == "object" && !Array.isArray(data41)) {
+        for (const key8 in data41) {
+          if (
+            !(key8 === "requestedReadyStatePromotion" || key8 === "requestedLinearBacklogReview")
+          ) {
+            const err27 = {
+              instancePath: instancePath + "/readyStatePromotionOptions",
+              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
+              keyword: "additionalProperties",
+              params: { additionalProperty: key8 },
+              message: "must NOT have additional properties",
+            };
+            if (vErrors === null) {
+              vErrors = [err27];
+            } else {
+              vErrors.push(err27);
+            }
+            errors++;
+          }
+        }
+        if (data41.requestedReadyStatePromotion !== undefined) {
+          if (typeof data41.requestedReadyStatePromotion !== "boolean") {
+            const err28 = {
+              instancePath:
+                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
+              schemaPath:
+                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
+              keyword: "type",
+              params: { type: "boolean" },
+              message: "must be boolean",
+            };
+            if (vErrors === null) {
+              vErrors = [err28];
+            } else {
+              vErrors.push(err28);
+            }
+            errors++;
+          }
+        }
+        if (data41.requestedLinearBacklogReview !== undefined) {
+          if (typeof data41.requestedLinearBacklogReview !== "boolean") {
+            const err29 = {
               instancePath:
                 instancePath + "/readyStatePromotionOptions/requestedLinearBacklogReview",
               schemaPath:
@@ -25662,71 +26022,20 @@ function validate42(
               message: "must be boolean",
             };
             if (vErrors === null) {
-              vErrors = [err26];
+              vErrors = [err29];
             } else {
-              vErrors.push(err26);
+              vErrors.push(err29);
             }
             errors++;
           }
         }
       } else {
-        const err27 = {
+        const err30 = {
           instancePath: instancePath + "/readyStatePromotionOptions",
           schemaPath: "#/properties/readyStatePromotionOptions/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
-        };
-        if (vErrors === null) {
-          vErrors = [err27];
-        } else {
-          vErrors.push(err27);
-        }
-        errors++;
-      }
-    }
-    if (data.activeSignalExpected !== undefined) {
-      if (typeof data.activeSignalExpected !== "boolean") {
-        const err28 = {
-          instancePath: instancePath + "/activeSignalExpected",
-          schemaPath: "#/properties/activeSignalExpected/type",
-          keyword: "type",
-          params: { type: "boolean" },
-          message: "must be boolean",
-        };
-        if (vErrors === null) {
-          vErrors = [err28];
-        } else {
-          vErrors.push(err28);
-        }
-        errors++;
-      }
-    }
-    if (data.localBudgetUsagePercent !== undefined) {
-      let data43 = data.localBudgetUsagePercent;
-      if (typeof data43 == "number" && isFinite(data43)) {
-        if (data43 < 0 || isNaN(data43)) {
-          const err29 = {
-            instancePath: instancePath + "/localBudgetUsagePercent",
-            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
-            keyword: "minimum",
-            params: { comparison: ">=", limit: 0 },
-            message: "must be >= 0",
-          };
-          if (vErrors === null) {
-            vErrors = [err29];
-          } else {
-            vErrors.push(err29);
-          }
-          errors++;
-        }
-      } else {
-        const err30 = {
-          instancePath: instancePath + "/localBudgetUsagePercent",
-          schemaPath: "#/properties/localBudgetUsagePercent/type",
-          keyword: "type",
-          params: { type: "number" },
-          message: "must be number",
         };
         if (vErrors === null) {
           vErrors = [err30];
@@ -25736,11 +26045,62 @@ function validate42(
         errors++;
       }
     }
+    if (data.activeSignalExpected !== undefined) {
+      if (typeof data.activeSignalExpected !== "boolean") {
+        const err31 = {
+          instancePath: instancePath + "/activeSignalExpected",
+          schemaPath: "#/properties/activeSignalExpected/type",
+          keyword: "type",
+          params: { type: "boolean" },
+          message: "must be boolean",
+        };
+        if (vErrors === null) {
+          vErrors = [err31];
+        } else {
+          vErrors.push(err31);
+        }
+        errors++;
+      }
+    }
+    if (data.localBudgetUsagePercent !== undefined) {
+      let data45 = data.localBudgetUsagePercent;
+      if (typeof data45 == "number" && isFinite(data45)) {
+        if (data45 < 0 || isNaN(data45)) {
+          const err32 = {
+            instancePath: instancePath + "/localBudgetUsagePercent",
+            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err32];
+          } else {
+            vErrors.push(err32);
+          }
+          errors++;
+        }
+      } else {
+        const err33 = {
+          instancePath: instancePath + "/localBudgetUsagePercent",
+          schemaPath: "#/properties/localBudgetUsagePercent/type",
+          keyword: "type",
+          params: { type: "number" },
+          message: "must be number",
+        };
+        if (vErrors === null) {
+          vErrors = [err33];
+        } else {
+          vErrors.push(err33);
+        }
+        errors++;
+      }
+    }
     if (data.tokenBudgetRemaining !== undefined) {
-      let data44 = data.tokenBudgetRemaining;
-      if (typeof data44 == "number" && isFinite(data44)) {
-        if (data44 < 0 || isNaN(data44)) {
-          const err31 = {
+      let data46 = data.tokenBudgetRemaining;
+      if (typeof data46 == "number" && isFinite(data46)) {
+        if (data46 < 0 || isNaN(data46)) {
+          const err34 = {
             instancePath: instancePath + "/tokenBudgetRemaining",
             schemaPath: "#/properties/tokenBudgetRemaining/minimum",
             keyword: "minimum",
@@ -25748,14 +26108,14 @@ function validate42(
             message: "must be >= 0",
           };
           if (vErrors === null) {
-            vErrors = [err31];
+            vErrors = [err34];
           } else {
-            vErrors.push(err31);
+            vErrors.push(err34);
           }
           errors++;
         }
       } else {
-        const err32 = {
+        const err35 = {
           instancePath: instancePath + "/tokenBudgetRemaining",
           schemaPath: "#/properties/tokenBudgetRemaining/type",
           keyword: "type",
@@ -25763,18 +26123,18 @@ function validate42(
           message: "must be number",
         };
         if (vErrors === null) {
-          vErrors = [err32];
+          vErrors = [err35];
         } else {
-          vErrors.push(err32);
+          vErrors.push(err35);
         }
         errors++;
       }
     }
     if (data.timeBudgetRemainingMinutes !== undefined) {
-      let data45 = data.timeBudgetRemainingMinutes;
-      if (typeof data45 == "number" && isFinite(data45)) {
-        if (data45 < 0 || isNaN(data45)) {
-          const err33 = {
+      let data47 = data.timeBudgetRemainingMinutes;
+      if (typeof data47 == "number" && isFinite(data47)) {
+        if (data47 < 0 || isNaN(data47)) {
+          const err36 = {
             instancePath: instancePath + "/timeBudgetRemainingMinutes",
             schemaPath: "#/properties/timeBudgetRemainingMinutes/minimum",
             keyword: "minimum",
@@ -25782,14 +26142,14 @@ function validate42(
             message: "must be >= 0",
           };
           if (vErrors === null) {
-            vErrors = [err33];
+            vErrors = [err36];
           } else {
-            vErrors.push(err33);
+            vErrors.push(err36);
           }
           errors++;
         }
       } else {
-        const err34 = {
+        const err37 = {
           instancePath: instancePath + "/timeBudgetRemainingMinutes",
           schemaPath: "#/properties/timeBudgetRemainingMinutes/type",
           keyword: "type",
@@ -25797,15 +26157,15 @@ function validate42(
           message: "must be number",
         };
         if (vErrors === null) {
-          vErrors = [err34];
+          vErrors = [err37];
         } else {
-          vErrors.push(err34);
+          vErrors.push(err37);
         }
         errors++;
       }
     }
   } else {
-    const err35 = {
+    const err38 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -25813,13 +26173,13 @@ function validate42(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err35];
+      vErrors = [err38];
     } else {
-      vErrors.push(err35);
+      vErrors.push(err38);
     }
     errors++;
   }
-  validate42.errors = vErrors;
+  validate44.errors = vErrors;
   return errors === 0;
 }
 function validate21(
@@ -26206,8 +26566,273 @@ function validate21(
             errors++;
           }
         }
+        if (data14.issueMetadata !== undefined) {
+          let data20 = data14.issueMetadata;
+          if (Array.isArray(data20)) {
+            const len4 = data20.length;
+            for (let i4 = 0; i4 < len4; i4++) {
+              if (
+                !validate30(data20[i4], {
+                  instancePath: instancePath + "/linear/issueMetadata/" + i4,
+                  parentData: data20,
+                  parentDataProperty: i4,
+                  rootData,
+                })
+              ) {
+                vErrors = vErrors === null ? validate30.errors : vErrors.concat(validate30.errors);
+                errors = vErrors.length;
+              }
+            }
+          } else {
+            const err17 = {
+              instancePath: instancePath + "/linear/issueMetadata",
+              schemaPath: "#/properties/linear/properties/issueMetadata/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err17];
+            } else {
+              vErrors.push(err17);
+            }
+            errors++;
+          }
+        }
+        if (data14.unroutedIssueIds !== undefined) {
+          let data22 = data14.unroutedIssueIds;
+          if (Array.isArray(data22)) {
+            const len5 = data22.length;
+            for (let i5 = 0; i5 < len5; i5++) {
+              if (typeof data22[i5] !== "string") {
+                const err18 = {
+                  instancePath: instancePath + "/linear/unroutedIssueIds/" + i5,
+                  schemaPath: "#/properties/linear/properties/unroutedIssueIds/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err18];
+                } else {
+                  vErrors.push(err18);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err19 = {
+              instancePath: instancePath + "/linear/unroutedIssueIds",
+              schemaPath: "#/properties/linear/properties/unroutedIssueIds/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err19];
+            } else {
+              vErrors.push(err19);
+            }
+            errors++;
+          }
+        }
+        if (data14.candidateIssueIds !== undefined) {
+          let data24 = data14.candidateIssueIds;
+          if (Array.isArray(data24)) {
+            const len6 = data24.length;
+            for (let i6 = 0; i6 < len6; i6++) {
+              if (typeof data24[i6] !== "string") {
+                const err20 = {
+                  instancePath: instancePath + "/linear/candidateIssueIds/" + i6,
+                  schemaPath: "#/properties/linear/properties/candidateIssueIds/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err20];
+                } else {
+                  vErrors.push(err20);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err21 = {
+              instancePath: instancePath + "/linear/candidateIssueIds",
+              schemaPath: "#/properties/linear/properties/candidateIssueIds/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err21];
+            } else {
+              vErrors.push(err21);
+            }
+            errors++;
+          }
+        }
+        if (data14.statesFilter !== undefined) {
+          let data26 = data14.statesFilter;
+          if (Array.isArray(data26)) {
+            const len7 = data26.length;
+            for (let i7 = 0; i7 < len7; i7++) {
+              if (typeof data26[i7] !== "string") {
+                const err22 = {
+                  instancePath: instancePath + "/linear/statesFilter/" + i7,
+                  schemaPath: "#/properties/linear/properties/statesFilter/items/type",
+                  keyword: "type",
+                  params: { type: "string" },
+                  message: "must be string",
+                };
+                if (vErrors === null) {
+                  vErrors = [err22];
+                } else {
+                  vErrors.push(err22);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err23 = {
+              instancePath: instancePath + "/linear/statesFilter",
+              schemaPath: "#/properties/linear/properties/statesFilter/type",
+              keyword: "type",
+              params: { type: "array" },
+              message: "must be array",
+            };
+            if (vErrors === null) {
+              vErrors = [err23];
+            } else {
+              vErrors.push(err23);
+            }
+            errors++;
+          }
+        }
+        if (data14.activeScope !== undefined) {
+          let data28 = data14.activeScope;
+          if (data28 && typeof data28 == "object" && !Array.isArray(data28)) {
+            if (data28.routeLabel !== undefined) {
+              let data29 = data28.routeLabel;
+              if (typeof data29 !== "string" && data29 !== null) {
+                const err24 = {
+                  instancePath: instancePath + "/linear/activeScope/routeLabel",
+                  schemaPath:
+                    "#/properties/linear/properties/activeScope/properties/routeLabel/type",
+                  keyword: "type",
+                  params: {
+                    type: schema6.properties.linear.properties.activeScope.properties.routeLabel
+                      .type,
+                  },
+                  message: "must be string,null",
+                };
+                if (vErrors === null) {
+                  vErrors = [err24];
+                } else {
+                  vErrors.push(err24);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err25 = {
+              instancePath: instancePath + "/linear/activeScope",
+              schemaPath: "#/properties/linear/properties/activeScope/type",
+              keyword: "type",
+              params: { type: "object" },
+              message: "must be object",
+            };
+            if (vErrors === null) {
+              vErrors = [err25];
+            } else {
+              vErrors.push(err25);
+            }
+            errors++;
+          }
+        }
+        if (data14.candidateScope !== undefined) {
+          let data30 = data14.candidateScope;
+          if (data30 && typeof data30 == "object" && !Array.isArray(data30)) {
+            if (data30.routeLabel !== undefined) {
+              let data31 = data30.routeLabel;
+              if (typeof data31 !== "string" && data31 !== null) {
+                const err26 = {
+                  instancePath: instancePath + "/linear/candidateScope/routeLabel",
+                  schemaPath:
+                    "#/properties/linear/properties/candidateScope/properties/routeLabel/type",
+                  keyword: "type",
+                  params: {
+                    type: schema6.properties.linear.properties.candidateScope.properties.routeLabel
+                      .type,
+                  },
+                  message: "must be string,null",
+                };
+                if (vErrors === null) {
+                  vErrors = [err26];
+                } else {
+                  vErrors.push(err26);
+                }
+                errors++;
+              }
+            }
+            if (data30.states !== undefined) {
+              let data32 = data30.states;
+              if (Array.isArray(data32)) {
+                const len8 = data32.length;
+                for (let i8 = 0; i8 < len8; i8++) {
+                  if (typeof data32[i8] !== "string") {
+                    const err27 = {
+                      instancePath: instancePath + "/linear/candidateScope/states/" + i8,
+                      schemaPath:
+                        "#/properties/linear/properties/candidateScope/properties/states/items/type",
+                      keyword: "type",
+                      params: { type: "string" },
+                      message: "must be string",
+                    };
+                    if (vErrors === null) {
+                      vErrors = [err27];
+                    } else {
+                      vErrors.push(err27);
+                    }
+                    errors++;
+                  }
+                }
+              } else {
+                const err28 = {
+                  instancePath: instancePath + "/linear/candidateScope/states",
+                  schemaPath:
+                    "#/properties/linear/properties/candidateScope/properties/states/type",
+                  keyword: "type",
+                  params: { type: "array" },
+                  message: "must be array",
+                };
+                if (vErrors === null) {
+                  vErrors = [err28];
+                } else {
+                  vErrors.push(err28);
+                }
+                errors++;
+              }
+            }
+          } else {
+            const err29 = {
+              instancePath: instancePath + "/linear/candidateScope",
+              schemaPath: "#/properties/linear/properties/candidateScope/type",
+              keyword: "type",
+              params: { type: "object" },
+              message: "must be object",
+            };
+            if (vErrors === null) {
+              vErrors = [err29];
+            } else {
+              vErrors.push(err29);
+            }
+            errors++;
+          }
+        }
       } else {
-        const err17 = {
+        const err30 = {
           instancePath: instancePath + "/linear",
           schemaPath: "#/properties/linear/type",
           keyword: "type",
@@ -26215,17 +26840,17 @@ function validate21(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err17];
+          vErrors = [err30];
         } else {
-          vErrors.push(err17);
+          vErrors.push(err30);
         }
         errors++;
       }
     }
     if (data.usage !== undefined) {
-      let data20 = data.usage;
-      if (!(data20 && typeof data20 == "object" && !Array.isArray(data20))) {
-        const err18 = {
+      let data34 = data.usage;
+      if (!(data34 && typeof data34 == "object" && !Array.isArray(data34))) {
+        const err31 = {
           instancePath: instancePath + "/usage",
           schemaPath: "#/properties/usage/type",
           keyword: "type",
@@ -26233,67 +26858,67 @@ function validate21(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err18];
+          vErrors = [err31];
         } else {
-          vErrors.push(err18);
+          vErrors.push(err31);
         }
         errors++;
       }
     }
     if (data.snapshot !== undefined) {
       if (
-        !validate33(data.snapshot, {
+        !validate34(data.snapshot, {
           instancePath: instancePath + "/snapshot",
           parentData: data,
           parentDataProperty: "snapshot",
           rootData,
         })
       ) {
-        vErrors = vErrors === null ? validate33.errors : vErrors.concat(validate33.errors);
+        vErrors = vErrors === null ? validate34.errors : vErrors.concat(validate34.errors);
         errors = vErrors.length;
       }
     }
     if (data.config !== undefined) {
       if (
-        !validate40(data.config, {
+        !validate42(data.config, {
           instancePath: instancePath + "/config",
           parentData: data,
           parentDataProperty: "config",
           rootData,
         })
       ) {
-        vErrors = vErrors === null ? validate40.errors : vErrors.concat(validate40.errors);
+        vErrors = vErrors === null ? validate42.errors : vErrors.concat(validate42.errors);
         errors = vErrors.length;
       }
     }
     if (data.state !== undefined) {
       if (
-        !validate42(data.state, {
+        !validate44(data.state, {
           instancePath: instancePath + "/state",
           parentData: data,
           parentDataProperty: "state",
           rootData,
         })
       ) {
-        vErrors = vErrors === null ? validate42.errors : vErrors.concat(validate42.errors);
+        vErrors = vErrors === null ? validate44.errors : vErrors.concat(validate44.errors);
         errors = vErrors.length;
       }
     }
     if (data.queue !== undefined) {
       if (
-        !validate42(data.queue, {
+        !validate44(data.queue, {
           instancePath: instancePath + "/queue",
           parentData: data,
           parentDataProperty: "queue",
           rootData,
         })
       ) {
-        vErrors = vErrors === null ? validate42.errors : vErrors.concat(validate42.errors);
+        vErrors = vErrors === null ? validate44.errors : vErrors.concat(validate44.errors);
         errors = vErrors.length;
       }
     }
   } else {
-    const err19 = {
+    const err32 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -26301,17 +26926,17 @@ function validate21(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err19];
+      vErrors = [err32];
     } else {
-      vErrors.push(err19);
+      vErrors.push(err32);
     }
     errors++;
   }
   validate21.errors = vErrors;
   return errors === 0;
 }
-export const validateConfig = validate66;
-function validate66(
+export const validateConfig = validate68;
+function validate68(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -29299,11 +29924,11 @@ function validate66(
     }
     errors++;
   }
-  validate66.errors = vErrors;
+  validate68.errors = vErrors;
   return errors === 0;
 }
-export const validateState = validate67;
-function validate67(
+export const validateState = validate69;
+function validate69(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -29499,14 +30124,14 @@ function validate67(
         const len4 = data9.length;
         for (let i4 = 0; i4 < len4; i4++) {
           if (
-            !validate47(data9[i4], {
+            !validate49(data9[i4], {
               instancePath: instancePath + "/startableTickets/" + i4,
               parentData: data9,
               parentDataProperty: i4,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate47.errors : vErrors.concat(validate47.errors);
+            vErrors = vErrors === null ? validate49.errors : vErrors.concat(validate49.errors);
             errors = vErrors.length;
           }
         }
@@ -29526,93 +30151,48 @@ function validate67(
         errors++;
       }
     }
-    if (data.dispatches !== undefined) {
-      let data11 = data.dispatches;
+    if (data.scopeIssueIds !== undefined) {
+      let data11 = data.scopeIssueIds;
       if (Array.isArray(data11)) {
         const len5 = data11.length;
         for (let i5 = 0; i5 < len5; i5++) {
-          if (
-            !validate28(data11[i5], {
-              instancePath: instancePath + "/dispatches/" + i5,
-              parentData: data11,
-              parentDataProperty: i5,
-              rootData,
-            })
-          ) {
-            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
-            errors = vErrors.length;
-          }
-        }
-      } else {
-        const err8 = {
-          instancePath: instancePath + "/dispatches",
-          schemaPath: "#/properties/dispatches/type",
-          keyword: "type",
-          params: { type: "array" },
-          message: "must be array",
-        };
-        if (vErrors === null) {
-          vErrors = [err8];
-        } else {
-          vErrors.push(err8);
-        }
-        errors++;
-      }
-    }
-    if (data.ledgerDispatches !== undefined) {
-      let data13 = data.ledgerDispatches;
-      if (Array.isArray(data13)) {
-        const len6 = data13.length;
-        for (let i6 = 0; i6 < len6; i6++) {
-          if (
-            !validate28(data13[i6], {
-              instancePath: instancePath + "/ledgerDispatches/" + i6,
-              parentData: data13,
-              parentDataProperty: i6,
-              rootData,
-            })
-          ) {
-            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
-            errors = vErrors.length;
-          }
-        }
-      } else {
-        const err9 = {
-          instancePath: instancePath + "/ledgerDispatches",
-          schemaPath: "#/properties/ledgerDispatches/type",
-          keyword: "type",
-          params: { type: "array" },
-          message: "must be array",
-        };
-        if (vErrors === null) {
-          vErrors = [err9];
-        } else {
-          vErrors.push(err9);
-        }
-        errors++;
-      }
-    }
-    if (data.activeWork !== undefined) {
-      let data15 = data.activeWork;
-      if (Array.isArray(data15)) {
-        const len7 = data15.length;
-        for (let i7 = 0; i7 < len7; i7++) {
-          if (
-            !validate28(data15[i7], {
-              instancePath: instancePath + "/activeWork/" + i7,
-              parentData: data15,
-              parentDataProperty: i7,
-              rootData,
-            })
-          ) {
-            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
-            errors = vErrors.length;
+          let data12 = data11[i5];
+          if (typeof data12 === "string") {
+            if (!pattern1.test(data12)) {
+              const err8 = {
+                instancePath: instancePath + "/scopeIssueIds/" + i5,
+                schemaPath: "#/properties/scopeIssueIds/items/pattern",
+                keyword: "pattern",
+                params: { pattern: "\\S" },
+                message: 'must match pattern "' + "\\S" + '"',
+              };
+              if (vErrors === null) {
+                vErrors = [err8];
+              } else {
+                vErrors.push(err8);
+              }
+              errors++;
+            }
+          } else {
+            const err9 = {
+              instancePath: instancePath + "/scopeIssueIds/" + i5,
+              schemaPath: "#/properties/scopeIssueIds/items/type",
+              keyword: "type",
+              params: { type: "string" },
+              message: "must be string",
+            };
+            if (vErrors === null) {
+              vErrors = [err9];
+            } else {
+              vErrors.push(err9);
+            }
+            errors++;
           }
         }
       } else {
         const err10 = {
-          instancePath: instancePath + "/activeWork",
-          schemaPath: "#/properties/activeWork/type",
+          instancePath: instancePath + "/scopeIssueIds",
+          schemaPath: "#/properties/scopeIssueIds/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -29625,16 +30205,16 @@ function validate67(
         errors++;
       }
     }
-    if (data.workers !== undefined) {
-      let data17 = data.workers;
-      if (Array.isArray(data17)) {
-        const len8 = data17.length;
-        for (let i8 = 0; i8 < len8; i8++) {
+    if (data.dispatches !== undefined) {
+      let data13 = data.dispatches;
+      if (Array.isArray(data13)) {
+        const len6 = data13.length;
+        for (let i6 = 0; i6 < len6; i6++) {
           if (
-            !validate28(data17[i8], {
-              instancePath: instancePath + "/workers/" + i8,
-              parentData: data17,
-              parentDataProperty: i8,
+            !validate28(data13[i6], {
+              instancePath: instancePath + "/dispatches/" + i6,
+              parentData: data13,
+              parentDataProperty: i6,
               rootData,
             })
           ) {
@@ -29644,8 +30224,8 @@ function validate67(
         }
       } else {
         const err11 = {
-          instancePath: instancePath + "/workers",
-          schemaPath: "#/properties/workers/type",
+          instancePath: instancePath + "/dispatches",
+          schemaPath: "#/properties/dispatches/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -29658,16 +30238,16 @@ function validate67(
         errors++;
       }
     }
-    if (data.worktrees !== undefined) {
-      let data19 = data.worktrees;
-      if (Array.isArray(data19)) {
-        const len9 = data19.length;
-        for (let i9 = 0; i9 < len9; i9++) {
+    if (data.ledgerDispatches !== undefined) {
+      let data15 = data.ledgerDispatches;
+      if (Array.isArray(data15)) {
+        const len7 = data15.length;
+        for (let i7 = 0; i7 < len7; i7++) {
           if (
-            !validate28(data19[i9], {
-              instancePath: instancePath + "/worktrees/" + i9,
-              parentData: data19,
-              parentDataProperty: i9,
+            !validate28(data15[i7], {
+              instancePath: instancePath + "/ledgerDispatches/" + i7,
+              parentData: data15,
+              parentDataProperty: i7,
               rootData,
             })
           ) {
@@ -29677,8 +30257,8 @@ function validate67(
         }
       } else {
         const err12 = {
-          instancePath: instancePath + "/worktrees",
-          schemaPath: "#/properties/worktrees/type",
+          instancePath: instancePath + "/ledgerDispatches",
+          schemaPath: "#/properties/ledgerDispatches/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -29691,16 +30271,16 @@ function validate67(
         errors++;
       }
     }
-    if (data.previews !== undefined) {
-      let data21 = data.previews;
-      if (Array.isArray(data21)) {
-        const len10 = data21.length;
-        for (let i10 = 0; i10 < len10; i10++) {
+    if (data.activeWork !== undefined) {
+      let data17 = data.activeWork;
+      if (Array.isArray(data17)) {
+        const len8 = data17.length;
+        for (let i8 = 0; i8 < len8; i8++) {
           if (
-            !validate28(data21[i10], {
-              instancePath: instancePath + "/previews/" + i10,
-              parentData: data21,
-              parentDataProperty: i10,
+            !validate28(data17[i8], {
+              instancePath: instancePath + "/activeWork/" + i8,
+              parentData: data17,
+              parentDataProperty: i8,
               rootData,
             })
           ) {
@@ -29710,8 +30290,8 @@ function validate67(
         }
       } else {
         const err13 = {
-          instancePath: instancePath + "/previews",
-          schemaPath: "#/properties/previews/type",
+          instancePath: instancePath + "/activeWork",
+          schemaPath: "#/properties/activeWork/type",
           keyword: "type",
           params: { type: "array" },
           message: "must be array",
@@ -29724,32 +30304,30 @@ function validate67(
         errors++;
       }
     }
-    if (data.reviewEvidenceByPr !== undefined) {
-      let data23 = data.reviewEvidenceByPr;
-      if (data23 && typeof data23 == "object" && !Array.isArray(data23)) {
-        for (const key1 in data23) {
+    if (data.workers !== undefined) {
+      let data19 = data.workers;
+      if (Array.isArray(data19)) {
+        const len9 = data19.length;
+        for (let i9 = 0; i9 < len9; i9++) {
           if (
-            !validate56(data23[key1], {
-              instancePath:
-                instancePath +
-                "/reviewEvidenceByPr/" +
-                key1.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data23,
-              parentDataProperty: key1,
+            !validate28(data19[i9], {
+              instancePath: instancePath + "/workers/" + i9,
+              parentData: data19,
+              parentDataProperty: i9,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err14 = {
-          instancePath: instancePath + "/reviewEvidenceByPr",
-          schemaPath: "#/properties/reviewEvidenceByPr/type",
+          instancePath: instancePath + "/workers",
+          schemaPath: "#/properties/workers/type",
           keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
+          params: { type: "array" },
+          message: "must be array",
         };
         if (vErrors === null) {
           vErrors = [err14];
@@ -29759,30 +30337,30 @@ function validate67(
         errors++;
       }
     }
-    if (data.reviewEvidence !== undefined) {
-      let data25 = data.reviewEvidence;
-      if (data25 && typeof data25 == "object" && !Array.isArray(data25)) {
-        for (const key2 in data25) {
+    if (data.worktrees !== undefined) {
+      let data21 = data.worktrees;
+      if (Array.isArray(data21)) {
+        const len10 = data21.length;
+        for (let i10 = 0; i10 < len10; i10++) {
           if (
-            !validate56(data25[key2], {
-              instancePath:
-                instancePath + "/reviewEvidence/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data25,
-              parentDataProperty: key2,
+            !validate28(data21[i10], {
+              instancePath: instancePath + "/worktrees/" + i10,
+              parentData: data21,
+              parentDataProperty: i10,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err15 = {
-          instancePath: instancePath + "/reviewEvidence",
-          schemaPath: "#/properties/reviewEvidence/type",
+          instancePath: instancePath + "/worktrees",
+          schemaPath: "#/properties/worktrees/type",
           keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
+          params: { type: "array" },
+          message: "must be array",
         };
         if (vErrors === null) {
           vErrors = [err15];
@@ -29792,30 +30370,30 @@ function validate67(
         errors++;
       }
     }
-    if (data.hostedReviewByPr !== undefined) {
-      let data27 = data.hostedReviewByPr;
-      if (data27 && typeof data27 == "object" && !Array.isArray(data27)) {
-        for (const key3 in data27) {
+    if (data.previews !== undefined) {
+      let data23 = data.previews;
+      if (Array.isArray(data23)) {
+        const len11 = data23.length;
+        for (let i11 = 0; i11 < len11; i11++) {
           if (
-            !validate56(data27[key3], {
-              instancePath:
-                instancePath + "/hostedReviewByPr/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data27,
-              parentDataProperty: key3,
+            !validate28(data23[i11], {
+              instancePath: instancePath + "/previews/" + i11,
+              parentData: data23,
+              parentDataProperty: i11,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate28.errors : vErrors.concat(validate28.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err16 = {
-          instancePath: instancePath + "/hostedReviewByPr",
-          schemaPath: "#/properties/hostedReviewByPr/type",
+          instancePath: instancePath + "/previews",
+          schemaPath: "#/properties/previews/type",
           keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
+          params: { type: "array" },
+          message: "must be array",
         };
         if (vErrors === null) {
           vErrors = [err16];
@@ -29825,29 +30403,29 @@ function validate67(
         errors++;
       }
     }
-    if (data.reviewRequestsByPr !== undefined) {
-      let data29 = data.reviewRequestsByPr;
-      if (data29 && typeof data29 == "object" && !Array.isArray(data29)) {
-        for (const key4 in data29) {
+    if (data.reviewEvidenceByPr !== undefined) {
+      let data25 = data.reviewEvidenceByPr;
+      if (data25 && typeof data25 == "object" && !Array.isArray(data25)) {
+        for (const key1 in data25) {
           if (
-            !validate56(data29[key4], {
+            !validate58(data25[key1], {
               instancePath:
                 instancePath +
-                "/reviewRequestsByPr/" +
-                key4.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data29,
-              parentDataProperty: key4,
+                "/reviewEvidenceByPr/" +
+                key1.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data25,
+              parentDataProperty: key1,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err17 = {
-          instancePath: instancePath + "/reviewRequestsByPr",
-          schemaPath: "#/properties/reviewRequestsByPr/type",
+          instancePath: instancePath + "/reviewEvidenceByPr",
+          schemaPath: "#/properties/reviewEvidenceByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -29860,29 +30438,27 @@ function validate67(
         errors++;
       }
     }
-    if (data.reviewRequestByPr !== undefined) {
-      let data31 = data.reviewRequestByPr;
-      if (data31 && typeof data31 == "object" && !Array.isArray(data31)) {
-        for (const key5 in data31) {
+    if (data.reviewEvidence !== undefined) {
+      let data27 = data.reviewEvidence;
+      if (data27 && typeof data27 == "object" && !Array.isArray(data27)) {
+        for (const key2 in data27) {
           if (
-            !validate56(data31[key5], {
+            !validate58(data27[key2], {
               instancePath:
-                instancePath +
-                "/reviewRequestByPr/" +
-                key5.replace(/~/g, "~0").replace(/\//g, "~1"),
-              parentData: data31,
-              parentDataProperty: key5,
+                instancePath + "/reviewEvidence/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data27,
+              parentDataProperty: key2,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate56.errors : vErrors.concat(validate56.errors);
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err18 = {
-          instancePath: instancePath + "/reviewRequestByPr",
-          schemaPath: "#/properties/reviewRequestByPr/type",
+          instancePath: instancePath + "/reviewEvidence",
+          schemaPath: "#/properties/reviewEvidence/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -29895,30 +30471,30 @@ function validate67(
         errors++;
       }
     }
-    if (data.reviewEvidenceChecks !== undefined) {
-      let data33 = data.reviewEvidenceChecks;
-      if (Array.isArray(data33)) {
-        const len11 = data33.length;
-        for (let i11 = 0; i11 < len11; i11++) {
+    if (data.hostedReviewByPr !== undefined) {
+      let data29 = data.hostedReviewByPr;
+      if (data29 && typeof data29 == "object" && !Array.isArray(data29)) {
+        for (const key3 in data29) {
           if (
-            !validate62(data33[i11], {
-              instancePath: instancePath + "/reviewEvidenceChecks/" + i11,
-              parentData: data33,
-              parentDataProperty: i11,
+            !validate58(data29[key3], {
+              instancePath:
+                instancePath + "/hostedReviewByPr/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data29,
+              parentDataProperty: key3,
               rootData,
             })
           ) {
-            vErrors = vErrors === null ? validate62.errors : vErrors.concat(validate62.errors);
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
             errors = vErrors.length;
           }
         }
       } else {
         const err19 = {
-          instancePath: instancePath + "/reviewEvidenceChecks",
-          schemaPath: "#/properties/reviewEvidenceChecks/type",
+          instancePath: instancePath + "/hostedReviewByPr",
+          schemaPath: "#/properties/hostedReviewByPr/type",
           keyword: "type",
-          params: { type: "array" },
-          message: "must be array",
+          params: { type: "object" },
+          message: "must be object",
         };
         if (vErrors === null) {
           vErrors = [err19];
@@ -29928,31 +30504,64 @@ function validate67(
         errors++;
       }
     }
-    if (data.reviewDiffByPr !== undefined) {
-      let data35 = data.reviewDiffByPr;
-      if (data35 && typeof data35 == "object" && !Array.isArray(data35)) {
-        for (const key6 in data35) {
-          if (typeof data35[key6] !== "string") {
-            const err20 = {
+    if (data.reviewRequestsByPr !== undefined) {
+      let data31 = data.reviewRequestsByPr;
+      if (data31 && typeof data31 == "object" && !Array.isArray(data31)) {
+        for (const key4 in data31) {
+          if (
+            !validate58(data31[key4], {
               instancePath:
-                instancePath + "/reviewDiffByPr/" + key6.replace(/~/g, "~0").replace(/\//g, "~1"),
-              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
-              keyword: "type",
-              params: { type: "string" },
-              message: "must be string",
-            };
-            if (vErrors === null) {
-              vErrors = [err20];
-            } else {
-              vErrors.push(err20);
-            }
-            errors++;
+                instancePath +
+                "/reviewRequestsByPr/" +
+                key4.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data31,
+              parentDataProperty: key4,
+              rootData,
+            })
+          ) {
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
+            errors = vErrors.length;
+          }
+        }
+      } else {
+        const err20 = {
+          instancePath: instancePath + "/reviewRequestsByPr",
+          schemaPath: "#/properties/reviewRequestsByPr/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err20];
+        } else {
+          vErrors.push(err20);
+        }
+        errors++;
+      }
+    }
+    if (data.reviewRequestByPr !== undefined) {
+      let data33 = data.reviewRequestByPr;
+      if (data33 && typeof data33 == "object" && !Array.isArray(data33)) {
+        for (const key5 in data33) {
+          if (
+            !validate58(data33[key5], {
+              instancePath:
+                instancePath +
+                "/reviewRequestByPr/" +
+                key5.replace(/~/g, "~0").replace(/\//g, "~1"),
+              parentData: data33,
+              parentDataProperty: key5,
+              rootData,
+            })
+          ) {
+            vErrors = vErrors === null ? validate58.errors : vErrors.concat(validate58.errors);
+            errors = vErrors.length;
           }
         }
       } else {
         const err21 = {
-          instancePath: instancePath + "/reviewDiffByPr",
-          schemaPath: "#/properties/reviewDiffByPr/type",
+          instancePath: instancePath + "/reviewRequestByPr",
+          schemaPath: "#/properties/reviewRequestByPr/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
@@ -29965,75 +30574,88 @@ function validate67(
         errors++;
       }
     }
-    if (data.continuationByPr !== undefined) {
-      let data37 = data.continuationByPr;
+    if (data.reviewEvidenceChecks !== undefined) {
+      let data35 = data.reviewEvidenceChecks;
+      if (Array.isArray(data35)) {
+        const len12 = data35.length;
+        for (let i12 = 0; i12 < len12; i12++) {
+          if (
+            !validate64(data35[i12], {
+              instancePath: instancePath + "/reviewEvidenceChecks/" + i12,
+              parentData: data35,
+              parentDataProperty: i12,
+              rootData,
+            })
+          ) {
+            vErrors = vErrors === null ? validate64.errors : vErrors.concat(validate64.errors);
+            errors = vErrors.length;
+          }
+        }
+      } else {
+        const err22 = {
+          instancePath: instancePath + "/reviewEvidenceChecks",
+          schemaPath: "#/properties/reviewEvidenceChecks/type",
+          keyword: "type",
+          params: { type: "array" },
+          message: "must be array",
+        };
+        if (vErrors === null) {
+          vErrors = [err22];
+        } else {
+          vErrors.push(err22);
+        }
+        errors++;
+      }
+    }
+    if (data.reviewDiffByPr !== undefined) {
+      let data37 = data.reviewDiffByPr;
       if (data37 && typeof data37 == "object" && !Array.isArray(data37)) {
-        for (const key7 in data37) {
-          if (typeof data37[key7] !== "string") {
-            const err22 = {
+        for (const key6 in data37) {
+          if (typeof data37[key6] !== "string") {
+            const err23 = {
+              instancePath:
+                instancePath + "/reviewDiffByPr/" + key6.replace(/~/g, "~0").replace(/\//g, "~1"),
+              schemaPath: "#/properties/reviewDiffByPr/additionalProperties/type",
+              keyword: "type",
+              params: { type: "string" },
+              message: "must be string",
+            };
+            if (vErrors === null) {
+              vErrors = [err23];
+            } else {
+              vErrors.push(err23);
+            }
+            errors++;
+          }
+        }
+      } else {
+        const err24 = {
+          instancePath: instancePath + "/reviewDiffByPr",
+          schemaPath: "#/properties/reviewDiffByPr/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err24];
+        } else {
+          vErrors.push(err24);
+        }
+        errors++;
+      }
+    }
+    if (data.continuationByPr !== undefined) {
+      let data39 = data.continuationByPr;
+      if (data39 && typeof data39 == "object" && !Array.isArray(data39)) {
+        for (const key7 in data39) {
+          if (typeof data39[key7] !== "string") {
+            const err25 = {
               instancePath:
                 instancePath + "/continuationByPr/" + key7.replace(/~/g, "~0").replace(/\//g, "~1"),
               schemaPath: "#/properties/continuationByPr/additionalProperties/type",
               keyword: "type",
               params: { type: "string" },
               message: "must be string",
-            };
-            if (vErrors === null) {
-              vErrors = [err22];
-            } else {
-              vErrors.push(err22);
-            }
-            errors++;
-          }
-        }
-      } else {
-        const err23 = {
-          instancePath: instancePath + "/continuationByPr",
-          schemaPath: "#/properties/continuationByPr/type",
-          keyword: "type",
-          params: { type: "object" },
-          message: "must be object",
-        };
-        if (vErrors === null) {
-          vErrors = [err23];
-        } else {
-          vErrors.push(err23);
-        }
-        errors++;
-      }
-    }
-    if (data.readyStatePromotionOptions !== undefined) {
-      let data39 = data.readyStatePromotionOptions;
-      if (data39 && typeof data39 == "object" && !Array.isArray(data39)) {
-        for (const key8 in data39) {
-          if (
-            !(key8 === "requestedReadyStatePromotion" || key8 === "requestedLinearBacklogReview")
-          ) {
-            const err24 = {
-              instancePath: instancePath + "/readyStatePromotionOptions",
-              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
-              keyword: "additionalProperties",
-              params: { additionalProperty: key8 },
-              message: "must NOT have additional properties",
-            };
-            if (vErrors === null) {
-              vErrors = [err24];
-            } else {
-              vErrors.push(err24);
-            }
-            errors++;
-          }
-        }
-        if (data39.requestedReadyStatePromotion !== undefined) {
-          if (typeof data39.requestedReadyStatePromotion !== "boolean") {
-            const err25 = {
-              instancePath:
-                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
-              schemaPath:
-                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
-              keyword: "type",
-              params: { type: "boolean" },
-              message: "must be boolean",
             };
             if (vErrors === null) {
               vErrors = [err25];
@@ -30043,9 +30665,66 @@ function validate67(
             errors++;
           }
         }
-        if (data39.requestedLinearBacklogReview !== undefined) {
-          if (typeof data39.requestedLinearBacklogReview !== "boolean") {
-            const err26 = {
+      } else {
+        const err26 = {
+          instancePath: instancePath + "/continuationByPr",
+          schemaPath: "#/properties/continuationByPr/type",
+          keyword: "type",
+          params: { type: "object" },
+          message: "must be object",
+        };
+        if (vErrors === null) {
+          vErrors = [err26];
+        } else {
+          vErrors.push(err26);
+        }
+        errors++;
+      }
+    }
+    if (data.readyStatePromotionOptions !== undefined) {
+      let data41 = data.readyStatePromotionOptions;
+      if (data41 && typeof data41 == "object" && !Array.isArray(data41)) {
+        for (const key8 in data41) {
+          if (
+            !(key8 === "requestedReadyStatePromotion" || key8 === "requestedLinearBacklogReview")
+          ) {
+            const err27 = {
+              instancePath: instancePath + "/readyStatePromotionOptions",
+              schemaPath: "#/properties/readyStatePromotionOptions/additionalProperties",
+              keyword: "additionalProperties",
+              params: { additionalProperty: key8 },
+              message: "must NOT have additional properties",
+            };
+            if (vErrors === null) {
+              vErrors = [err27];
+            } else {
+              vErrors.push(err27);
+            }
+            errors++;
+          }
+        }
+        if (data41.requestedReadyStatePromotion !== undefined) {
+          if (typeof data41.requestedReadyStatePromotion !== "boolean") {
+            const err28 = {
+              instancePath:
+                instancePath + "/readyStatePromotionOptions/requestedReadyStatePromotion",
+              schemaPath:
+                "#/properties/readyStatePromotionOptions/properties/requestedReadyStatePromotion/type",
+              keyword: "type",
+              params: { type: "boolean" },
+              message: "must be boolean",
+            };
+            if (vErrors === null) {
+              vErrors = [err28];
+            } else {
+              vErrors.push(err28);
+            }
+            errors++;
+          }
+        }
+        if (data41.requestedLinearBacklogReview !== undefined) {
+          if (typeof data41.requestedLinearBacklogReview !== "boolean") {
+            const err29 = {
               instancePath:
                 instancePath + "/readyStatePromotionOptions/requestedLinearBacklogReview",
               schemaPath:
@@ -30055,71 +30734,20 @@ function validate67(
               message: "must be boolean",
             };
             if (vErrors === null) {
-              vErrors = [err26];
+              vErrors = [err29];
             } else {
-              vErrors.push(err26);
+              vErrors.push(err29);
             }
             errors++;
           }
         }
       } else {
-        const err27 = {
+        const err30 = {
           instancePath: instancePath + "/readyStatePromotionOptions",
           schemaPath: "#/properties/readyStatePromotionOptions/type",
           keyword: "type",
           params: { type: "object" },
           message: "must be object",
-        };
-        if (vErrors === null) {
-          vErrors = [err27];
-        } else {
-          vErrors.push(err27);
-        }
-        errors++;
-      }
-    }
-    if (data.activeSignalExpected !== undefined) {
-      if (typeof data.activeSignalExpected !== "boolean") {
-        const err28 = {
-          instancePath: instancePath + "/activeSignalExpected",
-          schemaPath: "#/properties/activeSignalExpected/type",
-          keyword: "type",
-          params: { type: "boolean" },
-          message: "must be boolean",
-        };
-        if (vErrors === null) {
-          vErrors = [err28];
-        } else {
-          vErrors.push(err28);
-        }
-        errors++;
-      }
-    }
-    if (data.localBudgetUsagePercent !== undefined) {
-      let data43 = data.localBudgetUsagePercent;
-      if (typeof data43 == "number" && isFinite(data43)) {
-        if (data43 < 0 || isNaN(data43)) {
-          const err29 = {
-            instancePath: instancePath + "/localBudgetUsagePercent",
-            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
-            keyword: "minimum",
-            params: { comparison: ">=", limit: 0 },
-            message: "must be >= 0",
-          };
-          if (vErrors === null) {
-            vErrors = [err29];
-          } else {
-            vErrors.push(err29);
-          }
-          errors++;
-        }
-      } else {
-        const err30 = {
-          instancePath: instancePath + "/localBudgetUsagePercent",
-          schemaPath: "#/properties/localBudgetUsagePercent/type",
-          keyword: "type",
-          params: { type: "number" },
-          message: "must be number",
         };
         if (vErrors === null) {
           vErrors = [err30];
@@ -30129,11 +30757,62 @@ function validate67(
         errors++;
       }
     }
+    if (data.activeSignalExpected !== undefined) {
+      if (typeof data.activeSignalExpected !== "boolean") {
+        const err31 = {
+          instancePath: instancePath + "/activeSignalExpected",
+          schemaPath: "#/properties/activeSignalExpected/type",
+          keyword: "type",
+          params: { type: "boolean" },
+          message: "must be boolean",
+        };
+        if (vErrors === null) {
+          vErrors = [err31];
+        } else {
+          vErrors.push(err31);
+        }
+        errors++;
+      }
+    }
+    if (data.localBudgetUsagePercent !== undefined) {
+      let data45 = data.localBudgetUsagePercent;
+      if (typeof data45 == "number" && isFinite(data45)) {
+        if (data45 < 0 || isNaN(data45)) {
+          const err32 = {
+            instancePath: instancePath + "/localBudgetUsagePercent",
+            schemaPath: "#/properties/localBudgetUsagePercent/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err32];
+          } else {
+            vErrors.push(err32);
+          }
+          errors++;
+        }
+      } else {
+        const err33 = {
+          instancePath: instancePath + "/localBudgetUsagePercent",
+          schemaPath: "#/properties/localBudgetUsagePercent/type",
+          keyword: "type",
+          params: { type: "number" },
+          message: "must be number",
+        };
+        if (vErrors === null) {
+          vErrors = [err33];
+        } else {
+          vErrors.push(err33);
+        }
+        errors++;
+      }
+    }
     if (data.tokenBudgetRemaining !== undefined) {
-      let data44 = data.tokenBudgetRemaining;
-      if (typeof data44 == "number" && isFinite(data44)) {
-        if (data44 < 0 || isNaN(data44)) {
-          const err31 = {
+      let data46 = data.tokenBudgetRemaining;
+      if (typeof data46 == "number" && isFinite(data46)) {
+        if (data46 < 0 || isNaN(data46)) {
+          const err34 = {
             instancePath: instancePath + "/tokenBudgetRemaining",
             schemaPath: "#/properties/tokenBudgetRemaining/minimum",
             keyword: "minimum",
@@ -30141,14 +30820,14 @@ function validate67(
             message: "must be >= 0",
           };
           if (vErrors === null) {
-            vErrors = [err31];
+            vErrors = [err34];
           } else {
-            vErrors.push(err31);
+            vErrors.push(err34);
           }
           errors++;
         }
       } else {
-        const err32 = {
+        const err35 = {
           instancePath: instancePath + "/tokenBudgetRemaining",
           schemaPath: "#/properties/tokenBudgetRemaining/type",
           keyword: "type",
@@ -30156,18 +30835,18 @@ function validate67(
           message: "must be number",
         };
         if (vErrors === null) {
-          vErrors = [err32];
+          vErrors = [err35];
         } else {
-          vErrors.push(err32);
+          vErrors.push(err35);
         }
         errors++;
       }
     }
     if (data.timeBudgetRemainingMinutes !== undefined) {
-      let data45 = data.timeBudgetRemainingMinutes;
-      if (typeof data45 == "number" && isFinite(data45)) {
-        if (data45 < 0 || isNaN(data45)) {
-          const err33 = {
+      let data47 = data.timeBudgetRemainingMinutes;
+      if (typeof data47 == "number" && isFinite(data47)) {
+        if (data47 < 0 || isNaN(data47)) {
+          const err36 = {
             instancePath: instancePath + "/timeBudgetRemainingMinutes",
             schemaPath: "#/properties/timeBudgetRemainingMinutes/minimum",
             keyword: "minimum",
@@ -30175,14 +30854,14 @@ function validate67(
             message: "must be >= 0",
           };
           if (vErrors === null) {
-            vErrors = [err33];
+            vErrors = [err36];
           } else {
-            vErrors.push(err33);
+            vErrors.push(err36);
           }
           errors++;
         }
       } else {
-        const err34 = {
+        const err37 = {
           instancePath: instancePath + "/timeBudgetRemainingMinutes",
           schemaPath: "#/properties/timeBudgetRemainingMinutes/type",
           keyword: "type",
@@ -30190,15 +30869,15 @@ function validate67(
           message: "must be number",
         };
         if (vErrors === null) {
-          vErrors = [err34];
+          vErrors = [err37];
         } else {
-          vErrors.push(err34);
+          vErrors.push(err37);
         }
         errors++;
       }
     }
   } else {
-    const err35 = {
+    const err38 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -30206,12 +30885,12 @@ function validate67(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err35];
+      vErrors = [err38];
     } else {
-      vErrors.push(err35);
+      vErrors.push(err38);
     }
     errors++;
   }
-  validate67.errors = vErrors;
+  validate69.errors = vErrors;
   return errors === 0;
 }

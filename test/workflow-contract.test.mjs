@@ -276,6 +276,7 @@ test("human merge PR label is applied only when the PR is merge-ready with curre
         reviewDiffFingerprint: "same-diff",
         reviewedDiffFingerprint: "SAME-DIFF",
         reviewVerdict: "Ready to Merge",
+        independentReviewCount: 1,
         hasReviewEvidence: true,
         requiredChecksPassed: true,
         prState: "open",
@@ -883,6 +884,7 @@ test("untrusted sources cannot override workflow policy", () => {
 });
 
 const greenPr = {
+  independentReviewCount: 1,
   open: true,
   draft: false,
   reviewEvidenceCurrent: true,

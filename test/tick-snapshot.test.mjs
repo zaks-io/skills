@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,8 +9,9 @@ import { validateInput } from "../skills/ziw-orchestrate/scripts/planner-input-v
 const root = path.resolve(import.meta.dirname, "..");
 const script = path.join(root, "skills", "ziw-orchestrate", "scripts", "tick-snapshot.mjs");
 
-test("tick-snapshot paginates the complete open PR footprint", () => {
+test("tick-snapshot paginates and retains current and renamed paths for planner collision checks", (t) => {
   const bin = mkdtempSync(path.join(tmpdir(), "ziw-gh-"));
+  t.after(() => rmSync(bin, { recursive: true, force: true }));
   const gh = path.join(bin, "gh");
   const baselineHead = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: root,
@@ -24,7 +25,8 @@ if (endpoint) {
   const number = Number(endpoint.match(/pulls\\/(\\d+)/)[1]);
   process.stdout.write(JSON.stringify([[{
     filename: "src/shared.js",
-    status: "modified",
+    previous_filename: "src/previous.js",
+    status: "renamed",
     sha: number === 1 ? "same-reviewed-blob" : "changed-blob",
     additions: 2,
     deletions: 1,
@@ -82,4 +84,37 @@ process.stdout.write(JSON.stringify({ data: { repository } }));
   );
   assert.match(output.prs[0].reviewDiffFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.notEqual(output.prs[0].reviewDiffFingerprint, output.prs[1].reviewDiffFingerprint);
+  assert.equal(output.prs[0].changedFiles, 1);
+  assert.deepEqual(output.prs[0].footprint, ["src/shared.js", "src/previous.js"]);
+
+  const input = path.join(bin, "planner-input.json");
+  writeFileSync(
+    input,
+    JSON.stringify({
+      snapshot: output,
+      config: { workerConcurrencyCap: 3 },
+      state: {
+        startableTickets: [
+          { id: "SKI-100", footprint: ["src/shared.js"] },
+          { id: "SKI-101", footprint: ["src/previous.js"] },
+          { id: "SKI-102", footprint: ["src/separate.js"] },
+        ],
+      },
+    }),
+  );
+  const planned = JSON.parse(
+    execFileSync(
+      "node",
+      [path.join(root, "skills/ziw-orchestrate/scripts/tick-plan.mjs"), input, "--debug"],
+      { cwd: root, encoding: "utf8" },
+    ),
+  );
+  assert.deepEqual(
+    planned.decisions.dispatch.selected.map((ticket) => ticket.id),
+    ["SKI-102"],
+  );
+  assert.deepEqual(
+    planned.decisions.dispatch.deferred.map((ticket) => ticket.id),
+    ["SKI-100", "SKI-101"],
+  );
 });

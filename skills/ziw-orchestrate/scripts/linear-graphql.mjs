@@ -2,13 +2,22 @@
 // Minimal Linear GraphQL transport with macOS-only encrypted local credential storage.
 //
 // Usage:
-//   node linear-graphql.mjs setup [--store <path>] [--service <name>] [--account <name>]
+//   node linear-graphql.mjs setup [--store <path>] [--service <name>] [--account <prefix>]
 //   node linear-graphql.mjs query --query-file query.graphql [--variables-file vars.json]
 //   node linear-graphql.mjs query < request.json
 
 import { execFileSync } from "node:child_process";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
@@ -26,7 +35,7 @@ export const DEFAULT_STORE_PATH = path.join(
 );
 
 const usage = `Usage:
-  node linear-graphql.mjs setup [--store <path>] [--service <name>] [--account <name>]
+  node linear-graphql.mjs setup [--store <path>] [--service <name>] [--account <prefix>]
   node linear-graphql.mjs query [--query <graphql>] [--query-file <path>] [--variables <json>] [--variables-file <path>]
   node linear-graphql.mjs query < {"query":"query { viewer { id } }","variables":{}}
 `;
@@ -64,42 +73,66 @@ const assertMacOS = () => {
   }
 };
 
-const runSecurity = (args, options = {}) =>
-  execFileSync("security", args, {
-    encoding: "utf8",
-    input: options.input,
-    stdio: options.stdio ?? [options.input == null ? "ignore" : "pipe", "pipe", "pipe"],
-  });
+const runSecurity = (args, options = {}) => {
+  try {
+    return execFileSync("security", args, {
+      encoding: "utf8",
+      input: options.input,
+      stdio: [options.input == null ? "ignore" : "pipe", "pipe", "pipe"],
+    });
+  } catch {
+    // The CLI may include credential input in its diagnostics.
+    throw new Error(`macOS Keychain ${args[0]} failed`);
+  }
+};
 
 const readHiddenLine = async (prompt) => {
-  process.stderr.write(prompt);
-  let echoDisabled = false;
-  if (process.stdin.isTTY) {
-    try {
-      execFileSync("stty", ["-echo"], { stdio: ["inherit", "ignore", "ignore"] });
-      echoDisabled = true;
-    } catch {
-      echoDisabled = false;
+  let terminalState;
+  try {
+    terminalState = execFileSync("stty", ["-g"], {
+      stdio: ["inherit", "pipe", "ignore"],
+      encoding: "utf8",
+    }).trim();
+    if (!terminalState) throw new Error("missing terminal state");
+    execFileSync("stty", ["-echo"], { stdio: ["inherit", "ignore", "ignore"] });
+  } catch {
+    if (terminalState) {
+      execFileSync("stty", [terminalState], { stdio: ["inherit", "ignore", "ignore"] });
     }
+    throw new Error("cannot disable terminal echo; no credential was read");
   }
 
+  // Readline's terminal editing echoes independently of the terminal driver.
+  const rl = readline.createInterface({ input: process.stdin, terminal: false });
+  const abort = new AbortController();
+  const interrupt = () => abort.abort();
+  rl.once("close", interrupt);
+  process.on("SIGINT", interrupt);
+  process.on("SIGTERM", interrupt);
+  process.on("SIGTSTP", interrupt);
   try {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
-    const answer = await rl.question("");
-    rl.close();
+    process.stderr.write(prompt);
+    const answer = await rl.question("", { signal: abort.signal });
+    if (abort.signal.aborted) throw new Error("credential input ended without submission");
     process.stderr.write("\n");
     return answer;
+  } catch {
+    throw new Error("credential input interrupted; no credential was stored");
   } finally {
-    if (echoDisabled) {
-      execFileSync("stty", ["echo"], { stdio: ["inherit", "ignore", "ignore"] });
-    }
+    rl.removeListener("close", interrupt);
+    rl.close();
+    process.removeListener("SIGINT", interrupt);
+    process.removeListener("SIGTERM", interrupt);
+    process.removeListener("SIGTSTP", interrupt);
+    execFileSync("stty", [terminalState], { stdio: ["inherit", "ignore", "ignore"] });
   }
 };
 
 const readApiKeyForSetup = async () => {
   if (process.stdin.isTTY) {
-    process.stderr.write("Paste your Linear API key and press Return. Input is hidden.\n");
-    return readHiddenLine("Linear API key: ");
+    return readHiddenLine(
+      "Paste your Linear API key and press Return. Input is hidden.\nLinear API key: ",
+    );
   }
   return trimFinalNewline(await readStdin());
 };
@@ -150,6 +183,7 @@ export function decryptLinearApiKeyBlob(blob, key) {
 }
 
 export function writeEncryptedApiKeyStore(apiKey, options = {}) {
+  assertMacOS();
   const storePath = options.storePath ?? DEFAULT_STORE_PATH;
   const service = options.service ?? DEFAULT_KEYCHAIN_SERVICE;
   const account = options.account ?? DEFAULT_KEYCHAIN_ACCOUNT;
@@ -166,6 +200,31 @@ export function writeEncryptedApiKeyStore(apiKey, options = {}) {
   chmodSync(storePath, 0o600);
 
   return { key, storePath, service, account };
+}
+
+export function replaceLinearApiKeyStore(apiKey, options = {}) {
+  assertMacOS();
+  const storePath = options.storePath ?? DEFAULT_STORE_PATH;
+  const service = options.service ?? DEFAULT_KEYCHAIN_SERVICE;
+  const account = `${options.account ?? DEFAULT_KEYCHAIN_ACCOUNT}.${randomBytes(16).toString("hex")}`;
+  const storeDir = path.dirname(storePath);
+  mkdirSync(storeDir, { recursive: true, mode: 0o700 });
+  chmodSync(storeDir, 0o700);
+  const stagingDir = mkdtempSync(path.join(storeDir, ".linear-credential-"));
+  try {
+    const stagedPath = path.join(stagingDir, "credential.json");
+    const { key } = writeEncryptedApiKeyStore(apiKey, {
+      storePath: stagedPath,
+      service,
+      account,
+    });
+    // Keep old accounts valid until and after the atomic file replacement.
+    storeDecryptKeyInKeychain(key, { service, account });
+    renameSync(stagedPath, storePath);
+    return { storePath, service, account };
+  } finally {
+    rmSync(stagingDir, { recursive: true, force: true });
+  }
 }
 
 export function storeDecryptKeyInKeychain(key, options = {}) {
@@ -276,6 +335,7 @@ async function readGraphqlInput(args) {
 }
 
 async function setup(args) {
+  assertMacOS();
   const apiKey = await readApiKeyForSetup();
   if (!apiKey.trim()) throw new Error("empty Linear API key");
 
@@ -283,8 +343,7 @@ async function setup(args) {
   const service = argValue(args, "--service") ?? DEFAULT_KEYCHAIN_SERVICE;
   const account = argValue(args, "--account") ?? DEFAULT_KEYCHAIN_ACCOUNT;
   process.stderr.write("Encrypting Linear API key and storing decrypt key in macOS Keychain...\n");
-  const { key } = writeEncryptedApiKeyStore(apiKey.trim(), { storePath, service, account });
-  storeDecryptKeyInKeychain(key, { service, account });
+  replaceLinearApiKeyStore(apiKey.trim(), { storePath, service, account });
 
   process.stderr.write(`Stored encrypted Linear API key at ${storePath}\n`);
 }

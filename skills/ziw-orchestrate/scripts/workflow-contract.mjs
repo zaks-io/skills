@@ -307,6 +307,15 @@ const hasNamedLabel = (labels, name) =>
   Boolean(name) && toArray(labels).some((label) => labelName(label) === normalize(name));
 
 function currentReviewEvidence(state = {}) {
+  const currentFingerprint = currentReviewDiffFingerprint(state);
+  const reviewedFingerprint = reviewedDiffFingerprint(state);
+  if (
+    currentFingerprint &&
+    reviewedFingerprint &&
+    !fingerprintEquals(currentFingerprint, reviewedFingerprint)
+  ) {
+    return false;
+  }
   const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(
     normalize(state.reviewVerdict ?? state.codeReviewVerdict),
   );
@@ -329,6 +338,20 @@ function countEvidence(value) {
   if (Array.isArray(value)) return value.length;
   if (typeof value === "number") return value;
   return value ? 1 : 0;
+}
+
+export function hasCompletedIndependentReview(evidence = {}) {
+  return (
+    valueSet(CLEAN_REVIEW_VERDICTS).has(
+      normalize(evidence.reviewVerdict ?? evidence.codeReviewVerdict),
+    ) &&
+    countEvidence(evidence.independentReviewCount ?? evidence.independentReviews) > 0 &&
+    evidence.hasReviewEvidence !== false &&
+    evidence.reviewEvidenceCurrent !== false &&
+    !evidence.evidenceMissing &&
+    !evidence.linkedPrChanged &&
+    !hasBlockingReview(evidence)
+  );
 }
 
 function requiredChecksPassed(state = {}) {
@@ -502,7 +525,6 @@ export function reviewDepthRequirement(tier, config = {}) {
 function independentReviewCount(state = {}) {
   const explicit = state.independentReviewCount ?? state.independentReviews;
   let count = countEvidence(explicit);
-  if (count === 0 && currentReviewEvidence(state)) count = 1;
   // Fail closed: a hosted review counts only when its recorded diff fingerprint
   // provably matches the current review-relevant diff.
   if (state.hostedReviewComplete && hostedReviewCoversCurrentDiff(state)) count += 1;
@@ -725,8 +747,9 @@ function footprintEntries(item = {}) {
     ...toArray(item.files),
     ...toArray(item.paths),
     ...toArray(item.packages),
-    ...toArray(item.changedFiles),
+    ...toArray(item.changedFiles).filter((entry) => typeof entry === "string"),
   ]
+    .filter((entry) => typeof entry === "string")
     .map(normalizeFootprintPath)
     .filter(Boolean);
 }
@@ -764,20 +787,33 @@ function configuredWorkerNames(config = {}, kind) {
   ]);
 }
 
-function eligibleWorkerKinds(ticket = {}, config = {}) {
-  const workers = toArray(
+function ticketWorkerPaths(ticket = {}) {
+  return toArray(
     ticket.eligibleWorkers ?? ticket.workerPaths ?? ticket.allowedWorkers ?? ticket.workers,
   )
     .map(normalize)
     .filter(Boolean);
-  if (workers.length === 0) return null;
+}
+
+function eligibleWorkerKinds(ticket = {}, config = {}) {
+  const workers = ticketWorkerPaths(ticket);
+  const defaultRoute = workers.length === 0;
+  const limitsConfigured =
+    config.localBudgetSoftStopPercent != null ||
+    config.localBudgetHardStopPercent != null ||
+    config.localStartsBelowSoftLimit != null;
+  if (workers.length === 0) {
+    if (config.defaultWorkerPath) workers.push(normalize(config.defaultWorkerPath));
+    else return limitsConfigured ? [] : null;
+  }
 
   const remoteNames = configuredWorkerNames(config, "remote");
   const localNames = configuredWorkerNames(config, "local");
-  return [
+  const kinds = [
     ...(workers.some((worker) => remoteNames.has(worker)) ? ["remote"] : []),
     ...(workers.some((worker) => localNames.has(worker)) ? ["local"] : []),
   ];
+  return kinds.length === 0 && defaultRoute && !limitsConfigured ? null : kinds;
 }
 
 function ticketLeverage(ticket = {}) {
@@ -914,6 +950,9 @@ export function dispatchSelectionDecision(state = {}, config = {}) {
       id: ticket?.id,
       footprint: ticketFootprint,
       ...(worker ? { worker } : {}),
+      ...(worker && ticketWorkerPaths(ticket).length === 0 && config.defaultWorkerPath
+        ? { workerPath: config.defaultWorkerPath }
+        : {}),
     });
     if (worker === "local") localStarts += 1;
   }

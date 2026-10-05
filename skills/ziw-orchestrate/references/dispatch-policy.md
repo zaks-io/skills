@@ -17,6 +17,11 @@ because they are nearby or cheap.
   shaped work into the ready state.
 - Done tickets are terminal even when stale readiness labels remain.
 
+The snapshot separates scoped candidate IDs from dependency evidence. A blocker
+outside the route or requested set remains a blocker, never an extra candidate.
+Pass a requested ticket set as `state.scopeIssueIds`; it narrows snapshot scope
+and explicit startable tickets. Keep that transient request out of Repo Config.
+
 When a scoped ticket is not moving, verify the fact that would make it eligible
 for the next pipeline step. Repair routine status, label, route, environment,
 review-evidence, or handoff drift when refreshed evidence is clear. Escalate
@@ -35,7 +40,9 @@ Count:
 - confirmed provider sessions represented by repo-scoped tracker claims
 
 Deduplicate session, issue, branch, and provider handles. A human assignee, open
-PR, preview, or abandoned worktree is not an active worker. They still affect
+PR, preview, or abandoned worktree is not an active worker. Started tracker work
+reserves its files even without a confirmed agent session. A shared commit never
+collapses distinct workers. They still affect
 ownership, file collision, provider limits, and the PR action queue.
 
 Every tick advances actionable PR state and fills all remaining worker slots
@@ -100,8 +107,12 @@ The deterministic planner accepts `eligibleWorkers` (aliases: `workerPaths`,
 `localBudgetUsagePercent` in state and these config values:
 `remoteWorkerPaths`, `localWorkerPaths`, `localBudgetSoftStopPercent`,
 `localBudgetHardStopPercent`, and `localStartsBelowSoftLimit`. When budget state
-is absent, no budget thresholds are inferred and untyped dispatch behavior
-remains unchanged.
+is absent, no usage or budget exhaustion is inferred. Resolve
+`defaultWorkerPath` through the configured local/remote paths before enforcing
+limits. Missing ticket routing is not an exemption; hold an unknown worker kind
+when limits are configured.
+An unknown default path remains usable without configured limits; configure its
+local/remote kind before applying budget or per-tick policy.
 
 ## Dispatch Preconditions
 

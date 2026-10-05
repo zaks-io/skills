@@ -12,19 +12,19 @@ user requests, tool responses, and conversation history are excluded.
 | Skill              | Baseline tokens | Updated tokens |
 | ------------------ | --------------: | -------------: |
 | `ziw-architecture` |             new |            644 |
-| `ziw-code-review`  |           2,466 |          2,538 |
+| `ziw-code-review`  |           2,466 |          2,548 |
 | `ziw-debug`        |             new |          1,034 |
 | `ziw-grill`        |             926 |          1,159 |
 | `ziw-implement`    |           2,546 |          2,731 |
-| `ziw-orchestrate`  |           2,826 |          2,826 |
+| `ziw-orchestrate`  |           2,826 |          2,832 |
 | `ziw-pr`           |           2,335 |          2,371 |
 | `ziw-setup`        |           4,521 |          2,840 |
 | `ziw-to-issues`    |           3,673 |          3,709 |
 | `ziw-triage`       |           4,263 |          4,299 |
-| Existing eight     |          23,556 |         22,473 |
-| All ten            |  not applicable |         24,151 |
+| Existing eight     |          23,556 |         22,489 |
+| All ten            |  not applicable |         24,167 |
 
-The existing eight entrypoints are about 4.6% smaller than baseline.
+The existing eight entrypoints are about 4.5% smaller than baseline.
 The two new skills add 1,678 entrypoint tokens.
 The all-ten total measures repository instruction size, not a normal session
 load or a like-for-like reduction. Setup's field lists live in canonical
@@ -44,7 +44,9 @@ references; project state and verification transcripts are excluded from config.
 | `performance.md`           |    287 | Performance regression                                                         |
 | `testing.md`               |    315 | Behavioral regression coverage                                                 |
 | `friction-log.md`          |  1,627 | Encountered friction or run rollup                                             |
-| `project-config.md`        |  5,538 | Applicable setup field sections                                                |
+| `project-config.md`        |  5,589 | Applicable setup field sections                                                |
+| `planner-input.md`         |  1,647 | Assembling orchestration JSON                                                  |
+| `dispatch-policy.md`       |  1,670 | Scope, routing, capacity, or collision decisions                               |
 
 Direct Debug starts at 1,034 tokens, about 53% below
 Superpowers systematic-debugging's 2,183-token entrypoint measured with the same
@@ -70,13 +72,17 @@ loads Implement plus testing, about 3,046.
 Unmapped glossary discovery adds 209 where required.
 Complaint handling adds 1,627 only when friction occurs.
 A full-file Setup config-index read costs
-8,378; targeted section reads can cost less.
+8,429; targeted section reads can cost less.
 Other Setup references load for tracker policy, worker/loop policy, adapters,
 Linear + Cursor delegation, or handoff work rather than on every refresh.
 
 These are file-load estimates, not observed runtime traces. Shared references
 already loaded in the same context need not be loaded again. Codex adapter
 prompts and global discovery metadata are not included in the path sums.
+
+Orchestrator with the planner input contract loads about 4,479
+estimated tokens. Dispatch policy adds 1,670 when that branch applies.
+The script fixes execute without loading their source into model context.
 
 ## Maintenance
 

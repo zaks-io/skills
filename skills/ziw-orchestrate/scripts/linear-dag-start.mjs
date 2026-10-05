@@ -9,6 +9,7 @@
 
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
 
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
 const DEFAULT_STARTABLE_STATES = ["todo"];
@@ -205,29 +206,35 @@ const startableKindMatches = (issue, config = {}) => {
   return kindLabels.has(explicitKind) || labels.some((label) => kindLabels.has(label));
 };
 
-const hasActiveClaim = (issue) => {
-  const claim =
-    issue?.activeClaim ??
-    issue?.claimed ??
-    issue?.delegated ??
-    issue?.assignedWorker ??
-    issue?.workerSession ??
-    issue?.agentSession;
-
-  return Boolean(claim);
+export const hasActiveClaim = (issue) => {
+  return [
+    issue?.activeClaim,
+    issue?.claimed,
+    issue?.delegated,
+    issue?.assignedWorker,
+    issue?.workerSession,
+    issue?.agentSession,
+  ].some(Boolean);
 };
 
 const isOpenPr = (pr) => {
-  if (typeof pr === "string") return true;
+  if (typeof pr === "string") return Boolean(pr.trim());
+  if (!pr || typeof pr !== "object") return false;
+  if (pr.open === false || pr.closed === true || pr.merged === true || pr.mergedAt) return false;
   const state = normalize(pr?.state ?? pr?.status);
-  if (!state) return pr?.open !== false && pr?.closed !== true && pr?.merged !== true;
+  if (!state) return true;
   return !["closed", "merged"].includes(state);
 };
 
-const hasOpenPr = (issue) => {
-  if (issue?.openPr || issue?.hasOpenPr || issue?.openPullRequest) return true;
+export const hasOpenPr = (issue) => {
+  if (
+    [issue?.pr, issue?.openPr, issue?.hasOpenPr, issue?.openPullRequest].some(
+      (value) => value === true || (value && typeof value !== "boolean" && isOpenPr(value)),
+    )
+  )
+    return true;
   if (issue?.prOpen) return true;
-  if (isOpenPr({ state: issue?.prState, open: issue?.prOpen })) return Boolean(issue?.prState);
+  if (issue?.prState && isOpenPr({ state: issue.prState, open: issue?.prOpen })) return true;
   return [
     ...toArray(issue?.openPrs),
     ...toArray(issue?.openPullRequests),
@@ -418,7 +425,10 @@ const main = () => {
 
   const input = readJson(positional[0], "input");
   const config = { ...(input.config ?? {}), ...readJson(argValue("--config"), "--config") };
-  const result = linearDagStart(extractLinearIssues(input), config);
+  const result = restrictLinearDag(
+    linearDagStart(extractLinearIssues(input), config),
+    linearDispatchScope(input.snapshot ?? input, { ...input.queue, ...input.state }),
+  );
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 };
 

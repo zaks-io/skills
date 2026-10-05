@@ -62,7 +62,7 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Label docs:
 - Tracker scope: configured team, project, board, or repo route
 - Routing label:
-- Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required before issue-assigned delegation so the agent resolves which repo to clone
+- Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required for repository-scoped dispatch; issue-assigned agents also use it to resolve which repo to clone
 - Triage scope: Todo, configured intake such as Triage, and active or PR-linked
   current issues by default; Linear Backlog only when explicitly requested
 - Linear Backlog state: Backlog
@@ -128,8 +128,7 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Local budget hard stop: stops new local dispatch; remote work continues
 - Local starts below soft stop per tick: 1 unless repo policy says otherwise
 - Startable work criteria: kind-slice, ready state, ready-for-agent, complete
-  body with explicit non-goals, configured required estimate, repo-route label
-  when issue-assigned, no active blockers, no active claim or open PR
+  body with explicit non-goals, configured required estimate, configured repo-route label, no active blockers, no active claim or open PR
 - Done cleanup: remove ready-for-agent or the repo-configured readiness label
   when moving an issue to Done
 - Agent suitability policy: default agent work includes docs, tests, build/CI,
@@ -195,6 +194,10 @@ Project state: configured issue tracker. This file stores stable configuration o
   or produce a PR. Deduplicate session, issue, and provider handles. Human
   assignees, open PRs, previews, and abandoned worktrees do not occupy worker
   slots
+- Worker identity policy: deduplicate actual session, issue, branch, or worktree
+  evidence without merging conflicting identities; a shared commit never proves
+  one worker. Started tracker work reserves file footprints even without a
+  confirmed agent session
 - Partitioned-scope cap semantics: record whether concurrent orchestrator runs
   share one repo-wide worker pool and how they reserve slots
 - Dispatch footprint policy: before fanning out startable work, compare predicted

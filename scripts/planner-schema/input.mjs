@@ -38,6 +38,21 @@ const snapshotProperties = {
       skipped: { type: ["string", "null"] },
       issues: array("issue"),
       activeIssues: array("issue"),
+      issueMetadata: array("issue"),
+      unroutedIssueIds: { type: "array", items: text },
+      candidateIssueIds: { type: "array", items: text },
+      statesFilter: { type: "array", items: text },
+      activeScope: {
+        type: "object",
+        properties: { routeLabel: { type: ["string", "null"] } },
+      },
+      candidateScope: {
+        type: "object",
+        properties: {
+          routeLabel: { type: ["string", "null"] },
+          states: { type: "array", items: text },
+        },
+      },
     },
   },
   usage: object,
@@ -52,6 +67,7 @@ const state = {
     linearIssues: array("issue"),
     activeLinearIssues: array("issue"),
     startableTickets: array("startableTicket"),
+    scopeIssueIds: { type: "array", items: { type: "string", pattern: "\\S" } },
     ...Object.fromEntries(
       ["dispatches", "ledgerDispatches", "activeWork", "workers", "worktrees", "previews"].map(
         (name) => [name, array("work")],

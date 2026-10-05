@@ -225,6 +225,9 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
     draftState: pr.isDraft ? "draft" : "ready-for-review",
     updatedAt: pr.updatedAt,
     changedFiles: pr.changedFiles,
+    footprint: [
+      ...new Set(files.flatMap((file) => [file.filename, file.previous_filename]).filter(Boolean)),
+    ],
     reviewDiffFingerprint: reviewDiffFingerprint(files),
     headRefName: pr.headRefName,
     headSha: pr.headRefOid,

@@ -84,7 +84,9 @@ Each tick:
 3. Reconcile the ledger against refreshed tracker, PR, and local-worktree state.
    Synthesize missing dispatches from repo-scoped active tracker claims and
    dirty, baseline-unmerged, or uncertain non-default worktrees. Deduplicate by
-   issue, branch, head, or worktree; drop stale ledger entries; re-dispatch or
+   session, issue, branch, or worktree without merging conflicting identities;
+   a shared commit alone never identifies one worker. Retain started tracker
+   footprints without counting unconfirmed sessions. Drop stale ledger entries; re-dispatch or
    escalate stuck workers. A failed worktree inventory is a snapshot failure,
    not evidence of zero local workers.
 4. Refresh worker capacity from confirmed implementation and repair sessions.

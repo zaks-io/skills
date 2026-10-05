@@ -51,6 +51,7 @@ test("tick-plan advances PRs and fills worker slots in the same tick", () => {
         247: {
           hasReviewEvidence: true,
           reviewedDiffFingerprint: "reviewed-diff",
+          independentReviewCount: 1,
           reviewedHeadSha: "pr-head",
           reviewVerdict: "Ready to Merge",
         },
@@ -118,6 +119,7 @@ test("tick-plan reuses review when only the base changed and the reviewed diff i
         242: {
           reviewedHeadSha: "old-head",
           reviewedDiffFingerprint: "same-reviewed-diff",
+          independentReviewCount: 1,
           reviewVerdict: "Ready to Merge",
         },
       },
@@ -524,6 +526,7 @@ test("tick-plan applies human merge label only with current review evidence", ()
         12: {
           hasReviewEvidence: true,
           reviewedDiffFingerprint: "reviewed-diff",
+          independentReviewCount: 1,
           reviewedHeadSha: "ABC123",
           reviewVerdict: "Ready to Merge",
         },
@@ -1028,7 +1031,7 @@ test("tick-plan does not let a closed PR suppress an active claim", () => {
   assert.equal(output.counts.openPrs, 0);
 });
 
-test("tick-plan treats an abandoned local worktree as a collision but not a worker", () => {
+test("tick-plan reserves an abandoned worktree and blocks duplicate delivery without counting a worker", () => {
   const output = runPlan({
     snapshot: {
       repo: "zaks-io/mainstay",
@@ -1056,7 +1059,9 @@ test("tick-plan treats an abandoned local worktree as a collision but not a work
     config: { workerConcurrencyCap: 1, readinessLabels: ["ready-for-agent"] },
   });
 
-  assert.equal(output.nextAction, "DEFER_FOR_FILE_CONTENTION");
+  assert.equal(output.nextAction, "stop-blocked");
+  assert.deepEqual(output.decisions.dispatch.selected, []);
+  assert.ok(output.decisions.linearDag.nodes[0].startableBlockers.includes("active claim exists"));
   assert.deepEqual(output.capacity, { cap: 1, headroom: 1, used: 0 });
   assert.deepEqual(output.footprint, { dispatches: 1, previews: 0, prs: 0, total: 1 });
   assert.deepEqual(output.decisions.activeDispatches, [
@@ -1210,7 +1215,7 @@ function reviewedPrInput(evidence, reviewRequest, config = { mergeAuthority: "ag
     },
     config,
     state: {
-      reviewEvidenceByPr: { 7: evidence },
+      reviewEvidenceByPr: { 7: { independentReviewCount: 1, ...evidence } },
       ...(reviewRequest ? { reviewRequestsByPr: { 7: reviewRequest } } : {}),
     },
   };

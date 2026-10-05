@@ -152,7 +152,8 @@ the requirement source and state when none was supplied; do not invent criteria.
 
 For independent review, recommend `APPLY` only with `READY FOR PR` or `APPROVE`,
 a verified committed target, and exhibited conformance with no blocking rows.
-Record the PR URL when applicable, reviewed SHA, and review-diff fingerprint
+Record the completed independent reviewer identity and count, explicit verdict,
+PR URL when applicable, reviewed SHA, and review-diff fingerprint
 supplied by the orchestrator snapshot. Do not invent a fingerprint or derive one
 from the SHA. Missing evidence cannot support `APPLY`.
 

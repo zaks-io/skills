@@ -224,13 +224,53 @@ export function normalizeLinearIssue(issue, closedBlockers = new Map()) {
   };
 }
 
-export function selectScopedLinearIssues(issues, states = []) {
-  if (states.length === 0) return issues;
+const normalizedLabels = (issue) => {
+  const labels =
+    issue.labels == null ? [] : Array.isArray(issue.labels) ? issue.labels : [issue.labels];
+  return labels.map((label) =>
+    String(typeof label === "string" ? label : (label?.name ?? ""))
+      .trim()
+      .toLowerCase(),
+  );
+};
+
+export function linearIssueMatchesRoute(issue, routeLabel) {
+  if (!routeLabel) return true;
+  const normalizedRoute = routeLabel.trim().toLowerCase();
+  return normalizedLabels(issue).includes(normalizedRoute);
+}
+
+function selectUnroutedIssueIds(issues, states, routeLabel) {
+  if (!routeLabel) return [];
+  const normalizedRoute = routeLabel.trim().toLowerCase();
+  const namespace = normalizedRoute.includes("/") ? `${normalizedRoute.split("/")[0]}/` : null;
   const stateSet = new Set(states);
-  const primary = issues.filter((issue) => stateSet.has(issue.state));
-  const directBlockers = new Set(primary.flatMap((issue) => issue.blockedBy));
+  return issues
+    .filter(
+      (issue) =>
+        (stateSet.size === 0 ? issue.stateType === "unstarted" : stateSet.has(issue.state)) &&
+        !normalizedLabels(issue).some(
+          (label) => label === normalizedRoute || (namespace && label.startsWith(namespace)),
+        ),
+    )
+    .map((issue) => issue.identifier);
+}
+
+function selectLinearCandidates(issues, states, routeLabel) {
+  const stateSet = new Set(states);
   return issues.filter(
-    (issue) => stateSet.has(issue.state) || directBlockers.has(issue.identifier),
+    (issue) =>
+      (stateSet.size === 0 || stateSet.has(issue.state)) &&
+      linearIssueMatchesRoute(issue, routeLabel),
+  );
+}
+
+export function selectScopedLinearIssues(issues, states = [], routeLabel) {
+  const primary = selectLinearCandidates(issues, states, routeLabel);
+  const selected = new Set(primary.map((issue) => issue.identifier));
+  const directBlockers = new Set(primary.flatMap((issue) => issue.blockedBy ?? []));
+  return issues.filter(
+    (issue) => selected.has(issue.identifier) || directBlockers.has(issue.identifier),
   );
 }
 
@@ -247,28 +287,7 @@ export function selectActiveLinearIssues(issues, routeLabel) {
         issue.agentSession,
       ),
   );
-  let scopedActive = active;
-
-  if (routeLabel) {
-    const normalizedRoute = routeLabel.trim().toLowerCase();
-    const routeNamespace = normalizedRoute.includes("/")
-      ? `${normalizedRoute.split("/")[0]}/`
-      : null;
-    const usesRouteLabels = issues.some((issue) =>
-      (issue.labels ?? []).some((label) => {
-        const normalizedLabel = label.trim().toLowerCase();
-        return (
-          normalizedLabel === normalizedRoute ||
-          (routeNamespace && normalizedLabel.startsWith(routeNamespace))
-        );
-      }),
-    );
-    if (usesRouteLabels) {
-      scopedActive = active.filter((issue) =>
-        (issue.labels ?? []).some((label) => label.trim().toLowerCase() === normalizedRoute),
-      );
-    }
-  }
+  const scopedActive = active.filter((issue) => linearIssueMatchesRoute(issue, routeLabel));
 
   const selected = new Set(scopedActive.map((issue) => issue.identifier));
   const directBlockers = new Set(scopedActive.flatMap((issue) => issue.blockedBy ?? []));
@@ -298,15 +317,22 @@ export async function loadLinearSnapshot({ request, selector, states = [], route
 
   const closedBlockers = await resolveClosedBlockers(request, rawIssues);
   const issues = rawIssues.map((issue) => normalizeLinearIssue(issue, closedBlockers));
+  const candidateIssueIds = selectLinearCandidates(issues, states, routeLabel).map(
+    (issue) => issue.identifier,
+  );
 
   return {
     team: team.key,
     teamId: team.id,
     teamName: team.name,
     statesFilter: states,
-    includesDirectBlockers: states.length > 0,
+    candidateScope: { routeLabel: routeLabel ?? null, states },
+    candidateIssueIds,
+    issueMetadata: issues.map(({ identifier, labels }) => ({ identifier, labels })),
+    unroutedIssueIds: selectUnroutedIssueIds(issues, states, routeLabel),
+    includesDirectBlockers: true,
     activeScope: { routeLabel: routeLabel ?? null },
     activeIssues: selectActiveLinearIssues(issues, routeLabel),
-    issues: selectScopedLinearIssues(issues, states),
+    issues: selectScopedLinearIssues(issues, states, routeLabel),
   };
 }

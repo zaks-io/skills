@@ -7,6 +7,8 @@ import test from "node:test";
 
 import {
   extractLinearIssues,
+  hasActiveClaim,
+  hasOpenPr,
   linearDagStart,
 } from "../skills/ziw-orchestrate/scripts/linear-dag-start.mjs";
 
@@ -309,4 +311,66 @@ test("linearDagStart keeps raw duplicate blockers blocking until canonicalized",
   ]);
 
   assert.deepEqual(output.starts, ["LIN-3"]);
+});
+
+test("live PR collections block starts despite absent, false, or closed scalar PR evidence", () => {
+  const ready = { labels: ["kind-slice", "ready-for-agent"], state: "Todo" };
+  const output = linearDagStart([
+    { identifier: "LIN-1", pullRequests: [{ state: "OPEN" }], ...ready },
+    {
+      identifier: "LIN-2",
+      openPr: false,
+      prOpen: false,
+      prState: "CLOSED",
+      prs: [{ state: "open" }],
+      ...ready,
+    },
+    {
+      identifier: "LIN-3",
+      openPr: { state: "closed" },
+      openPullRequests: [{ state: "open" }],
+      ...ready,
+    },
+    {
+      identifier: "LIN-4",
+      prState: "MERGED",
+      openPrs: ["https://github.com/zaks-io/example/pull/4"],
+      ...ready,
+    },
+    {
+      identifier: "LIN-5",
+      openPr: { state: "closed" },
+      prs: [{ state: "closed" }, { mergedAt: "2026-10-05" }, null, false],
+      ...ready,
+    },
+    { identifier: "LIN-6", openPr: { state: "open" }, ...ready },
+  ]);
+
+  assert.deepEqual(output.starts, ["LIN-5"]);
+  assert.deepEqual(
+    output.nodes.map((node) => node.openPr),
+    [true, true, true, true, false, true],
+  );
+});
+
+test("an explicitly false active-claim alias does not hide an assigned live worker", () => {
+  const output = linearDagStart([
+    {
+      identifier: "LIN-1",
+      labels: ["kind-slice", "ready-for-agent"],
+      state: "Todo",
+      activeClaim: false,
+      workerSession: "worker-1",
+    },
+  ]);
+
+  assert.deepEqual(output.starts, []);
+  assert.deepEqual(output.nodes[0].startableBlockers, ["active claim exists"]);
+});
+
+test("exported delivery predicates use the same scalar and collection rules as the DAG", () => {
+  assert.equal(hasOpenPr({ openPr: false, prs: [{ state: "open" }] }), true);
+  assert.equal(hasOpenPr({ openPr: { state: "closed" } }), false);
+  assert.equal(hasOpenPr({ openPr: { state: "open" } }), true);
+  assert.equal(hasActiveClaim({ activeClaim: false, workerSession: "worker-1" }), true);
 });
