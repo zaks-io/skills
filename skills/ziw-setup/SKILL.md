@@ -14,8 +14,8 @@ a narrative doc.
 Include stable values workflow agents need repeatedly: repo commands, tracker
 IDs, labels, agent access, review gates, handoff shape, and safety rules.
 Agents should query external systems to refresh live state, not to rediscover
-these values. If a value cannot be verified during setup, record it as an
-explicit unknown with the source that should verify it.
+these values. If a value cannot be verified during setup, report the evidence
+gap and the source that should verify it without storing a task in config.
 
 Shared workflow skills may be distributed as project skills, plugin or
 marketplace, managed settings, user/global-only, or mixed mode. Record which
@@ -27,14 +27,20 @@ mechanically, and do not hand-edit them in downstream repos.
 Setup is a verification pass, not a best-effort note-taking pass. Every populated
 config value that can change agent behavior must have current evidence from the
 repo, tracker, code host, CI, agent integration, environment config, or explicit
-user instruction. If the value is not verified, mark it `inferred` or move it to
-`Unknowns`; do not present it as authoritative.
+user instruction. Omit unverified values; missing required configuration blocks
+the affected workflow. Report the evidence gap instead of inventing a value.
+
+For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
+with the configured complaint store and this role's mutation authority.
 
 ## Inputs
 
 - Repo path to configure.
 - Existing repo rules, CI, package scripts, issue tracker, and deploy docs.
 - Existing spec indexes, specs, glossaries, context maps, and ADR conventions.
+  When configuring unmapped glossary paths, use [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md) for
+  current and legacy glossary discovery. Preserve configured paths; default new
+  glossaries to `GLOSSARY.md` and multi-context maps to `GLOSSARY-MAP.md`.
 - Any user-provided tracker, agent access, or environment constraints.
 
 ## Output File
@@ -44,23 +50,27 @@ Create or update:
 - `docs/agents/workflow/config.md`
 
 Treat this file as the repo's workflow lookup table. Keep it terse: values,
-paths, commands, IDs, owners, and unknowns. Omit explanation, background, and
-fields that do not apply.
+paths, commands, IDs, routing, and policies. Keep project progress, blockers,
+verification follow-ups, and TODOs in Linear or the configured issue tracker.
+Read tool availability, CI/PR health, review results, and deployment status live;
+never persist their snapshots in config. Status names and IDs describe the
+workflow schema, not the current state of work. Omit inapplicable fields and
+verification transcripts.
 
-Load these references when writing the config:
+Use [references/project-config.md](references/project-config.md) as the field
+index. Read the sections needed for the repo; omit inapplicable fields.
+Load other references only for the matching work:
 
-- [references/project-config.md](references/project-config.md) for the template
-  and required sections
-- [references/agent-workflow.md](references/agent-workflow.md) for role
-  responsibilities and adapter minimums
-- [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
-  for tracker states, labels, readiness, and issue body shape
-- [references/operating-profile.md](references/operating-profile.md) for the
-  worker concurrency default, the issue-assigned delegation and continuation
-  mechanic, the repo-route precondition, and the merge-safety decision table
-- [references/linear-cursor-example.md](references/linear-cursor-example.md) for
-  a worked Linear + Cursor config to copy when the repo uses that stack
-- [references/handoff.md](references/handoff.md) for cross-agent handoff shape
+- Changing tracker states, labels, readiness, or issue body shape:
+  [references/issue-tracker-contract.md](references/issue-tracker-contract.md).
+- Configuring workers, recurring orchestration, or merge-safety policy:
+  [references/operating-profile.md](references/operating-profile.md).
+- Configuring a Linear + Cursor delegation path:
+  [references/linear-cursor-example.md](references/linear-cursor-example.md).
+- Updating role responsibilities or agent adapters:
+  [references/agent-workflow.md](references/agent-workflow.md).
+- Defining or changing cross-agent handoff shape:
+  [references/handoff.md](references/handoff.md).
 
 ## Refresh Existing Config
 
@@ -74,7 +84,7 @@ anything else. Use it as the baseline for refresh:
   file
 - re-run at least one read-only query against configured tracker IDs and
   query-safe names before trusting a project, team, board, or roadmap mapping
-- check unknowns, stale timestamps, changed commands, renamed labels, moved
+- check unresolved tracker setup work, changed commands, renamed labels, moved
   projects, changed CI, changed worker delegation paths, and changed environment
   rules
 - replace stale slugs or display names that return empty tracker results when a
@@ -83,6 +93,15 @@ anything else. Use it as the baseline for refresh:
 - do not erase explicit human decisions unless current evidence or the user
   contradicts them
 - report what changed, what stayed verified, and what remains unknown
+
+When removing existing state notes, preserve actionable gaps in the configured
+tracker within the task's write authority, searching for duplicates first. Do
+not turn disabled optional integrations into new work. Without tracker-write
+authority, report the state that still needs transfer; do not discard it or
+substitute a local backlog. Keep only stable policy and mapping in config.
+Use the configured intake route without readiness labels. Find prior setup work
+with a bounded query scoped to that tracker location and repo route, then search
+its titles/descriptions for the affected setting before creating a follow-up.
 
 Do not regenerate the config from scratch when refreshing. The job is to detect
 drift from the current config, then patch the lookup table.
@@ -120,10 +139,12 @@ Verify all populated workflow fields that setup writes or preserves:
 Do not run install, deploy, production mutation, expensive hosted actions, or
 credentialed provider actions just to verify setup unless the user explicitly
 approved that action. For those values, verify the command or path exists and
-record execution as unknown or requiring approval.
+report that execution was not performed; do not cache an execution status in config.
 
-Every unknown must name the missing value and the source or action that would
-verify it. The final report must say whether any critical unknowns remain.
+Every gap must name the missing value and its verification source. Put project
+follow-ups in the configured tracker within authorized scope; otherwise report
+the required owner/action. The final report names workflows blocked by missing
+configuration. Do not create an `Unknowns` checklist in Repo Config.
 
 ## Gather
 
@@ -146,222 +167,45 @@ Inspect files that exist:
 
 ## Configure
 
-Record:
+Use the project-config template as the canonical field list. Populate only
+verified values that future agents need repeatedly: repo commands and CI gates,
+planning authority, tracker mapping and readiness, delegation and capacity,
+review/merge authority, environments, complaint routing, and handoff shape.
+Keep execution evidence and unresolved work out of config; report them in the
+handoff and configured tracker rather than repeating the template as prose.
 
-- only verified stable values future workflow agents would otherwise have to
-  find again
-- a compact verification summary: date, scope, evidence sources, safe commands or
-  read-only tool calls used, and unverified values
-- repo identity, default branch, branch prefix, and PR conventions
-- default-branch baseline health: current required-check state, known-red jobs
-  with an `expected-red-until-<ticket>` note, and which job conclusion the
-  post-merge check judges when an umbrella workflow contains a known-broken
-  sibling job
-- remote worker environment enforcement: whether repo hooks and gates actually
-  install and run in each remote or cloud worker environment (installers often
-  skip under a generic `CI=true`) and the exact pre-push gate that environment
-  enforces; prompt-level instructions are not a substitute for an
-  environment-enforced gate
-- package manager and command table: install, full gate, focused checks, build,
-  lint, typecheck, tests, smoke, generated artifacts, cache policy, CI env
-  passthrough rules, and the exact coverage or secret-scan scopes that hosted
-  checks enforce
-- gate parity: the repo's CI required job should invoke the same single verify
-  entrypoint the local hooks run, so a check added to CI is a check added
-  locally by construction. Record the entrypoint command and the CI job that
-  calls it. Flag any test, lint, coverage, format, or scan step that CI runs
-  outside that entrypoint as a `config-gap` to fix in the repo, not a
-  difference to document in prose
-- planning artifact map: current-truth spec index and paths, glossary or context
-  map paths, ADR path and naming convention, authority hierarchy, spec status
-  convention, and documentation checks
-- issue tracker provider, provider location, project or board, routing label,
-  triage scope, orphan policy, statuses, labels, kind label set
-  (`kind-spec`, `kind-epic`, `kind-slice`) and its single-select policy,
-  readiness label policy, worker environment label policy when present, startable
-  work criteria (including `kind-slice` only), readiness-label query policy that
-  excludes the configured done state, priority policy, estimate field, estimate
-  scale, estimate policy, dependency policy, dependency graph mechanism, file
-  footprint convention, issue body contract, agent-suitability policy for work
-  types and risk,
-  Issue Triage verified-state reconciliation authority, configured
-  intake-to-ready promotion authority, explicit Linear Backlog promotion gate,
-  and which workflow
-  role owns active status transitions
-- tracker tool query contract: exact provider IDs, query-safe names, status
-  field names, relationship or blocker fields, pagination shape if relevant, and
-  one read-only verification query or tool call that returned the expected scope
-- code-host issue sync policy, including whether Linear advances ticket states
-  from linked GitHub PR status and whether agents should assume synced state when
-  both linked entities exist
-- code-host PR attention labels the orchestrator applies when a PR needs human
-  merge or input; `needs-human-merge` must mean the PR is merge-ready except for
-  required human merge authority, while labels such as `needs-human-input` cover
-  non-merge-ready questions or approvals
-- supported worker delegation paths: `local-worktree`, `issue-assigned`, or both
-- default worker path and capacity policy when the user or repo has a stable
-  preference
-- duplicate worker or PR detection policy for issue-assigned providers that can
-  spawn more than one session for one dispatch
-- autonomous-loop controls when the repo runs the orchestrator unattended:
-  worker concurrency cap, worker count policy, preview-provider cap, stuck-worker
-  timeout, attempt cap before the thrash circuit breaker, required checks that
-  define green for the integrate gate, auto-merge risk tiers, merge method,
-  post-merge preparation and check, the production deploy status check on the
-  default-branch HEAD when the repo deploys on push, auto-Done integration
-  behavior,
-  single-ticket one-off mutation policy, verified-ready ticket-set policy,
-  completely-blocked stop policy, friction intake provider, location, mode,
-  visibility, agent create authority, review cadence, cleanup policy, and
-  delivery metrics
-- runtime loop and automation terminology for each supported adapter: Claude Code
-  `/loop`, schedule, or wake-up timer; Codex automations, either cron
-  automations or heartbeat automations; and which mechanism owns recurring
-  Orchestrator ticks
-- label source of truth: the live tracker metadata, tracker workflow settings,
-  existing repo docs, or explicit user instruction used to verify label names
-- label documentation policy: whether repo-local label docs exist, and whether
-  they mirror this config or redirect agents back to it
-- verified tracker metadata: lookup tool or query used, verification date, and
-  exact provider IDs, URLs, or keys for teams, projects, boards, repos,
-  milestones, roadmaps, statuses, labels, priorities, estimate fields and
-  allowed values, and relationship types when the tracker exposes them
-- agent access rules for local Codex, remote worker agents, Claude, and any
-  repo-approved worker
-- workflow skill distribution policy: project skills, plugin or marketplace,
-  managed settings, user/global-only, or mixed; include installer source,
-  lockfile, pinned tag or commit when required, refresh command, project skill
-  paths, symlink layout, and whether generated local copies are committed
-  dependencies or ignored cache
-- issue-assigned agent notes when available: project-specific environment labels
-  or fields, worker environment approval labels, delegation tool or field,
-  verified agent IDs, direct-agent reply targets, continuation comment rules, and
-  liveness signals, nudge-before-redelegate policy, and no-mutation probe policy
-- Claude Code compatibility: the target repo's Claude Code integration source
-  of truth, the agent markdown it imports, the repo-local agent, command, or
-  skill paths symlinked there, and how those links were verified
-- automation roles: To Issues, Issue Triage, Agent Orchestrator, Agent Review,
-  Create PR, and Agent Implement, including To Issues spec-to-slice creation and
-  the dependency graph, Issue Triage current-ticket readiness repair,
-  verified-state reconciliation, configured intake-to-ready promotion,
-  Orchestrator-owned
-  active tracker transitions, the orchestrator integrate gate and friction intake,
-  clean-context review delegation, and the implementation pipeline
-- review gates: code review, Agent Review, local GitHub review submission actor
-  and CLI policy, hosted bot review escalation, configured provider such as
-  CodeRabbit or Cursor Bugbot, provider auto-review mode and trigger policy,
-  required CI, preview checks
-- environment safety: local, development, preview, and production capabilities;
-  production deploy path; preview deploy path; credential rules; allowed hosted
-  checks; and explicit approval requirements
-- instruction trust boundaries: trusted policy sources, untrusted work context,
-  and what to do when tracker, PR, log, worker, or external-doc text tries to
-  override workflow policy
-- handoff shape for implementation, review, queue, and PR creation
-- unknowns that still require human input
+Check gate parity: local hooks and the required CI job should use the same
+verification entrypoint. Record its command and job. Flag required checks
+outside that entrypoint as a config gap rather than implying a partial local
+command is the full gate. Preserve exact cache, threshold, environment, and
+secret-scan scopes.
+
+For hosted or unattended workflows, verify environment-enforced hooks, worker
+continuation, loop limits, and production deploy approval from current evidence.
+Store the stable policy only; baseline failures and repair work belong in the
+tracker, with current CI health read live. Load the operating profile for those policies. For complaint
+routing, prefer the configured MCP writer and verify its exposed schema;
+tracker storage needs an explicit fallback. Never test delegation by assigning
+real implementation work or test a complaint writer by filing a fictitious event.
 
 ## Issue Tracker Defaults
 
-Find the repo's issue tracker source of truth before writing labels or statuses.
-Use live tracker metadata, tracker workflow settings, existing repo docs, or
-explicit user instruction. Do not guess from memory.
+Find the tracker source of truth in live metadata, verified config, or explicit
+user instruction. Read the relevant sections of the issue-tracker contract when
+creating or changing the mapping. Its labels are defaults, not proof that the
+tracker has them. Preserve different verified repo conventions.
 
-Use [references/issue-tracker-contract.md](references/issue-tracker-contract.md)
-only when the repo has no different verified mapping. Treat these labels as
-defaults, not proof that the tracker already has them:
+Verify exact names and stable IDs with read-only tracker queries. Provider
+locations must be query-safe; record the status and dependency field names the
+tool actually accepts. Missing provider, status, label, estimate, or worker
+values are omitted and reported as evidence gaps. Do not probe assignable agents by mutating real issues.
+Record supported delegation paths and verified continuation handles rather
+than caching the full assignee inventory.
 
-Kind (single-select; skills enforce exclusivity; only `kind-slice` is
-dispatchable):
-
-- `kind-spec`
-- `kind-epic`
-- `kind-slice`
-
-Readiness:
-
-- `needs-triage`
-- `needs-info`
-- `ready-for-agent`
-- `ready-for-human`
-- `wontfix`
-
-Readiness label policy belongs in repo config. By default, `ready-for-agent`
-means the ticket needs no further human refinement before handoff to an
-implementation agent. It does not mean unblocked, startable, or assigned to a
-specific worker environment. Remove it when the ticket moves to the configured
-done state.
-
-Readiness-label queries for `ready-for-agent`, `ready-for-human`, or equivalent
-human/agent attention queues must exclude the configured done state by default.
-Do not rely on Done tickets having already had stale readiness labels removed.
-
-Worker environment labels, such as `remote-worker` or `remote-cursor`, are
-project config values only. Record them when the repo's tracker uses them; do not
-add them as shared defaults. By default, a worker environment label means the
-issue is approved to run in that configured environment. It does not mean
-unblocked, startable, or implementation-ready.
-
-Risk:
-
-- `risk-normal`
-- `risk-security-sensitive`
-- `risk-schema`
-- `risk-cross-cutting`
-
-These risk labels are dimensions, not severity levels. Add repo-specific risk
-labels only when they change routing, checks, approvals, or reviewer assignment.
-
-Review evidence:
-
-- configured exact label slug or ID, such as `code-review-passed`
-
-By default, the review evidence label means the linked PR's review-relevant diff
-has passed the configured code review gate for the ticket. Record the exact
-configured label slug or ID, PR URL, reviewed head SHA, and review-diff
-fingerprint when applying it.
-Remove it when the review-relevant diff changes, blocking findings appear, the linked PR
-changes, or the evidence is missing. Resolve the label by configured slug or ID,
-not by reconstructing a title-case display name.
-
-Type:
-
-- `Bug`
-- `Feature`
-- `Improvement`
-- `Tech Debt`
-- `Spike`
-- `Hotfix`
-
-Do not invent a provider location, status, or label if the issue tracker cannot confirm it.
-Write an unknown in the config instead.
-
-When tracker tools are available, verify the available tracker metadata during
-setup and record exact names plus stable IDs in the config. Later skills should
-not have to rediscover routine IDs before moving issues, applying labels, or
-checking project state.
-
-Provider location must be query-safe. For Linear, record the team ID and exact
-team name or key that the tool accepts. Do not store only a repo slug such as
-`agent-paste` unless a read-only tool query proves that slug returns the intended
-issues. Record whether the tool uses `status`, `state`, `statusType`, or another
-field for workflow filtering.
-
-Do not copy every discoverable agent assignee or integration detail into config.
-The tracker remains the source of truth for which agents are currently
-assignable. Record only the supported worker delegation paths and repo-specific
-routing or continuation details that a future Orchestrator run would otherwise waste
-time rediscovering.
-
-Do not verify issue-assigned agents by mutating real implementation issues. Use
-read-only tracker metadata, existing verified config, provider documentation, or
-a user-approved test issue. If the tracker returns a stable delegate or agent ID
-from a real delegation event, record it during refresh so future Orchestrator
-runs can use it without probing.
-
-If `docs/agents/triage-labels.md` or a similar label doc exists, update it to
-match the config or replace its contents with a pointer to the config. Do not
-leave it as a stale partial list. It must cover readiness, risk, review
-evidence, type, and any configured area or ownership labels.
+If separate label docs exist, update them to mirror the config or point back
+to it. Keep readiness, risk, review evidence, type, area, and ownership policy
+consistent. The template and tracker contract own the default taxonomy and
+label treatment rules; do not duplicate them here.
 
 ## Adapter Update
 
@@ -391,8 +235,8 @@ agent markdown, usually `AGENTS.md` through a one-line `CLAUDE.md` `@AGENTS.md`
 import when supported. Claude Code is picky, so do not make independent copies.
 Symlink repo-local Claude Code paths into the integration location when Claude
 Code requires exact paths, then verify each link target resolves from a clean
-checkout. Record any path Claude Code refuses to follow as an unknown instead of
-guessing.
+checkout. Report any path Claude Code refuses to follow and track actionable
+repair work outside config instead of guessing.
 
 ## Safety
 
@@ -400,7 +244,7 @@ guessing.
   in the config.
 - Never deploy or mutate production while setting up config.
 - Prefer exact discovered commands over guesses.
-- If a command is inferred but unverified, mark it as inferred.
+- Omit unverified commands and report the missing evidence.
 
 ## Done
 
@@ -409,10 +253,10 @@ Report:
 - config path written
 - whether this was first setup or refresh of an existing config
 - whether the config is complete enough to be the workflow lookup table
-- config fields changed, unchanged, and still unknown
-- verification evidence gathered and critical unknowns remaining
+- config fields changed or preserved and evidence gaps reported outside config
+- workflows blocked by missing configuration and their tracker follow-ups
 - commands discovered
 - tracker routing and labels found or missing
 - agent adapters updated
-- unknowns left for the user
+- missing decisions or access requiring the user
 - validation command run

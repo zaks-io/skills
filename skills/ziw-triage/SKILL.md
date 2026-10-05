@@ -23,6 +23,9 @@ The end state is a clean `Todo` handoff queue:
 - Orchestrator can consume the final `starts`, blocked-ready list, and next
   actions without re-triaging the same queue
 
+For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
+with the configured complaint store and this role's mutation authority.
+
 ## Inputs
 
 - Issue tracker project, team, repo label, board, roadmap, query, filter, or

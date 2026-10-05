@@ -9,6 +9,9 @@ argument-hint: "[issue-id-or-url]"
 Implement exactly one issue as one scoped PR. Own the whole path from assigned
 work through PR creation unless blocked by missing credentials or permissions.
 
+For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
+with the configured complaint store and this role's mutation authority.
+
 ## Inputs
 
 - One tracker issue ID or URL, or a worker assignment that names one issue.
@@ -22,7 +25,8 @@ Read first:
 
 - `docs/agents/workflow/config.md`
 - `AGENTS.md`
-- `CONTEXT.md`
+- the configured glossary; use [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md)
+  discovery when paths are not configured
 - linked tracker issue body, comments, labels, dependencies, and attachments
 - docs named by the issue
 - changed package or app README/context docs
@@ -89,6 +93,11 @@ stop for triage instead of choosing a broader interpretation.
 
 ## Implement
 
+- For a bug or unexpected failure, use [Debug](../ziw-debug/SKILL.md) within
+  this issue's scope, then resume this pipeline with its diagnosis and evidence.
+- For behavioral regression coverage, load [references/testing.md](references/testing.md).
+- For a module interface change required by the ticket, consult
+  [codebase-design.md](../ziw-architecture/references/codebase-design.md).
 - Stay inside the issue scope.
 - Use the issue's out-of-scope section as a stop list. Do not implement adjacent
   ticket work, optional polish, broad refactors, production actions, or "while
@@ -230,6 +239,9 @@ When resuming:
 - report that the issue is ready to return to `In Review` for Agent Orchestrator
 
 ## Done
+
+For bugs, carry Debug's reproducer, supported cause, failing/passing evidence,
+and verification limits into the PR and handoff, mapped to acceptance criteria.
 
 Report:
 

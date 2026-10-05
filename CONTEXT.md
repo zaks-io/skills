@@ -21,7 +21,7 @@ A Claude Code agent definition that loads one or more **Workflow Skills** in iso
 _Avoid_: Claude skill, role prompt
 
 **Repo Config**:
-The downstream repo's compact lookup table for commands, tracker metadata, delegation paths, checks, and environment rules.
+The downstream repo's compact lookup table for stable commands, IDs, routing, delegation paths, checks, and policies, with project progress and blockers kept in Linear.
 _Avoid_: setup notes, agent docs, project README
 
 **Workflow Lookup Table**:
@@ -149,8 +149,16 @@ The workflow role that creates or refreshes **Repo Config** from current evidenc
 _Avoid_: onboarding, bootstrap
 
 **Grill**:
-The workflow role that resolves material planning ambiguity one question at a time and produces or updates a **Current-Truth Spec**.
+The workflow role that resolves material planning ambiguity in rounds of independent questions and produces or updates a **Current-Truth Spec**.
 _Avoid_: brainstorming, ticket writing
+
+**Debug**:
+The workflow role that reproduces a failure, investigates its cause, and verifies a narrow repair when authorized, returning evidence without starting tracked delivery.
+_Avoid_: speculative patching, implementation pipeline
+
+**Architecture**:
+The workflow role that assesses concrete structural friction or proposes a module interface, handing selected unresolved decisions to **Grill**.
+_Avoid_: mandatory review gate, refactor execution
 
 **To Issues**:
 The workflow role that turns a spec, PRD, epic, or plan into dependency-ordered **Slice Tickets**.
@@ -203,7 +211,9 @@ The orchestrator's ephemeral cache of in-flight delegations used only for duplic
 _Avoid_: system of record, workflow state
 
 **Friction Log**:
-A write-only retrospective record of places where orchestration struggled.
+A retrospective record of friction encountered by any workflow role, stored once in the configured complaint store and read for deduplication or requested retrospectives.
+_Aliases_: complaint
+Delivery state remains authoritative in the tracker and code host.
 _Avoid_: decision log, blocker state
 
 **Self-Healing**:

@@ -2,11 +2,20 @@
   "name": "zaks-io-skills",
   "version": "0.1.0",
   "displayName": "Zaks.io Workflow Skills",
-  "description": "Shared planning and workflow skills for issue-tracked engineering work.",
+  "description": "Shared debugging, architecture, planning, and delivery skills for engineering agents.",
   "author": {
     "name": "Zaks.io"
   },
   "repository": "https://github.com/zaks-io/skills",
   "license": "MIT",
-  "keywords": ["workflow", "planning", "agents", "code-review", "pull-requests", "issue-triage"]
+  "keywords": [
+    "workflow",
+    "debugging",
+    "architecture",
+    "planning",
+    "agents",
+    "code-review",
+    "pull-requests",
+    "issue-triage"
+  ]
 }

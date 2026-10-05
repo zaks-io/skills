@@ -19,6 +19,7 @@ Load and follow:
 
 Use these workflow skills when the implementation pipeline reaches them:
 
+- `${CLAUDE_PLUGIN_ROOT}/skills/ziw-debug/SKILL.md` for bugs or unexpected failures
 - `${CLAUDE_PLUGIN_ROOT}/skills/ziw-code-review/SKILL.md`
 - `${CLAUDE_PLUGIN_ROOT}/skills/ziw-pr/SKILL.md`
 

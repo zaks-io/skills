@@ -13,16 +13,7 @@ workspace identifiers, not credentials.
 ```markdown
 # Agent Config
 
-Last updated: 2026-06-01
-
-## Verification
-
-- Scope: this repo + its Linear team
-- Evidence sources: package.json, CI workflow, Linear read-only queries, git
-- Safe commands run: <install>, <full gate> (dry), git remote -v
-- Read-only tool calls: list_teams, list_issues delegate:Cursor, list_comments
-- Inferred values: none
-- Critical unknowns: none
+Project state: Linear. This file stores stable configuration only.
 
 ## Repo
 
@@ -42,7 +33,7 @@ Last updated: 2026-06-01
 - Spec format: existing repo template
 - Spec status convention: Draft and Ready for slicing
 - Spec readiness authority: explicit user confirmation required
-- Glossary paths: CONTEXT.md
+- Glossary paths: GLOSSARY.md; preserve CONTEXT.md when that is the configured legacy path
 - Context map: none; single context
 - ADR path: docs/adr/
 - ADR naming and status convention: NNNN-slug.md; Accepted or Superseded
@@ -53,7 +44,7 @@ Last updated: 2026-06-01
 
 - Provider: Linear
 - Provider location: team "Example" (id <team-uuid>)
-- Read-only verification query: list_issues team:"Example" state:Todo
+- Metadata lookup queries: list_issues team:"Example" state:Todo
 - Status field names: status / statusType
 - Ready state: Todo
 - Intake states: Triage
@@ -83,18 +74,20 @@ Last updated: 2026-06-01
   tickets when scope evidence is enough; estimates are required before
   `ready-for-agent`; missing required estimates use `needs-info` or
   `ready-for-human`
-- Friction intake provider: Linear
-- Friction intake location: private team "Skills" project "Agent Friction"
-  (team id <team-uuid>, project id <project-uuid>)
-- Friction intake visibility: private/internal
-- Friction intake mode: ticket-per-finding
-- Friction intake default state: Inbox
+- Friction intake provider: Exposure Ledger MCP when its complaint writer is exposed
+- Friction intake writer: verify the exact exposed complaint-writing tool
+- Friction intake reader: verify the exact exposed project-scoped reader
+- Friction intake fallback: none unless explicitly configured
+- Friction intake location: project-scoped complaint store
+- Friction intake visibility: internal; keep entries secret-free
+- Friction intake mode: mcp-complaint
+- Friction intake default state: open
 - Friction intake agent create authority: local and issue-assigned agents may
-  create friction tickets only in this private team/project
-- Friction intake close authority: nightly triage automation or human
-- Friction intake triage cadence: daily Codex automation
-- Friction intake cleanup policy: group duplicates, close non-actionable noise,
-  and link actionable recurring patterns to skill-improvement PRs
+  file complaints; creation does not grant delivery authority
+- Friction intake close authority: human or explicitly requested retrospective
+- Friction intake triage cadence: manual unless recurring review is configured
+- Friction intake cleanup policy: classify recurring findings into checks,
+  information access, judgment guidance, or instruction overhead
 - Friction intake redaction policy: metadata and IDs only; no secrets, private
   logs, signed URLs, customer data, or diffs
 - Startable work criteria: kind-slice, Todo, ready-for-agent, remote-cursor,
@@ -134,9 +127,8 @@ Last updated: 2026-06-01
 - Single-ticket one-off policy: a direct user request for one Linear issue grants
   authority to orchestrate only that issue through configured states, including
   Done when merge and verification evidence exists
-- Friction intake: private Linear Skills team/project, state Inbox, ticket-per-finding
-- Friction review automation: daily Codex automation reviews Inbox, dedupes or
-  closes noise, and opens a small PR for concrete skill improvements
+- Friction intake: verified Exposure Ledger MCP complaint writer; no tracker mirroring
+- Friction review automation: none; manual project-scoped complaint retrospective
 - Capacity metrics: active workers, worker cap, remaining headroom, and
   justified idle slots at tick start and end
 
@@ -160,9 +152,7 @@ Last updated: 2026-06-01
 - Local GitHub review submission actor policy: use the repo-configured local
   agent GitHub identity for explicit `ziw-code-review --submit`; submit
   `COMMENT` reviews only
-- Hosted bot review provider: CodeRabbit or Cursor Bugbot per repo/user
-  preference; Cursor Bugbot is the natural alternative when Cursor PR review is
-  installed and verified
+- Hosted bot review provider policy: optional CodeRabbit or Cursor Bugbot only with a verified integration; resolve availability live
 - Hosted bot review trigger policy: resolve provider auto-review state and exact
   trigger before posting commands
 - CodeRabbit config source: root `.coderabbit.yaml`
@@ -189,10 +179,6 @@ Last updated: 2026-06-01
 - Production: explicit approval required
 - Hosted checks allowed without approval: <list or none>
 - Hosted checks requiring approval: <list>
-
-## Unknowns
-
-- [ ] (none if fully verified)
 ```
 
 ## Notes On The Cursor Path

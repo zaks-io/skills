@@ -20,20 +20,49 @@ stale, not invoked in real runs, or duplicating another role's authority.
 
 ## Current Decision
 
-Keep the eight current publishable skills for now. `ziw-grill` fills the
-observed, frequently used planning gap before To Issues. Do not add another
-publishable skill until telemetry proves the current surface is insufficient.
+Keep ten publishable skills. Debug and Architecture have distinct direct
+callers and outcomes: investigate an unexplained failure, or assess structure
+before a design decision exists. Grill owns clarification and ready specs;
+Implement owns tracked delivery. Codebase design remains an Architecture
+reference rather than an eleventh skill. Measure real use before further splits.
 
-| Skill             | Decision              | Why                                                                                                                                                                                      |
-| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ziw-setup`       | Keep                  | Owns Repo Config creation and refresh. Other roles should not rediscover commands, tracker IDs, environment rules, or agent access.                                                      |
-| `ziw-grill`       | Keep                  | Owns one-question-at-a-time planning clarification and the Draft-to-ready spec handoff. This prevents To Issues from inventing product decisions or slicing contradictory plans.         |
-| `ziw-to-issues`   | Keep                  | Owns spec or epic conversion into dependency-ordered Slice Tickets. This is separate from tracker cleanup and implementation.                                                            |
-| `ziw-triage`      | Keep, watch size      | Owns script-driven Issue Tracker backlog cleanup, readiness, dependency, and review-debt intake before Orchestrator runs. Merging it into Orchestrator would make the work loop heavier. |
-| `ziw-orchestrate` | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.                              |
-| `ziw-implement`   | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                                         |
-| `ziw-code-review` | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.                   |
-| `ziw-pr`          | Keep, measure overlap | Shared shipping gate for branch-to-PR work. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.                                 |
+| Skill              | Decision              | Why                                                                                                                                                                                      |
+| ------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ziw-setup`        | Keep                  | Owns Repo Config creation and refresh. Other roles should not rediscover commands, tracker IDs, environment rules, or agent access.                                                      |
+| `ziw-debug`        | Add, measure use      | Owns reproduction, cause investigation, and authorized narrow repair. It supports direct requests without requiring a ticket or starting PR delivery.                                    |
+| `ziw-architecture` | Add, measure use      | Owns evidence-backed architecture assessment and module proposals. It can finish with recommendations before a Grill decision exists.                                                    |
+| `ziw-grill`        | Keep                  | Owns planning clarification in independent question rounds and the Draft-to-ready spec handoff. This prevents To Issues from inventing product decisions or slicing contradictory plans. |
+| `ziw-to-issues`    | Keep                  | Owns spec or epic conversion into dependency-ordered Slice Tickets. This is separate from tracker cleanup and implementation.                                                            |
+| `ziw-triage`       | Keep, watch size      | Owns script-driven Issue Tracker backlog cleanup, readiness, dependency, and review-debt intake before Orchestrator runs. Merging it into Orchestrator would make the work loop heavier. |
+| `ziw-orchestrate`  | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.                              |
+| `ziw-implement`    | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                                         |
+| `ziw-code-review`  | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.                   |
+| `ziw-pr`           | Keep, measure overlap | Shared shipping gate for branch-to-PR work. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.                                 |
+
+## Adapted Guidance
+
+The 2026-10-05 update adds Debug and Architecture after the user selected
+standalone investigation and design workflows. Architecture owns conditional
+codebase-design and assessment references; Grill and Implement consult the same
+design reference when needed. Debug owns investigation and its conditional
+techniques; Implement keeps behavioral testing guidance and its delivery gates.
+Resumable planning stays in Grill. Instruction authoring and complaint
+retrospectives remain internal. Architecture is not a mandatory review gate.
+
+## Adoption ratings
+
+These provisional judgments adopt the more conservative Opus review ratings,
+not measured quality scores or model benchmarks. Scores weigh distinct demand,
+failure prevention, overlap, instruction cost, and clarity of the output contract.
+
+| Skill              | Rating | Reason and limitation                                                                                                                                                                                 |
+| ------------------ | -----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ziw-debug`        |   7/10 | Clear trigger and checkable evidence contract; much of the procedure already existed in Implement. Diagnosis-only discovery adds value, but live failure rates and invocation cost remain unmeasured. |
+| `ziw-architecture` |   6/10 | Distinct assessment requests justify separating it from Grill. It is a small wrapper over existing guidance, with lower expected frequency and harder-to-measure recommendations.                     |
+
+Token estimates and representative loaded paths are recorded in the
+[instruction budget](skill-instruction-budget.md). Revisit the ratings using
+actual investigations, accepted proposals, and unnecessary handoffs.
 
 ## Removed Or Demoted
 
@@ -44,6 +73,10 @@ publishable skill until telemetry proves the current surface is insufficient.
 | Coverage audit loop | Not present                    | Public research favors one active loop. Add a separate loop only if measured evidence shows the Orchestrator plus Agent Review cannot cover the need.                                                                                          |
 
 ## Measurement Before Trimming
+
+The dated [instruction budget](skill-instruction-budget.md) measures entrypoints
+and representative reference paths. It is a tokenizer estimate, not runtime
+token usage or proof of skill quality.
 
 Collect these before deleting or merging a current skill:
 

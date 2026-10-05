@@ -236,8 +236,8 @@ values, not this file:
   PR URL, reviewed head SHA, and review-diff fingerprint
 - merge method, required checks that define green, plus any post-merge
   preparation needed before local post-merge checks are trustworthy
-- default-branch baseline health note: current required-check state and any
-  known-red jobs with the ticket that will fix them (`expected-red-until-<id>`)
+- baseline check policy: required job names and which job post-merge checks judge;
+  current health is read from CI and repair work stays in the configured tracker
 - the production deploy status check on the default-branch HEAD when the repo
   deploys on push
 - remote worker environment gate: whether repo hooks and gates actually install

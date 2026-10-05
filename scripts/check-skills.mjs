@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { missingMarkdownTargets } from "./skill-links.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = path.join(root, "skills");
@@ -9,6 +10,8 @@ const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
 const scriptAllowedSkills = new Set(["ziw-orchestrate"]);
 const triggerTerms = {
+  "ziw-debug": ["debug", "failure"],
+  "ziw-architecture": ["architecture", "module"],
   "ziw-implement": ["implement", "issue", "pr"],
   "ziw-orchestrate": ["orchestrate", "issue", "tracker"],
   "ziw-code-review": ["review", "code"],
@@ -133,6 +136,9 @@ const docsAndSkillFiles = [
 ];
 for (const file of [...new Set(docsAndSkillFiles)]) {
   const text = readText(file);
+  for (const { target, reason } of missingMarkdownTargets(text, file)) {
+    fail(`${relative(file)} links to ${reason ?? "missing local target"} ${target}`);
+  }
   const removedLoopName = `${"spec"}-${"con" + "formance"}`;
   const removedCoverageLoop = new RegExp(`workflow-${removedLoopName}|${removedLoopName}`, "i");
   if (removedCoverageLoop.test(text)) {

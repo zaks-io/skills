@@ -1,0 +1,103 @@
+[
+  {
+    "id": "debug_diagnosis_only",
+    "skill": "ziw-debug",
+    "request": "Find why the local API rejects requests, but do not fix anything.",
+    "observations": {
+      "spec": "GET /documents returns 200 for an authenticated local user.",
+      "reproducer": "pnpm reproduce:documents",
+      "reproducer_result": "GET /documents returned 401 in five of five runs.",
+      "component_observations": [
+        "Gateway saw the Authorization header present.",
+        "The local API saw the Authorization header absent for the same nonsecret request ID."
+      ],
+      "available_access": "Local code, logs, and reversible local experiments; no production access.",
+      "project_tooling": "Loads credentials through the existing dev script. A secret-bearing environment variable exists; its value has not been supplied.",
+      "source": "Gateway forwarding implementation has not been inspected yet."
+    }
+  },
+  {
+    "id": "debug_direct_fix",
+    "skill": "ziw-debug",
+    "request": "Debug and fix epoch timestamps being rejected by formatUtcDate. Keep this local; no tickets or PR.",
+    "observations": {
+      "spec": "formatUtcDate accepts finite millisecond timestamps, including zero; rejects missing or nonfinite input.",
+      "public_code": "export function formatUtcDate(timestamp) { if (!timestamp) throw new Error(\"timestamp required\"); if (!Number.isFinite(timestamp)) throw new Error(\"invalid timestamp\"); return new Date(timestamp).toISOString().slice(0, 10); }",
+      "reproducer": "formatUtcDate(0)",
+      "reproducer_result": "Throws Error: timestamp required.",
+      "working_example": "formatUtcDate(86400000) returns 1970-01-02.",
+      "required_checks": ["pnpm test:dates", "pnpm check"],
+      "prior_results_after_changes": null
+    }
+  },
+  {
+    "id": "debug_repeated_intermittent_failure",
+    "skill": "ziw-debug",
+    "request": "The queue still duplicates deliveries after three attempted fixes. Investigate and fix it if you can.",
+    "observations": {
+      "sample": "Four duplicates in 200 local runs.",
+      "prior_attempts": [
+        "Raised retry delay",
+        "Increased request timeout",
+        "Reduced local worker count"
+      ],
+      "spec": "A completed delivery should not be sent again for the same delivery ID.",
+      "source": "Acknowledge and retry ordering have not been traced. No shared-state or architecture cause is established.",
+      "available_access": "Local test harness with controllable acknowledgement and retry barriers; fake boundary and actual provider adapter are both available.",
+      "budget": "At most 200 sample deliveries per experiment; no live customer traffic."
+    }
+  },
+  {
+    "id": "architecture_concrete_friction",
+    "skill": "ziw-architecture",
+    "request": "Assess the retention architecture and recommend what to improve.",
+    "observations": {
+      "recent_changes": "Four recent changes to retention policy each modified cli/retain.ts and api/retain.ts.",
+      "files": {
+        "cli/retain.ts": "Computes the deletion cutoff, checks workspace ownership, updates the store, then invalidates links.",
+        "api/retain.ts": "Computes the same cutoff and checks workspace ownership, updates the store, but forgets to invalidate links.",
+        "retention/store.ts": "Public operations updatePolicy and readPolicy; callers duplicate deletion and invalidation orchestration."
+      },
+      "tests": "Tests cover policy writes through the store. The fixtures contain no public operation exercising the full update and invalidation sequence.",
+      "adrs": "No ADR defines orchestration ownership.",
+      "implementation_authority": "Assessment only. No implementation or tracker writes requested."
+    }
+  },
+  {
+    "id": "architecture_no_candidate",
+    "skill": "ziw-architecture",
+    "request": "Assess the timestamp module for worthwhile architecture improvements.",
+    "observations": {
+      "module": "One public formatting operation used by API and CLI. Both call it directly.",
+      "change_history": "The last six formatting changes touched only this module and its public behavior tests.",
+      "tests": "Public tests cover finite input, epoch, UTC formatting, missing input, and invalid input.",
+      "callers": "No repeated orchestration, unrelated concerns, or extra caller configuration was found.",
+      "spec": "Existing interface satisfies the supplied product requirements.",
+      "access": "Assessment only."
+    }
+  },
+  {
+    "id": "setup_config_without_state",
+    "skill": "ziw-setup",
+    "request": "Refresh Repo Config, removing all project state. Preserve project follow-ups in Linear. You may migrate existing notes into a scoped Linear issue, but do not enable new integrations.",
+    "observations": {
+      "current_config": "# Agent Config\n## Repo\n- Full local gate: pnpm verify\n## Issue Tracker\n- Provider: Linear\n- Team: EXA\n- Todo status ID: state-todo\n## Work Coordination\n- Worker concurrency cap: 2\n- Worker delegation paths: local-worktree\n## Verification\n- Current CI: failed on head abc123\n- Open PR count: 3\n## Unknowns\n- [ ] Required pnpm verify command is missing from package scripts.\n- [ ] Optional remote workers have not been enabled.\n",
+      "package_scripts": {
+        "check": "node check.mjs",
+        "test": "node --test"
+      },
+      "ci": "Required job calls pnpm verify; no documented replacement for that command exists.",
+      "tracker_lookup": "Team EXA and Todo status state-todo resolve correctly.",
+      "existing_issues": [],
+      "available_authority": "Read repo and tracker; edit config and create one scoped intake issue for actionable migrated work. No labels or provider settings may be changed.",
+      "tracker_create_schema": {
+        "required": ["team", "title", "description"],
+        "optional": ["state"]
+      },
+      "tracker_create_response": {
+        "id": "EXA-11",
+        "state": "Triage"
+      }
+    }
+  }
+]

@@ -4,8 +4,14 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 
 ## Roles
 
+- Debug: reproduces a failure, tests hypotheses, and verifies a narrow repair
+  only when authorized. Diagnosis-only work leaves no repair applied. Direct
+  requests need no ticket; tracked investigations return to Implement.
+- Architecture: assesses structural friction or proposes a module interface
+  from real callers and change evidence. It finishes with recommendations;
+  selected unresolved designs go to Grill. It does not implement or create tickets.
 - Grill: resolves material ambiguity in an idea, plan, PRD, ADR set, or existing
-  spec one question at a time. It checks discoverable evidence before asking,
+  spec in rounds of independent questions. It checks discoverable evidence before asking,
   updates confirmed planning artifacts, and requires explicit user approval
   before a spec is ready for slicing. It does not create tracker tickets or
   implement code.
@@ -36,6 +42,11 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
   leaves exact human next actions.
 
 ## Planning Artifacts
+
+Repo Config stores stable mappings and policy only. Project progress, blockers,
+and verification follow-ups live in Linear or the configured tracker. CI, PR,
+review, deployment, and provider availability are read live. Do not store a
+project backlog, an Unknowns checklist, or a status snapshot in config.
 
 Repo Config maps the current-truth spec authority and paths, glossary or context
 docs, context map, ADR convention, authority hierarchy, spec status convention,
@@ -341,9 +352,12 @@ is needed.
 Orchestrator-local files, run logs, checkpoints, and the dispatch ledger are only
 scratch state. They can speed up polling or avoid duplicate work, but agents must
 refresh the systems of record before acting. The friction intake is
-retrospective, not state: append-only comments on a parked ticket or
-ticket-per-finding intake in a private tracker team or project, never read back
-to decide anything.
+retrospective, not delivery state. All roles use the configured MCP complaint
+store; setup prefers Exposure Ledger when available. Store each event once,
+using tracker intake as an explicit fallback or preserving a legacy
+tracker-primary config until refreshed. Report unavailable storage
+once and continue authorized work. Read complaints only for requested
+retrospectives or deduplication, never to decide delivery state.
 
 When config uses ticket-per-finding intake, raw friction tickets must land
 outside the delivery queue, usually in an `Inbox` or `Triage` state without
@@ -391,6 +405,8 @@ and name the core skills:
 
 - `ziw-grill` for resolving material planning ambiguity and producing or
   updating an explicitly approved ready spec
+- `ziw-debug` for symptom reproduction, cause investigation, and authorized narrow repair
+- `ziw-architecture` for requested structural assessment and module design proposals
 - `ziw-to-issues` for turning a spec, PRD, or epic into `kind-slice` tickets
 - `ziw-orchestrate` for the orchestration loop
 - `ziw-implement` for one startable issue through PR creation

@@ -28,9 +28,8 @@ Without a configured map:
 
 - look for a spec authority index such as `docs/specs/README.md`
 - inspect `docs/specs/`, project PRDs, roadmaps, and linked specs
-- use `CONTEXT-MAP.md` to find multiple bounded contexts
-- otherwise use the applicable `CONTEXT.md`, including a root file for a
-  single-context repo
+- use [glossary-discovery.md](glossary-discovery.md) for unmapped glossary paths,
+  authority conflicts, and current or legacy context maps
 - inspect the repo's ADR index and naming convention before creating an ADR
 - inspect package scripts and CI for documentation formatting, lint, link, and
   anchor checks
@@ -38,10 +37,13 @@ Without a configured map:
 If no convention exists, create files lazily:
 
 - current-truth spec: `docs/specs/<topic>.md`
-- single-context glossary: `CONTEXT.md`
+- single-context glossary: `GLOSSARY.md`
 - system-wide ADR: `docs/adr/NNNN-<decision>.md`
 
 Do not create an empty directory, index, glossary, or ADR collection.
+
+Configured paths take precedence over filename defaults. The glossary
+discovery reference owns compatibility and naming migration rules.
 
 ## Spec Contract
 
@@ -125,9 +127,10 @@ sentence, name aliases to avoid, and state important relationships or
 cardinality. Keep implementation mechanisms, generic programming terms, specs,
 and decision rationale out.
 
-For multiple bounded contexts, prefer a root `CONTEXT-MAP.md` that links each
-context glossary and records relationships. Put a term in the context that owns
-its meaning. Ask only when ownership cannot be discovered.
+For new multi-context layouts, use a root `GLOSSARY-MAP.md` linking context
+glossaries and their relationships; preserve a configured legacy map. Put a
+term in the context that owns its meaning. Ask only when ownership cannot be
+discovered.
 
 ## ADR Gate
 

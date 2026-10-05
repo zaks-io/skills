@@ -99,6 +99,49 @@ The current keep, watch, remove, and demote decisions live in
 as remote Cursor ticket handling, should be internal unless it becomes portable
 across downstream repos.
 
+### Matt Pocock skill updates: 2026-10-05
+
+Reviewed [mattpocock/skills version 1.3.1](https://github.com/mattpocock/skills/tree/24fe0ef7737efae15c87225755e9f6f5965e4888).
+The user selected batched grilling and a single Exposure Ledger complaint
+store. The initial adaptation kept eight roles; the user subsequently selected
+standalone Debug and Architecture workflows. The final portfolio has ten roles:
+
+- Grill asks rounds of independent ready questions and waits before dependent
+  questions. Partial answers keep unanswered branches open. Readiness still
+  needs explicit user approval.
+- New glossary defaults are `GLOSSARY.md` and `GLOSSARY-MAP.md`. Configured legacy
+  `CONTEXT.md` paths retain authority; conflicting unmapped conventions need
+  resolution, not automatic renaming.
+- Codebase design and architecture assessment use real caller friction,
+  existing interfaces, alternative designs, and observable test boundaries.
+  Architecture assessment is requested planning work, not a routine review gate.
+- Debug requires a symptom-specific
+  reproducer and independently meaningful regression evidence. It does not
+  require a human approval round for routine test boundary selection. Implement
+  retains behavioral testing and delivery gates, without a second diagnosis procedure.
+- Multi-session planning records a resumable decision index in the Draft spec;
+  it never dispatches decision tickets through the implementation graph.
+- Complaint mining classifies fixes as deterministic checks, information access,
+  judgment guidance, or instruction overhead. Record each complaint in one
+  store; tracker logs remain historical, explicitly configured fallbacks, or
+  legacy primary stores until Setup refreshes their config.
+- Skill maintenance separates actions from conditional references and tests
+  decisions with offline fixtures instead of relying only on trigger keywords.
+
+Primary upstream sources are credited in each adapted reference. The upstream
+integration-branch implementation model and user-only invocation split are not
+adopted; the existing one-slice/one-PR and authority contracts still govern.
+
+Debug also adapts [Superpowers systematic-debugging](https://github.com/obra/superpowers/blob/2c74782ead66b8ded584d9b9cf64dcba95457f320/skills/systematic-debugging/SKILL.md).
+It preserves evidence before repair, controlled hypotheses, and verification
+of the original symptom. It replaces the fixed three-fix architecture escalation
+with evidence-based reassessment, preserves diagnosis-only scope, and removes
+secret-printing diagnostic examples and mandatory dependencies on other skills.
+
+Repo Config now stores stable configuration only. Current project state and
+verification follow-ups stay in Linear; CI/PR/provider status is read live.
+Setup templates no longer contain an Unknowns checklist or baseline health snapshot.
+
 ### Executable Workflow Contract
 
 Workflow rules that are easy to regress should not live only in prose. Keep pure

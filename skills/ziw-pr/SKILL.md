@@ -9,6 +9,9 @@ argument-hint: "[issue-id|branch|pr-url]"
 Take the current code to a non-draft ready-for-review PR. Do the whole workflow
 unless blocked.
 
+For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
+with the configured complaint store and this role's mutation authority.
+
 ## Inputs
 
 - Current branch and all intended staged or unstaged repo changes.

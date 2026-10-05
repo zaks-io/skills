@@ -1,0 +1,221 @@
+[
+  {
+    "id": "grill_round",
+    "skill": "ziw-grill",
+    "request": "Grill me about document retention. We need to decide who may change retention and how long documents survive. Notification timing depends on the retention period.",
+    "observations": {
+      "spec_status": "Draft",
+      "confirmed_outcome": "Workspace document retention follows an explicit policy.",
+      "repo_facts": "Current code allows administrators to change retention and deletes after 30 days. These describe existing behavior; the requested policy has not been decided.",
+      "planning_docs": "docs/specs/retention.md owns this capability.",
+      "spec_content": "Status: Draft. Outcome: workspace retention follows an explicit policy. Blocking questions: who may change retention; retention period. Notification timing waits on the period. No product decisions on these questions are confirmed."
+    }
+  },
+  {
+    "id": "partial_round_answer",
+    "skill": "ziw-grill",
+    "request": "Workspace owners should be able to change retention. I have not decided the retention period yet.",
+    "observations": {
+      "previous_round": ["Who may change retention?", "How long should documents survive?"],
+      "waiting_question": "When should a document owner be notified before deletion? This depends on the retention period.",
+      "spec_status": "Draft",
+      "planning_docs": "docs/specs/retention.md owns the capability.",
+      "configured_glossary": "Workspace owner is the existing role responsible for workspace administration. Its role binding and revocation behavior are already specified."
+    }
+  },
+  {
+    "id": "complaint_primary_success",
+    "skill": "ziw-implement",
+    "request": "The configured test command is missing. Record that friction and continue the authorized investigation.",
+    "observations": {
+      "project": "example/retention",
+      "primary_mode": "mcp-complaint",
+      "primary_writer": "mcp__exposure_ledger__file_complaint",
+      "available_tools": ["mcp__exposure_ledger__file_complaint", "tracker_create_issue"],
+      "primary_response": {
+        "complaint_id": 41,
+        "status": "open"
+      },
+      "configured_fallback": {
+        "mode": "ticket-per-finding",
+        "location": "private Triage"
+      },
+      "missing_command": "pnpm test:retention",
+      "related_command": "pnpm test exists but does not establish that the required test:retention gate ran.",
+      "tool_schemas": {
+        "mcp__exposure_ledger__file_complaint": {
+          "required": ["message"],
+          "optional": [
+            "agent",
+            "category",
+            "project",
+            "sandbox",
+            "session",
+            "severity",
+            "source",
+            "suggested_fix"
+          ],
+          "category_values": [
+            "environment",
+            "tooling",
+            "workflow",
+            "instructions",
+            "human",
+            "other"
+          ],
+          "severity_values": ["minor", "friction", "blocked"]
+        }
+      }
+    }
+  },
+  {
+    "id": "reviewer_missing_complaint_writer",
+    "skill": "ziw-code-review",
+    "request": "Review this working-tree change as Author QA. The source view tool fails; record the friction if permitted.",
+    "observations": {
+      "primary_mode": "mcp-complaint",
+      "primary_writer": "mcp__exposure_ledger__file_complaint",
+      "available_tools": ["tracker_create_issue", "context_put_entry"],
+      "configured_fallback": {
+        "mode": "ticket-per-finding",
+        "location": "private Triage"
+      },
+      "source_error": "Source viewer unavailable",
+      "diff": "unavailable"
+    }
+  },
+  {
+    "id": "configured_legacy_glossary",
+    "skill": "ziw-grill",
+    "request": "Help clarify the owner term for retention.",
+    "observations": {
+      "workflow_config": {
+        "Glossary paths": "CONTEXT.md"
+      },
+      "files": {
+        "CONTEXT.md": "Owner means the workspace administrator responsible for retention.",
+        "GLOSSARY.md": "Owner means the author of an individual document. This is a draft glossary experiment."
+      }
+    }
+  },
+  {
+    "id": "conflicting_glossaries",
+    "skill": "ziw-grill",
+    "request": "Help clarify the owner term for retention.",
+    "observations": {
+      "workflow_config": {
+        "Glossary paths": "not configured"
+      },
+      "files": {
+        "CONTEXT.md": "Owner means the workspace administrator.",
+        "GLOSSARY.md": "Owner means the document author."
+      }
+    }
+  },
+  {
+    "id": "architecture_assessment",
+    "skill": "ziw-grill",
+    "request": "Assess the retention architecture and recommend what to improve.",
+    "observations": {
+      "recent_changes": "Four recent changes to retention policy each modified cli/retain.ts and api/retain.ts.",
+      "files": {
+        "cli/retain.ts": "Computes the deletion cutoff, checks workspace ownership, updates the store, then invalidates links.",
+        "api/retain.ts": "Computes the same cutoff and checks workspace ownership, updates the store, but forgets to invalidate links.",
+        "retention/store.ts": "Public operations updatePolicy and readPolicy; callers duplicate deletion and invalidation orchestration."
+      },
+      "tests": "Tests cover policy writes through the store. The fixtures contain no public operation exercising the full update and invalidation sequence.",
+      "adrs": "No ADR defines orchestration ownership.",
+      "implementation_authority": "Assessment only. No implementation or tracker writes requested."
+    }
+  },
+  {
+    "id": "legacy_tracker_complaints",
+    "skill": "ziw-implement",
+    "request": "Record the missing test command and continue investigating within the assigned issue.",
+    "observations": {
+      "project": "example/retention",
+      "legacy_config": {
+        "Friction intake provider": "Linear",
+        "Friction intake location": "private Triage",
+        "Friction intake mode": "ticket-per-finding",
+        "Friction intake agent create authority": "implementation agents may file retrospective tickets"
+      },
+      "available_tools": ["tracker_create_issue"],
+      "tool_schemas": {
+        "tracker_create_issue": {
+          "required": ["title", "body", "state"],
+          "optional": ["labels"]
+        }
+      },
+      "tracker_writer_response": {
+        "id": "FR-8",
+        "state": "Triage"
+      },
+      "problem": "Configured command pnpm test:retention is absent.",
+      "mcp_writer": "not configured or exposed",
+      "required_check_status": "not run"
+    }
+  },
+  {
+    "id": "ambiguous_complaint_reply",
+    "skill": "ziw-implement",
+    "request": "Record the configured test-command problem once.",
+    "observations": {
+      "project": "example/retention",
+      "primary_writer": "mcp__exposure_ledger__file_complaint",
+      "primary_reader": "mcp__exposure_ledger__list_complaints",
+      "available_tools": [
+        "mcp__exposure_ledger__file_complaint",
+        "mcp__exposure_ledger__list_complaints",
+        "tracker_create_issue"
+      ],
+      "tool_schemas": {
+        "mcp__exposure_ledger__file_complaint": {
+          "required": ["message"],
+          "optional": [
+            "agent",
+            "category",
+            "project",
+            "sandbox",
+            "session",
+            "severity",
+            "source",
+            "suggested_fix"
+          ],
+          "category_values": [
+            "environment",
+            "tooling",
+            "workflow",
+            "instructions",
+            "human",
+            "other"
+          ],
+          "severity_values": ["minor", "friction", "blocked"]
+        },
+        "mcp__exposure_ledger__list_complaints": {
+          "required": [],
+          "optional": ["category", "limit", "offset", "project", "sandbox", "severity", "status"]
+        }
+      },
+      "previous_writer_call": {
+        "project": "example/retention",
+        "message": "Configured test command pnpm test:retention is missing."
+      },
+      "previous_writer_response": "Timed out after sending the request; acceptance is unknown.",
+      "reader_response": {
+        "complaints": [
+          {
+            "id": 42,
+            "project": "example/retention",
+            "message": "Configured test command pnpm test:retention is missing.",
+            "status": "open"
+          }
+        ]
+      },
+      "configured_fallback": {
+        "mode": "ticket-per-finding",
+        "location": "private Triage"
+      }
+    }
+  }
+]

@@ -13,6 +13,9 @@ review sweeps or eval sessions, must run this intake pass or leave readiness
 labels off. A `ready-for-agent` ticket without intake metadata is a dispatch
 hazard.
 
+For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
+with the configured complaint store and this role's mutation authority.
+
 ## Inputs
 
 - A spec, PRD, epic ticket, plan, or project. A Grill-managed spec must be

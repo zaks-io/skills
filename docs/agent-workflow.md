@@ -32,10 +32,17 @@ slugs: provider IDs, exact names or keys accepted by the tracker tool, status
 field names, blocker relationship fields, routing labels, and a read-only query
 that proved the mapping returns the intended issue set.
 
+Config contains stable commands, paths, IDs, routing, limits, and policies.
+Project progress, blockers, and follow-up work belong in Linear or the configured
+tracker. Read CI, PR, review, deployment, and tool availability live. Do not add
+state snapshots, a verification transcript, or an `Unknowns` checklist to config.
+Status names and label IDs define the workflow schema, not current work state.
+
 Setup must verify every populated value that can affect agent behavior. That
 includes repo commands, code host state, CI checks, tracker metadata, worker
 delegation, adapter paths, and environment safety rules. Values that cannot be
-verified stay marked as inferred or unknown; they are not authoritative config.
+verified are omitted; missing required fields block the affected workflow and
+actionable verification work is tracked outside config.
 
 ## Planning Artifacts
 
@@ -57,6 +64,21 @@ are current truth, context or glossary docs define canonical domain language,
 and ADRs preserve rationale for hard-to-reverse, surprising tradeoffs. Code,
 tracker tickets, and prior ADRs can expose contradictions but do not silently
 override the current-truth spec.
+
+## Diagnostic and design roles
+
+Debug owns symptom reproduction, hypothesis tests, and verified narrow repairs
+when authorized. A diagnosis-only request returns evidence without leaving a
+repair applied. Direct debugging needs no tracker ticket and does not start PR
+shipping. For tracked work, Implement invokes Debug within the issue's boundary
+and resumes its existing verification and delivery gates afterward.
+
+Architecture owns requested structural assessment and module interface proposals.
+It traces real callers and compares alternatives, then may finish with a
+recommendation. Selected proposals with material unanswered decisions go to
+Grill for confirmed planning artifacts. Architecture does not implement a
+refactor, create tickets, or become a mandatory code-review gate. Grill and
+Implement consult its canonical codebase-design reference only when needed.
 
 ## Systems Of Record
 
@@ -90,10 +112,15 @@ worktrees, and deduplicates all of that evidence against open PRs before plannin
 new starts.
 
 The friction intake is retrospective and is intentionally not a system of
-record. Downstream config chooses the sink: append-only comments on a dedicated
-parked ticket, ticket-per-finding intake in a private tracker team or project,
-or no persistent sink. Orchestrator writes it and never reads it back to make
-delivery decisions.
+record for delivery decisions. All workflow roles file complaints in the
+configured MCP complaint store. Setup prefers Exposure Ledger when its writer
+is exposed; provider tool names and attribution fields live in Repo Config.
+Use a tracker sink as an explicit fallback, or preserve a legacy tracker-primary
+config until refreshed. Store each event once, report
+a storage failure once, and continue authorized work. Complaint records never
+authorize repairs, tracker transitions, or external messages. See the shared
+[friction intake reference](../skills/ziw-orchestrate/references/friction-log.md).
+Orchestrator never reads complaints back to decide delivery state.
 
 When config uses ticket-per-finding intake, raw friction tickets must land
 outside the delivery queue, usually in an `Inbox` or `Triage` state without
@@ -108,7 +135,8 @@ thrash, merge conflicts, and post-merge failures. A bounded run should also emit
 counts for started, merged, waiting, blocked, first-pass checks, review rework,
 stuck workers, and agent cost when available.
 
-Friction entries use one canonical category per event. Resolved state, false
+Orchestrator workflow events use one canonical category per event. Standalone
+complaints use the complaint provider's categories. Resolved state, false
 alarms, or infra-flake notes belong in `what` or `signal`, not in the category.
 Do not combine multiple events in one friction comment; use rollups for
 aggregation.
@@ -155,7 +183,7 @@ config-gap finding when the conflict affects the workflow.
 ## Roles
 
 - Grill: resolves material product, domain, scope, and architecture ambiguity
-  one question at a time. It checks code, docs, config, and authoritative
+  in rounds of independent questions. It checks code, docs, config, and authoritative
   external sources before asking, updates confirmed authoritative planning
   artifacts, and requires user approval before a spec becomes
   `Ready for slicing`. It does not create tracker tickets or implement code.
@@ -514,9 +542,12 @@ the repo-configured trigger or automatic review policy.
 flowchart TD
   Setup["ziw-setup\nCreate repo config"]
   Config["Repo config\nplanning, commands, tracker, agents, environments"]
-  Grill["ziw-grill\nresolve ambiguity one question at a time"]
+  Grill["ziw-grill\nresolve ambiguity in rounds of independent questions"]
+  Architecture["ziw-architecture\nassess structure or design an interface"]
+  Debug["ziw-debug\nreproduce, investigate, verify an authorized fix"]
   Specs["Planning artifacts\nDraft or Ready for slicing"]
   Tracker["Issue tracker\nsource of truth for issue state"]
+  Complaints["Complaint store\nExposure Ledger when configured and available"]
   ToIssues["ziw-to-issues\nspec/epic to kind-slice tickets + DAG"]
   IssueTriage["ziw-triage\nmetadata, readiness, verified state repair"]
   Orchestrator["ziw-orchestrate\nstate authority, friction intake"]
@@ -527,6 +558,8 @@ flowchart TD
 
   Setup --> Config
   Config --> Grill
+  Config --> Architecture
+  Config --> Debug
   Config --> ToIssues
   Config --> Orchestrator
   Config --> IssueTriage
@@ -535,11 +568,19 @@ flowchart TD
   Config --> AgentReview
 
   Grill -->|confirmed decisions| Specs
+  Architecture -->|selected proposal with unresolved decisions| Grill
+  Worker -->|bug or unexpected failure| Debug
+  Debug -->|diagnosis and verification evidence| Worker
+  Architecture -->|encountered friction| Complaints
+  Debug -->|encountered friction| Complaints
   Specs -->|Ready for slicing| ToIssues
   ToIssues -->|create/adopt slices, DAG, footprint| Tracker
   IssueTriage -->|labels, readiness, verified state repair| Tracker
   Orchestrator -->|select kind-slice, claim, move states| Tracker
-  Orchestrator -->|friction intake| Tracker
+  Orchestrator -->|friction intake| Complaints
+  Grill -->|encountered friction| Complaints
+  Worker -->|encountered friction| Complaints
+  CodeReview -->|encountered friction| Complaints
   Orchestrator -->|delegate| Worker
   Worker -->|optional author QA| CodeReview
   Worker -->|PR and handoff| Orchestrator
@@ -559,11 +600,14 @@ sequenceDiagram
   participant I as Issue Triage
   participant Q as Agent Orchestrator
   participant T as Issue Tracker
+  participant C as Complaint Store
   participant W as Implementation Worker
   participant G as Code Host and PR
   participant R as Agent Review
 
-  P->>P: Resolve one decision at a time and update Draft spec
+  P->>U: Ask a round of independent ready questions
+  U->>P: Answer all or part of the round
+  P->>P: Record confirmed answers; keep dependent questions waiting
   P->>U: Recommend Ready for slicing
   U->>P: Approve readiness
   P->>U: Report spec and exact To Issues command
@@ -588,7 +632,8 @@ sequenceDiagram
   Q->>T: Changes Requested or Ready to Merge
   Q->>G: On green, rebase if needed, merge, post-merge check
   Q->>T: Move to Done and remove ready-for-agent
-  Q->>T: Friction entry or run rollup for heals, stuck workers, or thrash
+  Q->>C: File distinct complaints for heals, stuck workers, or thrash
+  Q->>U: Report run metrics and complaint references
 ```
 
 ## Status Ownership
@@ -716,6 +761,10 @@ Skills systems.
 - `ziw-grill` is invoked implicitly only when a material unresolved decision
   blocks safe progress after available evidence has been checked. Explicit
   invocation always starts a grilling session.
+- `ziw-debug` accepts direct diagnosis or fix requests and unexpected failures
+  inside implementation scope. It does not grant tracker or shipping authority.
+- `ziw-architecture` accepts requested assessments and module designs. Routine
+  review and implementation may consult its reference without running an assessment.
 - `ziw-code-review` requires fresh reviewer context for independent evidence;
   a worktree isolates files only. It reviews current committed code except for
   explicitly requested working-tree reviews or pre-PR Author QA.

@@ -10,6 +10,8 @@ your repo's rules.
 
 Use them to:
 
+- Diagnose a failure and verify an authorized narrow fix.
+- Assess architecture or compare module interfaces before choosing a change.
 - Turn a rough idea into an approved spec and dependency-ordered tickets.
 - Hand an agent one issue to implement, test, and open as a pull request.
 - Review a branch or PR in a fresh agent context.
@@ -19,6 +21,9 @@ Use them to:
 You can run one skill for a specific task or use the full delivery workflow.
 Each repo gets a small config at `docs/agents/workflow/config.md` that records
 its issue tracker, verification commands, worker setup, and approval rules.
+Config holds stable mappings and policies. Project progress, blockers, and
+follow-up work stay in Linear or the configured tracker; CI and PR status are
+read live rather than copied into config.
 The skills read it before acting, so you can reuse the workflow across repos
 without re-explaining how each project works.
 
@@ -114,13 +119,18 @@ List available skills:
 npx skills add zaks-io/skills --list
 ```
 
-Install one skill:
+Install the complete workflow skill set:
 
 ```sh
-npx skills add zaks-io/skills --skill ziw-setup
+npx skills add zaks-io/skills --skill '*'
 ```
 
 ## Distribution
+
+Install `ziw-*` skills together. Their sibling references share canonical
+planning, design, debugging, and complaint guidance; partial installs can leave
+those links unresolved. The managed downstream updater and Claude plugin ship
+the complete set. Running one workflow still loads only its relevant instructions.
 
 Use the narrowest distribution mode that still reaches the agents that work the
 repo:
@@ -228,6 +238,17 @@ $ziw-triage
 $ziw-orchestrate
 ```
 
+For focused investigation or design work, use:
+
+```text
+$ziw-debug <symptom|reproducer|issue>
+$ziw-architecture <area|module|design-problem>
+```
+
+Debug respects diagnosis-only or fix scope. Architecture returns proposals;
+selected proposals with unresolved decisions go to Grill. Neither starts
+ticket creation or PR shipping merely because it was invoked.
+
 Orchestrate a bounded scope:
 
 ```text
@@ -246,7 +267,7 @@ Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
 automatically exclude the configured `Done` state unless you explicitly ask to
 audit Done cleanup.
 
-Grill resolves material ambiguity one question at a time and marks the
+Grill resolves material ambiguity in rounds of independent questions and marks the
 authoritative spec `Ready for slicing` only after explicit user approval. To
 Issues turns that spec, a complete PRD, or an epic ticket into
 dependency-ordered one-PR tickets. Triage gets the current set consistent.
@@ -296,9 +317,12 @@ Orchestrator or verified stale-state triage removes `ready-for-agent`.
 Readiness-label queries exclude `Done` by default so stale labels on terminal
 tickets do not keep growing the active queue.
 
-Friction intake is separate from delivery work. Repo config says whether agents
-write friction as comments on a parked ticket, as ticket-per-finding intake in a
-private tracker team or project, or nowhere. Agent-created friction tickets
+Friction intake is separate from delivery work. Prefer the configured MCP
+complaint store, with Exposure Ledger as the setup default when available.
+Record an event in one store only. Use tracker storage as an explicitly
+configured fallback or preserve a legacy tracker-primary config until refreshed.
+Report unavailable storage instead of creating another
+log. Agent-created friction tickets
 start outside the work queue, usually in `Inbox` or `Triage`, and a configured
 review loop such as a daily automation dedupes them, closes noise, and opens PRs
 for concrete skill or config improvements.
@@ -471,8 +495,12 @@ glue should stay under `.agents/` unless it proves portable.
 
 - `ziw-setup`: create repo workflow config or refresh it against current
   repo and tracker state.
+- `ziw-debug`: reproduce failures, test hypotheses, and return a supported cause
+  or named evidence gap; verify a narrow fix when authorized.
+- `ziw-architecture`: assess concrete structural friction or design a named
+  module interface, comparing alternatives and migration costs without refactoring.
 - `ziw-grill`: resolve material product, domain, scope, and architecture
-  ambiguity one question at a time; update authoritative planning artifacts;
+  ambiguity in rounds of independent questions; update authoritative planning artifacts;
   and require explicit approval before a spec becomes ready for slicing.
 - `ziw-to-issues`: turn a spec, PRD, or epic ticket into the fewest
   dependency-ordered one-PR `kind-slice` tickets that ship safely, adopt
@@ -530,9 +558,9 @@ For the deeper agent contract, state model, handoff shape, and diagrams, see
 
 A repo is ready when:
 
-- `docs/agents/workflow/config.md` exists and has no critical unknowns
-- every populated behavior-affecting config value has current evidence or is
-  marked inferred
+- `docs/agents/workflow/config.md` exists with the required verified mappings
+- every populated behavior-affecting config value has verified evidence;
+  unresolved setup work is tracked outside config
 - issue tracker state, PR state, checks, previews, and deploy state all have
   named systems of record
 - issue tracker location has verified IDs or query-safe names, not stale slugs

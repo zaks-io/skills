@@ -39,7 +39,8 @@ Read first:
 - AGENTS.md or CLAUDE.md
 - docs/agents/workflow/config.md if present
 - docs/agents/remote-worker-agent.md or provider adapter docs if present
-- CONTEXT.md if present
+- The configured glossary; otherwise discover GLOSSARY.md or legacy CONTEXT.md
+  using the glossary-discovery reference supplied by the review skill
 - docs/specs/README.md and docs/adr/README.md if present
 - Any repo-local skills relevant to touched files
 
