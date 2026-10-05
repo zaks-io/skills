@@ -190,14 +190,16 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Capacity policy:
 - Worker concurrency cap: max active implementation or repair sessions (default
   3 if unset)
-- Worker count policy: count confirmed sessions until they return, stop, fail,
-  or produce a PR. Deduplicate session, issue, and provider handles. Human
-  assignees, open PRs, previews, and abandoned worktrees do not occupy worker
-  slots
-- Worker identity policy: deduplicate actual session, issue, branch, or worktree
-  evidence without merging conflicting identities; a shared commit never proves
-  one worker. Started tracker work reserves file footprints even without a
-  confirmed agent session
+- Worker count policy: count distinct confirmed sessions until provider
+  lifecycle confirms return, stop, or failure. A linked or newly opened PR does
+  not release a live worker. Human assignees, open PRs, previews, and abandoned
+  worktrees do not occupy worker slots by themselves
+- Worker identity policy: canonical v3 handoffs preserve receipt/session IDs
+  separately from tracker issue UUID/key, PR number, and worktree path.
+  Deduplicate confirmed sessions, or receipts without a session, without merging
+  conflicts. Issue, branch, path, PR, and commit matches associate delivery or
+  collisions, not worker count. Started tracker work reserves file footprints
+  even without a confirmed session
 - Partitioned-scope cap semantics: record whether concurrent orchestrator runs
   share one repo-wide worker pool and how they reserve slots
 - Dispatch footprint policy: before fanning out startable work, compare predicted

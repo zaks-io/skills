@@ -1,0 +1,87 @@
+{
+  "snapshot": {
+    "v": 2,
+    "generatedAt": "2026-10-05T04:30:33.510Z",
+    "repo": "example/repo",
+    "sources": {
+      "github": "complete",
+      "linear": "missing",
+      "worktrees": "skipped"
+    },
+    "baseline": {
+      "branch": "main",
+      "headSha": "baseline",
+      "checks": {
+        "state": "SUCCESS",
+        "failed": [],
+        "pending": [],
+        "truncated": false
+      },
+      "green": true
+    },
+    "footprint": {
+      "openPrCount": 1,
+      "productPrCount": 1,
+      "draftPrCount": 1,
+      "readyForReviewPrCount": 0,
+      "botPrCount": 0,
+      "dependencyBotPrCount": 0
+    },
+    "prs": [
+      {
+        "number": 1,
+        "title": "Existing work",
+        "url": "https://github.com/example/repo/pull/1",
+        "state": "open",
+        "open": true,
+        "author": "author",
+        "isBot": false,
+        "isDependencyBot": false,
+        "isDraft": true,
+        "draftState": "draft",
+        "updatedAt": "2026-10-05T00:00:00Z",
+        "changedFiles": 1,
+        "reviewDiffFingerprint": "sha256:871769c8cec551fb8dc92a2ad3e94f31c66b788aa0c97a240c8823072c2e5096",
+        "headRefName": "feature/current",
+        "headSha": "head",
+        "baseRefName": "main",
+        "mergeable": "MERGEABLE",
+        "mergeStateStatus": "CLEAN",
+        "reviewDecision": null,
+        "autoMergeArmed": false,
+        "labels": [],
+        "unresolvedThreads": 0,
+        "reviewThreadsTruncated": false,
+        "reviewsTruncated": false,
+        "latestReviews": {},
+        "checks": {
+          "state": "SUCCESS",
+          "failed": [],
+          "pending": [],
+          "truncated": false
+        }
+      }
+    ],
+    "worktrees": [],
+    "linear": {
+      "skipped": "no --linear-team or Linear credential; use tracker tooling"
+    },
+    "usage": {
+      "elapsedMs": 36,
+      "outputBytes": 1215,
+      "estimatedOutputTokens": 304
+    }
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  },
+  "state": {
+    "startableTickets": [
+      {
+        "id": "TEST-1",
+        "footprint": ["apps/mcp/src/handler.ts"]
+      }
+    ],
+    "tickets": []
+  }
+}

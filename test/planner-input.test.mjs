@@ -124,7 +124,7 @@ test("planner validates each override and cannot hide invalid input behind prece
   );
 });
 
-test("planner validates each alternative identity independently", (t) => {
+test("legacy PR metadata cannot replace an explicit or URL-derived PR number", (t) => {
   const identities = {
     url: "https://github.com/zaks-io/example/pull/1",
     headSha: "current-head",
@@ -135,7 +135,10 @@ test("planner validates each alternative identity independently", (t) => {
   for (const [field, validValue] of Object.entries(identities)) {
     const fixture = { [field]: validValue };
     const valid = run(t, { ...snapshot, prs: [fixture] });
-    assert.equal(valid.status, 0, `${field}: ${valid.stderr}`);
+    if (field === "url") assert.equal(valid.status, 0, `${field}: ${valid.stderr}`);
+    else rejected(valid, /prs\/0.*missing PR number/);
+    const numbered = run(t, { ...snapshot, prs: [{ number: 1, ...fixture }] });
+    assert.equal(numbered.status, 0, `${field}: ${numbered.stderr}`);
     for (const value of [null, "", "   "]) {
       rejected(run(t, { ...snapshot, prs: [{ ...fixture, [field]: value }] }), /prs\/0/);
     }
@@ -230,4 +233,130 @@ test("a provider review without a commit remains valid but does not authorize me
     plan.actions.some(({ kind }) => kind === "request-review"),
     true,
   );
+});
+
+test("v3 input separates tracker, worker, PR, and worktree identities", async () => {
+  const { validateInput } =
+    await import("../skills/ziw-orchestrate/scripts/planner-input-validator.mjs");
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  const fixture = {
+    snapshot: {
+      v: 3,
+      repo: "zaks-io/example",
+      prs: [{ number: 1, linkedIssues: [{ issueUuid: uuid }] }],
+      worktrees: [{ path: "/repo/worktree", branch: "feature" }],
+      linear: {
+        issues: [
+          {
+            issueKey: "SKI-1",
+            issueUuid: uuid,
+            blockedBy: [{ issueKey: "SKI-2", stateType: "completed" }],
+            providerNote: { value: "metadata" },
+          },
+        ],
+        candidateIssues: [{ issueKey: "SKI-1" }],
+      },
+    },
+    state: {
+      workers: [{ sessionId: uuid, receiptId: "receipt-1", issueKey: "SKI-1", state: "running" }],
+      previews: [{ previewId: "preview-1", prNumber: 1 }],
+      startableTickets: [{ issueUuid: uuid, footprint: ["src"] }],
+      scopeIssues: [{ issueKey: "SKI-1" }],
+      reviewEvidenceByPr: { 1: { hasReviewEvidence: true } },
+      reviewEvidenceChecks: [{ prNumber: 1, hasReviewEvidence: true }],
+    },
+  };
+  assert.equal(validateInput(fixture), true, JSON.stringify(validateInput.errors));
+  const invalid = [
+    [
+      "issue-key spelling",
+      (input) => {
+        input.snapshot.linear.issues[0].issueKey = "not-an-issue";
+      },
+    ],
+    [
+      "UUID spelling",
+      (input) => {
+        input.state.startableTickets[0].issueUuid = "not-a-uuid";
+      },
+    ],
+    [
+      "legacy tracker ID",
+      (input) => {
+        input.snapshot.linear.issues[0].id = uuid;
+      },
+    ],
+    [
+      "legacy worker ID",
+      (input) => {
+        input.state.workers[0].id = "receipt-1";
+      },
+    ],
+    [
+      "generic issue ID",
+      (input) => {
+        input.state.workers[0].issueId = uuid;
+      },
+    ],
+    [
+      "legacy PR ID",
+      (input) => {
+        input.snapshot.prs[0].prId = 1;
+      },
+    ],
+    [
+      "missing PR number",
+      (input) => {
+        delete input.snapshot.prs[0].number;
+      },
+    ],
+    [
+      "untyped dependency",
+      (input) => {
+        input.snapshot.linear.issues[0].blockedBy = ["SKI-2"];
+      },
+    ],
+    [
+      "untyped candidate scope",
+      (input) => {
+        input.snapshot.linear.candidateIssueIds = ["SKI-1"];
+      },
+    ],
+    [
+      "untyped explicit scope",
+      (input) => {
+        input.state.scopeIssueIds = ["SKI-1"];
+      },
+    ],
+    [
+      "worker lacks session or receipt",
+      (input) => {
+        delete input.state.workers[0].sessionId;
+        delete input.state.workers[0].receiptId;
+      },
+    ],
+    [
+      "worktree cannot assert an issue",
+      (input) => {
+        input.snapshot.worktrees[0].issueKey = "SKI-1";
+      },
+    ],
+    [
+      "preview lacks preview identity",
+      (input) => {
+        delete input.state.previews[0].previewId;
+      },
+    ],
+    [
+      "PR evidence cannot use a head or ticket key",
+      (input) => {
+        input.state.reviewEvidenceByPr = { "SKI-1": { hasReviewEvidence: true } };
+      },
+    ],
+  ];
+  for (const [name, mutate] of invalid) {
+    const input = structuredClone(fixture);
+    mutate(input);
+    assert.equal(validateInput(input), false, name);
+  }
 });

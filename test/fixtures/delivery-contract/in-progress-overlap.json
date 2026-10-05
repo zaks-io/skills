@@ -1,0 +1,28 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [],
+    "linear": {
+      "issues": [],
+      "activeIssues": [
+        {
+          "identifier": "TEST-9",
+          "state": "In Progress",
+          "stateType": "started",
+          "footprint": ["src/shared.ts"]
+        }
+      ]
+    }
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  },
+  "state": {
+    "startableTickets": [
+      {
+        "id": "TEST-4",
+        "footprint": ["src/shared.ts"]
+      }
+    ]
+  }
+}

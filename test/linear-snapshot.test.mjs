@@ -190,11 +190,11 @@ test("loadLinearSnapshot paginates, derives footprints, and includes direct bloc
   assert.equal(requests.length, 3);
   assert.equal(snapshot.teamId, "team-id");
   assert.deepEqual(
-    snapshot.issues.map((item) => item.identifier),
+    snapshot.issues.map((item) => item.issueKey),
     ["SPL-1", "SPL-2"],
   );
   assert.deepEqual(snapshot.activeIssues, []);
-  assert.deepEqual(snapshot.candidateIssueIds, ["SPL-1"]);
+  assert.deepEqual(snapshot.candidateIssues, [{ issueKey: "SPL-1" }]);
   assert.deepEqual(snapshot.candidateScope, { routeLabel: null, states: ["Todo"] });
   assert.deepEqual(snapshot.issues[0].footprint, ["apps/api/src/index.ts"]);
 });
@@ -262,11 +262,19 @@ test("loadLinearSnapshot repoints closed blockers to their open canonical issue"
 
   const snapshot = await loadLinearSnapshot({ request, selector: "SPL" });
   const blockers = Object.fromEntries(
-    snapshot.issues.map((item) => [item.identifier, item.blockedBy]),
+    snapshot.issues.map((item) => [item.issueKey, item.blockedBy]),
   );
 
-  assert.deepEqual(blockers["SPL-1"], ["OTHER-9"], "canonical in another team still blocks");
-  assert.deepEqual(blockers["SPL-4"], ["SPL-3"], "duplicate chains resolve to the open end");
+  assert.deepEqual(
+    blockers["SPL-1"],
+    [{ issueKey: "OTHER-9" }],
+    "canonical in another team still blocks",
+  );
+  assert.deepEqual(
+    blockers["SPL-4"],
+    [{ issueKey: "SPL-3" }],
+    "duplicate chains resolve to the open end",
+  );
   assert.deepEqual(blockers["SPL-6"], [], "a completed canonical satisfies the blocker");
   assert.deepEqual(blockers["SPL-12"], [], "a cycle of closed issues has no open work");
   assert.equal(looked.filter((id) => id === "SPL-2").length, 1, "lookups are cached");
@@ -293,13 +301,13 @@ test("loadLinearSnapshot fails loud when a closed blocker cannot be looked up", 
 
 test("selectScopedLinearIssues does not silently expand beyond direct blockers", () => {
   const issues = [
-    { identifier: "SPL-1", state: "Todo", blockedBy: ["SPL-2"] },
-    { identifier: "SPL-2", state: "Blocked", blockedBy: ["SPL-3"] },
-    { identifier: "SPL-3", state: "Blocked", blockedBy: [] },
+    { issueKey: "SPL-1", state: "Todo", blockedBy: [{ issueKey: "SPL-2" }] },
+    { issueKey: "SPL-2", state: "Blocked", blockedBy: [{ issueKey: "SPL-3" }] },
+    { issueKey: "SPL-3", state: "Blocked", blockedBy: [] },
   ];
 
   assert.deepEqual(
-    selectScopedLinearIssues(issues, ["Todo"]).map((issue) => issue.identifier),
+    selectScopedLinearIssues(issues, ["Todo"]).map((issue) => issue.issueKey),
     ["SPL-1", "SPL-2"],
   );
 });
@@ -357,24 +365,24 @@ test("loadLinearSnapshot restricts candidates by route and state while retaining
     states: ["Todo"],
     routeLabel: route,
   });
-  assert.deepEqual(snapshot.candidateIssueIds, ["SPL-1", "SPL-7"]);
+  assert.deepEqual(snapshot.candidateIssues, [{ issueKey: "SPL-1" }, { issueKey: "SPL-7" }]);
   assert.deepEqual(snapshot.candidateScope, { routeLabel: route, states: ["Todo"] });
   assert.deepEqual(snapshot.unroutedIssueIds, ["SPL-5"]);
   assert.deepEqual(snapshot.issueMetadata, [
-    { identifier: "SPL-1", labels: [route] },
-    { identifier: "SPL-2", labels: ["zaks-io/other"] },
-    { identifier: "SPL-3", labels: ["zaks-io/other"] },
-    { identifier: "SPL-4", labels: [route] },
-    { identifier: "SPL-5", labels: ["kind-slice", "ready-for-agent"] },
-    { identifier: "SPL-6", labels: [route] },
-    { identifier: "SPL-7", labels: [route] },
+    { issueKey: "SPL-1", labels: [route] },
+    { issueKey: "SPL-2", labels: ["zaks-io/other"] },
+    { issueKey: "SPL-3", labels: ["zaks-io/other"] },
+    { issueKey: "SPL-4", labels: [route] },
+    { issueKey: "SPL-5", labels: ["kind-slice", "ready-for-agent"] },
+    { issueKey: "SPL-6", labels: [route] },
+    { issueKey: "SPL-7", labels: [route] },
   ]);
   assert.deepEqual(
-    snapshot.issues.map((item) => item.identifier),
+    snapshot.issues.map((item) => item.issueKey),
     ["SPL-1", "SPL-2", "SPL-7"],
   );
   assert.deepEqual(
-    snapshot.activeIssues.map((item) => item.identifier),
+    snapshot.activeIssues.map((item) => item.issueKey),
     ["SPL-6", "SPL-7"],
   );
 });
@@ -393,7 +401,7 @@ test("loadLinearSnapshot emits no configured-route candidates when all route lab
     selector: "SPL",
     routeLabel: "zaks-io/splitch",
   });
-  assert.deepEqual(snapshot.candidateIssueIds, []);
+  assert.deepEqual(snapshot.candidateIssues, []);
   assert.deepEqual(snapshot.unroutedIssueIds, ["SPL-1"]);
   assert.deepEqual(snapshot.issues, []);
   assert.deepEqual(snapshot.activeIssues, []);
@@ -416,10 +424,10 @@ test("requested states do not make an otherwise dispatchable direct blocker a ca
         };
   const snapshot = await loadLinearSnapshot({ request, selector: "SPL", states: ["In Progress"] });
   assert.deepEqual(
-    snapshot.issues.map((item) => item.identifier),
+    snapshot.issues.map((item) => item.issueKey),
     ["SPL-1", "SPL-2"],
   );
-  assert.deepEqual(snapshot.candidateIssueIds, ["SPL-1"]);
+  assert.deepEqual(snapshot.candidateIssues, [{ issueKey: "SPL-1" }]);
   assert.deepEqual(snapshot.unroutedIssueIds, []);
 });
 
@@ -436,7 +444,7 @@ test("selectActiveLinearIssues scopes active claims to the repo route label", ()
   ];
 
   assert.deepEqual(
-    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
+    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.issueKey),
     ["SPL-1"],
   );
 });
@@ -470,7 +478,7 @@ test("selectActiveLinearIssues includes only direct blockers of routed active cl
   ];
 
   assert.deepEqual(
-    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
+    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.issueKey),
     ["SPL-1", "SPL-2"],
   );
 });
@@ -482,7 +490,7 @@ test("selectActiveLinearIssues never falls back when a configured route is unuse
   ];
 
   assert.deepEqual(
-    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.identifier),
+    selectActiveLinearIssues(issues, "zaks-io/splitch").map((item) => item.issueKey),
     [],
   );
 });
@@ -502,7 +510,7 @@ test("selectActiveLinearIssues includes started tracker state for reconciliation
   ];
 
   assert.deepEqual(
-    selectActiveLinearIssues(issues).map((item) => item.identifier),
+    selectActiveLinearIssues(issues).map((item) => item.issueKey),
     ["SPL-1", "SPL-2"],
   );
 });
@@ -547,7 +555,7 @@ test("loadLinearSnapshot includes active targets with their direct blockers", as
   const snapshot = await loadLinearSnapshot({ request, selector: "SPL", states: ["Todo"] });
 
   assert.deepEqual(
-    snapshot.activeIssues.map((item) => item.identifier),
+    snapshot.activeIssues.map((item) => item.issueKey),
     ["SPL-1", "SPL-2"],
   );
 });
@@ -561,7 +569,15 @@ function normalizedIssue({
   workerSession = null,
   blockedBy = [],
 }) {
-  return { identifier, labels, state, stateType, assignee, workerSession, blockedBy };
+  return {
+    issueKey: identifier,
+    labels,
+    state,
+    stateType,
+    assignee,
+    workerSession,
+    blockedBy: blockedBy.map((issueKey) => ({ issueKey })),
+  };
 }
 
 function issue({
@@ -635,4 +651,104 @@ test("default unrouted warnings exclude intake and parked work but requested sta
   assert.deepEqual((await loadLinearSnapshot({ ...base, states: ["Backlog"] })).unroutedIssueIds, [
     "SPL-3",
   ]);
+});
+
+test("referenced UUID lookup preserves aliases and risk metadata without expanding dispatch scope", async () => {
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  const observed = [];
+  const request = async (input) => {
+    observed.push(input);
+    if (input.query.includes("teams(first")) {
+      return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+    }
+    if (input.query.includes("issue(id:")) {
+      assert.equal(input.variables.id, uuid);
+      return {
+        data: { issue: { ...issue({ identifier: "SPL-9", labels: ["risk-schema"] }), id: uuid } },
+      };
+    }
+    return {
+      data: {
+        issues: { pageInfo: { hasNextPage: false }, nodes: [issue({ identifier: "SPL-1" })] },
+      },
+    };
+  };
+  const output = await loadLinearSnapshot({
+    request,
+    selector: "SPL",
+    states: ["Todo"],
+    issueRefs: [{ issueUuid: uuid }, { issueUuid: uuid }, { issueKey: "SPL-9" }],
+  });
+  assert.deepEqual(output.candidateIssues, [{ issueKey: "SPL-1" }]);
+  assert.deepEqual(
+    output.issues.map((item) => item.issueKey),
+    ["SPL-1"],
+  );
+  assert.deepEqual(output.activeIssues, []);
+  assert.deepEqual(output.issueMetadata.at(-1), {
+    issueKey: "SPL-9",
+    issueUuid: uuid,
+    labels: ["risk-schema"],
+  });
+  assert.equal(observed.filter(({ query }) => query.includes("issue(id:")).length, 1);
+});
+
+test("typed tracker dependencies carry both identifiers from provider relations", async () => {
+  const parentUuid = "11111111-2222-4333-8444-555555555555";
+  const blockerUuid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const raw = { ...issue({ identifier: "SPL-1", blockedBy: "SPL-2" }), id: parentUuid };
+  raw.inverseRelations.nodes[0].issue.id = blockerUuid;
+  const request = async ({ query }) =>
+    query.includes("teams(first")
+      ? { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } }
+      : { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [raw] } } };
+  const output = await loadLinearSnapshot({ request, selector: "SPL" });
+  assert.deepEqual(output.candidateIssues, [{ issueKey: "SPL-1", issueUuid: parentUuid }]);
+  assert.deepEqual(output.issues[0].blockedBy, [{ issueKey: "SPL-2", issueUuid: blockerUuid }]);
+  assert.equal("id" in output.issues[0], false);
+  assert.equal("identifier" in output.issues[0], false);
+});
+
+test("referenced lookup rejects missing issues, conflicting pairs, and over-budget requests", async () => {
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  const request = async ({ query }) => {
+    if (query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+    if (query.includes("issue(id:")) return { data: { issue: null } };
+    return {
+      data: {
+        issues: {
+          pageInfo: { hasNextPage: false },
+          nodes: [{ ...issue({ identifier: "SPL-1" }), id: uuid }],
+        },
+      },
+    };
+  };
+  const base = { request, selector: "SPL" };
+  await assert.rejects(
+    loadLinearSnapshot({ ...base, issueRefs: [{ issueKey: "SPL-2" }] }),
+    /was not found/,
+  );
+  await assert.rejects(
+    loadLinearSnapshot({ ...base, issueRefs: [{ issueUuid: uuid, issueKey: "SPL-2" }] }),
+    /identity conflicts/,
+  );
+  await assert.rejects(
+    loadLinearSnapshot({
+      ...base,
+      issueRefs: [{ issueUuid: uuid }, { issueUuid: uuid, issueKey: "SPL-2" }],
+    }),
+    /identity conflicts/,
+  );
+  await assert.rejects(
+    loadLinearSnapshot({
+      ...base,
+      issueRefs: Array.from({ length: 52 }, (_, index) => ({ issueKey: `SPL-${index + 1}` })),
+    }),
+    /exceeds 50/,
+  );
+  await assert.rejects(
+    loadLinearSnapshot({ ...base, issueRefs: [{ issueId: uuid }] }),
+    /typed issueKey/,
+  );
 });

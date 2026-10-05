@@ -44,7 +44,7 @@ function plan(linear, state = {}, prs = []) {
     writeFileSync(
       file,
       JSON.stringify({
-        snapshot: { repo: routeLabel, prs, linear },
+        snapshot: { v: 3, repo: routeLabel, prs, linear },
         config: { workerConcurrencyCap: 3, mergeAuthority: "agent" },
         state,
       }),
@@ -59,7 +59,7 @@ function frontier(linear, state = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-frontier-safety-"));
   try {
     const file = path.join(dir, "input.json");
-    writeFileSync(file, JSON.stringify({ snapshot: { repo: routeLabel, linear }, state }));
+    writeFileSync(file, JSON.stringify({ snapshot: { v: 3, repo: routeLabel, linear }, state }));
     return JSON.parse(
       execFileSync(
         process.execPath,
@@ -80,9 +80,9 @@ test("Linear load through planner keeps wrong-repository blockers as dependencie
     issue("SPL-4", { route: null }),
     issue("SPL-5"),
   ]);
-  assert.deepEqual(linear.candidateIssueIds, ["SPL-1", "SPL-5"]);
+  assert.deepEqual(linear.candidateIssues, [{ issueKey: "SPL-1" }, { issueKey: "SPL-5" }]);
   assert.deepEqual(
-    linear.issues.map((item) => item.identifier),
+    linear.issues.map((item) => item.issueKey),
     ["SPL-1", "SPL-2", "SPL-5"],
   );
   const output = plan(linear);
@@ -100,9 +100,9 @@ test("requested state scope survives the planner merging active issues and direc
     [issue("SPL-1", { state: "In Progress", blockedBy: "SPL-2" }), issue("SPL-2")],
     ["In Progress"],
   );
-  assert.deepEqual(linear.candidateIssueIds, ["SPL-1"]);
+  assert.deepEqual(linear.candidateIssues, [{ issueKey: "SPL-1" }]);
   assert.deepEqual(
-    linear.activeIssues.map((item) => item.identifier),
+    linear.activeIssues.map((item) => item.issueKey),
     ["SPL-1", "SPL-2"],
   );
   const output = plan(linear);
@@ -112,7 +112,7 @@ test("requested state scope survives the planner merging active issues and direc
 
 test("configured route with no matching labels yields no dispatch after the complete pipeline", async () => {
   const linear = await snapshot([issue("SPL-1", { route: null })]);
-  assert.deepEqual(linear.candidateIssueIds, []);
+  assert.deepEqual(linear.candidateIssues, []);
   const output = plan(linear);
   assert.deepEqual(output.decisions.dispatch.selected, []);
 });
@@ -126,6 +126,7 @@ test("route-excluded issue metadata still carries risk labels into PR merge rout
     {
       number: 12,
       title: "SPL-1 schema update",
+      linkedIssues: [{ issueKey: "SPL-1" }],
       state: "open",
       headRefName: "spl-1-schema-update",
       headSha: "reviewed-head",
@@ -160,18 +161,27 @@ for (const source of ["worker", "pr"]) {
       routeLabel,
       states: ["Todo"],
     });
-    assert.equal(linear.issues[0].id, uuid);
-    assert.equal(linear.issueMetadata[0].id, uuid);
+    assert.equal(linear.issues[0].issueUuid, uuid);
+    assert.equal(linear.issueMetadata[0].issueUuid, uuid);
     const output = plan(
       linear,
       source === "worker"
-        ? { dispatches: [{ issueId: uuid, state: "running", footprint: ["src/other.ts"] }] }
-        : { scopeIssueIds: ["SPL-12"] },
+        ? {
+            dispatches: [
+              {
+                receiptId: "receipt-12",
+                issueUuid: uuid,
+                state: "running",
+                footprint: ["src/other.ts"],
+              },
+            ],
+          }
+        : { scopeIssues: [{ issueKey: "SPL-12" }] },
       source === "pr"
         ? [
             {
               number: 22,
-              issueId: uuid,
+              issueUuid: uuid,
               state: "open",
               isDraft: true,
               changedFiles: 1,

@@ -16,9 +16,11 @@ const ajv = new Ajv({
 });
 ajv.addSchema(schema);
 const exports = Object.fromEntries(
-  ["Input", "Config", "State"].map((name) => [
+  ["Input", "Config", "State", "CanonicalState"].map((name) => [
     `validate${name}`,
-    name === "Input" ? schema.$id : `${schema.$id}#/definitions/${name.toLowerCase()}`,
+    name === "Input"
+      ? schema.$id
+      : `${schema.$id}#/definitions/${name === "CanonicalState" ? "canonical_state" : name.toLowerCase()}`,
   ]),
 );
 const code = standaloneCode(ajv, exports);

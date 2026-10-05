@@ -9,9 +9,10 @@ should resolve these into config, not leave the loop to guess them.
 
 - Default cap: **3** active workers. Config overrides with
   `Worker concurrency cap`.
-- Count confirmed implementation and repair sessions that have not returned,
-  stopped, failed, or produced a PR. Deduplicate session, issue, and provider
-  handles.
+- Count distinct confirmed implementation and repair sessions until provider
+  lifecycle confirms return, stop, or failure. Deduplicate confirmed sessions,
+  or receipts without a session. Sharing an issue, branch, path, or PR never
+  collapses workers; opening a PR does not release a running session.
 - Human assignees, open PRs, previews, and abandoned worktrees do not consume
   worker slots. They remain PR actions, provider constraints, ownership signals,
   and file-footprint seams.

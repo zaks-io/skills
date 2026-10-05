@@ -104,17 +104,32 @@ dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegation
 for stuck-worker detection and duplicate suppression; it may be empty on any tick
 and is always reconciled against the tracker and code host.
 
-Capacity reconciliation synthesizes missing dispatches from active tracker
-claims in the repo route-label domain and from dirty or baseline-unmerged local
-worktrees. Started tracker work reserves files without inventing agent sessions.
-It retains worktrees without issue keys by branch or worktree identity,
-uses merged-PR head evidence for squash merges, ignores completed clean
-worktrees, and deduplicates all of that evidence against open PRs before planning
-new starts.
-Conflicting session or issue identities stay separate even at the same commit.
-Open PR and live claim evidence prevents another dispatch for the same ticket.
-Scoped candidate IDs are distinct from dependency records, and repository,
-requested state, and requested ticket-set boundaries survive planner merging.
+Capacity reconciliation recovers delivery reservations from active tracker claims
+in the repo route-label domain and dirty or baseline-unmerged local worktrees.
+Started tracker work reserves files without inventing agent sessions. Worktree
+paths preserve unassociated reservations; completed clean worktrees can drop
+out. PR associations combine delivery evidence, but retain running workers until
+provider lifecycle confirms return, stop, or failure. Two distinct sessions
+covering one issue still count twice. Issue, branch, worktree, PR, or commit
+matches never prove one worker; conflicting identities fail clearly.
+
+Canonical v3 input separates tracker `issueKey`/`issueUuid`, worker
+`receiptId`/`sessionId`, PR `number`, worktree `path`, and `previewId`.
+A single tracker-backed catalog resolves delivery, scope, dependencies, risk,
+and action targets. Typed `candidateIssues` and `scopeIssues` remain distinct
+from typed dependency records; repository, requested-state, and requested-ticket
+boundaries survive evidence merging. Branch/path and leading-title hints can
+protect delivery or raise risk, but cannot grant scoped PR-action authority.
+Explicit PR issue fields or exact tracker links establish the association.
+
+Unknown references produce actionable diagnostics rather than a drained queue.
+Perform one bounded read-only tracker lookup and replan once for the current
+evidence. Remaining missing or contradictory references stay visible; do not
+cycle through alternate ID fields. Version 2 and unversioned input convert at
+one boundary adapter, never inside individual consumers. New producers use v3;
+remove the adapter only after supported producers and consumers have migrated
+and compatibility evaluation proves legacy inputs are unnecessary. See the
+[planner input contract](../skills/ziw-orchestrate/references/planner-input.md).
 
 The friction intake is retrospective and is intentionally not a system of
 record for delivery decisions. All workflow roles file complaints in the
@@ -730,7 +745,10 @@ Use the shared handoff shape from
 
 Every handoff should say:
 
-- issue, branch, PR, owner, agent path, and environment
+- tracker issue URL and known `issueKey`/`issueUuid`, branch/worktree path, PR
+  URL/number, owner, agent path, and environment
+- actual receipt/session identity and provider-confirmed worker lifecycle;
+  a PR association alone does not confirm return
 - PR state: draft/pre-review or non-draft/ready-for-review
 - current state and next owner
 - checks run

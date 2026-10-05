@@ -1,5 +1,5 @@
 import config from "./config.mjs";
-import { definitions } from "./records.mjs";
+import { definitions, canonicalDefinitions } from "./records.mjs";
 
 const ref = (name) => ({ $ref: `#/definitions/${name}` });
 const array = (name) => ({ type: "array", items: ref(name) });
@@ -17,7 +17,7 @@ const promotionOptions = {
 };
 const snapshotProperties = {
   repo,
-  v: { type: "integer", minimum: 1 },
+  v: { type: "integer", minimum: 1, maximum: 2 },
   generatedAt: text,
   sources: object,
   baseline: {
@@ -93,7 +93,7 @@ const state = {
   },
 };
 
-export default {
+const legacyInput = {
   $schema: "http://json-schema.org/draft-07/schema#",
   $id: "https://github.com/zaks-io/skills/planner-input.schema.json",
   title: "Orchestrator planner input",
@@ -111,5 +111,119 @@ export default {
     config,
     state,
     snapshot: { type: "object", additionalProperties: false, properties: snapshotProperties },
+  },
+};
+
+const canonicalSnapshotProperties = {
+  ...snapshotProperties,
+  v: { const: 3 },
+  prs: array("pullRequest"),
+  worktrees: array("worktree"),
+  linear: {
+    ...snapshotProperties.linear,
+    properties: {
+      ...snapshotProperties.linear.properties,
+      candidateIssueIds: false,
+      candidateIssueRefs: false,
+      candidateIssues: array("issueReference"),
+    },
+  },
+};
+export const canonicalState = {
+  ...state,
+  properties: {
+    ...state.properties,
+    scopeIssueIds: false,
+    scopeIssues: array("issueReference"),
+    ...Object.fromEntries(
+      [
+        "reviewEvidenceByPr",
+        "reviewEvidence",
+        "hostedReviewByPr",
+        "reviewRequestsByPr",
+        "reviewRequestByPr",
+      ].map((name) => [
+        name,
+        { ...recordMap("evidence"), propertyNames: { pattern: "^[1-9][0-9]*$" } },
+      ]),
+    ),
+    ...Object.fromEntries(
+      ["dispatches", "ledgerDispatches", "activeWork", "workers"].map((name) => [
+        name,
+        array("worker"),
+      ]),
+    ),
+    worktrees: array("worktree"),
+    previews: array("preview"),
+  },
+};
+export const canonicalInput = {
+  ...legacyInput,
+  properties: {
+    ...canonicalSnapshotProperties,
+    snapshot: ref("snapshot"),
+    config: ref("config"),
+    state: ref("state"),
+    queue: ref("state"),
+  },
+  definitions: {
+    ...canonicalDefinitions,
+    config,
+    state: canonicalState,
+    snapshot: {
+      type: "object",
+      additionalProperties: false,
+      properties: canonicalSnapshotProperties,
+    },
+  },
+};
+
+const prefixReferences = (value) => {
+  if (Array.isArray(value)) return value.map(prefixReferences);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([name, child]) => [
+      name,
+      name === "$ref" && child.startsWith("#/definitions/")
+        ? child.replace("#/definitions/", "#/definitions/canonical_")
+        : prefixReferences(child),
+    ]),
+  );
+};
+const canonicalBranch = prefixReferences(canonicalInput);
+delete canonicalBranch.$id;
+delete canonicalBranch.$schema;
+delete canonicalBranch.definitions;
+const legacyBranch = { ...legacyInput };
+delete legacyBranch.$id;
+delete legacyBranch.$schema;
+delete legacyBranch.definitions;
+
+export default {
+  $schema: legacyInput.$schema,
+  $id: legacyInput.$id,
+  title: legacyInput.title,
+  if: {
+    type: "object",
+    anyOf: [
+      { required: ["v"], properties: { v: { const: 3 } } },
+      {
+        required: ["snapshot"],
+        properties: {
+          snapshot: { type: "object", required: ["v"], properties: { v: { const: 3 } } },
+        },
+      },
+    ],
+  },
+  then: canonicalBranch,
+  else: legacyBranch,
+  definitions: {
+    ...legacyInput.definitions,
+    ...Object.fromEntries(
+      Object.entries(canonicalInput.definitions).map(([name, schema]) => [
+        `canonical_${name}`,
+        prefixReferences(schema),
+      ]),
+    ),
   },
 };

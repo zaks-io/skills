@@ -1,0 +1,36 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [],
+    "linear": {
+      "issues": []
+    }
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  },
+  "state": {
+    "dispatches": [
+      {
+        "id": "TEST-5",
+        "issueId": "TEST-5",
+        "headSha": "baseline",
+        "branch": "feat/TEST-5",
+        "state": "running"
+      },
+      {
+        "id": "TEST-6",
+        "issueId": "TEST-6",
+        "headSha": "baseline",
+        "branch": "feat/TEST-6",
+        "state": "running"
+      }
+    ],
+    "startableTickets": [
+      {
+        "id": "TEST-7",
+        "footprint": ["src/new.ts"]
+      }
+    ]
+  }
+}

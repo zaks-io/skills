@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { validateInput, validateConfig, validateState } from "./planner-input-validator.mjs";
+import {
+  validateInput,
+  validateConfig,
+  validateState,
+  validateCanonicalState,
+} from "./planner-input-validator.mjs";
+import { normalizePlannerModel } from "./planner-model.mjs";
+import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
 
 const usage =
   "Usage: node tick-plan.mjs <snapshot-or-envelope.json> [--config config.json] [--state state.json] [--pretty] [--debug]";
@@ -55,9 +62,14 @@ export function loadPlannerInput(args) {
   const input = readJson(positionals[0], "input");
   validate(input, validateInput, "input");
   const configFile = readJson(values.config, "--config");
-  const stateFile = readJson(values.state, "--state");
+  let stateFile = readJson(values.state, "--state");
   validate(configFile, validateConfig, "--config");
-  validate(stateFile, validateState, "--state");
+  if ((input.snapshot?.v ?? input.v) === 3) {
+    if (!validateCanonicalState(stateFile)) {
+      validate(stateFile, validateState, "--state");
+      stateFile = adaptLegacyPlannerInput({}, stateFile).state;
+    }
+  } else validate(stateFile, validateState, "--state");
 
   const {
     snapshot: nestedSnapshot,
@@ -85,5 +97,10 @@ export function loadPlannerInput(args) {
   if ((soft == null) !== (hard == null) || soft > hard) {
     throw new Error("config: local budget thresholds must be supplied together with soft <= hard");
   }
-  return { snapshot, config, state, debug: values.debug ?? false, pretty: values.pretty ?? false };
+  return {
+    ...normalizePlannerModel({ snapshot, state }),
+    config,
+    debug: values.debug ?? false,
+    pretty: values.pretty ?? false,
+  };
 }

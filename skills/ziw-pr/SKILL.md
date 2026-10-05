@@ -191,6 +191,12 @@ PR body:
 [Issue: ISSUE-ID](url)
 ```
 
+Keep the exact tracker issue URL in the PR body for work this PR delivers.
+Return the PR number and known `issueKey`/`issueUuid` through the
+[handoff contract](../ziw-setup/references/handoff.md). A title or branch token is
+only a delivery hint; it cannot replace an explicit issue association or confirm
+that the implementation session returned.
+
 Risk is HIGH for auth, authorization, secrets, destructive data, schema
 migrations, queues/background jobs, production data flow, public contracts, or
 broad refactors. MEDIUM is normal feature/business logic work. LOW is docs,

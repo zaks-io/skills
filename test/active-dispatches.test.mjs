@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import {
   completedByMergedPullRequest,
   deriveActiveDispatches,
@@ -12,532 +11,411 @@ import {
   riskTier,
 } from "../skills/ziw-orchestrate/scripts/workflow-contract.mjs";
 
-test("active dispatches combine ledger aliases and deduplicate them", () => {
-  const dispatches = deriveActiveDispatches({
-    state: {
-      dispatches: [{ issueId: "MAIN-1", state: "running" }],
-      ledgerDispatches: [
-        { issueId: "MAIN-1", state: "running" },
-        { issueId: "MAIN-2", state: "running" },
-      ],
-    },
-  });
+const worker = (sessionId, issueRef = "MAIN-1", extra = {}) => ({
+  sessionId,
+  issueRef,
+  workerRef: `session:${sessionId}`,
+  occupiesWorkerSlot: true,
+  state: "running",
+  ...extra,
+});
+const run = (dispatches, extra = {}) =>
+  reconcileActiveDelivery({ state: { dispatches }, ...extra });
 
-  assert.deepEqual(
-    dispatches.map((dispatch) => dispatch.issueId),
-    ["MAIN-1", "MAIN-2"],
+test("same session observations coalesce and union footprints", () => {
+  const result = run([
+    worker("one", "MAIN-1", { footprint: ["src/a"] }),
+    worker("one", "MAIN-1", { footprint: ["src/b"] }),
+  ]);
+  assert.equal(result.dispatches.length, 1);
+  assert.deepEqual(result.dispatches[0].footprint, ["src/a", "src/b"]);
+  assert.equal(activeWorkerCapacity(result).used, 1);
+});
+
+test("sessionless receipt joins only a worker with the same explicit receipt", () => {
+  const result = run([
+    worker("one", "MAIN-1", { receiptId: "receipt-a" }),
+    {
+      receiptId: "receipt-a",
+      workerRef: "receipt:receipt-a",
+      issueRef: "MAIN-1",
+      footprint: ["src/a"],
+    },
+    {
+      receiptId: "receipt-b",
+      workerRef: "receipt:receipt-b",
+      issueRef: "MAIN-1",
+      footprint: ["src/b"],
+    },
+  ]);
+  assert.equal(result.dispatches.length, 2);
+  assert.equal(activeWorkerCapacity(result).used, 2);
+  assert.deepEqual(result.dispatches.find((item) => item.sessionId === "one").footprint, ["src/a"]);
+});
+
+for (const shared of [{}, { branch: "same" }, { worktree: "/tmp/same" }, { headSha: "same" }]) {
+  test(`distinct sessions survive shared issue and evidence ${JSON.stringify(shared)}`, () => {
+    const result = run([worker("one", "MAIN-1", shared), worker("two", "MAIN-1", shared)], {
+      snapshot: {
+        linear: {
+          activeIssues: [{ issueRef: "MAIN-1", stateType: "started", footprint: ["src/shared"] }],
+        },
+      },
+    });
+    assert.equal(activeWorkerCapacity(result).used, 2);
+    assert.equal(result.dispatches.length, 2);
+    assert.ok(result.dispatches.every((item) => item.footprint.includes("src/shared")));
+  });
+}
+
+for (const shared of [
+  { sessionId: "same", workerRef: "session:same" },
+  { receiptId: "same", workerRef: "receipt:same" },
+]) {
+  test(`contradictory issue association fails for ${JSON.stringify(shared)}`, () => {
+    assert.throws(
+      () =>
+        run([
+          { ...shared, issueRef: "MAIN-1" },
+          { ...shared, issueRef: "MAIN-2" },
+        ]),
+      /issueRef conflict/,
+    );
+  });
+}
+
+test("contradictory sessions on one receipt fail", () => {
+  assert.throws(
+    () =>
+      run([
+        worker("one", "MAIN-1", { receiptId: "same" }),
+        worker("two", "MAIN-1", { receiptId: "same" }),
+      ]),
+    /sessionId conflict/,
   );
 });
 
-test("deduplication enriches ledger dispatches with live footprint evidence", () => {
-  const [dispatch] = deriveActiveDispatches({
-    snapshot: {
-      linear: {
-        activeIssues: [{ identifier: "MAIN-7", workerSession: "bc-7", footprint: ["src/hot.ts"] }],
-      },
-    },
-    state: {
-      dispatches: [{ issueId: "MAIN-7", state: "running" }],
-    },
+test("linked open PR preserves live and repair worker slots", () => {
+  const result = run([worker("one", "MAIN-1", { footprint: ["src/worker"], purpose: "repair" })], {
+    pullRequests: [{ number: 1, issueRef: "MAIN-1", state: "open", footprint: ["src/pr"] }],
   });
-
-  assert.deepEqual(dispatch.footprint, ["src/hot.ts"]);
-  assert.equal(dispatch.source, "ledger+linear-active-claim");
+  assert.equal(activeWorkerCapacity(result).used, 1);
+  assert.deepEqual(result.pullRequests[0].footprint, ["src/pr", "src/worker"]);
+  assert.equal(issuesWithDeliveryEvidence([{ issueRef: "MAIN-1" }], result)[0].openPr, true);
 });
 
-test("terminal Linear assignments are not active claims", () => {
-  const dispatches = deriveActiveDispatches({
+for (const terminal of [
+  { returned: true },
+  { stopped: true },
+  { state: "completed" },
+  { state: "failed" },
+]) {
+  for (const link of [{ issueRef: "MAIN-1" }, { prNumber: 7 }]) {
+    test(`returned receipt transfers footprint by ${JSON.stringify(link)} ${JSON.stringify(terminal)}`, () => {
+      const result = run(
+        [
+          {
+            receiptId: "opaque",
+            workerRef: "receipt:opaque",
+            footprint: ["src/worker"],
+            ...link,
+            ...terminal,
+          },
+        ],
+        {
+          pullRequests: [{ number: 7, issueRef: "MAIN-1", footprint: ["src/pr"] }],
+        },
+      );
+      assert.deepEqual(result.dispatches, []);
+      assert.deepEqual(result.pullRequests[0].footprint, ["src/pr", "src/worker"]);
+    });
+  }
+}
+
+test("started issues and unconfirmed active claims reserve delivery without worker slots", () => {
+  const result = deriveActiveDispatches({
     snapshot: {
       linear: {
         activeIssues: [
-          { identifier: "MAIN-1", stateType: "completed", assignee: "Isaac" },
-          { identifier: "MAIN-2", stateType: "canceled", assignee: "Isaac" },
-          { identifier: "MAIN-3", workerSession: "bc-3", assignee: "Isaac" },
+          { issueRef: "MAIN-1", stateType: "started", footprint: ["src/a"] },
+          { issueRef: "MAIN-2", activeClaim: true, footprint: ["src/b"] },
         ],
       },
     },
   });
-
-  assert.deepEqual(
-    dispatches.map((dispatch) => dispatch.issueId),
-    ["MAIN-3"],
+  assert.equal(result.length, 2);
+  assert.equal(activeWorkerCapacity({ dispatches: result }).used, 0);
+  assert.ok(
+    issuesWithDeliveryEvidence([{ issueRef: "MAIN-1" }, { issueRef: "MAIN-2" }], {
+      dispatches: result,
+    }).every((issue) => issue.activeClaim),
   );
 });
 
-test("dependency bot PRs do not suppress active issue claims", () => {
-  const dispatches = deriveActiveDispatches({
+test("confirmed tracker session coalesces with its receipt", () => {
+  const result = run([worker("one", "MAIN-1", { footprint: ["src/a"] })], {
     snapshot: {
       linear: {
-        activeIssues: [{ identifier: "MAIN-4", workerSession: "bc-4" }],
+        activeIssues: [
+          {
+            issueRef: "MAIN-1",
+            activeClaim: true,
+            sessionId: "one",
+            workerRef: "session:one",
+            footprint: ["src/b"],
+          },
+        ],
       },
     },
-    pullRequests: [
-      {
-        number: 4,
-        state: "open",
-        author: { login: "dependabot[bot]" },
-        headRefName: "dependabot/npm/main-4-package",
-      },
+  });
+  assert.equal(result.dispatches.length, 1);
+  assert.equal(activeWorkerCapacity(result).used, 1);
+  assert.deepEqual(result.dispatches[0].footprint, ["src/a", "src/b"]);
+});
+
+test("worktrees enrich same-path workers without coalescing them", () => {
+  const result = run(
+    [
+      worker("one", "MAIN-1", { worktree: "/tmp/shared" }),
+      worker("two", "MAIN-2", { worktree: "/tmp/shared" }),
     ],
-  });
-
-  assert.deepEqual(
-    dispatches.map((dispatch) => dispatch.issueId),
-    ["MAIN-4"],
+    {
+      snapshot: { worktrees: [{ path: "/tmp/shared", dirty: true, footprint: ["src/hot"] }] },
+    },
   );
+  assert.equal(result.dispatches.length, 2);
+  assert.equal(activeWorkerCapacity(result).used, 2);
+  assert.ok(result.dispatches.every((item) => item.footprint.includes("src/hot")));
 });
 
-test("unknown worktree merge state retains an unidentified reservation", () => {
+test("unidentified worktrees reserve independently and never count as workers", () => {
   const dispatches = deriveActiveDispatches({
     snapshot: {
-      baseline: { branch: "main" },
       worktrees: [
-        {
-          path: "/tmp/main-5",
-          branch: "main-5-work",
-          dirty: null,
-          mergedIntoBaseline: null,
-        },
+        { path: "/tmp/one", headSha: "same" },
+        { path: "/tmp/two", headSha: "same" },
+        { path: "/tmp/one", footprint: ["src/a"] },
       ],
     },
   });
-
-  assert.deepEqual(
-    dispatches.map(({ issueId, source }) => ({ issueId, source })),
-    [{ issueId: null, source: "local-worktree-unmerged" }],
-  );
+  assert.equal(dispatches.length, 2);
+  assert.equal(activeWorkerCapacity({ dispatches }).used, 0);
 });
 
-test("detached worktrees are not mistaken for a missing baseline branch", () => {
-  const dispatches = deriveActiveDispatches({
-    snapshot: {
-      baseline: { branch: null },
-      worktrees: [
-        {
-          path: "/tmp/detached-work",
-          branch: null,
-          headSha: "abc123",
-          dirty: null,
-          mergedIntoBaseline: null,
-        },
-      ],
-    },
-  });
-
-  assert.deepEqual(
-    dispatches.map(({ id, source }) => ({ id, source })),
-    [{ id: "worktree:/tmp/detached-work", source: "local-worktree-unmerged" }],
-  );
-});
-
-test("merged PR evidence matches exact heads without hiding a reused branch", () => {
-  const mergedPullRequests = [{ headRefName: "main-6-work", headSha: "merged-head" }];
-
+test("merged PR head evidence does not hide a reused branch", () => {
+  const prs = [{ headRefName: "branch", headSha: "merged-head" }];
   assert.equal(
-    completedByMergedPullRequest(
-      { branch: "main-6-work", headSha: "merged-head" },
-      mergedPullRequests,
-    ),
+    completedByMergedPullRequest({ branch: "branch", headSha: "merged-head" }, prs),
     true,
   );
-  assert.equal(
-    completedByMergedPullRequest(
-      { branch: "main-6-work", headSha: "new-head" },
-      mergedPullRequests,
-    ),
-    false,
-  );
+  assert.equal(completedByMergedPullRequest({ branch: "branch", headSha: "new-head" }, prs), false);
 });
 
-test("completed and stale dispatch receipts do not consume worker slots", () => {
-  const dispatches = deriveActiveDispatches({
-    state: {
-      dispatches: [
-        { id: "MAIN-7", status: "completed" },
-        { id: "MAIN-8", status: "stale" },
-        { id: "MAIN-9", status: "running" },
-      ],
-    },
-  });
-
-  assert.deepEqual(
-    dispatches.map((dispatch) => dispatch.id),
-    ["MAIN-9"],
-  );
-});
-
-test("started tracker work reserves files without inventing a live worker", () => {
-  const dispatches = deriveActiveDispatches({
-    snapshot: {
-      linear: {
-        activeIssues: [{ identifier: "MAIN-10", stateType: "started", footprint: ["src/hot.ts"] }],
-        issues: [{ identifier: "MAIN-11", state: { type: "started" }, footprint: ["src/cold.ts"] }],
-      },
-    },
-  });
-
-  assert.deepEqual(
-    dispatches.map(({ issueId, footprint, occupiesWorkerSlot }) => ({
-      issueId,
-      footprint,
-      occupiesWorkerSlot,
-    })),
-    [
-      { issueId: "MAIN-10", footprint: ["src/hot.ts"], occupiesWorkerSlot: false },
-      { issueId: "MAIN-11", footprint: ["src/cold.ts"], occupiesWorkerSlot: false },
-    ],
-  );
-  assert.deepEqual(activeWorkerCapacity({ dispatches }, { cap: 3 }), {
-    cap: 3,
-    headroom: 3,
-    used: 0,
-  });
-});
-
-test("live worker receipts upgrade started reservations and retain their footprints", () => {
-  const dispatches = deriveActiveDispatches({
-    snapshot: {
-      linear: {
-        activeIssues: [{ identifier: "MAIN-10", stateType: "started", footprint: ["src/hot.ts"] }],
-      },
-    },
-    state: { dispatches: [{ issueId: "MAIN-10", sessionId: "worker-10", state: "running" }] },
-  });
-
-  assert.equal(dispatches.length, 1);
-  assert.deepEqual(dispatches[0].footprint, ["src/hot.ts"]);
-  assert.equal(dispatches[0].occupiesWorkerSlot, true);
-  assert.equal(activeWorkerCapacity({ dispatches }).used, 1);
-});
-
-test("persisted reservations retain their explicit non-worker status", () => {
-  const dispatches = deriveActiveDispatches({
-    state: {
-      dispatches: [{ issueId: "MAIN-10", occupiesWorkerSlot: false, footprint: ["src/hot.ts"] }],
-      activeWork: [{ issueId: "MAIN-11", occupiesWorkerSlot: false, footprint: ["src/cold.ts"] }],
-    },
-  });
-
-  assert.equal(dispatches.length, 2);
-  assert.equal(activeWorkerCapacity({ dispatches }).used, 0);
-});
-
-test("workers and PRs sharing a baseline commit remain separate delivery identities", () => {
-  const dispatches = deriveActiveDispatches({
-    state: {
-      dispatches: [
-        { issueId: "MAIN-10", branch: "main-10-one", sessionId: "worker-10", headSha: "baseline" },
-        { issueId: "MAIN-11", branch: "main-11-two", sessionId: "worker-11", headSha: "baseline" },
-      ],
-    },
-    pullRequests: [
-      { issueId: "MAIN-12", headRefName: "main-12-three", headSha: "baseline", state: "open" },
-    ],
-  });
-
-  assert.deepEqual(
-    dispatches.map((dispatch) => dispatch.issueId),
-    ["MAIN-10", "MAIN-11"],
-  );
-  assert.equal(activeWorkerCapacity({ dispatches }).used, 2);
-});
-
-test("explicitly different sessions for the same issue consume distinct worker slots", () => {
-  const dispatches = deriveActiveDispatches({
-    state: {
-      dispatches: [{ issueId: "MAIN-10", sessionId: "worker-one", branch: "main-10-work" }],
-      ledgerDispatches: [{ issueId: "MAIN-10", sessionId: "worker-two", branch: "main-10-work" }],
-    },
-    snapshot: {
-      linear: {
-        activeIssues: [{ identifier: "MAIN-10", stateType: "started", footprint: ["src/hot.ts"] }],
-      },
-    },
-  });
-
-  assert.equal(dispatches.length, 2);
-  assert.deepEqual(
-    dispatches.map((dispatch) => dispatch.sessionId),
-    ["worker-one", "worker-two"],
-  );
-  assert.equal(activeWorkerCapacity({ dispatches }).used, 2);
-});
-
-test("unidentified worktrees sharing a commit retain both file reservations", () => {
-  const dispatches = deriveActiveDispatches({
-    snapshot: {
-      worktrees: [
-        { path: "/tmp/feature-one", branch: "feature-one", headSha: "baseline" },
-        { path: "/tmp/feature-two", branch: "feature-two", headSha: "baseline" },
-      ],
-    },
-  });
-
-  assert.equal(dispatches.length, 2);
-  assert.equal(activeWorkerCapacity({ dispatches }).used, 0);
-});
-
-test("delivery evidence enriches matching issues without replacing metadata or matching ID prefixes", () => {
-  const issues = [
-    {
-      identifier: "MAIN-1",
-      state: "Todo",
-      activeClaim: false,
-      footprint: ["src/one.ts"],
-      project: { id: "project" },
-      openPr: { state: "closed" },
-    },
-    { identifier: "MAIN-10", state: "Todo", activeClaim: false },
-    { identifier: "MAIN-2", state: "Todo", activeClaim: false },
-    { identifier: "MAIN-3", state: "Todo", activeClaim: false },
-    { identifier: "MAIN-4", state: "Todo", activeClaim: false },
-  ];
-  const enriched = issuesWithDeliveryEvidence(issues, {
-    pullRequests: [
-      { title: "MAIN-10: feature", state: "open" },
-      { headRefName: "main-2-old-work", state: "closed" },
-      { headRefName: "main-3-dependency", state: "open", author: "dependabot[bot]" },
-    ],
-    dispatches: [{ issueId: "MAIN-4", state: "running", occupiesWorkerSlot: false }],
-  });
-
-  assert.equal(enriched[0].activeClaim, false);
-  assert.equal(enriched[0].openPr, false);
-  assert.equal(enriched[1].openPr, true);
-  assert.equal(enriched[2].openPr, false);
-  assert.equal(enriched[3].openPr, false);
-  assert.equal(enriched[4].activeClaim, true);
-  assert.deepEqual(enriched[0].project, issues[0].project);
-  assert.deepEqual(enriched[0].footprint, ["src/one.ts"]);
-  assert.equal(issues[4].activeClaim, false);
-});
-
-test("delivery enrichment canonicalizes PR collection and closed-object evidence", () => {
-  const [live, closed] = issuesWithDeliveryEvidence([
-    { identifier: "MAIN-1", openPr: false, prs: [{ state: "open" }] },
-    { identifier: "MAIN-2", openPr: { state: "closed" }, pullRequests: [{ state: "merged" }] },
-  ]);
-
-  assert.equal(live.openPr, true);
-  assert.equal(closed.openPr, false);
-});
-
-test("all-issue metadata enriches PR risk labels without adding unscoped reservations or footprints", () => {
-  const result = reconcileActiveDelivery({
+test("metadata enriches PR labels but cannot create unscoped reservations", () => {
+  const result = run([], {
     issuesForPrMetadata: [
       {
-        identifier: "MAIN-15",
+        issueRef: "MAIN-1",
+        labels: ["risk-schema"],
         stateType: "started",
-        workerSession: "other-worker",
-        labels: ["risk-high"],
         footprint: ["other/project"],
       },
-      { identifier: "MAIN-16", stateType: "started", footprint: ["other/worktree"] },
     ],
-    snapshot: { worktrees: [{ path: "/tmp/main-16", branch: "main-16-feature" }] },
-    pullRequests: [{ number: 15, headRefName: "main-15-feature", state: "open" }],
+    pullRequests: [{ number: 1, issueRef: "MAIN-1" }],
   });
-
-  assert.deepEqual(result.pullRequests[0].issueLabels, ["risk-high"]);
+  assert.deepEqual(result.dispatches, []);
   assert.deepEqual(result.pullRequests[0].footprint, []);
-  assert.equal(result.dispatches.length, 1);
-  assert.equal(result.dispatches[0].source, "local-worktree-unmerged");
-  assert.deepEqual(result.dispatches[0].footprint, []);
-  assert.equal(activeWorkerCapacity({ dispatches: result.dispatches }).used, 0);
+  assert.deepEqual(result.pullRequests[0].issueLabels, ["risk-schema"]);
 });
 
-test("PR identity prefers explicit links over title mentions and accepts only leading-key title fallback", () => {
-  const issues = [1, 2, 3, 4].map((number) => ({ identifier: `MAIN-${number}` }));
-  const enriched = issuesWithDeliveryEvidence(issues, {
-    pullRequests: [
-      { title: "Refactor unrelated code near MAIN-1", state: "open" },
-      { issueId: "MAIN-3", title: "MAIN-2: update", headRefName: "main-3-feature", state: "open" },
-      { title: "MAIN-4: feature", state: "open" },
+test("possible associations protect delivery and retain a medium risk floor", () => {
+  const result = run([], {
+    issuesForPrMetadata: [
+      { issueRef: "MAIN-1", labels: ["risk-docs"] },
+      { issueRef: "MAIN-2", labels: ["risk-schema"] },
     ],
+    pullRequests: [{ number: 1, possibleIssueRefs: ["MAIN-1", "MAIN-2"] }],
   });
-
-  assert.deepEqual(
-    enriched.map((issue) => issue.openPr),
-    [false, false, true, true],
+  assert.equal(result.pullRequests[0].riskTier, "medium");
+  assert.equal(riskTier(result.pullRequests[0], { lowRiskLabels: ["risk-docs"] }), "high");
+  assert.ok(
+    issuesWithDeliveryEvidence([{ issueRef: "MAIN-1" }, { issueRef: "MAIN-2" }], result).every(
+      (issue) => issue.openPr,
+    ),
   );
 });
 
-for (const headRefName of ["codex/phase-2-zak-12-entry-browsing", "codex/zak-12-entry-browsing"]) {
-  test(`branch tokens cannot hide verified ticket identity: ${headRefName}`, () => {
-    const result = issuesWithDeliveryEvidence(
-      [{ identifier: "ZAK-12" }, { identifier: "PHASE-2" }],
-      {
-        pullRequests: [{ title: "ZAK-12 entry browsing", headRefName }],
-      },
-    );
-    assert.deepEqual(
-      result.map(({ openPr }) => openPr),
-      [true, false],
-    );
-  });
-}
-
-test("branch-only evidence checks the requested ticket anywhere instead of guessing the first token", () => {
-  const [issue] = issuesWithDeliveryEvidence([{ identifier: "ZAK-12" }], {
-    pullRequests: [{ headRefName: "codex/phase-2-zak-12-entry-browsing" }],
-  });
-  assert.equal(issue.openPr, true);
-});
-
-test("prefixed branches retain tracker risk labels and returned worker footprints", () => {
-  const result = reconcileActiveDelivery({
-    issuesForPrMetadata: [{ identifier: "ZAK-12", labels: ["risk-schema"] }],
-    state: { dispatches: [{ issueId: "ZAK-12", footprint: ["src/worker.ts"], state: "running" }] },
+test("dependency bots and closed PRs cannot claim delivery", () => {
+  const issues = [{ issueRef: "MAIN-1" }, { issueRef: "MAIN-2" }];
+  const enriched = issuesWithDeliveryEvidence(issues, {
     pullRequests: [
-      { headRefName: "codex/phase-2-zak-12-entry-browsing", footprint: ["src/pr.ts"] },
+      { number: 1, issueRef: "MAIN-1", author: "dependabot[bot]" },
+      { number: 2, issueRef: "MAIN-2", state: "closed" },
     ],
   });
-  assert.deepEqual(result.dispatches, []);
-  assert.deepEqual(result.pullRequests[0].issueLabels, ["risk-schema"]);
-  assert.deepEqual(result.pullRequests[0].footprint, ["src/pr.ts", "src/worker.ts"]);
+  assert.deepEqual(
+    enriched.map((issue) => issue.openPr),
+    [false, false],
+  );
 });
 
-test("incidental worktree names deduplicate by path without becoming tickets", () => {
-  const worktree = "/home/dev/.t3/worktrees/context-server/review-main-2855565";
-  const result = reconcileActiveDelivery({
+test("opaque worker refs count exactly and missing refs fail loudly", () => {
+  assert.equal(activeWorkerCapacity({ dispatches: [worker("Case"), worker("case")] }).used, 2);
+  assert.throws(
+    () => activeWorkerCapacity({ dispatches: [{ issueRef: "MAIN-1", sessionId: "one" }] }),
+    /workerRef is required/,
+  );
+});
+
+test("receipt aliases coalesce transitively without depending on record order", () => {
+  const records = [
+    worker("one", "MAIN-1", { receiptId: "a" }),
+    worker("one", "MAIN-1", { receiptId: "b" }),
+    { receiptId: "b", workerRef: "receipt:b", issueRef: "MAIN-1" },
+    { receiptId: "a", workerRef: "receipt:a", issueRef: "MAIN-1" },
+  ];
+  for (const items of [
+    records,
+    [...records].reverse(),
+    [records[2], records[3], records[0], records[1]],
+  ]) {
+    const result = run(items);
+    assert.equal(result.dispatches.length, 1);
+    assert.equal(result.dispatches[0].workerRef, "session:one");
+    assert.equal(activeWorkerCapacity(result).used, 1);
+  }
+});
+
+test("absorbed worktree reservations retain delivery protection for a different explicit issue", () => {
+  const result = run([worker("one", "MAIN-1", { worktree: "/tmp/shared" })], {
     snapshot: {
-      worktrees: [
-        { path: worktree, branch: null, dirty: true },
-        {
-          path: "/tmp/skills-review",
-          branch: "chore/install-workflow-skills-2026-10-04",
-          dirty: true,
-        },
-      ],
+      worktrees: [{ path: "/tmp/shared", issueRef: "MAIN-2", dirty: true, footprint: ["src/hot"] }],
     },
-    state: { dispatches: [{ issueId: "TEST-5", worktree, state: "running" }] },
+  });
+  assert.equal(result.dispatches.length, 1);
+  assert.equal(activeWorkerCapacity(result).used, 1);
+  assert.ok(
+    issuesWithDeliveryEvidence([{ issueRef: "MAIN-1" }, { issueRef: "MAIN-2" }], result).every(
+      (issue) => issue.activeClaim,
+    ),
+  );
+});
+
+test("historical terminal receipts cannot retire or contradict a current live observation", () => {
+  const result = run(
+    [
+      {
+        receiptId: "reused",
+        workerRef: "receipt:reused",
+        issueRef: "MAIN-1",
+        state: "completed",
+        footprint: ["src/old"],
+      },
+      worker("live", "MAIN-2", { receiptId: "reused", footprint: ["src/current"] }),
+    ],
+    { pullRequests: [{ number: 1, issueRef: "MAIN-1" }] },
+  );
+  assert.equal(activeWorkerCapacity(result).used, 1);
+  assert.equal(result.dispatches[0].issueRef, "MAIN-2");
+  assert.deepEqual(result.pullRequests[0].footprint, ["src/old"]);
+});
+
+test("worker observations protect delivery and coalesce with an explicit session receipt", () => {
+  const result = reconcileActiveDelivery({
+    state: {
+      workers: [worker("one", "MAIN-1", { footprint: ["src/worker"] })],
+      dispatches: [worker("one", "MAIN-1", { footprint: ["src/receipt"] })],
+    },
+  });
+  assert.equal(result.dispatches.length, 1);
+  assert.equal(activeWorkerCapacity(result).used, 1);
+  assert.deepEqual(result.dispatches[0].footprint, ["src/receipt", "src/worker"]);
+  assert.equal(issuesWithDeliveryEvidence([{ issueRef: "MAIN-1" }], result)[0].activeClaim, true);
+});
+
+test("inactive tracker metadata enriches each live worker without coalescing their slots", () => {
+  const result = run([worker("one"), worker("two")], {
+    snapshot: {
+      linear: { issues: [{ issueRef: "MAIN-1", activeClaim: false, footprint: ["src/tracker"] }] },
+    },
+    pullRequests: [{ number: 1, issueRef: "MAIN-1" }],
   });
   assert.equal(result.dispatches.length, 2);
-  assert.equal(result.dispatches[0].issueId, "TEST-5");
-  assert.equal(result.dispatches[0].occupiesWorkerSlot, true);
-  assert.equal(result.dispatches[1].issueId, null);
-  assert.equal(activeWorkerCapacity({ dispatches: result.dispatches }).used, 1);
+  assert.equal(activeWorkerCapacity(result).used, 2);
+  assert.ok(result.dispatches.every((item) => item.footprint.includes("src/tracker")));
+  assert.deepEqual(result.pullRequests[0].footprint, ["src/tracker"]);
 });
 
-test("worktree tokens infer an issue only from tracker records and keep its footprint", () => {
-  const [dispatch] = deriveActiveDispatches({
-    snapshot: {
-      linear: { issues: [{ identifier: "ZAK-12", footprint: ["src/entries.ts"] }] },
-      worktrees: [
-        { path: "/tmp/phase-2", branch: "codex/phase-2-zak-12-entry-browsing", dirty: true },
-      ],
-    },
+test("unknown branch-only worktrees keep truthful zero-slot reservations", () => {
+  const result = reconcileActiveDelivery({
+    snapshot: { worktrees: [{ branch: "unrelated-feature", dirty: true, footprint: ["src/hot"] }] },
   });
-  assert.equal(dispatch.issueId, "ZAK-12");
-  assert.deepEqual(dispatch.footprint, ["src/entries.ts"]);
+  assert.equal(result.dispatches.length, 1);
+  assert.equal(result.dispatches[0].branch, "unrelated-feature");
+  assert.equal(result.dispatches[0].issueRef, null);
+  assert.equal(activeWorkerCapacity(result).used, 0);
 });
 
-test("confirmed conflicting ticket identities and sessions do not merge by path", () => {
-  const worktree = "/tmp/shared-path";
-  for (const second of [
-    { issueId: "TEST-6", worktree },
-    { issueId: "TEST-5", session: "second", worktree },
-  ]) {
-    const result = deriveActiveDispatches({
-      state: { dispatches: [{ issueId: "TEST-5", session: "first", worktree }, second] },
-    });
-    assert.equal(result.length, 2);
-  }
-});
-
-for (const title of [
-  "SHA-256 fingerprints",
-  "UTF-8 handling",
-  "HTTP-2 transport",
-  "PHASE-2 entry browsing",
-]) {
-  test(`unverified title tokens cannot hide tracker delivery: ${title}`, () => {
-    const pr = { title, headRefName: "codex/zak-12-entry-browsing" };
-    const [issue] = issuesWithDeliveryEvidence([{ identifier: "ZAK-12" }], { pullRequests: [pr] });
-    assert.equal(issue.openPr, true);
-    const delivery = reconcileActiveDelivery({
-      snapshot: { linear: { issues: [{ identifier: "ZAK-12", labels: ["risk-schema"] }] } },
-      state: { dispatches: [{ issueId: "ZAK-12", state: "running" }] },
-      pullRequests: [pr],
-    });
-    assert.deepEqual(delivery.dispatches, []);
-    assert.deepEqual(delivery.pullRequests[0].issueLabels, ["risk-schema"]);
+for (const state of ["running", undefined]) {
+  test(`a PR link alone does not retire normalized worker lifecycle ${state ?? "unspecified"}`, () => {
+    const result = run(
+      [worker("one", "MAIN-1", { hasPr: true, state, footprint: ["src/worker"] })],
+      {
+        pullRequests: [{ number: 1, issueRef: "MAIN-1" }],
+      },
+    );
+    assert.equal(activeWorkerCapacity(result).used, 1);
+    assert.equal(result.dispatches.length, 1);
+    assert.deepEqual(result.pullRequests[0].footprint, ["src/worker"]);
   });
 }
 
-test("verified title identity stays consistent across requested-ticket queries", () => {
-  const delivery = reconcileActiveDelivery({
-    issuesForPrMetadata: [{ identifier: "ZAK-12" }, { identifier: "ZAK-9" }],
-    pullRequests: [{ title: "ZAK-9 revert", headRefName: "codex/zak-12-revert-zak-9" }],
-  });
-  const [other] = issuesWithDeliveryEvidence([{ identifier: "ZAK-12" }], {
-    pullRequests: delivery.pullRequests,
-  });
-  assert.equal(other.openPr, false);
-  assert.equal(delivery.pullRequests[0].issueId, "ZAK-9");
-});
-
-test("ambiguous branch labels cannot lower default risk while high-risk labels remain a floor", () => {
-  for (const labels of [[], ["risk-schema"]]) {
-    const delivery = reconcileActiveDelivery({
-      issuesForPrMetadata: [
-        { identifier: "ZAK-12", labels },
-        { identifier: "ZAK-9", labels: ["risk-docs"] },
-      ],
-      pullRequests: [{ headRefName: "codex/zak-12-revert-zak-9" }],
+for (const state of ["ended", "finished", "canceled", "done", "merged", "closed"]) {
+  test(`terminal ${state} lifecycle releases slots and retains linked PR footprint`, () => {
+    const result = run([worker("one", "MAIN-1", { state, footprint: ["src/worker"] })], {
+      pullRequests: [{ number: 1, issueRef: "MAIN-1" }],
     });
-    const pr = delivery.pullRequests[0];
-    assert.equal(pr.riskTier, "medium");
-    assert.deepEqual(pr.issueLabels, [...labels, "risk-docs"]);
-    assert.equal(riskTier(pr, { lowRiskLabels: ["risk-docs"] }), labels.length ? "high" : "medium");
-  }
-});
-
-test("tracker UUID receipts preserve their original worker capacity identity", () => {
-  const issueId = "11111111-2222-3333-4444-555555555555";
-  const dispatches = deriveActiveDispatches({
-    state: {
-      dispatches: [{ issueId, state: "running" }],
-      ledgerDispatches: [{ issueId, state: "running" }],
-    },
+    assert.equal(activeWorkerCapacity(result).used, 0);
+    assert.equal(result.dispatches.length, 0);
+    assert.deepEqual(result.pullRequests[0].footprint, ["src/worker"]);
   });
-  assert.ok(dispatches.every((dispatch) => dispatch.issueId === issueId));
-  assert.equal(activeWorkerCapacity({ dispatches }).used, 1);
-});
+}
 
-test("metadata UUID aliases enrich PR risk without creating unscoped reservations", () => {
-  const uuid = "11111111-2222-4333-8444-555555555555";
-  const delivery = reconcileActiveDelivery({
-    issuesForPrMetadata: [
-      {
-        id: uuid,
-        identifier: "ZAK-12",
-        stateType: "started",
-        labels: ["risk-schema"],
-        footprint: ["other/project.ts"],
-      },
-    ],
-    pullRequests: [{ issueId: uuid, number: 22, state: "open", footprint: ["src/pr.ts"] }],
-  });
-  assert.deepEqual(delivery.dispatches, []);
-  assert.equal(delivery.pullRequests[0].issueId, "ZAK-12");
-  assert.deepEqual(delivery.pullRequests[0].issueLabels, ["risk-schema"]);
-  assert.deepEqual(delivery.pullRequests[0].footprint, ["src/pr.ts"]);
-});
-
-test("UUID aliases preserve explicit session and ticket conflicts at shared paths", () => {
-  const uuid = "11111111-2222-4333-8444-555555555555";
-  for (const second of [{ issueId: "ZAK-12", session: "second" }, { issueId: "ZAK-13" }]) {
-    const dispatches = deriveActiveDispatches({
-      snapshot: { linear: { issues: [{ identifier: "ZAK-12", id: uuid }] } },
-      state: {
-        dispatches: [
-          { issueId: uuid, session: "first", worktree: "/tmp/shared" },
-          { ...second, worktree: "/tmp/shared" },
+test("tracker claims preserve explicit worktree metadata to absorb matching file reservations", () => {
+  const result = reconcileActiveDelivery({
+    snapshot: {
+      linear: {
+        activeIssues: [
+          {
+            issueRef: "MAIN-1",
+            activeClaim: true,
+            sessionId: "one",
+            workerRef: "session:one",
+            worktree: "/tmp/shared",
+            branch: "known-work",
+            footprint: ["src/tracker"],
+          },
+          {
+            issueRef: "MAIN-1",
+            activeClaim: true,
+            sessionId: "two",
+            workerRef: "session:two",
+            path: "/tmp/shared",
+            branch: "known-work",
+          },
         ],
       },
-    });
-    assert.equal(dispatches.length, 2);
-    assert.equal(activeWorkerCapacity({ dispatches }).used, 2);
-  }
+      worktrees: [
+        { path: "/tmp/shared", branch: "known-work", dirty: true, footprint: ["src/worktree"] },
+      ],
+    },
+  });
+  assert.equal(result.dispatches.length, 2);
+  assert.equal(activeWorkerCapacity(result).used, 2);
+  assert.ok(
+    result.dispatches.every(
+      (item) => item.worktree === "/tmp/shared" && item.branch === "known-work",
+    ),
+  );
+  assert.ok(result.dispatches.every((item) => item.footprint.includes("src/worktree")));
 });

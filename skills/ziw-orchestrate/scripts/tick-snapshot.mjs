@@ -15,10 +15,14 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs";
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
 import { localWorktrees } from "./worktree-snapshot.mjs";
+import { validateCanonicalState, validateState } from "./planner-input-validator.mjs";
+import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
+import { assertIdentityFieldNames } from "./planner-model.mjs";
 
 const startedAt = performance.now();
 const args = process.argv.slice(2);
@@ -38,6 +42,53 @@ const fail = (message) => {
   console.error(`tick-snapshot: ${message}`);
   process.exit(1);
 };
+
+const stateIssueReferences = () => {
+  const file = argValue("--state");
+  if (args.includes("--state") && (!file || file.startsWith("--")))
+    fail("--state: expected a file path");
+  if (!file) return [];
+  let state;
+  try {
+    state = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    fail("--state: cannot read valid JSON state");
+  }
+  if (!validateCanonicalState(state)) {
+    if (!validateState(state)) fail("--state: invalid workflow state; regenerate worker receipts");
+    try {
+      state = adaptLegacyPlannerInput({}, state).state;
+    } catch (error) {
+      fail(`--state: ${error.message}`);
+    }
+  }
+  try {
+    assertIdentityFieldNames(state, "--state");
+  } catch (error) {
+    fail(error.message);
+  }
+  const references = [...(state.scopeIssues ?? [])];
+  for (const name of [
+    "tickets",
+    "linearIssues",
+    "activeLinearIssues",
+    "startableTickets",
+    "dispatches",
+    "ledgerDispatches",
+    "activeWork",
+    "workers",
+    "pullRequests",
+    "reviewEvidenceChecks",
+  ]) {
+    for (const record of state[name] ?? []) {
+      if (record.issueKey || record.issueUuid)
+        references.push({ issueKey: record.issueKey, issueUuid: record.issueUuid });
+      references.push(...(record.blockedBy ?? []), ...(record.linkedIssues ?? []));
+    }
+  }
+  return references;
+};
+const receiptIssueRefs = stateIssueReferences();
 
 const gh = (ghArgs, input) => {
   try {
@@ -86,7 +137,7 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
       totalCount
       pageInfo { hasNextPage endCursor }
       nodes {
-        number title url isDraft updatedAt changedFiles
+        number title body url isDraft updatedAt changedFiles
         author { login __typename }
         headRefName headRefOid baseRefName
         mergeable mergeStateStatus reviewDecision
@@ -210,11 +261,23 @@ const baseline = {
 };
 baseline.green = baseline.checks.state === "SUCCESS";
 
+const linkedLinearIssues = (body) =>
+  [
+    ...new Set(
+      [
+        ...String(body ?? "").matchAll(
+          /https:\/\/linear\.app\/[A-Za-z0-9_-]+\/issue\/([A-Za-z][A-Za-z0-9]*-[0-9]+)(?=\/|[?#)\]\s]|$)/gi,
+        ),
+      ].map((match) => match[1].toUpperCase()),
+    ),
+  ].map((issueKey) => ({ issueKey }));
+
 const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
   const files = pullRequestFiles(pr.number, pr.changedFiles);
   return {
     number: pr.number,
     title: pr.title,
+    linkedIssues: linkedLinearIssues(pr.body),
     url: pr.url,
     state: "open",
     open: true,
@@ -265,6 +328,12 @@ if (linearTeam && hasLinearCredential()) {
       selector: linearTeam,
       states: linearStates,
       routeLabel: linearRouteLabel,
+      issueRefs: [
+        ...receiptIssueRefs,
+        ...prs.flatMap((pr) => pr.linkedIssues),
+        ...argValues("--linear-issue-key").map((issueKey) => ({ issueKey })),
+        ...argValues("--linear-issue-uuid").map((issueUuid) => ({ issueUuid })),
+      ],
     });
   } catch (error) {
     fail(`Linear query failed: ${error.message}`);
@@ -281,7 +350,7 @@ if (!args.includes("--no-local-worktrees")) {
 }
 
 const snapshot = {
-  v: 2,
+  v: 3,
   generatedAt: new Date().toISOString(),
   repo,
   sources: {

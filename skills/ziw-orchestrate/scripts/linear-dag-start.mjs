@@ -17,9 +17,7 @@ const DEFAULT_STARTABLE_STATE_TYPES = ["unstarted"];
 const DEFAULT_READINESS_LABELS = ["ready-for-agent"];
 const DEFAULT_STARTABLE_KIND_LABELS = ["kind-slice"];
 const TERMINAL_STATE_TYPES = ["completed", "canceled", "duplicate"];
-// Raw inputs skip linear-snapshot's canonical lookup, so a duplicate blocker
-// keeps blocking until its canonical issue replaces it.
-const SATISFIED_BLOCKER_STATE_TYPES = ["completed", "canceled"];
+
 const NON_IMPLEMENTATION_READY_LABELS = new Set([
   "needs-info",
   "needs-triage",
@@ -60,30 +58,13 @@ const issueEstimate = (issue) =>
   issue?.bodyEstimate ??
   null;
 
-const issueId = (issue) =>
-  String(issue?.identifier ?? issue?.key ?? issue?.id ?? issue?.url ?? "").trim();
-
-const blockerId = (blocker) =>
-  String(
-    typeof blocker === "string"
-      ? blocker
-      : (blocker?.identifier ?? blocker?.key ?? blocker?.id ?? blocker?.issue?.identifier ?? ""),
-  ).trim();
-
-const blockerStateType = (blocker) =>
-  normalize(typeof blocker === "string" ? "" : (blocker?.stateType ?? blocker?.state?.type ?? ""));
-
-const blockerRefs = (issue) =>
-  compact(
-    [
-      ...toArray(issue?.blockedBy),
-      ...toArray(issue?.blockers),
-      ...toArray(issue?.dependsOn),
-      ...toArray(issue?.dependencies),
-    ]
-      .filter((blocker) => !SATISFIED_BLOCKER_STATE_TYPES.includes(blockerStateType(blocker)))
-      .map(blockerId),
-  );
+const issueId = (issue) => {
+  if (typeof issue?.issueRef !== "string" || !issue.issueRef) {
+    throw new Error("normalized issue.issueRef is required");
+  }
+  return issue.issueRef;
+};
+const blockerRefs = (issue) => compact(toArray(issue?.blockedByRefs));
 
 const footprintRefs = (issue) =>
   compact([
@@ -206,16 +187,7 @@ const startableKindMatches = (issue, config = {}) => {
   return kindLabels.has(explicitKind) || labels.some((label) => kindLabels.has(label));
 };
 
-export const hasActiveClaim = (issue) => {
-  return [
-    issue?.activeClaim,
-    issue?.claimed,
-    issue?.delegated,
-    issue?.assignedWorker,
-    issue?.workerSession,
-    issue?.agentSession,
-  ].some(Boolean);
-};
+export const hasActiveClaim = (issue) => issue?.activeClaim === true;
 
 const isOpenPr = (pr) => {
   if (typeof pr === "string") return Boolean(pr.trim());
@@ -262,7 +234,7 @@ export function extractLinearIssues(input = {}) {
   if (linear?.issues != null || linear?.activeIssues != null) {
     const byId = new Map();
     for (const issue of [...toArray(linear.issues), ...toArray(linear.activeIssues)]) {
-      const id = normalize(issueId(issue));
+      const id = issueId(issue);
       if (id && !byId.has(id)) byId.set(id, issue);
     }
     return [...byId.values()];
@@ -279,7 +251,7 @@ export function linearDagStart(issuesInput = [], config = {}) {
 
   issues.forEach((issue, index) => {
     const id = issueId(issue);
-    idByKey.set(normalize(id), id);
+    idByKey.set(id, id);
     order.set(id, index);
   });
 
@@ -291,7 +263,7 @@ export function linearDagStart(issuesInput = [], config = {}) {
     const externalBlockedBy = [];
 
     for (const blocker of blockedBy) {
-      const inScopeId = idByKey.get(normalize(blocker));
+      const inScopeId = idByKey.get(blocker);
       if (inScopeId) inScopeBlockedBy.push(inScopeId);
       else externalBlockedBy.push(blocker);
     }
@@ -300,6 +272,9 @@ export function linearDagStart(issuesInput = [], config = {}) {
     const estimate = issueEstimate(issue);
     nodes.set(id, {
       id,
+      issueRef: id,
+      issueKey: issue.issueKey ?? null,
+      issueUuid: issue.issueUuid ?? null,
       title: issue.title ?? null,
       url: issue.url ?? null,
       state: issueStateName(issue) ?? null,
@@ -408,7 +383,7 @@ const readJson = (source, label) => {
   }
 };
 
-const main = () => {
+const main = async () => {
   const args = process.argv.slice(2);
   const argValue = (flag) => {
     const index = args.indexOf(flag);
@@ -425,13 +400,40 @@ const main = () => {
 
   const input = readJson(positional[0], "input");
   const config = { ...(input.config ?? {}), ...readJson(argValue("--config"), "--config") };
+  const { normalizePlannerModel } = await import("./planner-model.mjs");
+  const rawSnapshot =
+    input.snapshot ??
+    (Array.isArray(input) || input.issues || input.nodes
+      ? { v: input.v ?? 2, linear: { issues: extractLinearIssues(input) } }
+      : input);
+  const model = normalizePlannerModel({
+    snapshot: rawSnapshot,
+    state: { ...input.queue, ...input.state },
+  });
+  const { reconcileActiveDelivery, issuesWithDeliveryEvidence } =
+    await import("./active-dispatches.mjs");
+  const delivery = reconcileActiveDelivery({
+    snapshot: model.snapshot,
+    state: model.state,
+    pullRequests: [...toArray(model.snapshot.prs), ...toArray(model.state.pullRequests)],
+    issuesForPrMetadata: model.snapshot.linear?.issueMetadata ?? [],
+  });
+  const issues = issuesWithDeliveryEvidence(extractLinearIssues(model), delivery);
   const result = restrictLinearDag(
-    linearDagStart(extractLinearIssues(input), config),
-    linearDispatchScope(input.snapshot ?? input, { ...input.queue, ...input.state }),
+    linearDagStart(issues, config),
+    linearDispatchScope(model.snapshot, model.state),
   );
+  if (model.diagnostics.some((diagnostic) => diagnostic.blockingStarts)) {
+    result.starts = [];
+    result.readyStarts = [];
+  }
+  result.diagnostics = model.diagnostics;
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  main().catch((error) => {
+    console.error(`linear-dag-start: ${error.message}`);
+    process.exitCode = 1;
+  });
 }

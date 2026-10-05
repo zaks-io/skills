@@ -1,0 +1,41 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [
+      {
+        "number": 21,
+        "title": "ZAK-12 entry browsing",
+        "headRefName": "codex/zak-12-entry-browsing",
+        "headSha": "pr-head",
+        "isDraft": true,
+        "changedFiles": 1,
+        "footprint": ["apps/web/src/routes/keys.tsx"],
+        "checks": {
+          "state": "SUCCESS"
+        },
+        "latestReviews": {}
+      }
+    ],
+    "linear": {
+      "candidateScope": {
+        "routeLabel": "example/repo",
+        "states": []
+      },
+      "candidateIssueIds": ["ZAK-12"],
+      "issues": [
+        {
+          "identifier": "ZAK-12",
+          "title": "Entry browsing",
+          "state": "Todo",
+          "stateType": "unstarted",
+          "labels": ["kind-slice", "ready-for-agent", "example/repo"],
+          "footprint": ["apps/web/src/routes/entries.tsx"]
+        }
+      ]
+    }
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  },
+  "state": {}
+}
