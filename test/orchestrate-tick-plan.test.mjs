@@ -1097,7 +1097,7 @@ test("tick-plan counts an unmerged local worktree without an issue key", () => {
   assert.equal(output.footprint.dispatches, 1);
   assert.deepEqual(output.decisions.activeDispatches, [
     {
-      id: "codex/routing-fix",
+      id: "worktree:/tmp/routing-fix",
       issueId: null,
       source: "local-worktree-unmerged",
       branch: "codex/routing-fix",

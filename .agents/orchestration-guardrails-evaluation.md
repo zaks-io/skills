@@ -73,3 +73,40 @@ also identified an existing approval-path gap: a fresh GitHub approval could
 overwrite a current internal revision verdict. The planner now preserves that
 negative evidence, with regression cases for both published revision verdicts.
 This final small addition received local review and affected planner tests.
+
+## Identity follow-up
+
+The updated external report reproduced two additional identity defects against
+`ecbe488`: a `phase-2` branch prefix hid an existing `ZAK-12` PR, and review or
+installation worktree names invented ticket IDs and duplicate reservations.
+Both reproduced locally through the planner CLI before correction.
+
+Canonical issue identity now comes from explicit fields, Linear issue links,
+or a leading title key verified against known tracker or worker evidence.
+Branch and path tokens match queried identities anywhere without inventing
+identifiers. Identical paths deduplicate an unidentified worktree against its
+ledger receipt; confirmed issue and session conflicts remain separate.
+Unidentified work remains a worktree reservation with a truthful hold target.
+Ambiguous branches retain a medium risk floor and high-risk labels still win.
+
+The independent GPT-6.1 Sol evaluator `/root/identity_behavior_eval` received
+only raw fixtures and the realistic queue/headroom requests. All three original
+follow-up fixtures produced safe delivery and capacity outcomes. Artifacts and
+loaded references are recorded at `/tmp/orchestrate-identity-eval-OfeCoA`.
+
+Opus 5.5 high reviewed the focused identity delta in the existing persistent
+session. It found unverified title tokens and ambiguous low-risk metadata could
+cause related failures. Added regressions cover SHA-256, UTF-8, HTTP-2, PHASE-2,
+returned-worker absorption, risk metadata, requested-ticket consistency,
+low-only merge policy, and branch-only reservation targets. The focused recheck
+is recorded in `/tmp/skills-fix-bf237882-review/identity-delta-result.json`.
+
+The full local gate passes 337 tests. Entry point token counts are unchanged;
+the dispatch reference count is refreshed with the original tokenizer.
+These runs remain offline and make no live tracker, credential, or deploy writes.
+
+The final Opus delta pass resolved the identity, ambiguous-risk, and hold-target
+findings. It noted an additional conservative capacity regression for UUID-based
+worker receipts. The final local correction preserves an original UUID when no
+canonical key can be resolved; a capacity regression protects duplicate receipts.
+The final full local gate passes 338 tests.

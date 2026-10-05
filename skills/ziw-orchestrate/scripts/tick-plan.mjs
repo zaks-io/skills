@@ -613,15 +613,20 @@ const holds = [...excludedCandidates];
 const warnings = [];
 
 for (const reservation of activeDispatches.filter((item) => item.occupiesWorkerSlot === false)) {
-  const id = reservation.issueId ?? reservation.id;
+  const id = reservation.issueId;
+  const target = id
+    ? `ticket:${id}`
+    : reservation.worktree
+      ? `worktree:${reservation.worktree}`
+      : reservation.id;
   if (
     state.scopeIssueIds != null &&
     !state.scopeIssueIds.some((key) => normalize(key) === normalize(id))
   )
     continue;
-  if (holds.some((hold) => hold.target === `ticket:${id}`)) continue;
+  if (holds.some((hold) => hold.target === target)) continue;
   holds.push({
-    target: `ticket:${id}`,
+    target,
     reason: "DELIVERY_ALREADY_ACTIVE",
     source: reservation.source,
   });

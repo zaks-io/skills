@@ -45,6 +45,12 @@ reserves its files even without a confirmed agent session. A shared commit never
 collapses distinct workers. They still affect
 ownership, file collision, provider limits, and the PR action queue.
 
+Match branch and path tokens against known ticket identities, never the first
+word-number token. Explicit ticket fields, tracker links, and verified leading
+ticket titles take precedence. Unidentified worktrees retain worktree reservations;
+matching paths can join them to ledger records without inventing ticket holds.
+Ambiguous branch matches cannot reduce PR risk below medium.
+
 Every tick advances actionable PR state and fills all remaining worker slots
 with safe ready work. A returned, failed, stopped, or PR-producing worker frees
 its slot immediately. Backfill it in the same tick. Merge may serialize, but PR

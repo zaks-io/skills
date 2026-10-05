@@ -424,3 +424,99 @@ for (const reviewVerdict of ["NEEDS REVISION", "DO NOT MERGE"]) {
     assert.ok(output.actions.some(({ kind }) => kind === "route-fix"));
   });
 }
+
+for (const headRefName of ["codex/zak-12-entry-browsing", "codex/phase-2-zak-12-entry-browsing"]) {
+  test(`prefixed PR branch prevents duplicate delivery through planner: ${headRefName}`, () => {
+    const output = plan({
+      prs: [
+        {
+          number: 21,
+          title: "ZAK-12 entry browsing",
+          headRefName,
+          headSha: "pr-head",
+          isDraft: true,
+          changedFiles: 1,
+          footprint: ["src/keys.ts"],
+        },
+      ],
+      linear: {
+        candidateScope: { routeLabel: "example/repo", states: [] },
+        candidateIssueIds: ["ZAK-12"],
+        issues: [readyIssue("ZAK-12", { footprint: ["src/entries.ts"] })],
+      },
+    });
+    assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+    assert.ok(
+      output.holds.some(
+        ({ target, reason }) => target === "ticket:ZAK-12" && reason === "DELIVERY_ALREADY_ACTIVE",
+      ),
+    );
+  });
+}
+
+test("review and installation worktrees keep truthful reservations without fabricated ticket holds", () => {
+  const worktree = "/home/dev/.t3/worktrees/context-server/review-main-2855565";
+  const output = plan({
+    state: {
+      worktrees: [
+        {
+          path: worktree,
+          branch: null,
+          headSha: "unmerged",
+          dirty: true,
+          mergedIntoBaseline: false,
+        },
+        {
+          path: "/tmp/context-review-synthetic-skills",
+          branch: "chore/install-workflow-skills-2026-10-04",
+          headSha: "skills-head",
+          dirty: true,
+          mergedIntoBaseline: false,
+        },
+      ],
+      dispatches: [
+        { id: "TEST-5", issueId: "TEST-5", worktree, headSha: "unmerged", state: "running" },
+      ],
+    },
+    config: { workerConcurrencyCap: 2 },
+  });
+  assert.deepEqual(output.capacity, { cap: 2, used: 1, headroom: 1 });
+  assert.equal(output.decisions.activeDispatches.length, 2);
+  assert.ok(
+    !output.holds.some(
+      ({ target }) => target === "ticket:MAIN-2855565" || target === "ticket:SKILLS-2026",
+    ),
+  );
+  assert.ok(
+    output.holds.some(({ target }) => target === "worktree:/tmp/context-review-synthetic-skills"),
+  );
+});
+
+test("ambiguous branch evidence cannot auto-merge through a low-only policy", () => {
+  const output = plan({
+    prs: [{ ...reviewedPr, headRefName: "codex/zak-12-revert-zak-9" }],
+    linear: {
+      issues: [],
+      issueMetadata: [
+        { identifier: "ZAK-12", labels: [] },
+        { identifier: "ZAK-9", labels: ["risk-docs"] },
+      ],
+    },
+    state: {
+      reviewEvidenceByPr: {
+        2: {
+          reviewedDiffFingerprint: "same-diff",
+          reviewVerdict: "Approved",
+          independentReviewCount: 1,
+        },
+      },
+    },
+    config: { mergeAuthority: "agent", lowRiskLabels: ["risk-docs"], autoMergeRiskTiers: ["low"] },
+  });
+  assert.ok(!output.actions.some(({ kind }) => kind === "arm-auto-merge"));
+});
+
+test("branch-only worktree holds have a single worktree prefix", () => {
+  const output = plan({ state: { worktrees: [{ branch: "chore/setup", dirty: true }] } });
+  assert.equal(output.holds[0].target, "worktree:chore/setup");
+});

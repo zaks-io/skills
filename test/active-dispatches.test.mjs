@@ -7,7 +7,10 @@ import {
   issuesWithDeliveryEvidence,
   reconcileActiveDelivery,
 } from "../skills/ziw-orchestrate/scripts/active-dispatches.mjs";
-import { activeWorkerCapacity } from "../skills/ziw-orchestrate/scripts/workflow-contract.mjs";
+import {
+  activeWorkerCapacity,
+  riskTier,
+} from "../skills/ziw-orchestrate/scripts/workflow-contract.mjs";
 
 test("active dispatches combine ledger aliases and deduplicate them", () => {
   const dispatches = deriveActiveDispatches({
@@ -84,7 +87,7 @@ test("dependency bot PRs do not suppress active issue claims", () => {
   );
 });
 
-test("unknown worktree merge state consumes capacity conservatively", () => {
+test("unknown worktree merge state retains an unidentified reservation", () => {
   const dispatches = deriveActiveDispatches({
     snapshot: {
       baseline: { branch: "main" },
@@ -101,7 +104,7 @@ test("unknown worktree merge state consumes capacity conservatively", () => {
 
   assert.deepEqual(
     dispatches.map(({ issueId, source }) => ({ issueId, source })),
-    [{ issueId: "MAIN-5", source: "local-worktree-unmerged" }],
+    [{ issueId: null, source: "local-worktree-unmerged" }],
   );
 });
 
@@ -123,7 +126,7 @@ test("detached worktrees are not mistaken for a missing baseline branch", () => 
 
   assert.deepEqual(
     dispatches.map(({ id, source }) => ({ id, source })),
-    [{ id: "/tmp/detached-work", source: "local-worktree-unmerged" }],
+    [{ id: "worktree:/tmp/detached-work", source: "local-worktree-unmerged" }],
   );
 });
 
@@ -348,7 +351,7 @@ test("PR identity prefers explicit links over title mentions and accepts only le
   const enriched = issuesWithDeliveryEvidence(issues, {
     pullRequests: [
       { title: "Refactor unrelated code near MAIN-1", state: "open" },
-      { title: "MAIN-2: update", headRefName: "main-3-feature", state: "open" },
+      { issueId: "MAIN-3", title: "MAIN-2: update", headRefName: "main-3-feature", state: "open" },
       { title: "MAIN-4: feature", state: "open" },
     ],
   });
@@ -357,4 +360,147 @@ test("PR identity prefers explicit links over title mentions and accepts only le
     enriched.map((issue) => issue.openPr),
     [false, false, true, true],
   );
+});
+
+for (const headRefName of ["codex/phase-2-zak-12-entry-browsing", "codex/zak-12-entry-browsing"]) {
+  test(`branch tokens cannot hide verified ticket identity: ${headRefName}`, () => {
+    const result = issuesWithDeliveryEvidence(
+      [{ identifier: "ZAK-12" }, { identifier: "PHASE-2" }],
+      {
+        pullRequests: [{ title: "ZAK-12 entry browsing", headRefName }],
+      },
+    );
+    assert.deepEqual(
+      result.map(({ openPr }) => openPr),
+      [true, false],
+    );
+  });
+}
+
+test("branch-only evidence checks the requested ticket anywhere instead of guessing the first token", () => {
+  const [issue] = issuesWithDeliveryEvidence([{ identifier: "ZAK-12" }], {
+    pullRequests: [{ headRefName: "codex/phase-2-zak-12-entry-browsing" }],
+  });
+  assert.equal(issue.openPr, true);
+});
+
+test("prefixed branches retain tracker risk labels and returned worker footprints", () => {
+  const result = reconcileActiveDelivery({
+    issuesForPrMetadata: [{ identifier: "ZAK-12", labels: ["risk-schema"] }],
+    state: { dispatches: [{ issueId: "ZAK-12", footprint: ["src/worker.ts"], state: "running" }] },
+    pullRequests: [
+      { headRefName: "codex/phase-2-zak-12-entry-browsing", footprint: ["src/pr.ts"] },
+    ],
+  });
+  assert.deepEqual(result.dispatches, []);
+  assert.deepEqual(result.pullRequests[0].issueLabels, ["risk-schema"]);
+  assert.deepEqual(result.pullRequests[0].footprint, ["src/pr.ts", "src/worker.ts"]);
+});
+
+test("incidental worktree names deduplicate by path without becoming tickets", () => {
+  const worktree = "/home/dev/.t3/worktrees/context-server/review-main-2855565";
+  const result = reconcileActiveDelivery({
+    snapshot: {
+      worktrees: [
+        { path: worktree, branch: null, dirty: true },
+        {
+          path: "/tmp/skills-review",
+          branch: "chore/install-workflow-skills-2026-10-04",
+          dirty: true,
+        },
+      ],
+    },
+    state: { dispatches: [{ issueId: "TEST-5", worktree, state: "running" }] },
+  });
+  assert.equal(result.dispatches.length, 2);
+  assert.equal(result.dispatches[0].issueId, "TEST-5");
+  assert.equal(result.dispatches[0].occupiesWorkerSlot, true);
+  assert.equal(result.dispatches[1].issueId, null);
+  assert.equal(activeWorkerCapacity({ dispatches: result.dispatches }).used, 1);
+});
+
+test("worktree tokens infer an issue only from tracker records and keep its footprint", () => {
+  const [dispatch] = deriveActiveDispatches({
+    snapshot: {
+      linear: { issues: [{ identifier: "ZAK-12", footprint: ["src/entries.ts"] }] },
+      worktrees: [
+        { path: "/tmp/phase-2", branch: "codex/phase-2-zak-12-entry-browsing", dirty: true },
+      ],
+    },
+  });
+  assert.equal(dispatch.issueId, "ZAK-12");
+  assert.deepEqual(dispatch.footprint, ["src/entries.ts"]);
+});
+
+test("confirmed conflicting ticket identities and sessions do not merge by path", () => {
+  const worktree = "/tmp/shared-path";
+  for (const second of [
+    { issueId: "TEST-6", worktree },
+    { issueId: "TEST-5", session: "second", worktree },
+  ]) {
+    const result = deriveActiveDispatches({
+      state: { dispatches: [{ issueId: "TEST-5", session: "first", worktree }, second] },
+    });
+    assert.equal(result.length, 2);
+  }
+});
+
+for (const title of [
+  "SHA-256 fingerprints",
+  "UTF-8 handling",
+  "HTTP-2 transport",
+  "PHASE-2 entry browsing",
+]) {
+  test(`unverified title tokens cannot hide tracker delivery: ${title}`, () => {
+    const pr = { title, headRefName: "codex/zak-12-entry-browsing" };
+    const [issue] = issuesWithDeliveryEvidence([{ identifier: "ZAK-12" }], { pullRequests: [pr] });
+    assert.equal(issue.openPr, true);
+    const delivery = reconcileActiveDelivery({
+      snapshot: { linear: { issues: [{ identifier: "ZAK-12", labels: ["risk-schema"] }] } },
+      state: { dispatches: [{ issueId: "ZAK-12", state: "running" }] },
+      pullRequests: [pr],
+    });
+    assert.deepEqual(delivery.dispatches, []);
+    assert.deepEqual(delivery.pullRequests[0].issueLabels, ["risk-schema"]);
+  });
+}
+
+test("verified title identity stays consistent across requested-ticket queries", () => {
+  const delivery = reconcileActiveDelivery({
+    issuesForPrMetadata: [{ identifier: "ZAK-12" }, { identifier: "ZAK-9" }],
+    pullRequests: [{ title: "ZAK-9 revert", headRefName: "codex/zak-12-revert-zak-9" }],
+  });
+  const [other] = issuesWithDeliveryEvidence([{ identifier: "ZAK-12" }], {
+    pullRequests: delivery.pullRequests,
+  });
+  assert.equal(other.openPr, false);
+  assert.equal(delivery.pullRequests[0].issueId, "ZAK-9");
+});
+
+test("ambiguous branch labels cannot lower default risk while high-risk labels remain a floor", () => {
+  for (const labels of [[], ["risk-schema"]]) {
+    const delivery = reconcileActiveDelivery({
+      issuesForPrMetadata: [
+        { identifier: "ZAK-12", labels },
+        { identifier: "ZAK-9", labels: ["risk-docs"] },
+      ],
+      pullRequests: [{ headRefName: "codex/zak-12-revert-zak-9" }],
+    });
+    const pr = delivery.pullRequests[0];
+    assert.equal(pr.riskTier, "medium");
+    assert.deepEqual(pr.issueLabels, [...labels, "risk-docs"]);
+    assert.equal(riskTier(pr, { lowRiskLabels: ["risk-docs"] }), labels.length ? "high" : "medium");
+  }
+});
+
+test("tracker UUID receipts preserve their original worker capacity identity", () => {
+  const issueId = "11111111-2222-3333-4444-555555555555";
+  const dispatches = deriveActiveDispatches({
+    state: {
+      dispatches: [{ issueId, state: "running" }],
+      ledgerDispatches: [{ issueId, state: "running" }],
+    },
+  });
+  assert.ok(dispatches.every((dispatch) => dispatch.issueId === issueId));
+  assert.equal(activeWorkerCapacity({ dispatches }).used, 1);
 });
