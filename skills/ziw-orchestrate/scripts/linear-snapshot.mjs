@@ -97,7 +97,7 @@ query($teamId: ID!, $after: String) {
   }) {
     pageInfo { hasNextPage endCursor }
     nodes {
-      identifier title description url priority estimate updatedAt
+      id identifier title description url priority estimate updatedAt
       state { name type }
       labels { nodes { name } }
       assignee { displayName }
@@ -202,6 +202,7 @@ export function normalizeLinearIssue(issue, closedBlockers = new Map()) {
     throw new Error(`Linear issue ${issue.identifier} has more than 250 inverse relations`);
   }
   return {
+    ...(issue.id ? { id: issue.id } : {}),
     identifier: issue.identifier,
     title: issue.title,
     url: issue.url,
@@ -328,7 +329,11 @@ export async function loadLinearSnapshot({ request, selector, states = [], route
     statesFilter: states,
     candidateScope: { routeLabel: routeLabel ?? null, states },
     candidateIssueIds,
-    issueMetadata: issues.map(({ identifier, labels }) => ({ identifier, labels })),
+    issueMetadata: issues.map(({ id, identifier, labels }) => ({
+      ...(id ? { id } : {}),
+      identifier,
+      labels,
+    })),
     unroutedIssueIds: selectUnroutedIssueIds(issues, states, routeLabel),
     includesDirectBlockers: true,
     activeScope: { routeLabel: routeLabel ?? null },

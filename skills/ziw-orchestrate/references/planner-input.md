@@ -91,8 +91,12 @@ An empty candidate or requested-ID array authorizes no starts. Omit the requeste
 set only when the user scoped a queue rather than named tickets. Keep request
 state in the transient input, never in Repo Config.
 
-`snapshot.linear.issueMetadata` retains issue identifiers and labels for PR risk
-without creating worker reservations. `unroutedIssueIds` surfaces missing route
+`snapshot.linear.issueMetadata` retains issue UUID `id`, ticket `identifier`, and
+labels for delivery matching and PR risk without creating worker reservations.
+Keep both identities in issue records so UUID-linked receipts resolve to the
+ticket key. Receipt and PR UUIDs resolve against tracker aliases; a generic
+receipt `id` may identify a session and cannot create an issue alias.
+`unroutedIssueIds` surfaces missing route
 labels in requested states, or provider `unstarted` states when none are requested.
 Default warnings exclude Triage, parked Backlog, and started work.
 

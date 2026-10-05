@@ -50,6 +50,9 @@ word-number token. Explicit ticket fields, tracker links, and verified leading
 ticket titles take precedence. Unidentified worktrees retain worktree reservations;
 matching paths can join them to ledger records without inventing ticket holds.
 Ambiguous branch matches cannot reduce PR risk below medium.
+Resolve explicit tracker UUIDs through the snapshot's UUID-to-key aliases before
+matching delivery. Unresolved UUIDs in issue fields match exactly; capacity evidence alone does
+not prove that an issue is protected against duplicate starts.
 
 Every tick advances actionable PR state and fills all remaining worker slots
 with safe ready work. A returned, failed, stopped, or PR-producing worker frees

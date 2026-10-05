@@ -1,4 +1,10 @@
 import { hasActiveClaim, hasOpenPr } from "./linear-dag-start.mjs";
+import {
+  issueIdentityIndex,
+  issueIdentifier,
+  itemMentionsIssue,
+  sameValue,
+} from "./delivery-identity.mjs";
 
 const normalize = (value) =>
   String(value ?? "")
@@ -18,35 +24,6 @@ const isLiveDispatch = (dispatch) =>
     normalize(dispatch?.state ?? dispatch?.status),
   );
 
-const issueIdentifier = (item, knownIds = new Set()) => {
-  const exact = [item?.issueId, item?.identifier, item?.ticket, item?.key, item?.id]
-    .map((value) => String(value ?? "").trim())
-    .find((value) => /^[A-Z][A-Z0-9]+-\d+$/i.test(value) && !/^PR-\d+$/i.test(value));
-  if (exact) return exact.toUpperCase();
-  const linked = String(item?.url ?? "").match(
-    /^https:\/\/linear\.app\/[^/]+\/issue\/([A-Z][A-Z0-9]+-\d+)(?:[^a-z0-9]|$)/i,
-  )?.[1];
-  if (linked) return linked.toUpperCase();
-  const title = String(item?.title ?? "")
-    .trim()
-    .match(/^([A-Z][A-Z0-9]+-\d+)(?:[^a-z0-9]|$)/i)?.[1]
-    ?.toUpperCase();
-  return knownIds.has(title) ? title : null;
-};
-
-const itemMentionsIssue = (item, identifier, knownIds = new Set([identifier])) => {
-  if (!identifier) return false;
-  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
-  const linkedIdentifier = issueIdentifier(item, knownIds);
-  if (linkedIdentifier) return sameValue(linkedIdentifier, identifier);
-  return [item?.branch, item?.headRefName, item?.worktree, item?.path].some((value) =>
-    pattern.test(String(value ?? "")),
-  );
-};
-
-const sameValue = (left, right) => left && right && normalize(left) === normalize(right);
-
 export const completedByMergedPullRequest = (worktree, mergedPullRequests = []) =>
   mergedPullRequests.some((pr) => {
     const sameHead = sameValue(worktree?.headSha, pr?.headSha ?? pr?.headRefOid);
@@ -54,11 +31,7 @@ export const completedByMergedPullRequest = (worktree, mergedPullRequests = []) 
     return sameValue(worktree?.branch, pr?.headRefName ?? pr?.branch);
   });
 
-const itemsMatch = (
-  left,
-  right,
-  knownIds = new Set([issueIdentifier(left), issueIdentifier(right)]),
-) => {
+const itemsMatch = (left, right, knownIds = issueIdentityIndex([], [left, right])) => {
   const leftIssue = issueIdentifier(left, knownIds);
   const rightIssue = issueIdentifier(right, knownIds);
   const leftSession = workerSession(left);
@@ -138,16 +111,14 @@ export function reconcileActiveDelivery({
     ...toArray(state.tickets ?? state.linearIssues),
     ...toArray(state.startableTickets),
   ];
-  const knownIds = new Set(
+  const knownIds = issueIdentityIndex(
+    [...linearIssues, ...toArray(issuesForPrMetadata)],
     [
-      ...linearIssues,
-      ...toArray(issuesForPrMetadata),
       ...toArray(state.dispatches),
       ...toArray(state.ledgerDispatches),
       ...toArray(state.activeWork),
-    ]
-      .map((item) => issueIdentifier(item))
-      .filter(Boolean),
+      ...pullRequests,
+    ],
   );
   const reconciledPullRequests = pullRequests.map((pr) => ({
     ...pr,
@@ -285,11 +256,7 @@ export function reconcileActiveDelivery({
 export const deriveActiveDispatches = (input) => reconcileActiveDelivery(input).dispatches;
 
 export const issuesWithDeliveryEvidence = (issues, { pullRequests = [], dispatches = [] } = {}) => {
-  const knownIds = new Set(
-    [...toArray(issues), ...pullRequests, ...dispatches]
-      .map((item) => issueIdentifier(item))
-      .filter(Boolean),
-  );
+  const knownIds = issueIdentityIndex(toArray(issues), [...pullRequests, ...dispatches]);
   return toArray(issues).map((issue) => {
     const identifiers = [issueIdentifier(issue), issue?.id, issue?.key].filter(Boolean);
     const matchesIssue = (item) =>

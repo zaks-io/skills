@@ -504,3 +504,40 @@ test("tracker UUID receipts preserve their original worker capacity identity", (
   assert.ok(dispatches.every((dispatch) => dispatch.issueId === issueId));
   assert.equal(activeWorkerCapacity({ dispatches }).used, 1);
 });
+
+test("metadata UUID aliases enrich PR risk without creating unscoped reservations", () => {
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  const delivery = reconcileActiveDelivery({
+    issuesForPrMetadata: [
+      {
+        id: uuid,
+        identifier: "ZAK-12",
+        stateType: "started",
+        labels: ["risk-schema"],
+        footprint: ["other/project.ts"],
+      },
+    ],
+    pullRequests: [{ issueId: uuid, number: 22, state: "open", footprint: ["src/pr.ts"] }],
+  });
+  assert.deepEqual(delivery.dispatches, []);
+  assert.equal(delivery.pullRequests[0].issueId, "ZAK-12");
+  assert.deepEqual(delivery.pullRequests[0].issueLabels, ["risk-schema"]);
+  assert.deepEqual(delivery.pullRequests[0].footprint, ["src/pr.ts"]);
+});
+
+test("UUID aliases preserve explicit session and ticket conflicts at shared paths", () => {
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  for (const second of [{ issueId: "ZAK-12", session: "second" }, { issueId: "ZAK-13" }]) {
+    const dispatches = deriveActiveDispatches({
+      snapshot: { linear: { issues: [{ identifier: "ZAK-12", id: uuid }] } },
+      state: {
+        dispatches: [
+          { issueId: uuid, session: "first", worktree: "/tmp/shared" },
+          { ...second, worktree: "/tmp/shared" },
+        ],
+      },
+    });
+    assert.equal(dispatches.length, 2);
+    assert.equal(activeWorkerCapacity({ dispatches }).used, 2);
+  }
+});

@@ -110,3 +110,39 @@ findings. It noted an additional conservative capacity regression for UUID-based
 worker receipts. The final local correction preserves an original UUID when no
 canonical key can be resolved; a capacity regression protects duplicate receipts.
 The final full local gate passes 338 tests.
+
+## UUID delivery follow-up
+
+Baseline: `0153786588d1267fe283ab10150412fce446a4a1`. The external report's
+UUID-linked worker fixture dispatched ZAK-12 despite a running receipt, and an
+equivalent UUID-linked PR also allowed a duplicate. The earlier UUID regression
+protected capacity only and missed delivery startability.
+
+A dedicated identity helper now resolves UUID aliases from tracker records
+before matching workers, PRs, risk metadata, and reservations. The Linear query,
+normalization, and compact metadata preserve issue UUIDs. Unresolved dedicated
+issue fields retain exact UUID identity; generic receipt IDs can identify sessions
+and do not establish issue aliases. Explicit ticket and session conflicts remain
+separate, while aliases of one issue coalesce and retain their footprints.
+
+The full local gate passes 362 tests. New CLI coverage protects every supported
+explicit UUID field for worker and PR duplicate guards, fresh-snapshot behavior,
+returned-worker absorption, narrow PR scope, metadata risk, conflicts, generic
+session IDs, and receipt reuse. Instruction entrypoints are unchanged; the
+planner and dispatch reference token estimates use the original tokenizer.
+
+The independent GPT-6.1 Sol evaluator `/root/uuid_behavior_eval` received only
+raw worker/PR fixtures and a realistic queue request. Both held existing delivery
+and proposed continuing the worker or existing draft PR. Four compact/debug runs
+passed. Artifacts and loaded references are in the persistent project directory
+`/home/p-skills/task-artifacts/skills-bf237882/uuid-behavior-eval`.
+
+Opus 5.5 high reviewed this narrow delta in the existing persistent session
+`3dc0094a-157b-4df8-82ef-1e0092bb6db9`. Its first pass caught generic receipt UUIDs
+being mistaken for issue UUIDs and stale receipts causing alias contradictions.
+Both received corrections and CLI regressions. Review artifacts and the focused
+recheck are stored in `/home/p-skills/task-artifacts/skills-bf237882/`.
+
+The final Opus recheck approved both review corrections, confirmed the 362-test
+and secret-scan gate, and found no remaining failures within the focused scope.
+These are offline source and fixture checks, not live tracker or provider writes.

@@ -45,8 +45,8 @@ references; project state and verification transcripts are excluded from config.
 | `testing.md`               |    315 | Behavioral regression coverage                                                 |
 | `friction-log.md`          |  1,627 | Encountered friction or run rollup                                             |
 | `project-config.md`        |  5,589 | Applicable setup field sections                                                |
-| `planner-input.md`         |  1,647 | Assembling orchestration JSON                                                  |
-| `dispatch-policy.md`       |  1,738 | Scope, routing, capacity, or collision decisions                               |
+| `planner-input.md`         |  1,702 | Assembling orchestration JSON                                                  |
+| `dispatch-policy.md`       |  1,782 | Scope, routing, capacity, or collision decisions                               |
 
 Direct Debug starts at 1,034 tokens, about 53% below
 Superpowers systematic-debugging's 2,183-token entrypoint measured with the same
@@ -80,8 +80,8 @@ These are file-load estimates, not observed runtime traces. Shared references
 already loaded in the same context need not be loaded again. Codex adapter
 prompts and global discovery metadata are not included in the path sums.
 
-Orchestrator with the planner input contract loads about 4,479
-estimated tokens. Dispatch policy adds 1,738 when that branch applies.
+Orchestrator with the planner input contract loads about 4,534
+estimated tokens. Dispatch policy adds 1,782 when that branch applies.
 The script fixes execute without loading their source into model context.
 
 ## Maintenance

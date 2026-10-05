@@ -520,3 +520,137 @@ test("branch-only worktree holds have a single worktree prefix", () => {
   const output = plan({ state: { worktrees: [{ branch: "chore/setup", dirty: true }] } });
   assert.equal(output.holds[0].target, "worktree:chore/setup");
 });
+
+const trackerUuid = "11111111-2222-4333-8444-555555555555";
+for (const field of ["issueId", "id", "identifier", "ticket", "key"]) {
+  for (const source of ["worker", "pr"]) {
+    test(`explicit UUID ${field} on ${source} prevents duplicate delivery through the planner`, () => {
+      const receipt = { [field]: trackerUuid, state: "running", footprint: ["src/keys.ts"] };
+      const output = plan({
+        linear: {
+          candidateScope: { routeLabel: "example/repo", states: [] },
+          candidateIssueIds: ["ZAK-12"],
+          issues: [readyIssue("ZAK-12", { id: trackerUuid, footprint: ["src/entries.ts"] })],
+        },
+        state: source === "worker" ? { dispatches: [receipt] } : { scopeIssueIds: ["ZAK-12"] },
+        prs:
+          source === "pr"
+            ? [{ ...receipt, state: "open", number: 22, isDraft: true, changedFiles: 1 }]
+            : [],
+        config: { workerConcurrencyCap: 2 },
+      });
+      assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+      assert.ok(
+        output.holds.some(
+          ({ target, reason }) =>
+            target === "ticket:ZAK-12" && reason === "DELIVERY_ALREADY_ACTIVE",
+        ),
+      );
+      assert.equal(output.capacity.used, source === "worker" ? 1 : 0);
+      if (source === "pr") assert.ok(output.actions.some(({ target }) => target === "pr:22"));
+    });
+  }
+}
+
+test("UUID and key worker receipts coalesce and retain both footprints", () => {
+  const output = plan({
+    linear: { issues: [readyIssue("ZAK-12", { id: trackerUuid })] },
+    state: {
+      dispatches: [
+        { issueId: trackerUuid, state: "running", footprint: ["src/uuid.ts"] },
+        { issueId: "ZAK-12", state: "running", footprint: ["src/key.ts"] },
+      ],
+    },
+    config: { workerConcurrencyCap: 2 },
+  });
+  assert.equal(output.capacity.used, 1);
+  assert.equal(output.decisions.activeDispatches.length, 1);
+  assert.deepEqual(output.decisions.activeDispatches[0].footprint, ["src/uuid.ts", "src/key.ts"]);
+  assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+});
+
+test("UUID matching absorbs a returned worker into its PR and retains tracker risk", () => {
+  const output = plan({
+    linear: {
+      issues: [
+        readyIssue("ZAK-12", {
+          id: trackerUuid,
+          labels: ["kind-slice", "ready-for-agent", "example/repo", "risk-schema"],
+        }),
+      ],
+    },
+    state: {
+      dispatches: [{ issueId: trackerUuid, state: "running", footprint: ["src/worker.ts"] }],
+    },
+    prs: [
+      {
+        number: 22,
+        issueId: "ZAK-12",
+        state: "open",
+        isDraft: true,
+        changedFiles: 1,
+        footprint: ["src/pr.ts"],
+      },
+    ],
+  });
+  assert.equal(output.capacity.used, 0);
+  assert.deepEqual(output.decisions.activeDispatches, []);
+  assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+});
+
+test("a different explicit UUID never claims the candidate through a misleading branch", () => {
+  const output = plan({
+    linear: { issues: [readyIssue("ZAK-12", { id: trackerUuid })] },
+    state: {
+      dispatches: [
+        {
+          issueId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          branch: "feat/zak-12",
+          footprint: ["src/other.ts"],
+          state: "running",
+        },
+      ],
+    },
+    config: { workerConcurrencyCap: 2 },
+  });
+  assert.ok(output.actions.some(({ kind }) => kind === "dispatch"));
+});
+
+test("a worker session UUID in generic id cannot hide its ticket branch", () => {
+  const output = plan({
+    linear: { issues: [readyIssue("ZAK-12", { id: trackerUuid })] },
+    state: {
+      dispatches: [
+        {
+          id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          branch: "codex/zak-12-entry",
+          state: "running",
+          footprint: ["src/other.ts"],
+        },
+      ],
+    },
+    config: { workerConcurrencyCap: 2 },
+  });
+  assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+  assert.ok(
+    output.holds.some(
+      ({ target, reason }) => target === "ticket:ZAK-12" && reason === "DELIVERY_ALREADY_ACTIVE",
+    ),
+  );
+});
+
+test("reusing a worker receipt UUID for another ticket cannot crash the tick", () => {
+  const sessionUuid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const output = plan({
+    linear: { issues: [readyIssue("ZAK-13")] },
+    state: {
+      dispatches: [
+        { id: sessionUuid, issueId: "ZAK-12", state: "completed" },
+        { id: sessionUuid, issueId: "ZAK-13", state: "running", footprint: ["src/other.ts"] },
+      ],
+    },
+  });
+  assert.equal(output.capacity.used, 1);
+  assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+  assert.ok(output.holds.some(({ target }) => target === "ticket:ZAK-13"));
+});

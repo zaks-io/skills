@@ -143,3 +143,48 @@ test("route-excluded issue metadata still carries risk labels into PR merge rout
   );
   assert.deepEqual(output.decisions.dispatch.selected, []);
 });
+
+for (const source of ["worker", "pr"]) {
+  test(`fresh Linear UUID snapshot blocks duplicate ${source} delivery without branch hints`, async () => {
+    const uuid = "11111111-2222-4333-8444-555555555555";
+    const raw = { ...issue("SPL-12"), id: uuid };
+    const request = async ({ query }) => {
+      if (query.includes("teams(first"))
+        return { data: { teams: { nodes: [{ id: "team-id", key: "SPL", name: "Splitch" }] } } };
+      assert.match(query, /id identifier title/);
+      return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [raw] } } };
+    };
+    const linear = await loadLinearSnapshot({
+      request,
+      selector: "SPL",
+      routeLabel,
+      states: ["Todo"],
+    });
+    assert.equal(linear.issues[0].id, uuid);
+    assert.equal(linear.issueMetadata[0].id, uuid);
+    const output = plan(
+      linear,
+      source === "worker"
+        ? { dispatches: [{ issueId: uuid, state: "running", footprint: ["src/other.ts"] }] }
+        : { scopeIssueIds: ["SPL-12"] },
+      source === "pr"
+        ? [
+            {
+              number: 22,
+              issueId: uuid,
+              state: "open",
+              isDraft: true,
+              changedFiles: 1,
+              footprint: ["src/other.ts"],
+            },
+          ]
+        : [],
+    );
+    assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+    assert.ok(
+      output.holds.some(
+        ({ target, reason }) => target === "ticket:SPL-12" && reason === "DELIVERY_ALREADY_ACTIVE",
+      ),
+    );
+  });
+}
