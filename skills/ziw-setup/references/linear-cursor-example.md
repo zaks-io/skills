@@ -103,9 +103,10 @@ Project state: Linear. This file stores stable configuration only.
 - Worker delegation paths: issue-assigned (Cursor), local-worktree
 - Default worker path: issue-assigned (Cursor)
 - Worker concurrency cap: 3 active Cursor or local repair sessions
-- Worker count policy: count confirmed sessions until return, stop, failure, or
-  PR creation. Human assignees, open PRs, previews, and abandoned worktrees do
-  not occupy worker slots
+- Worker count policy: count distinct confirmed sessions until provider evidence
+  confirms return, stop, or failure. Opening a PR does not release a running
+  worker. Human assignees, open PRs, previews, and abandoned worktrees do not
+  occupy slots by themselves
 - Saturation policy: advance PR state and immediately fill every safe worker
   slot; record why any slot remains idle while ready work exists
 - Stuck-worker timeout: no branch/PR/agent-thread reply within <N> min -> direct

@@ -12,6 +12,7 @@ Pass the output of `tick-snapshot.mjs` directly, or wrap it in an envelope:
 ```json
 {
   "snapshot": {
+    "v": 3,
     "repo": "owner/repo",
     "prs": [],
     "linear": { "issues": [] }
@@ -30,7 +31,9 @@ The empty collections above are illustrative. Populate them from current
 provider evidence; never replace an unavailable query with an empty collection.
 
 ```bash
-node <skill-dir>/scripts/tick-plan.mjs <snapshot-or-envelope.json> \
+node <skill-dir>/scripts/tick-snapshot.mjs --repo <owner/repo> \
+  --linear-team <KEY|UUID|NAME> --state <state.json> > <snapshot.json>
+node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> \
   --config <config.json> --state <state.json>
 ```
 
@@ -76,43 +79,150 @@ Validation never inserts defaults, removes fields, or converts types. Write
 `false`, not `"false"`, and `3`, not `"3"`. Empty label strings remain supported
 where the workflow uses them to disable a label. Policy enums use lowercase.
 
-Queue collections must be arrays. PRs and issues need an identifier supported by
-their consumer. Explicit `startableTickets` need `id` or `identifier`; they are
-already-verified candidates, so the caller remains responsible for readiness.
-Snapshot issues are evaluated by the dependency planner instead.
+## Role-specific identity
 
-`snapshot.linear.candidateIssueIds` names candidates separately from blocker
-records. `candidateScope.routeLabel` and `candidateScope.states` retain the
-snapshot's route and requested states. The planner rechecks those boundaries
-after combining issues and active evidence. `state.scopeIssueIds` further
-narrows a user-requested ticket set, including explicit `startableTickets`, PR
-actions, and review-evidence label actions. Other PRs retain collision reservations.
-An empty candidate or requested-ID array authorizes no starts. Omit the requested
-set only when the user scoped a queue rather than named tickets. Keep request
-state in the transient input, never in Repo Config.
+New producers emit `v: 3` on the snapshot. Queue collections are arrays.
+Identity fields describe one record type; their spelling never determines a
+different type of identity.
 
-`snapshot.linear.issueMetadata` retains issue UUID `id`, ticket `identifier`, and
-labels for delivery matching and PR risk without creating worker reservations.
-Keep both identities in issue records so UUID-linked receipts resolve to the
-ticket key. Receipt and PR UUIDs resolve against tracker aliases; a generic
-receipt `id` may identify a session and cannot create an issue alias.
-`unroutedIssueIds` surfaces missing route
-labels in requested states, or provider `unstarted` states when none are requested.
-Default warnings exclude Triage, parked Backlog, and started work.
+| Record                    | Identity                         | Associations and evidence                                                                        |
+| ------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Tracker issue or metadata | `issueKey`, `issueUuid`, or both | Tracker aliases plus optional confirmed claim `sessionId`/`receiptId`                            |
+| Explicit startable ticket | `issueKey`, `issueUuid`, or both | Dispatch footprint and worker eligibility; caller verifies readiness                             |
+| Worker receipt            | `receiptId` and/or `sessionId`   | Optional `issueKey`/`issueUuid`, `prNumber`, branch/worktree, footprint, and lifecycle           |
+| PR                        | Positive integer `number`        | Optional direct issue fields and `linkedIssues` typed references; current head and changed paths |
+| Worktree                  | `path`                           | Branch, head, dirty/merged observations, and footprint; no issue identity inferred from text     |
+| Preview                   | `previewId`                      | Optional `prNumber`, URL/path, and lifecycle                                                     |
 
-PR `footprint` holds actual changed paths, including previous filenames for
-renames. `changedFiles` remains a count. Started tracker work reserves its
-footprint; confirmed sessions determine worker capacity. Live PRs, claims, and
-reservations block a second delivery of the same issue even if the tracker
-incorrectly reports it as Todo.
+`issueKey` is a tracker key such as `SKI-12`; `issueUuid` is a UUID. Receipt,
+session, and preview IDs are opaque nonblank strings. A UUID-shaped `sessionId`
+remains a session. Never put an issue reference in generic `id`, `identifier`,
+`issueId`, `ticket`, or `key` fields in v3. Those retired fields are rejected.
+The internal resolved `issueRef` is planner output, not a producer input field.
 
-`reviewEvidenceByPr` and `hostedReviewByPr` contain objects keyed by the PR
-number, ID, URL, head SHA, or branch. Review-request maps use the PR number or ID.
-`reviewEvidenceChecks` entries need `pr` or `ticket` so a label action has an
-addressable target. Use raw identifiers, without `pr:` or `ticket:` prefixes.
-Keep verdicts, fingerprints, review counts, and conformance evidence tied to
-current provider evidence. Valid JSON does not prove that the evidence is true
-or current, and it grants no mutation authority.
+Dependencies and scopes use typed references:
+
+```json
+{
+  "snapshot": {
+    "v": 3,
+    "repo": "owner/repo",
+    "prs": [{ "number": 12, "linkedIssues": [{ "issueKey": "SKI-12" }] }],
+    "linear": {
+      "issues": [
+        {
+          "issueKey": "SKI-12",
+          "issueUuid": "11111111-2222-4333-8444-555555555555",
+          "blockedBy": [{ "issueKey": "SKI-11", "stateType": "completed" }]
+        }
+      ],
+      "candidateIssues": [{ "issueKey": "SKI-12" }]
+    }
+  },
+  "state": { "scopeIssues": [{ "issueKey": "SKI-12" }] }
+}
+```
+
+`candidateIssues` separates candidates from blocker records. `candidateScope`
+retains the route label and requested states; the planner rechecks these after
+combining evidence. `state.scopeIssues` further narrows explicitly requested
+tickets, startable tickets, PR actions, and review-evidence label actions.
+Other PRs retain collision reservations. An empty candidate or requested-scope
+array authorizes no starts. Omit requested scope only when the user requested a
+queue. Keep request state in transient input, never Repo Config.
+
+`blockedBy` is an array of typed references with optional provider `stateType`
+for satisfied blockers. A blocker outside candidate scope remains a dependency,
+not another dispatch candidate. Metadata retains issue keys, UUIDs, and labels
+for matching and risk without creating worker reservations. `unroutedIssueIds`
+reports missing route labels in requested states, or provider `unstarted` work
+when no states were requested. Default warnings exclude intake and parked work.
+
+The planner constructs one issue catalog before matching delivery, scope,
+dependencies, risk, and action targets. Tracker records and their dependency
+references establish aliases; worker or PR assertions do not manufacture them.
+Explicit conflicts fail at the source path before any plan is emitted. A known
+key and its tracker UUID resolve to the same issue. A UUID without a known alias
+stays an exact UUID identity rather than guessing a key.
+
+Branch/path tokens and leading ticket titles can reserve possible delivery and
+raise risk. They do not grant scoped PR-action authority. Use explicit issue
+fields or `linkedIssues` for that authority. `tick-snapshot.mjs` extracts exact
+Linear issue URLs from PR bodies into `linkedIssues` and omits full bodies from
+compact output. A coincidental number in text does not identify an issue.
+
+## Worker lifecycle and unresolved references
+
+Delivery protection and capacity are separate. Either session covering an issue
+prevents a new delivery; two distinct live sessions still occupy two slots.
+Deduplicate receipts for the same confirmed session, or the same receipt when
+no session is available. Issue, branch, path, shared commit, or associated PR
+cannot establish that two workers are one session.
+
+A live worker needs `sessionId` or `receiptId`. Its `prNumber` associates work
+with a PR and does not end the session. Record returned/stopped/failed lifecycle
+from the worker provider. In v3, `hasPr: true` is association evidence and does
+not free a slot. An actively repairing worker keeps its slot even when that PR
+is open. `returned` or `stopped` contradicting an explicit running state is an
+input error. Only the legacy adapter treats `hasPr` as return evidence, and
+only when the record has no explicit live status. PR `footprint`
+includes actual changed paths and previous filenames for renames;
+`changedFiles` remains a count. Started tracker work reserves files without
+inventing a session.
+
+A terminal provider receipt for the same explicit session retires a sticky
+tracker-only claim's slot while preserving its delivery and footprint
+reservation. A current live runtime observation keeps the session counted;
+historical terminal receipts cannot override it without freshness evidence.
+Receipt-only terminal history cannot retire a tracker claim because receipts
+may be reused.
+
+Inspect planner diagnostics before dispatching. `ISSUE_ALIAS_REQUIRED` asks for
+tracker alias evidence, `REQUESTED_ISSUE_UNKNOWN` asks for the requested tracker
+record, and `WORKER_ISSUE_UNRESOLVED` identifies an unassociated live worker.
+`snapshot.linear.identityDiagnostics` preserves a missing lookup as
+`REFERENCED_ISSUE_NOT_FOUND`, with its typed issue reference and referring state
+or PR path. These are incomplete evidence, not an empty or completed queue.
+
+Resolve missing references with one bounded read-only lookup and one replan
+for the current evidence. `loadLinearSnapshot({ issueRefs })` accepts typed
+references, looks up at most 50 unknown references, and adds their identity/risk
+metadata without expanding candidates. Supply the same transient `--state`
+file to snapshot collection and planning, using either `--state <file>` or
+`--state=<file>`. The collector automatically resolves
+references from live worker receipts, requested scope, dependencies, and PR links;
+terminal receipt history does not trigger lookups. Agents do not enumerate those
+IDs again. Repeatable `--linear-issue-key` and
+`--linear-issue-uuid` flags add optional references when needed. If a reference
+is missing or contradictory after that lookup, retain the diagnostic
+and request the concrete missing evidence. Do not spin on alternate ID fields
+or cache lookup outcomes in Repo Config. A confirmed missing record, returned as
+`issue: null`, preserves the snapshot with a blocking diagnostic. Transport,
+GraphQL, or malformed-response failures abort collection with the referring
+source path; they never masquerade as missing records. Provider error text is
+omitted because it may contain sensitive values.
+
+## Review evidence and legacy boundary
+
+V3 PR evidence/request maps use positive PR-number keys. Head SHA, branch, URL,
+and issue key are evidence or associations, not interchangeable map keys.
+`reviewEvidenceChecks` needs `prNumber` or a typed issue reference for an
+addressable label target. Keep verdicts, fingerprints, review counts, and
+conformance tied to current provider evidence. Valid JSON proves neither
+currency nor mutation authority.
+
+Version 2 and unversioned input remain supported through one boundary adapter.
+It translates documented legacy identity, scope, dependency, and receipt fields
+before any consumer runs. During migration, a separate legacy `--state` file
+can accompany a v3 snapshot: collector and planner validate/adapt that same file
+at the boundary. Inline v3 state must already be canonical; its retired fields
+remain errors. External canonical worker records keep v3 lifecycle rules even
+beside legacy records or maps. Legacy generic worker `id` is a receipt identity,
+never an issue alias. New producers and handoffs always use v3. Remove the
+adapter only after supported producers and downstream consumers use v3 and
+compatibility evaluation proves no supported input depends on legacy fields;
+remove the legacy schema and migration tests in that same change. Do not add
+legacy parsing to individual planner consumers.
 
 Reusing an equivalent fingerprint requires an explicit clean `reviewVerdict`
 and a positive `independentReviewCount` or completed `independentReviews` list.

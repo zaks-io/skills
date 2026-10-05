@@ -4,9 +4,9 @@ import test from "node:test";
 import {
   activeDeliveryFootprint,
   codeRabbitEscalationDecision,
-  capacityDecision,
+  capacityDecision as normalizedCapacityDecision,
   classifyInstructionSource,
-  dispatchSelectionDecision,
+  dispatchSelectionDecision as normalizedDispatchSelectionDecision,
   humanMergePrLabelDecision,
   hostedReviewEscalationDecision,
   mergeEligibilityDecision,
@@ -17,6 +17,13 @@ import {
   shouldIncludeReadinessTicket,
   workflowDecisionActions,
 } from "../scripts/workflow-contract.mjs";
+
+import { normalizePlannerModel } from "../skills/ziw-orchestrate/scripts/planner-model.mjs";
+const normalizedState = (state) => normalizePlannerModel({ snapshot: {}, state }).state;
+const capacityDecision = (state, config) =>
+  normalizedCapacityDecision(normalizedState(state), config);
+const dispatchSelectionDecision = (state, config) =>
+  normalizedDispatchSelectionDecision(normalizedState(state), config);
 
 test("readiness queues exclude terminal tickets with stale readiness labels", () => {
   const config = { doneState: "Done", readinessLabels: ["ready-for-agent"] };
@@ -398,10 +405,10 @@ test("human merge PR label waits for required hosted bot review", () => {
 test("active delivery footprint does not double count linked PR previews", () => {
   assert.deepEqual(
     activeDeliveryFootprint({
-      pullRequests: [{ id: "pr-1", state: "open" }],
+      pullRequests: [{ number: 1, state: "open" }],
       previews: [
-        { id: "preview-1", prId: "pr-1", state: "active" },
-        { id: "preview-2", state: "active" },
+        { previewId: "preview-1", prNumber: 1, state: "active" },
+        { previewId: "preview-2", state: "active" },
       ],
       dispatches: [{ id: "dispatch-1", state: "running" }],
     }),
@@ -417,7 +424,7 @@ test("active delivery footprint does not double count linked PR previews", () =>
 test("draft PRs count as active delivery work", () => {
   assert.deepEqual(
     activeDeliveryFootprint({
-      pullRequests: [{ id: "pr-draft", isDraft: true, state: "open" }],
+      pullRequests: [{ number: 1, isDraft: true, state: "open" }],
       previews: [],
       dispatches: [],
     }),
@@ -434,8 +441,8 @@ test("dependency bot PRs do not consume active delivery capacity", () => {
   assert.deepEqual(
     activeDeliveryFootprint({
       pullRequests: [
-        { author: "dependabot[bot]", id: "dep-1", state: "open" },
-        { author: "useotto-dev", id: "agent-1", isBot: true, state: "open" },
+        { author: "dependabot[bot]", number: 1, state: "open" },
+        { author: "useotto-dev", number: 2, isBot: true, state: "open" },
       ],
     }),
     {
@@ -524,7 +531,7 @@ test("dispatch selection spends spare capacity only on non-colliding footprints"
           },
           {
             id: "AP-104",
-            footprint: ["apps/jobs", "apps/content", "packages/config"],
+            footprint: ["apps/content", "apps/jobs", "packages/config"],
           },
           {
             id: "AP-102",
@@ -543,11 +550,13 @@ test("dispatch selection spends spare capacity only on non-colliding footprints"
       deferred: [
         {
           id: "AP-102",
+          issueRef: "AP-102",
           conflictsWith: "AP-101",
           reason: "predicted file footprint collides with active or selected work",
         },
         {
           id: "AP-103",
+          issueRef: "AP-103",
           conflictsWith: "AP-101",
           reason: "predicted file footprint collides with active or selected work",
         },
@@ -556,11 +565,13 @@ test("dispatch selection spends spare capacity only on non-colliding footprints"
       selected: [
         {
           id: "AP-101",
+          issueRef: "AP-101",
           footprint: ["apps/api/src/routes/ephemeral.ts", "packages/tokens"],
         },
         {
           id: "AP-104",
-          footprint: ["apps/jobs", "apps/content", "packages/config"],
+          issueRef: "AP-104",
+          footprint: ["apps/content", "apps/jobs", "packages/config"],
         },
       ],
     },
@@ -580,12 +591,13 @@ test("dispatch selection treats active PR footprints as occupied seams", () => {
   );
 
   assert.deepEqual(decision.selected, [
-    { id: "AP-101", footprint: ["apps/api/src/routes/ephemeral.ts"] },
+    { id: "AP-101", issueRef: "AP-101", footprint: ["apps/api/src/routes/ephemeral.ts"] },
   ]);
   assert.deepEqual(decision.deferred, [
     {
       id: "AP-102",
-      conflictsWith: "PR-155",
+      issueRef: "AP-102",
+      conflictsWith: 155,
       reason: "predicted file footprint collides with active or selected work",
     },
   ]);
@@ -607,7 +619,8 @@ test("dispatch selection treats trailing footprint globs as directory seams", ()
     [
       {
         id: "SPL-1",
-        conflictsWith: "PR-1",
+        issueRef: "SPL-1",
+        conflictsWith: 1,
         reason: "predicted file footprint collides with active or selected work",
       },
     ],
@@ -634,12 +647,13 @@ test("dispatch selection treats draft PR footprints as occupied seams", () => {
   );
 
   assert.deepEqual(decision.selected, [
-    { id: "AP-202", footprint: ["apps/api/src/routes/session.ts"] },
+    { id: "AP-202", issueRef: "AP-202", footprint: ["apps/api/src/routes/session.ts"] },
   ]);
   assert.deepEqual(decision.deferred, [
     {
       id: "AP-201",
-      conflictsWith: "PR-156",
+      issueRef: "AP-201",
+      conflictsWith: 156,
       reason: "predicted file footprint collides with active or selected work",
     },
   ]);
@@ -654,7 +668,7 @@ test("dispatch selection starts the first unknown-footprint lane when nothing ca
       action: workflowDecisionActions.dispatchStartableWork,
       deferred: [],
       capacity: { cap: 3, headroom: 3, used: 0 },
-      selected: [{ id: "AP-200", footprint: [] }],
+      selected: [{ id: "AP-200", issueRef: "AP-200", footprint: [] }],
     },
   );
 });
@@ -691,9 +705,14 @@ test("dispatch selection fills all safe slots in leverage order", () => {
   );
 
   assert.deepEqual(decision.selected, [
-    { id: "MAIN-301", footprint: ["convex/security"], worker: "local" },
-    { id: "MAIN-302", footprint: ["convex/schema.ts"], worker: "local" },
-    { id: "MAIN-139", footprint: ["tests/e2e/smoke.spec.ts"], worker: "remote" },
+    { id: "MAIN-301", issueRef: "MAIN-301", footprint: ["convex/security"], worker: "local" },
+    { id: "MAIN-302", issueRef: "MAIN-302", footprint: ["convex/schema.ts"], worker: "local" },
+    {
+      id: "MAIN-139",
+      issueRef: "MAIN-139",
+      footprint: ["tests/e2e/smoke.spec.ts"],
+      worker: "remote",
+    },
   ]);
   assert.deepEqual(decision.deferred, []);
 });
@@ -711,11 +730,12 @@ test("dispatch selection keeps remote work running after the local soft budget s
   );
 
   assert.deepEqual(decision.selected, [
-    { id: "MAIN-139", footprint: ["tests/e2e"], worker: "remote" },
+    { id: "MAIN-139", issueRef: "MAIN-139", footprint: ["tests/e2e"], worker: "remote" },
   ]);
   assert.deepEqual(decision.deferred, [
     {
       id: "MAIN-301",
+      issueRef: "MAIN-301",
       reason: "local-heavy starts are paused at the configured soft budget stop",
     },
   ]);
@@ -732,7 +752,7 @@ test("dispatch selection keeps remote work running at the local hard budget stop
 
   assert.equal(decision.action, workflowDecisionActions.dispatchStartableWork);
   assert.deepEqual(decision.selected, [
-    { id: "MAIN-139", footprint: ["tests/e2e"], worker: "remote" },
+    { id: "MAIN-139", issueRef: "MAIN-139", footprint: ["tests/e2e"], worker: "remote" },
   ]);
   assert.deepEqual(decision.deferred, []);
 });
@@ -746,7 +766,7 @@ test("dispatch selection records an authority reason for unknown worker paths", 
 
   assert.deepEqual(decision.selected, []);
   assert.deepEqual(decision.deferred, [
-    { id: "MAIN-400", reason: "no configured worker is authorized" },
+    { id: "MAIN-400", issueRef: "MAIN-400", reason: "no configured worker is authorized" },
   ]);
 });
 
@@ -1260,4 +1280,41 @@ test("runtime state cannot override configured human merge authority", () => {
   );
 
   assert.equal(decision.action, workflowDecisionActions.applyHumanMergePrLabel);
+});
+
+test("branch-only reservations explain footprint conflicts without claiming an issue", () => {
+  const decision = dispatchSelectionDecision({
+    dispatches: [
+      { branch: "unrelated-feature", occupiesWorkerSlot: false, footprint: ["src/hot"] },
+    ],
+    startableTickets: [{ id: "MAIN-1", footprint: ["src/hot/file.ts"] }],
+  });
+  assert.deepEqual(decision.deferred, [
+    {
+      id: "MAIN-1",
+      issueRef: "MAIN-1",
+      conflictsWith: "worktree:unrelated-feature",
+      reason: "predicted file footprint collides with active or selected work",
+    },
+  ]);
+});
+
+test("capacity deferrals retain the normalized issue reference", () => {
+  const decision = dispatchSelectionDecision({ startableTickets: [{ id: "MAIN-1" }] }, { cap: 0 });
+  assert.deepEqual(decision.deferred, [
+    { id: "MAIN-1", issueRef: "MAIN-1", reason: "worker concurrency cap has no headroom" },
+  ]);
+});
+
+test("preview absorption uses only canonical PR numbers", () => {
+  const footprint = activeDeliveryFootprint({
+    pullRequests: [{ number: 7, state: "open", id: "legacy-id", url: "legacy-url" }],
+    previews: [
+      { previewId: "linked", prNumber: 7 },
+      { previewId: "other", prNumber: 8 },
+      { previewId: "raw-id", prId: "legacy-id" },
+      { previewId: "raw-url", prUrl: "legacy-url" },
+    ],
+  });
+  assert.equal(footprint.previews, 3);
 });

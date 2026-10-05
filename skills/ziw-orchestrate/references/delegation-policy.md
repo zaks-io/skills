@@ -34,7 +34,9 @@ or environment values.
 Always include:
 
 - repo path
-- issue or PR URL/ID
+- tracker issue URL plus `issueKey`/`issueUuid` when known, or PR URL/number
+- confirmed session/receipt identity supplied by the worker runtime, preserved
+  in the return; never invent a session ID from an issue or worktree
 - one-sentence scope
 - explicit non-goals and sibling tickets not to deliver
 - branch/worktree policy
@@ -55,13 +57,16 @@ Use the isolated implementation worker for this runtime.
 Claude Code: zaks-io-skills:ziw-implementer.
 Codex or Agent Skills: $ziw-implement.
 Repo: <path>
-Issue: <id-or-url>
+Issue: <URL; issueKey/issueUuid when known>
+Receipt/session: <receiptId/sessionId assigned by the runtime; report unknown if unavailable>
 Branch/worktree: <branch-or-create-policy>
 Scope: <one sentence from issue>
 Non-goals: <out-of-scope line from issue, including sibling tickets; do not deliver adjacent work>
 Required checks: <commands or config reference>
 Constraints: preserve unrelated changes; no production deploy; no secrets. Use best judgment on whether author QA adds value; do not run or repeat it merely because a commit changed. Author QA is not independent review evidence. Do not apply or clear review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready PR labels.
-Return the workflow handoff only.
+Return the workflow handoff, including actual receipt/session identity, PR number,
+worktree path, and explicit running/returned/stopped lifecycle. Opening a PR does
+not by itself confirm that the worker returned.
 ```
 
 ## Review Prompt

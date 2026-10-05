@@ -1,0 +1,43 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [],
+    "baseline": {
+      "branch": "main",
+      "headSha": "baseline"
+    },
+    "linear": {
+      "issues": []
+    },
+    "worktrees": [
+      {
+        "path": "/home/dev/.t3/worktrees/context-server/review-main-2855565",
+        "branch": null,
+        "headSha": "unmerged",
+        "dirty": true,
+        "mergedIntoBaseline": false
+      },
+      {
+        "path": "/tmp/context-review-synthetic-skills",
+        "branch": "chore/install-workflow-skills-2026-10-04",
+        "headSha": "skills-head",
+        "dirty": true,
+        "mergedIntoBaseline": false
+      }
+    ]
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  },
+  "state": {
+    "dispatches": [
+      {
+        "id": "TEST-5",
+        "issueId": "TEST-5",
+        "worktree": "/home/dev/.t3/worktrees/context-server/review-main-2855565",
+        "headSha": "unmerged",
+        "state": "running"
+      }
+    ]
+  }
+}

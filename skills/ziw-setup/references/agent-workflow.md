@@ -140,6 +140,9 @@ domain behavior, and performance work without benchmarks.
   expected, backoff across consecutive quiet ticks, reset on new signal.
 - The worker concurrency cap counts confirmed implementation and repair
   sessions, not open PRs, previews, human assignees, or abandoned worktrees.
+  Distinct sessions covering one issue count separately; a linked PR does not
+  free a running worker. Preserve canonical receipt/session identities through
+  the [handoff contract](handoff.md).
   Orchestrator advances PR state independently and backfills every freed worker
   slot in the same tick. It closes PRs
   only when refreshed code-host and tracker evidence satisfies the PR closure

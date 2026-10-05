@@ -1,0 +1,35 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [],
+    "linear": {
+      "team": "TEST",
+      "teamId": "team",
+      "teamName": "Test",
+      "statesFilter": [],
+      "includesDirectBlockers": false,
+      "activeScope": {
+        "routeLabel": "example/repo"
+      },
+      "activeIssues": [],
+      "issues": [
+        {
+          "identifier": "TEST-1",
+          "title": "TEST-1",
+          "url": "https://linear.app/example/issue/TEST-1",
+          "state": "Todo",
+          "stateType": "unstarted",
+          "estimate": null,
+          "labels": ["kind-slice", "ready-for-agent", "example/other-repo"],
+          "assignee": null,
+          "footprint": ["src/demo.ts"],
+          "blockedBy": []
+        }
+      ]
+    }
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  },
+  "state": {}
+}

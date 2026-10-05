@@ -4,15 +4,15 @@ const normalize = (value) =>
   String(value ?? "")
     .trim()
     .toLowerCase();
-const identifier = (issue) => normalize(issue.identifier ?? issue.id ?? issue.key);
-const identifiers = (values) => (values == null ? null : new Set(values.map(normalize)));
+const identifier = (issue) => issue.issueRef;
+const identifiers = (values) => (values == null ? null : new Set(values));
 
 export function linearDispatchScope(snapshot = {}, state = {}) {
   const linear = snapshot.linear ?? {};
   const scope = linear.candidateScope ?? {};
   const routeLabel = scope.routeLabel ?? linear.activeScope?.routeLabel;
-  const candidateIds = identifiers(linear.candidateIssueIds);
-  const requestedIds = identifiers(state.scopeIssueIds);
+  const candidateIds = identifiers(linear.candidateIssueRefs);
+  const requestedIds = identifiers(state.scopeIssueRefs);
   const states = new Set((scope.states ?? linear.statesFilter ?? []).map(normalize));
   const matchesReservation = (issue) => linearIssueMatchesRoute(issue, routeLabel);
   const matchesCandidate = (issue) =>

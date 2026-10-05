@@ -9,8 +9,20 @@ import {
   extractLinearIssues,
   hasActiveClaim,
   hasOpenPr,
-  linearDagStart,
+  linearDagStart as normalizedLinearDagStart,
 } from "../skills/ziw-orchestrate/scripts/linear-dag-start.mjs";
+
+import { normalizePlannerModel } from "../skills/ziw-orchestrate/scripts/planner-model.mjs";
+const linearDagStart = (issues, config) =>
+  normalizedLinearDagStart(
+    normalizePlannerModel({ snapshot: { linear: { issues } }, state: {} }).snapshot.linear.issues,
+    config,
+  );
+
+import {
+  linearDispatchScope,
+  restrictLinearDag,
+} from "../skills/ziw-orchestrate/scripts/dispatch-scope.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const script = path.join(root, "skills", "ziw-orchestrate", "scripts", "linear-dag-start.mjs");
@@ -249,9 +261,9 @@ test("linear-dag-start CLI accepts tick-snapshot envelopes", () => {
 test("extractLinearIssues handles planner envelopes", () => {
   assert.deepEqual(
     extractLinearIssues({
-      snapshot: { linear: { issues: [{ identifier: "LIN-1" }] } },
+      snapshot: { linear: { issues: [{ issueRef: "LIN-1" }] } },
     }),
-    [{ identifier: "LIN-1" }],
+    [{ issueRef: "LIN-1" }],
   );
 });
 
@@ -259,19 +271,15 @@ test("extractLinearIssues merges active reconciliation targets and direct blocke
   assert.deepEqual(
     extractLinearIssues({
       linear: {
-        issues: [{ identifier: "LIN-1" }],
+        issues: [{ issueRef: "LIN-1" }],
         activeIssues: [
-          { identifier: "LIN-2", blockedBy: ["LIN-3"] },
-          { identifier: "LIN-3" },
-          { identifier: "LIN-1" },
+          { issueRef: "LIN-2", blockedBy: ["LIN-3"] },
+          { issueRef: "LIN-3" },
+          { issueRef: "LIN-1" },
         ],
       },
     }),
-    [
-      { identifier: "LIN-1" },
-      { identifier: "LIN-2", blockedBy: ["LIN-3"] },
-      { identifier: "LIN-3" },
-    ],
+    [{ issueRef: "LIN-1" }, { issueRef: "LIN-2", blockedBy: ["LIN-3"] }, { issueRef: "LIN-3" }],
   );
 });
 
@@ -279,9 +287,9 @@ test("extractLinearIssues falls through a skipped Linear snapshot to state ticke
   assert.deepEqual(
     extractLinearIssues({
       snapshot: { linear: { skipped: "credential unavailable" } },
-      state: { tickets: [{ identifier: "LIN-1" }] },
+      state: { tickets: [{ issueRef: "LIN-1" }] },
     }),
-    [{ identifier: "LIN-1" }],
+    [{ issueRef: "LIN-1" }],
   );
 });
 
@@ -372,5 +380,72 @@ test("exported delivery predicates use the same scalar and collection rules as t
   assert.equal(hasOpenPr({ openPr: false, prs: [{ state: "open" }] }), true);
   assert.equal(hasOpenPr({ openPr: { state: "closed" } }), false);
   assert.equal(hasOpenPr({ openPr: { state: "open" } }), true);
-  assert.equal(hasActiveClaim({ activeClaim: false, workerSession: "worker-1" }), true);
+  assert.equal(hasActiveClaim({ activeClaim: false, workerSession: "worker-1" }), false);
+  assert.equal(hasActiveClaim({ activeClaim: true }), true);
 });
+
+test("normalized scope distinguishes unrestricted and empty candidate sets", () => {
+  const issues = ["LIN-1", "LIN-2"].map((issueRef) => ({
+    issueRef,
+    state: "Todo",
+    labels: ["kind-slice", "ready-for-agent"],
+  }));
+  const build = () => normalizedLinearDagStart(issues);
+  assert.deepEqual(restrictLinearDag(build(), linearDispatchScope()).starts, ["LIN-1", "LIN-2"]);
+  assert.deepEqual(
+    restrictLinearDag(build(), linearDispatchScope({ linear: { candidateIssueRefs: [] } })).starts,
+    [],
+  );
+  assert.deepEqual(
+    restrictLinearDag(build(), linearDispatchScope({}, { scopeIssueRefs: [] })).starts,
+    [],
+  );
+  assert.deepEqual(
+    restrictLinearDag(
+      build(),
+      linearDispatchScope(
+        { linear: { candidateIssueRefs: ["LIN-1", "LIN-2"] } },
+        { scopeIssueRefs: ["LIN-2"] },
+      ),
+    ).starts,
+    ["LIN-2"],
+  );
+});
+
+test("DAG requires normalized identities and emits one ref for graph and output", () => {
+  assert.throws(() => normalizedLinearDagStart([{ identifier: "LIN-1" }]), /issueRef is required/);
+  const dag = normalizedLinearDagStart([
+    { issueRef: "LIN-1", blockedByRefs: [] },
+    { issueRef: "LIN-2", blockedByRefs: ["LIN-1"] },
+  ]);
+  assert.deepEqual(dag.layers, [["LIN-1"], ["LIN-2"]]);
+  assert.ok(dag.nodes.every((node) => node.id === node.issueRef));
+});
+
+for (const delivery of [
+  { state: { dispatches: [{ issueId: "LIN-1", sessionId: "live-session" }] } },
+  { state: { workers: [{ issueId: "LIN-1", sessionId: "live-session" }] } },
+  { prs: [{ number: 7, issueId: "LIN-1" }] },
+  { state: { pullRequests: [{ number: 7, issueId: "LIN-1" }] } },
+  { activeIssues: [{ identifier: "LIN-1", workerSession: "live-session" }] },
+]) {
+  test(`standalone DAG applies envelope delivery protection ${JSON.stringify(delivery)}`, () => {
+    const input = {
+      snapshot: {
+        linear: {
+          issues: [
+            { identifier: "LIN-1", state: "Todo", labels: ["kind-slice", "ready-for-agent"] },
+          ],
+          ...(delivery.activeIssues ? { activeIssues: delivery.activeIssues } : {}),
+        },
+        ...(delivery.prs ? { prs: delivery.prs } : {}),
+      },
+      state: delivery.state ?? {},
+    };
+    const output = JSON.parse(
+      execFileSync(process.execPath, [script, writeJson(input)], { encoding: "utf8" }),
+    );
+    assert.deepEqual(output.starts, []);
+    assert.ok(output.nodes[0].activeClaim || output.nodes[0].openPr);
+  });
+}

@@ -56,18 +56,24 @@ Each tick:
    diffs, logs, or issue histories across ticks.
 2. Rebuild the queue from systems of record. When the synced skill directory
    includes `scripts/tick-snapshot.mjs`, run
-   `node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo>` first: one
+   `node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo> --state <queue-state.json>`
+   first, supplying the same state file later used by the planner: one
    call returns baseline health, the open-PR footprint, per-PR head SHAs,
    mergeable state, unresolved review-thread counts, check rollups, and
    review verdicts as JSON. Reason over that snapshot instead of assembling
    the same state from many tool calls; it needs an authenticated `gh`, and
    with `--linear-team <KEY|UUID|NAME>` plus either a `linear-graphql.mjs setup` credential
    or `LINEAR_API_KEY`, it also returns the open issue queue with unresolved
-   `blockedBy` identifiers per issue. Then run
+   typed `blockedBy` issue references per issue. The collector automatically
+   resolves missing tracker aliases from the supplied receipt/scope state and
+   PR links in one bounded read-only pass. Then run
    `node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> --config <config.json> --state <queue-state.json>`
    when compact queue/config JSON is available. Follow
    [planner-input.md](planner-input.md) when assembling it; fix validation
-   errors at their reported field paths before acting. The planner deterministically
+   errors at their reported field paths before acting. Emit canonical v3
+   receipts and typed scope/dependency references. For identity diagnostics,
+   perform one bounded tracker alias lookup and replan once; preserve unresolved
+   diagnostics as holds instead of cycling through ID fields. The planner deterministically
    returns compact actions, including review-evidence and human-merge PR label
    updates, waits, holds, capacity, and wake state. Use `--debug` for the full
    decision evidence, including Linear DAG roots/frontier. Use
@@ -84,8 +90,9 @@ Each tick:
 3. Reconcile the ledger against refreshed tracker, PR, and local-worktree state.
    Synthesize missing dispatches from repo-scoped active tracker claims and
    dirty, baseline-unmerged, or uncertain non-default worktrees. Deduplicate by
-   session, issue, branch, or worktree without merging conflicting identities;
-   a shared commit alone never identifies one worker. Retain started tracker
+   confirmed session, or receipt when no session exists, without merging
+   conflicting identities. Issue, branch, worktree, PR, and commit matches are
+   delivery/collision associations, not worker deduplication. Retain started tracker
    footprints without counting unconfirmed sessions. Drop stale ledger entries; re-dispatch or
    escalate stuck workers. A failed worktree inventory is a snapshot failure,
    not evidence of zero local workers.

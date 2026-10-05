@@ -103,7 +103,7 @@ query($teamId: ID!, $after: String) {
       assignee { displayName }
       inverseRelations(first: 250) {
         pageInfo { hasNextPage }
-        nodes { type issue { identifier state { type } } }
+        nodes { type issue { id identifier state { type } } }
       }
     }
   }
@@ -115,11 +115,11 @@ const MAX_DUPLICATE_HOPS = 10;
 const LINEAR_ISSUE_RELATIONS_QUERY = `
 query($id: String!) {
   issue(id: $id) {
-    identifier
+    id identifier
     state { type }
     relations(first: 50) {
       pageInfo { hasNextPage }
-      nodes { type relatedIssue { identifier state { type } } }
+      nodes { type relatedIssue { id identifier state { type } } }
     }
   }
 }`;
@@ -178,7 +178,7 @@ export async function resolveClosedBlockers(request, rawIssues) {
       const canonicalType = canonical?.state?.type;
       if (!canonical || canonicalType === "completed") break;
       if (!CLOSED_BLOCKER_TYPES.includes(canonicalType)) {
-        result = canonical.identifier;
+        result = issueReference(canonical);
         break;
       }
       current = canonical.identifier;
@@ -193,17 +193,22 @@ function resolveBlocker(relation, closedBlockers) {
   const id = relation.issue.identifier;
   const type = relation.issue?.state?.type;
   if (type === "completed") return null;
-  if (!CLOSED_BLOCKER_TYPES.includes(type)) return id;
+  if (!CLOSED_BLOCKER_TYPES.includes(type)) return issueReference(relation.issue);
   return closedBlockers.get(id) ?? null;
 }
+
+const issueReference = (issue) => ({
+  ...(issue.id ? { issueUuid: issue.id } : {}),
+  ...(issue.identifier ? { issueKey: issue.identifier } : {}),
+});
+const referenceId = (reference) => reference.issueKey ?? reference.issueUuid;
 
 export function normalizeLinearIssue(issue, closedBlockers = new Map()) {
   if (issue.inverseRelations?.pageInfo?.hasNextPage) {
     throw new Error(`Linear issue ${issue.identifier} has more than 250 inverse relations`);
   }
   return {
-    ...(issue.id ? { id: issue.id } : {}),
-    identifier: issue.identifier,
+    ...issueReference(issue),
     title: issue.title,
     url: issue.url,
     state: issue.state?.name,
@@ -214,12 +219,13 @@ export function normalizeLinearIssue(issue, closedBlockers = new Map()) {
     assignee: issue.assignee?.displayName ?? null,
     footprint: extractLinearFootprint(issue.description),
     blockedBy: [
-      ...new Set(
+      ...new Map(
         (issue.inverseRelations?.nodes ?? [])
           .filter((relation) => relation.type === "blocks")
           .map((relation) => resolveBlocker(relation, closedBlockers))
-          .filter((id) => id && id !== issue.identifier),
-      ),
+          .filter((reference) => reference && referenceId(reference) !== issue.identifier)
+          .map((reference) => [referenceId(reference), reference]),
+      ).values(),
     ],
     updatedAt: issue.updatedAt,
   };
@@ -254,7 +260,7 @@ function selectUnroutedIssueIds(issues, states, routeLabel) {
           (label) => label === normalizedRoute || (namespace && label.startsWith(namespace)),
         ),
     )
-    .map((issue) => issue.identifier);
+    .map((issue) => issue.issueKey);
 }
 
 function selectLinearCandidates(issues, states, routeLabel) {
@@ -268,10 +274,12 @@ function selectLinearCandidates(issues, states, routeLabel) {
 
 export function selectScopedLinearIssues(issues, states = [], routeLabel) {
   const primary = selectLinearCandidates(issues, states, routeLabel);
-  const selected = new Set(primary.map((issue) => issue.identifier));
-  const directBlockers = new Set(primary.flatMap((issue) => issue.blockedBy ?? []));
+  const selected = new Set(primary.map(referenceId));
+  const directBlockers = new Set(
+    primary.flatMap((issue) => (issue.blockedBy ?? []).map(referenceId)),
+  );
   return issues.filter(
-    (issue) => selected.has(issue.identifier) || directBlockers.has(issue.identifier),
+    (issue) => selected.has(referenceId(issue)) || directBlockers.has(referenceId(issue)),
   );
 }
 
@@ -290,14 +298,23 @@ export function selectActiveLinearIssues(issues, routeLabel) {
   );
   const scopedActive = active.filter((issue) => linearIssueMatchesRoute(issue, routeLabel));
 
-  const selected = new Set(scopedActive.map((issue) => issue.identifier));
-  const directBlockers = new Set(scopedActive.flatMap((issue) => issue.blockedBy ?? []));
+  const selected = new Set(scopedActive.map(referenceId));
+  const directBlockers = new Set(
+    scopedActive.flatMap((issue) => (issue.blockedBy ?? []).map(referenceId)),
+  );
   return issues.filter(
-    (issue) => selected.has(issue.identifier) || directBlockers.has(issue.identifier),
+    (issue) => selected.has(referenceId(issue)) || directBlockers.has(referenceId(issue)),
   );
 }
 
-export async function loadLinearSnapshot({ request, selector, states = [], routeLabel }) {
+export async function loadLinearSnapshot({
+  request,
+  selector,
+  states = [],
+  routeLabel,
+  issueRefs = [],
+  issueRefPaths = [],
+}) {
   const team = await resolveLinearTeam(request, selector);
   const rawIssues = [];
   let after = null;
@@ -318,9 +335,19 @@ export async function loadLinearSnapshot({ request, selector, states = [], route
 
   const closedBlockers = await resolveClosedBlockers(request, rawIssues);
   const issues = rawIssues.map((issue) => normalizeLinearIssue(issue, closedBlockers));
-  const candidateIssueIds = selectLinearCandidates(issues, states, routeLabel).map(
-    (issue) => issue.identifier,
+  const candidateIssues = selectLinearCandidates(issues, states, routeLabel).map(
+    ({ issueKey, issueUuid }) => ({
+      ...(issueKey ? { issueKey } : {}),
+      ...(issueUuid ? { issueUuid } : {}),
+    }),
   );
+  const { issues: referencedIssues, diagnostics } = await loadReferencedIssues(
+    request,
+    issueRefs,
+    issues,
+    issueRefPaths,
+  );
+  const metadata = [...issues, ...referencedIssues];
 
   return {
     team: team.key,
@@ -328,10 +355,11 @@ export async function loadLinearSnapshot({ request, selector, states = [], route
     teamName: team.name,
     statesFilter: states,
     candidateScope: { routeLabel: routeLabel ?? null, states },
-    candidateIssueIds,
-    issueMetadata: issues.map(({ id, identifier, labels }) => ({
-      ...(id ? { id } : {}),
-      identifier,
+    candidateIssues,
+    identityDiagnostics: diagnostics,
+    issueMetadata: metadata.map(({ issueKey, issueUuid, labels }) => ({
+      ...(issueKey ? { issueKey } : {}),
+      ...(issueUuid ? { issueUuid } : {}),
       labels,
     })),
     unroutedIssueIds: selectUnroutedIssueIds(issues, states, routeLabel),
@@ -339,5 +367,116 @@ export async function loadLinearSnapshot({ request, selector, states = [], route
     activeScope: { routeLabel: routeLabel ?? null },
     activeIssues: selectActiveLinearIssues(issues, routeLabel),
     issues: selectScopedLinearIssues(issues, states, routeLabel),
+  };
+}
+
+const MAX_REFERENCED_ISSUES = 50;
+const ISSUE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LINEAR_REFERENCED_ISSUE_QUERY = `
+query($id: String!) {
+  issue(id: $id) {
+    id identifier title url priority estimate updatedAt
+    state { name type }
+    labels { nodes { name } }
+  }
+}`;
+
+async function loadReferencedIssues(request, issueRefs, knownIssues, issueRefPaths) {
+  if (!Array.isArray(issueRefs)) throw new Error("Referenced Linear issues must be an array");
+  if (
+    !Array.isArray(issueRefPaths) ||
+    issueRefPaths.some((path) => typeof path !== "string" || !path.trim())
+  )
+    throw new Error("Referenced Linear issue source paths must be nonblank strings");
+  const refs = issueRefs.map((ref, index) => {
+    if (
+      !ref ||
+      typeof ref !== "object" ||
+      Array.isArray(ref) ||
+      Object.keys(ref).some((name) => !["issueKey", "issueUuid"].includes(name)) ||
+      (!ref.issueKey && !ref.issueUuid) ||
+      (ref.issueKey !== undefined &&
+        (typeof ref.issueKey !== "string" ||
+          !/^[A-Za-z][A-Za-z0-9]*-[0-9]+$/.test(ref.issueKey))) ||
+      (ref.issueUuid !== undefined &&
+        (typeof ref.issueUuid !== "string" || !ISSUE_UUID.test(ref.issueUuid)))
+    )
+      throw new Error("Referenced Linear issues require valid typed issueKey or issueUuid fields");
+    return {
+      reference: {
+        ...(ref.issueKey ? { issueKey: ref.issueKey.toUpperCase() } : {}),
+        ...(ref.issueUuid ? { issueUuid: ref.issueUuid.toLowerCase() } : {}),
+      },
+      path: issueRefPaths[index] ?? `issueRefs/${index}`,
+    };
+  });
+  const matches = (ref, issue) =>
+    (ref.issueUuid && issue.issueUuid?.toLowerCase() === ref.issueUuid) ||
+    (ref.issueKey && issue.issueKey?.toUpperCase() === ref.issueKey);
+  const hasRequestedIdentity = (ref, issue) =>
+    matches(ref, issue) && (!ref.issueKey || issue.issueKey) && (!ref.issueUuid || issue.issueUuid);
+  const unresolved = new Set(
+    refs
+      .filter(
+        ({ reference }) => !knownIssues.some((issue) => hasRequestedIdentity(reference, issue)),
+      )
+      .map(({ reference }) => reference.issueUuid ?? reference.issueKey),
+  );
+  if (unresolved.size > MAX_REFERENCED_ISSUES)
+    throw new Error(`Referenced Linear issue lookup exceeds ${MAX_REFERENCED_ISSUES} issues`);
+  const results = [];
+  const lookups = new Map();
+  const diagnostics = new Map();
+  for (const { reference: ref, path } of refs) {
+    let issue = [...knownIssues, ...results].find((issue) => matches(ref, issue));
+    if (
+      (ref.issueKey && issue?.issueKey && issue.issueKey.toUpperCase() !== ref.issueKey) ||
+      (ref.issueUuid && issue?.issueUuid && issue.issueUuid.toLowerCase() !== ref.issueUuid)
+    )
+      throw new Error(`${path}: referenced Linear issue identity conflicts with tracker evidence`);
+    if (!issue || !hasRequestedIdentity(ref, issue)) {
+      const id = ref.issueUuid ?? ref.issueKey;
+      if (!lookups.has(id)) {
+        let body;
+        try {
+          body = await request({ query: LINEAR_REFERENCED_ISSUE_QUERY, variables: { id } });
+        } catch {
+          throw new Error(
+            `${path}: referenced Linear issue lookup failed; refresh tracker connection or access`,
+          );
+        }
+        if (!body?.data || !Object.hasOwn(body.data, "issue"))
+          throw new Error(`${path}: referenced Linear issue lookup returned no issue field`);
+        lookups.set(id, body.data.issue);
+      }
+      const rawIssue = lookups.get(id);
+      if (rawIssue === null) {
+        const diagnostic = {
+          code: "REFERENCED_ISSUE_NOT_FOUND",
+          path,
+          ...ref,
+          blockingStarts: true,
+        };
+        diagnostics.set(JSON.stringify(diagnostic), diagnostic);
+        continue;
+      }
+      if (!rawIssue || typeof rawIssue !== "object" || Array.isArray(rawIssue))
+        throw new Error(`${path}: referenced Linear issue lookup returned malformed issue record`);
+      issue = normalizeLinearIssue(rawIssue);
+      results.push(issue);
+    }
+    if (
+      (ref.issueKey && issue.issueKey?.toUpperCase() !== ref.issueKey) ||
+      (ref.issueUuid && issue.issueUuid?.toLowerCase() !== ref.issueUuid)
+    )
+      throw new Error(`${path}: referenced Linear issue identity conflicts with tracker evidence`);
+  }
+  return {
+    issues: results,
+    diagnostics: [...diagnostics.values()].sort(
+      (left, right) =>
+        left.path.localeCompare(right.path) ||
+        (left.issueUuid ?? left.issueKey).localeCompare(right.issueUuid ?? right.issueKey),
+    ),
   };
 }

@@ -1,0 +1,28 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "linear": {
+      "issues": []
+    },
+    "prs": []
+  },
+  "state": {
+    "dispatches": [
+      {
+        "issueId": "11111111-2222-4333-8444-555555555555",
+        "footprint": ["src/keys.ts"],
+        "state": "running",
+        "id": "dispatch-1"
+      }
+    ],
+    "startableTickets": [
+      {
+        "id": "11111111-2222-4333-8444-555555555555",
+        "footprint": ["src/entries.ts"]
+      }
+    ]
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  }
+}

@@ -245,7 +245,9 @@ and verification limits into the PR and handoff, mapped to acceptance criteria.
 
 Report:
 
-- issue ID and branch
+- tracker issue reference, branch/worktree path, confirmed receipt/session
+  identity, and worker lifecycle per the
+  [handoff contract](../ziw-setup/references/handoff.md)
 - PR URL or reason no PR exists
 - files changed
 - scope audit: assigned issue satisfied, out-of-scope work avoided, and

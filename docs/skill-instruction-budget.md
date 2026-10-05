@@ -2,6 +2,11 @@
 
 Measured: 2026-10-05. Baseline: `23d958d6297e2908cdd17f2f2a3a99c0a0f7e4b4`.
 
+Identity contract comparison: `baf37e74fbaa8f132137dacdf93981431945bf57`.
+The redesign adds 101 entrypoint tokens across ten skills. Its detailed planner
+contract grows by 1,355 tokens for role fields, automatic collection, diagnostics
+and migration. These instructions load only when assembling planner inputs.
+
 Counts use `tiktoken 0.14.0` with `o200k_base`, including each
 file's frontmatter and Markdown. These are consistent token estimates for
 comparing instructions, not exact Opus or Codex billing counts. Repo config,
@@ -15,16 +20,16 @@ user requests, tool responses, and conversation history are excluded.
 | `ziw-code-review`  |           2,466 |          2,548 |
 | `ziw-debug`        |             new |          1,034 |
 | `ziw-grill`        |             926 |          1,159 |
-| `ziw-implement`    |           2,546 |          2,731 |
-| `ziw-orchestrate`  |           2,826 |          2,832 |
-| `ziw-pr`           |           2,335 |          2,371 |
+| `ziw-implement`    |           2,546 |          2,765 |
+| `ziw-orchestrate`  |           2,826 |          2,821 |
+| `ziw-pr`           |           2,335 |          2,449 |
 | `ziw-setup`        |           4,521 |          2,840 |
 | `ziw-to-issues`    |           3,673 |          3,709 |
 | `ziw-triage`       |           4,263 |          4,299 |
-| Existing eight     |          23,556 |         22,489 |
-| All ten            |  not applicable |         24,167 |
+| Existing eight     |          23,556 |         22,590 |
+| All ten            |  not applicable |         24,268 |
 
-The existing eight entrypoints are about 4.5% smaller than baseline.
+The existing eight entrypoints are about 4.1% smaller than baseline.
 The two new skills add 1,678 entrypoint tokens.
 The all-ten total measures repository instruction size, not a normal session
 load or a like-for-like reduction. Setup's field lists live in canonical
@@ -44,9 +49,9 @@ references; project state and verification transcripts are excluded from config.
 | `performance.md`           |    287 | Performance regression                                                         |
 | `testing.md`               |    315 | Behavioral regression coverage                                                 |
 | `friction-log.md`          |  1,627 | Encountered friction or run rollup                                             |
-| `project-config.md`        |  5,589 | Applicable setup field sections                                                |
-| `planner-input.md`         |  1,702 | Assembling orchestration JSON                                                  |
-| `dispatch-policy.md`       |  1,797 | Scope, routing, capacity, or collision decisions                               |
+| `project-config.md`        |  5,629 | Applicable setup field sections                                                |
+| `planner-input.md`         |  3,057 | Assembling orchestration JSON                                                  |
+| `dispatch-policy.md`       |  1,919 | Scope, routing, capacity, or collision decisions                               |
 
 Direct Debug starts at 1,034 tokens, about 53% below
 Superpowers systematic-debugging's 2,183-token entrypoint measured with the same
@@ -65,14 +70,14 @@ Grill with mapped glossary paths loads about
 2,292 tokens. Resumable planning adds
 327 only when needed.
 A tracked bug loads Implement plus Debug, about
-3,765 before applicable diagnostic techniques;
+3,799 before applicable diagnostic techniques;
 behavioral regression coverage adds 315. Feature regression work
-loads Implement plus testing, about 3,046.
+loads Implement plus testing, about 3,080.
 
 Unmapped glossary discovery adds 209 where required.
 Complaint handling adds 1,627 only when friction occurs.
 A full-file Setup config-index read costs
-8,429; targeted section reads can cost less.
+8,469; targeted section reads can cost less.
 Other Setup references load for tracker policy, worker/loop policy, adapters,
 Linear + Cursor delegation, or handoff work rather than on every refresh.
 
@@ -80,9 +85,18 @@ These are file-load estimates, not observed runtime traces. Shared references
 already loaded in the same context need not be loaded again. Codex adapter
 prompts and global discovery metadata are not included in the path sums.
 
-Orchestrator with the planner input contract loads about 4,534
-estimated tokens. Dispatch policy adds 1,797 when that branch applies.
+Orchestrator with the planner input contract loads about 5,878
+estimated tokens. Dispatch policy adds 1,919 when that branch applies.
 The script fixes execute without loading their source into model context.
+
+## Identity handoff references
+
+| Reference              | Tokens | Load condition                                  |
+| ---------------------- | -----: | ----------------------------------------------- |
+| `loop-contract.md`     |  2,395 | Configuring or operating the orchestration loop |
+| `delegation-policy.md` |  1,520 | Dispatching or reconciling delegated workers    |
+| `handoff.md`           |    927 | Producing a workflow handoff                    |
+| `operating-profile.md` |  2,994 | Setup worker, capacity, and lifecycle policy    |
 
 ## Maintenance
 

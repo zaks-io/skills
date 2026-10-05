@@ -22,9 +22,11 @@ the decision or keep the work.
 ```markdown
 ## Handoff
 
-- Issue:
-- Branch:
-- PR:
+- Issue URL, issueKey, and issueUuid when known:
+- receiptId and sessionId for implementation/repair work:
+- Worker lifecycle and provider evidence:
+- Branch and worktree path:
+- PR URL and number:
 - PR head SHA:
 - Base SHA:
 - Merge base:
@@ -50,6 +52,16 @@ the decision or keep the work.
 Rules:
 
 - Include links or IDs, not pasted private logs or secrets.
+- Implementation/repair handoffs preserve the runtime's actual `receiptId` and
+  `sessionId`, the tracker `issueKey`/`issueUuid`, worktree `path`, and PR number.
+  Say unknown for missing evidence; omit unknown typed fields from JSON. Never
+  repurpose a generic `id`, issue UUID, branch, or path as session identity.
+- State whether the worker is still running, returned, stopped, or failed, with
+  provider evidence. A PR association alone does not release its capacity slot.
+  Use the canonical v3 receipt shape in
+  [the planner input contract](../../ziw-orchestrate/references/planner-input.md)
+  for machine-readable returns. Persist project progress and blockers in Linear;
+  Repo Config contains stable mappings and policy only.
 - Say whether code review covers the current diff.
 - Say whether the diff stayed inside the linked issue's in-scope and
   out-of-scope boundary. If it did not, name the split, revert, or human

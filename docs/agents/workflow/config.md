@@ -121,7 +121,7 @@ cache them here.
 - Default worker path: local Codex worktree/session
 - Capacity policy: keep every safe worker slot active while ready work exists
 - Worker concurrency cap: 3 active implementation or repair sessions
-- Worker count policy: count confirmed sessions until return, stop, failure, or PR creation; human assignees, open PRs, previews, and abandoned worktrees do not occupy slots
+- Worker count policy: count distinct confirmed sessions until provider lifecycle confirms return, stop, or failure; deduplicate session identity, or receipt identity without a session. Issue, branch, path, PR, and commit matches do not merge workers. Opening a PR does not free a running session; human assignees, open PRs, previews, and abandoned worktrees do not occupy slots by themselves
 - Dispatch footprint policy: compare predicted files/packages against active PRs, active branches, and selected tickets; hold concrete collisions; start one unknown-footprint lane only when nothing can collide, otherwise derive the footprint in the same tick
 - Saturation policy: advance PR state and backfill every free worker slot in the same tick; record why any slot remains idle
 - PR closure guard: close PRs only with refreshed code-host and tracker evidence of duplicate, explicitly canceled or abandoned, terminal, or policy-required work; never close draft or active PRs only to make room

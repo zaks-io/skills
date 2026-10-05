@@ -594,7 +594,7 @@ for (const source of ["worker", "pr"]) {
   });
 }
 
-for (const field of ["issueId", "id", "identifier", "ticket", "key"]) {
+for (const field of ["issueId", "identifier", "ticket", "key"]) {
   for (const source of ["worker", "pr"]) {
     test(`explicit UUID ${field} on ${source} prevents duplicate delivery through the planner`, () => {
       const receipt = { [field]: trackerUuid, state: "running", footprint: ["src/keys.ts"] };
@@ -624,22 +624,65 @@ for (const field of ["issueId", "id", "identifier", "ticket", "key"]) {
   }
 }
 
-test("UUID and key worker receipts coalesce and retain both footprints", () => {
+test("UUID and key receipts for one explicit session coalesce and retain tracker and live footprints", () => {
   const output = plan({
     linear: { issues: [readyIssue("ZAK-12", { id: trackerUuid })] },
     state: {
       dispatches: [
-        { issueId: trackerUuid, state: "running", footprint: ["src/uuid.ts"] },
-        { issueId: "ZAK-12", state: "running", footprint: ["src/key.ts"] },
+        {
+          issueId: trackerUuid,
+          sessionId: "same-worker",
+          state: "running",
+          footprint: ["src/uuid.ts"],
+        },
+        {
+          issueId: "ZAK-12",
+          sessionId: "same-worker",
+          state: "running",
+          footprint: ["src/key.ts"],
+        },
       ],
     },
     config: { workerConcurrencyCap: 2 },
   });
   assert.equal(output.capacity.used, 1);
   assert.equal(output.decisions.activeDispatches.length, 1);
-  assert.deepEqual(output.decisions.activeDispatches[0].footprint, ["src/uuid.ts", "src/key.ts"]);
+  assert.deepEqual(output.decisions.activeDispatches[0].footprint.toSorted(), [
+    "src/ZAK-12.ts",
+    "src/key.ts",
+    "src/uuid.ts",
+  ]);
   assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
 });
+
+for (const source of ["worker", "pr"]) {
+  test(`generic UUID-shaped ${source} id does not establish an issue association`, () => {
+    const receipt = { id: trackerUuid, state: "running", footprint: ["src/keys.ts"] };
+    const output = plan({
+      linear: { issues: [readyIssue("ZAK-12", { id: trackerUuid })] },
+      state: source === "worker" ? { dispatches: [receipt] } : {},
+      prs: source === "pr" ? [{ ...receipt, number: 22, state: "open", isDraft: true }] : [],
+      config: { workerConcurrencyCap: 2 },
+    });
+    assert.equal(
+      output.holds.some(
+        ({ target, reason }) => target === "ticket:ZAK-12" && reason === "DELIVERY_ALREADY_ACTIVE",
+      ),
+      false,
+    );
+    if (source === "worker") {
+      assert.equal(output.capacity.used, 1);
+      assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+      assert.match(JSON.stringify(output), /WORKER_ISSUE_UNRESOLVED/);
+    } else {
+      assert.ok(
+        output.actions.some(
+          ({ target, kind }) => target === "ticket:ZAK-12" && kind === "dispatch",
+        ),
+      );
+    }
+  });
+}
 
 test("UUID matching absorbs a returned worker into its PR and retains tracker risk", () => {
   const output = plan({
@@ -652,7 +695,9 @@ test("UUID matching absorbs a returned worker into its PR and retains tracker ri
       ],
     },
     state: {
-      dispatches: [{ issueId: trackerUuid, state: "running", footprint: ["src/worker.ts"] }],
+      dispatches: [
+        { issueId: trackerUuid, returned: true, state: "returned", footprint: ["src/worker.ts"] },
+      ],
     },
     prs: [
       {

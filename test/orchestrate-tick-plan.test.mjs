@@ -669,12 +669,13 @@ test("tick-plan selects only non-colliding dispatch work", () => {
   });
 
   assert.deepEqual(output.decisions.dispatch.selected, [
-    { id: "ZAK-2", footprint: ["apps/web/routes/home.tsx"] },
+    { id: "ZAK-2", issueRef: "ZAK-2", footprint: ["apps/web/routes/home.tsx"] },
   ]);
   assert.deepEqual(output.decisions.dispatch.deferred, [
     {
       id: "ZAK-1",
-      conflictsWith: "PR-12",
+      issueRef: "ZAK-1",
+      conflictsWith: 12,
       reason: "predicted file footprint collides with active or selected work",
     },
   ]);
@@ -751,10 +752,15 @@ test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
     config: { workerConcurrencyCap: 3, readinessLabels: ["ready-for-agent"] },
   });
 
-  assert.equal(output.nextAction, "REQUEST_FILE_FOOTPRINT");
+  assert.equal(output.nextAction, "advance-actions");
+  assert.ok(
+    output.actions.some(
+      ({ target, kind }) => target === "ticket:LIN-1" && kind === "derive-footprint",
+    ),
+  );
   assert.equal(output.counts.startableTickets, 1);
   assert.deepEqual(output.decisions.dispatch.deferred, [
-    { id: "LIN-1", reason: "missing predicted file footprint" },
+    { id: "LIN-1", issueRef: "LIN-1", reason: "missing predicted file footprint" },
   ]);
 });
 
@@ -779,7 +785,7 @@ test("tick-plan dispatches Linear DAG starts with snapshot-derived footprints", 
 
   assert.equal(output.nextAction, "dispatch-selected-work");
   assert.deepEqual(output.decisions.dispatch.selected, [
-    { id: "LIN-1", footprint: ["apps/api/src/index.ts"] },
+    { id: "LIN-1", issueRef: "LIN-1", footprint: ["apps/api/src/index.ts"] },
   ]);
   assert.deepEqual(output.decisions.trackerStateUpdates, [
     { ticket: "LIN-1", targetState: "In Progress", timing: "before-dispatch" },
@@ -818,6 +824,7 @@ test("tick-plan synthesizes active Linear claims before capacity selection", () 
             state: "In Progress",
             stateType: "started",
             workerSession: "bc-313",
+            worktree: "/tmp/main-313",
             footprint: ["apps/stripe-ingest"],
           },
           {
@@ -853,16 +860,16 @@ test("tick-plan synthesizes active Linear claims before capacity selection", () 
   assert.equal(output.counts.synthesizedDispatches, 3);
   assert.equal(output.decisions.dispatch.selected.length, 0);
   assert.deepEqual(
-    output.decisions.activeDispatches.map(({ id, source }) => ({ id, source })),
+    output.decisions.activeDispatches.map(({ issueRef, source }) => ({ issueRef, source })),
     [
-      { id: "MAIN-313", source: "linear-active-claim+local-worktree" },
-      { id: "MAIN-317", source: "linear-active-claim" },
-      { id: "MAIN-319", source: "linear-active-claim" },
+      { issueRef: "MAIN-313", source: "linear-active-claim" },
+      { issueRef: "MAIN-317", source: "linear-active-claim" },
+      { issueRef: "MAIN-319", source: "linear-active-claim" },
     ],
   );
 });
 
-test("tick-plan deduplicates the same active claim and ledger entry against an open PR", () => {
+test("tick-plan coalesces explicit same-session observations while an open PR retains the worker", () => {
   const output = runPlan({
     snapshot: {
       repo: "zaks-io/mainstay",
@@ -891,22 +898,24 @@ test("tick-plan deduplicates the same active claim and ledger entry against an o
     config: { workerConcurrencyCap: 3, readinessLabels: ["ready-for-agent"] },
     state: {
       dispatches: [
-        { id: "MAIN-313", issueId: "MAIN-313", state: "running" },
+        { id: "MAIN-313", issueId: "MAIN-313", sessionId: "bc-313", state: "running" },
         { id: "stale", issueId: "MAIN-999", state: "stopped" },
       ],
       activeWork: [
-        { id: "MAIN-313", issueId: "MAIN-313", state: "running" },
+        { id: "MAIN-313", issueId: "MAIN-313", sessionId: "bc-313", state: "running" },
         { id: "MAIN-318", issueId: "MAIN-318", state: "running" },
       ],
     },
   });
 
-  assert.deepEqual(output.footprint, { dispatches: 2, previews: 0, prs: 1, total: 3 });
+  assert.deepEqual(output.footprint, { dispatches: 3, previews: 0, prs: 1, total: 4 });
+  assert.equal(output.capacity.used, 3);
   assert.deepEqual(
-    output.decisions.activeDispatches.map(({ id, source }) => ({ id, source })),
+    output.decisions.activeDispatches.map(({ issueRef, source }) => ({ issueRef, source })),
     [
-      { id: "MAIN-318", source: "local-active-work" },
-      { id: "MAIN-317", source: "linear-active-claim" },
+      { issueRef: "MAIN-318", source: "local-active-work" },
+      { issueRef: "MAIN-313", source: "ledger+local-active-work+linear-active-claim" },
+      { issueRef: "MAIN-317", source: "linear-active-claim" },
     ],
   );
 });
@@ -938,7 +947,7 @@ test("tick-plan preserves live footprints when enriching ledger dispatches", () 
     },
     config: { workerConcurrencyCap: 3, readinessLabels: ["ready-for-agent"] },
     state: {
-      dispatches: [{ issueId: "MAIN-313", state: "running" }],
+      dispatches: [{ issueId: "MAIN-313", sessionId: "bc-313", state: "running" }],
     },
   });
 
@@ -947,6 +956,7 @@ test("tick-plan preserves live footprints when enriching ledger dispatches", () 
   assert.deepEqual(output.decisions.dispatch.deferred, [
     {
       id: "MAIN-320",
+      issueRef: "MAIN-320",
       conflictsWith: "MAIN-313",
       reason: "predicted file footprint collides with active or selected work",
     },
@@ -982,7 +992,7 @@ test("tick-plan enriches open PR footprints from matching Linear claims", () => 
   });
 
   assert.deepEqual(output.decisions.dispatch.selected, []);
-  assert.equal(output.decisions.dispatch.deferred[0].conflictsWith, "PR-313");
+  assert.equal(output.decisions.dispatch.deferred[0].conflictsWith, 313);
 });
 
 test("tick-plan waits for active workers when the scoped queue is empty", () => {
@@ -1024,7 +1034,7 @@ test("tick-plan does not let a closed PR suppress an active claim", () => {
   });
 
   assert.deepEqual(
-    output.decisions.activeDispatches.map(({ id }) => id),
+    output.decisions.activeDispatches.map(({ issueRef }) => issueRef),
     ["MAIN-313"],
   );
   assert.equal(output.footprint.dispatches, 1);
@@ -1066,8 +1076,8 @@ test("tick-plan reserves an abandoned worktree and blocks duplicate delivery wit
   assert.deepEqual(output.footprint, { dispatches: 1, previews: 0, prs: 0, total: 1 });
   assert.deepEqual(output.decisions.activeDispatches, [
     {
-      id: "MAIN-320",
-      issueId: "MAIN-320",
+      issueRef: null,
+      workerRef: null,
       source: "local-worktree-unmerged",
       branch: "main-320-close-integration-seams",
       worktree: "/tmp/main-320",
@@ -1097,8 +1107,8 @@ test("tick-plan counts an unmerged local worktree without an issue key", () => {
   assert.equal(output.footprint.dispatches, 1);
   assert.deepEqual(output.decisions.activeDispatches, [
     {
-      id: "worktree:/tmp/routing-fix",
-      issueId: null,
+      issueRef: null,
+      workerRef: null,
       source: "local-worktree-unmerged",
       branch: "codex/routing-fix",
       worktree: "/tmp/routing-fix",
@@ -1154,7 +1164,7 @@ test("tick-plan ignores a clean worktree completed by a squash-merged PR", () =>
   assert.deepEqual(output.decisions.activeDispatches, []);
 });
 
-test("tick-plan deduplicates an unmerged worktree against an open PR by branch", () => {
+test("tick-plan retains an unmerged worktree reservation even when a PR shares its branch", () => {
   const output = runPlan({
     snapshot: {
       repo: "zaks-io/mainstay",
@@ -1172,7 +1182,8 @@ test("tick-plan deduplicates an unmerged worktree against an open PR by branch",
     config: { workerConcurrencyCap: 2 },
   });
 
-  assert.equal(output.footprint.dispatches, 0);
+  assert.equal(output.footprint.dispatches, 1);
+  assert.equal(output.capacity.used, 0);
   assert.equal(output.footprint.prs, 1);
 });
 

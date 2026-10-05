@@ -1,0 +1,25 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [],
+    "linear": {
+      "issues": []
+    }
+  },
+  "config": {
+    "workerConcurrencyCap": 2,
+    "localBudgetSoftStopPercent": 80,
+    "localBudgetHardStopPercent": 90,
+    "defaultWorkerPath": "local-codex"
+  },
+  "state": {
+    "localBudgetUsagePercent": 99,
+    "startableTickets": [
+      {
+        "id": "TEST-2",
+        "footprint": ["src/example.ts"],
+        "eligibleWorkers": ["local-codex"]
+      }
+    ]
+  }
+}

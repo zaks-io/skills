@@ -1,0 +1,38 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "linear": {
+      "candidateScope": {
+        "routeLabel": "example/repo",
+        "states": []
+      },
+      "candidateIssueIds": ["ZAK-12"],
+      "issues": [
+        {
+          "identifier": "ZAK-12",
+          "state": "Todo",
+          "stateType": "unstarted",
+          "labels": ["kind-slice", "ready-for-agent", "example/repo"],
+          "footprint": ["src/entries.ts"]
+        }
+      ]
+    },
+    "prs": [
+      {
+        "issueId": "11111111-2222-4333-8444-555555555555",
+        "identifier": "ZAK-12",
+        "footprint": ["src/keys.ts"],
+        "state": "open",
+        "number": 22,
+        "isDraft": true,
+        "changedFiles": 1
+      }
+    ]
+  },
+  "state": {
+    "scopeIssueIds": ["ZAK-12"]
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  }
+}

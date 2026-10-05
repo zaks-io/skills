@@ -124,7 +124,7 @@ test("planner validates each override and cannot hide invalid input behind prece
   );
 });
 
-test("planner validates each alternative identity independently", (t) => {
+test("legacy PR metadata cannot replace an explicit or URL-derived PR number", (t) => {
   const identities = {
     url: "https://github.com/zaks-io/example/pull/1",
     headSha: "current-head",
@@ -135,7 +135,10 @@ test("planner validates each alternative identity independently", (t) => {
   for (const [field, validValue] of Object.entries(identities)) {
     const fixture = { [field]: validValue };
     const valid = run(t, { ...snapshot, prs: [fixture] });
-    assert.equal(valid.status, 0, `${field}: ${valid.stderr}`);
+    if (field === "url") assert.equal(valid.status, 0, `${field}: ${valid.stderr}`);
+    else rejected(valid, /prs\/0.*missing PR number/);
+    const numbered = run(t, { ...snapshot, prs: [{ number: 1, ...fixture }] });
+    assert.equal(numbered.status, 0, `${field}: ${numbered.stderr}`);
     for (const value of [null, "", "   "]) {
       rejected(run(t, { ...snapshot, prs: [{ ...fixture, [field]: value }] }), /prs\/0/);
     }
@@ -172,6 +175,145 @@ test("planner preserves documented override precedence and does not coerce value
   assert.equal(plan.actions[0].kind, "dispatch");
   assert.equal(plan.actions[0].target, "ticket:SKI-1");
 });
+
+test("v3 snapshots accept external legacy PR evidence maps using URL, head, branch, and opaque PR aliases", (t) => {
+  const pr = {
+    number: 12,
+    riskTier: "low",
+    url: "https://github.com/zaks-io/example/pull/12",
+    headSha: "current-head",
+    headRefName: "feature/example",
+    reviewDiffFingerprint: "same-diff",
+    state: "open",
+    isDraft: false,
+    checks: { state: "SUCCESS" },
+  };
+  for (const alias of [pr.url, pr.headSha, pr.headRefName, "legacy-pr-node-12"]) {
+    const state = {
+      pullRequests: [{ ...pr, id: "legacy-pr-node-12" }],
+      reviewEvidenceByPr: {
+        [alias]: {
+          hasReviewEvidence: true,
+          reviewVerdict: "Approved",
+          independentReviewCount: 1,
+          reviewedHeadSha: pr.headSha,
+          reviewedDiffFingerprint: pr.reviewDiffFingerprint,
+        },
+      },
+    };
+    const observations = [2, 3].map((version) => {
+      const result = run(
+        t,
+        {
+          snapshot: { ...snapshot, v: version, prs: [pr] },
+          config: { mergeAuthority: "agent", requireConformanceEvidence: false },
+        },
+        { state },
+      );
+      assert.equal(result.status, 0, `${alias}, v${version}: ${result.stderr}`);
+      const plan = JSON.parse(result.stdout);
+      assert.ok(
+        plan.actions.some(
+          (action) => action.target === "pr:12" && action.kind === "arm-auto-merge",
+        ),
+      );
+      return {
+        actions: plan.actions,
+        waits: plan.waits,
+        holds: plan.holds,
+        capacity: plan.capacity,
+        wake: plan.wake,
+      };
+    });
+    assert.deepEqual(observations[0], observations[1], alias);
+  }
+});
+
+test("duplicate PR observations cannot resolve an ambiguous legacy branch alias by input order", (t) => {
+  const first = { number: 12, headRefName: "feature/shared", headSha: "first-head" };
+  const second = { number: 13, headRefName: "feature/shared", headSha: "second-head" };
+  for (const prs of [
+    [first, second, first],
+    [first, first, second],
+    [second, first, first],
+  ]) {
+    rejected(
+      run(
+        t,
+        { snapshot: { ...snapshot, v: 3, prs } },
+        {
+          state: { reviewEvidenceByPr: { "feature/shared": { reviewVerdict: "Approved" } } },
+        },
+      ),
+      /reviewEvidenceByPr.*ambiguous/,
+    );
+  }
+});
+
+test("legacy review-evidence PR targets parse numbers and URLs without emitting NaN", (t) => {
+  for (const target of [12, "12", "https://github.com/zaks-io/example/pull/12"]) {
+    const result = run(t, {
+      snapshot,
+      state: {
+        reviewEvidenceChecks: [{ pr: target, hasReviewEvidence: true, blockingFindings: true }],
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const plan = JSON.parse(result.stdout);
+    assert.ok(
+      plan.actions.some(
+        (action) => action.target === "pr:12" && action.kind === "clear-review-evidence",
+      ),
+    );
+    assert.equal(result.stdout.includes("NaN"), false);
+  }
+  for (const target of ["PR_node_identifier", "https://github.com/zaks-io/example/issues/12"]) {
+    rejected(
+      run(t, {
+        snapshot,
+        state: {
+          reviewEvidenceChecks: [{ pr: target, hasReviewEvidence: true, blockingFindings: true }],
+        },
+      }),
+      /reviewEvidenceChecks\/0.*(?:PR|pr)/,
+    );
+  }
+});
+
+test("an unrelated legacy preview override cannot relax inline canonical worker lifecycle validation", (t) => {
+  const input = {
+    snapshot: { ...snapshot, v: 3 },
+    state: { dispatches: [{ sessionId: "inline-session", state: "running", returned: true }] },
+  };
+  const state = { previews: [{ id: "legacy-preview", state: "active" }] };
+  for (const args of [[], ["--debug"]])
+    rejected(
+      run(t, input, { state, args }),
+      /state\/dispatches\/0.*contradictory worker lifecycle/,
+    );
+});
+
+for (const field of ["reviewDiffByPr", "continuationByPr"]) {
+  test(`an external empty state file cannot legalize inline canonical ${field} alias keys`, (t) => {
+    const pr = {
+      number: 12,
+      headSha: "inline-head",
+      headRefName: "feature/inline",
+      url: "https://github.com/zaks-io/example/pull/12",
+    };
+    for (const alias of [pr.headSha, pr.headRefName, pr.url]) {
+      const input = {
+        snapshot: { ...snapshot, v: 3, prs: [pr] },
+        state: { [field]: { [alias]: field === "reviewDiffByPr" ? "same-diff" : "repair-worker" } },
+      };
+      for (const args of [[], ["--debug"]])
+        rejected(
+          run(t, input, { state: {}, args }),
+          new RegExp(`state/${field}.*(?:unknown|ambiguous|pattern)`),
+        );
+    }
+  });
+}
 
 test("planner rejects missing and unknown CLI options and empty input", (t) => {
   for (const args of [["--config"], ["--state"], ["--confg", "file.json"], ["--config="]]) {
@@ -230,4 +372,130 @@ test("a provider review without a commit remains valid but does not authorize me
     plan.actions.some(({ kind }) => kind === "request-review"),
     true,
   );
+});
+
+test("v3 input separates tracker, worker, PR, and worktree identities", async () => {
+  const { validateInput } =
+    await import("../skills/ziw-orchestrate/scripts/planner-input-validator.mjs");
+  const uuid = "11111111-2222-4333-8444-555555555555";
+  const fixture = {
+    snapshot: {
+      v: 3,
+      repo: "zaks-io/example",
+      prs: [{ number: 1, linkedIssues: [{ issueUuid: uuid }] }],
+      worktrees: [{ path: "/repo/worktree", branch: "feature" }],
+      linear: {
+        issues: [
+          {
+            issueKey: "SKI-1",
+            issueUuid: uuid,
+            blockedBy: [{ issueKey: "SKI-2", stateType: "completed" }],
+            providerNote: { value: "metadata" },
+          },
+        ],
+        candidateIssues: [{ issueKey: "SKI-1" }],
+      },
+    },
+    state: {
+      workers: [{ sessionId: uuid, receiptId: "receipt-1", issueKey: "SKI-1", state: "running" }],
+      previews: [{ previewId: "preview-1", prNumber: 1 }],
+      startableTickets: [{ issueUuid: uuid, footprint: ["src"] }],
+      scopeIssues: [{ issueKey: "SKI-1" }],
+      reviewEvidenceByPr: { 1: { hasReviewEvidence: true } },
+      reviewEvidenceChecks: [{ prNumber: 1, hasReviewEvidence: true }],
+    },
+  };
+  assert.equal(validateInput(fixture), true, JSON.stringify(validateInput.errors));
+  const invalid = [
+    [
+      "issue-key spelling",
+      (input) => {
+        input.snapshot.linear.issues[0].issueKey = "not-an-issue";
+      },
+    ],
+    [
+      "UUID spelling",
+      (input) => {
+        input.state.startableTickets[0].issueUuid = "not-a-uuid";
+      },
+    ],
+    [
+      "legacy tracker ID",
+      (input) => {
+        input.snapshot.linear.issues[0].id = uuid;
+      },
+    ],
+    [
+      "legacy worker ID",
+      (input) => {
+        input.state.workers[0].id = "receipt-1";
+      },
+    ],
+    [
+      "generic issue ID",
+      (input) => {
+        input.state.workers[0].issueId = uuid;
+      },
+    ],
+    [
+      "legacy PR ID",
+      (input) => {
+        input.snapshot.prs[0].prId = 1;
+      },
+    ],
+    [
+      "missing PR number",
+      (input) => {
+        delete input.snapshot.prs[0].number;
+      },
+    ],
+    [
+      "untyped dependency",
+      (input) => {
+        input.snapshot.linear.issues[0].blockedBy = ["SKI-2"];
+      },
+    ],
+    [
+      "untyped candidate scope",
+      (input) => {
+        input.snapshot.linear.candidateIssueIds = ["SKI-1"];
+      },
+    ],
+    [
+      "untyped explicit scope",
+      (input) => {
+        input.state.scopeIssueIds = ["SKI-1"];
+      },
+    ],
+    [
+      "worker lacks session or receipt",
+      (input) => {
+        delete input.state.workers[0].sessionId;
+        delete input.state.workers[0].receiptId;
+      },
+    ],
+    [
+      "worktree cannot assert an issue",
+      (input) => {
+        input.snapshot.worktrees[0].issueKey = "SKI-1";
+      },
+    ],
+    [
+      "preview lacks preview identity",
+      (input) => {
+        delete input.state.previews[0].previewId;
+      },
+    ],
+    [
+      "PR evidence cannot use a head or ticket key",
+      (input) => {
+        input.state.reviewEvidenceByPr = { "SKI-1": { hasReviewEvidence: true } };
+      },
+    ],
+  ];
+  for (const [name, mutate] of invalid) {
+    const input = structuredClone(fixture);
+    mutate(input);
+    assert.equal(validateInput(input), false, name);
+  }
 });

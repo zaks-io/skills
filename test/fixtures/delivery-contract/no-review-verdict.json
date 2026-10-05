@@ -1,0 +1,36 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "prs": [
+      {
+        "number": 2,
+        "url": "https://github.com/example/repo/pull/2",
+        "headSha": "head",
+        "isDraft": false,
+        "changedFiles": 1,
+        "state": "open",
+        "reviewDiffFingerprint": "sha256:test",
+        "checks": {
+          "state": "SUCCESS",
+          "failed": [],
+          "pending": []
+        },
+        "unresolvedThreads": 0,
+        "latestReviews": {}
+      }
+    ],
+    "linear": {
+      "issues": []
+    }
+  },
+  "config": {
+    "mergeAuthority": "agent"
+  },
+  "state": {
+    "reviewEvidenceByPr": {
+      "2": {
+        "reviewedDiffFingerprint": "sha256:test"
+      }
+    }
+  }
+}

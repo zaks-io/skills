@@ -17,9 +17,9 @@ because they are nearby or cheap.
   shaped work into the ready state.
 - Done tickets are terminal even when stale readiness labels remain.
 
-The snapshot separates scoped candidate IDs from dependency evidence. A blocker
+The v3 snapshot separates typed candidate issue references from dependency evidence. A blocker
 outside the route or requested set remains a blocker, never an extra candidate.
-Pass a requested ticket set as `state.scopeIssueIds`; it narrows snapshot scope
+Pass a requested ticket set as `state.scopeIssues`; it narrows snapshot scope
 and explicit startable tickets. Keep that transient request out of Repo Config.
 
 When a scoped ticket is not moving, verify the fact that would make it eligible
@@ -35,29 +35,40 @@ workers when config names no cap. Use `Worker concurrency cap`.
 
 Count:
 
-- implementation dispatches that have not returned, stopped, or produced a PR
+- implementation dispatches whose provider has not confirmed return, stop, or failure
 - active worker continuations repairing checks, review findings, or conflicts
 - confirmed provider sessions represented by repo-scoped tracker claims
 
-Deduplicate session, issue, branch, and provider handles. A human assignee, open
-PR, preview, or abandoned worktree is not an active worker. Started tracker work
-reserves its files even without a confirmed agent session. A shared commit never
-collapses distinct workers. They still affect
-ownership, file collision, provider limits, and the PR action queue.
+Count distinct confirmed sessions, even when they cover one issue, branch, path,
+or PR. Deduplicate repeated receipts using session identity, or receipt identity
+when no session is available. A shared commit never identifies one worker.
+A human assignee, PR, preview, or abandoned worktree is not a worker. Started
+tracker work reserves files without inventing a session.
 
-Match branch and path tokens against known ticket identities, never the first
-word-number token. Explicit ticket fields, tracker links, and verified leading
-ticket titles take precedence. Unidentified worktrees retain worktree reservations;
-matching paths can join them to ledger records without inventing ticket holds.
-Ambiguous branch matches cannot reduce PR risk below medium.
-Resolve explicit tracker UUIDs through the snapshot's UUID-to-key aliases before
-matching delivery. Prefer an explicit ticket key or tracker-resolved UUID over
-an unresolved UUID in another issue field. Otherwise unresolved issue UUIDs match
-exactly. Capacity evidence alone does not prove protection against duplicate starts.
+Issue matching protects delivery separately from counting workers. Either
+live worker, PR, or claim covering an issue prevents another dispatch. Joining
+a worker's delivery to a PR preserves the worker slot until explicit provider
+lifecycle confirms return, stop, or failure. An associated `prNumber` is not
+return evidence. An active repair session still counts after PR creation.
+
+A terminal provider receipt for the same explicit session retires a tracker-only
+claim's worker slot while preserving its delivery and footprint reservation.
+A current live runtime observation keeps that session counted; historical
+terminal receipts cannot override it without freshness evidence. Receipt-only
+terminal history cannot retire a tracker claim because receipts may be reused.
+
+Use the role-specific fields and single tracker-backed catalog in
+[planner-input.md](planner-input.md). Conflicting identities fail clearly.
+Unresolved references require one bounded tracker lookup and replan; retain
+remaining diagnostics instead of trying alternate field interpretations.
+Branch/path and leading-title hints retain possible delivery reservations and
+may raise risk. Hint-only associations keep at least medium risk and cannot
+authorize a scoped PR action. Worktree path identity preserves
+unassociated file reservations without manufacturing an issue claim.
 
 Every tick advances actionable PR state and fills all remaining worker slots
-with safe ready work. A returned, failed, stopped, or PR-producing worker frees
-its slot immediately. Backfill it in the same tick. Merge may serialize, but PR
+with safe ready work. A confirmed returned, failed, or stopped worker frees its slot immediately.
+PR creation frees it only when the provider confirms the worker has returned. Backfill it in the same tick. Merge may serialize, but PR
 inventory must never suppress unrelated implementation dispatch.
 
 If a slot remains idle while ready non-colliding work exists, record an

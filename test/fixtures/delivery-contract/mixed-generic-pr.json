@@ -1,0 +1,31 @@
+{
+  "snapshot": {
+    "repo": "example/repo",
+    "linear": {
+      "issues": []
+    },
+    "prs": [
+      {
+        "issueId": "11111111-2222-4333-8444-555555555555",
+        "footprint": ["src/keys.ts"],
+        "state": "open",
+        "number": 22,
+        "isDraft": true,
+        "changedFiles": 1,
+        "id": "dispatch-1"
+      }
+    ]
+  },
+  "state": {
+    "scopeIssueIds": ["11111111-2222-4333-8444-555555555555"],
+    "startableTickets": [
+      {
+        "id": "11111111-2222-4333-8444-555555555555",
+        "footprint": ["src/entries.ts"]
+      }
+    ]
+  },
+  "config": {
+    "workerConcurrencyCap": 2
+  }
+}
