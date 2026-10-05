@@ -34,6 +34,41 @@ test("unresolved explicit UUIDs match exactly and never fall through to conflict
   );
 });
 
+test("an unresolved UUID cannot hide a ticket key in another explicit field", () => {
+  const index = issueIdentityIndex([{ identifier: "ZAK-12" }]);
+  const fields = ["issueId", "identifier", "ticket", "key"];
+  for (const [position, uuidField] of fields.entries()) {
+    for (const keyField of fields.slice(position + 1)) {
+      const receipt = { [uuidField]: uuid, [keyField]: "zak-12", branch: "feat/zak-13" };
+      assert.equal(issueIdentifier(receipt, index), "ZAK-12");
+      assert.equal(itemMentionsIssue(receipt, "ZAK-12", index), true);
+      assert.equal(itemMentionsIssue(receipt, "ZAK-13", index), false);
+      assert.equal(index.has(uuid), false);
+    }
+  }
+});
+
+test("generic receipt IDs cannot override unresolved dedicated issue UUIDs", () => {
+  for (const id of ["dispatch-1", "agent-1", otherUuid]) {
+    const receipt = { issueId: uuid, id };
+    const index = issueIdentityIndex([{ id: uuid }], [receipt]);
+    assert.equal(issueIdentifier(receipt, index), uuid);
+    assert.equal(itemMentionsIssue(receipt, uuid, index), true);
+  }
+});
+
+test("an unresolved UUID cannot hide a later tracker-resolved UUID", () => {
+  const index = issueIdentityIndex([{ id: otherUuid, identifier: "ZAK-12" }]);
+  assert.equal(issueIdentifier({ issueId: uuid, identifier: otherUuid }, index), "ZAK-12");
+});
+
+test("tracker-resolved explicit identities retain precedence over conflicting later keys", () => {
+  const index = issueIdentityIndex([{ id: uuid, identifier: "ZAK-13" }]);
+  const receipt = { issueId: uuid, identifier: "ZAK-12" };
+  assert.equal(issueIdentifier(receipt, index), "ZAK-13");
+  assert.equal(itemMentionsIssue(receipt, "ZAK-12", index), false);
+});
+
 test("UUID-shaped path text never creates an explicit delivery identity", () => {
   const index = issueIdentityIndex([{ id: uuid, identifier: "ZAK-12" }]);
   assert.equal(issueIdentifier({ path: `/tmp/${uuid}` }, index), null);

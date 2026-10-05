@@ -38,10 +38,12 @@ export function issueIdentityIndex(items = [], evidence = []) {
 }
 
 export function issueIdentifier(item, knownIds = new Map()) {
+  const identities = issueFields(item)
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => isTicketKey(value) || isUuid(value));
   const exact =
-    issueFields(item)
-      .map((value) => String(value ?? "").trim())
-      .find((value) => isTicketKey(value) || isUuid(value)) ??
+    identities.find((value) => isTicketKey(value) || knownIds.has(normalize(value))) ??
+    identities[0] ??
     (isTicketKey(item?.id) || knownIds.has(normalize(item?.id)) ? String(item.id).trim() : null);
   if (exact)
     return (

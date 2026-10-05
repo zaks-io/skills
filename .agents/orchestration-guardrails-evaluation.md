@@ -146,3 +146,49 @@ recheck are stored in `/home/p-skills/task-artifacts/skills-bf237882/`.
 The final Opus recheck approved both review corrections, confirmed the 362-test
 and secret-scan gate, and found no remaining failures within the focused scope.
 These are offline source and fixture checks, not live tracker or provider writes.
+
+## Mixed UUID and ticket-key follow-up
+
+Baseline: `b6e82dea01178ddde07de1a545ff0e2d2868f120`. Both new external
+fixtures reproduced duplicate starts through the actual planner CLI: a tracker
+record omitted UUID `id`, while its worker or scoped PR supplied an unresolved
+`issueId` UUID before an explicit `identifier` ticket key. The PR also vanished
+from the requested action scope. Distinct file footprints exposed the identity
+failure without collision protection masking it.
+
+The helper now selects the first dedicated ticket key or tracker-resolved UUID
+before falling back to an unresolved dedicated UUID. Generic receipt `id` stays
+the final fallback. Tracker alias authority and precedence among resolved
+explicit identities remain unchanged. New CLI regressions cover both delivery
+sources and all later dedicated key fields; helper tests cover field order,
+later resolved UUIDs, and conflicting known identities. These regressions
+failed before the correction.
+
+The full local gate passes 374 tests, formatting, structure/schema checks,
+discovery, and Gitleaks. Claude plugin validation passes with its existing
+root-context warning. Entrypoints are unchanged. The dispatch reference adds
+15 estimated tokens using tiktoken 0.14.0 and o200k_base.
+
+Independent GPT-6.1 Sol evaluator `/root/mixed_uuid_behavior_eval` received only
+the raw fixtures and a realistic request to continue ZAK-12. Four compact/debug
+CLI runs preserved both delivery holds, worker capacity, and the scoped draft
+PR action. It proposed waiting for the existing worker or diagnosing the existing
+draft. Its report records the pre-existing debug `nextAction` inconsistency;
+the compact wake and concrete actions correctly continue draft repair.
+Artifacts are in `/home/p-skills/task-artifacts/skills-bf237882/mixed-uuid/`.
+All fixtures stayed offline without tracker, PR, credential, or deploy writes.
+
+Fresh Opus 5.5 high session `e029a9f0-fd07-4ed0-9b3d-fcdbed99740d` reviewed
+the focused working-tree delta. Its first pass found that promoting a generic
+ticket-shaped receipt ID such as `dispatch-1` could hide an unresolved explicit
+issue UUID. Generic IDs now remain the final fallback, with helper and worker/PR
+CLI regressions that failed before this correction and pass afterward. Review
+artifacts are in the same persistent `mixed-uuid` directory.
+
+The focused Opus recheck approved the correction with no remaining behavioral
+findings. Its documentation note about the test count is corrected above.
+
+The same independent evaluator rechecked both generic-ID fixtures in compact
+and debug modes and both original fixtures in compact mode after the correction.
+All six runs preserved delivery holds, capacity, and scoped PR repair. The
+recheck report is `mixed-uuid/behavior-recheck.md` in the artifact directory.

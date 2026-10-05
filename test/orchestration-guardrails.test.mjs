@@ -522,6 +522,78 @@ test("branch-only worktree holds have a single worktree prefix", () => {
 });
 
 const trackerUuid = "11111111-2222-4333-8444-555555555555";
+for (const keyField of ["identifier", "ticket", "key"]) {
+  for (const source of ["worker", "pr"]) {
+    test(`unresolved UUID with explicit ${keyField} on ${source} retains delivery and scope`, () => {
+      const receipt = {
+        issueId: trackerUuid,
+        [keyField]: "ZAK-12",
+        footprint: ["src/keys.ts"],
+        state: "running",
+      };
+      const output = plan({
+        linear: {
+          candidateScope: { routeLabel: "example/repo", states: [] },
+          candidateIssueIds: ["ZAK-12"],
+          issues: [readyIssue("ZAK-12", { footprint: ["src/entries.ts"] })],
+        },
+        state: source === "worker" ? { dispatches: [receipt] } : { scopeIssueIds: ["ZAK-12"] },
+        prs:
+          source === "pr"
+            ? [{ ...receipt, state: "open", number: 22, isDraft: true, changedFiles: 1 }]
+            : [],
+        config: { workerConcurrencyCap: 2 },
+      });
+      assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+      assert.ok(
+        output.holds.some(
+          ({ target, reason }) =>
+            target === "ticket:ZAK-12" && reason === "DELIVERY_ALREADY_ACTIVE",
+        ),
+      );
+      assert.equal(output.capacity.used, source === "worker" ? 1 : 0);
+      if (source === "pr")
+        assert.ok(
+          output.actions.some(({ target, kind }) => target === "pr:22" && kind === "repair-draft"),
+        );
+    });
+  }
+}
+
+for (const source of ["worker", "pr"]) {
+  test(`a generic receipt ID cannot hide UUID-only ${source} delivery`, () => {
+    const receipt = {
+      issueId: trackerUuid,
+      id: "dispatch-1",
+      state: "running",
+      footprint: ["src/keys.ts"],
+    };
+    const output = plan({
+      state: {
+        startableTickets: [{ id: trackerUuid, footprint: ["src/entries.ts"] }],
+        ...(source === "worker" ? { dispatches: [receipt] } : { scopeIssueIds: [trackerUuid] }),
+      },
+      prs:
+        source === "pr"
+          ? [{ ...receipt, state: "open", number: 22, isDraft: true, changedFiles: 1 }]
+          : [],
+      config: { workerConcurrencyCap: 2 },
+    });
+    assert.ok(!output.actions.some(({ kind }) => kind === "dispatch"));
+    assert.ok(
+      output.holds.some(
+        ({ target, reason }) =>
+          target === `ticket:${trackerUuid}` && reason === "DELIVERY_ALREADY_ACTIVE",
+      ),
+    );
+    assert.equal(output.capacity.used, source === "worker" ? 1 : 0);
+    if (source === "pr")
+      assert.ok(
+        output.actions.some(({ target, kind }) => target === "pr:22" && kind === "repair-draft"),
+      );
+  });
+}
+
 for (const field of ["issueId", "id", "identifier", "ticket", "key"]) {
   for (const source of ["worker", "pr"]) {
     test(`explicit UUID ${field} on ${source} prevents duplicate delivery through the planner`, () => {
