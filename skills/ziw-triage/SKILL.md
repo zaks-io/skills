@@ -72,6 +72,21 @@ Use tracker/MCP tools only to apply mutations and read specific ticket fields
 the scripts do not return, never to rebuild the inventory, PR state, dependency
 frontier, or readiness decisions the scripts already compute.
 
+Linear allows 2,500 API requests an hour per user, shared by every agent,
+sandbox, and host job, and one hosted-MCP call costs about 4. Four triage runs
+that read issues one at a time used the whole hour in 13 minutes. Keep a run to
+a few dozen tracker calls:
+
+- Never read issues one by one to rebuild the queue. If the snapshot skips
+  Linear, make one bounded `list_issues` query, or stop and report the missing
+  credential.
+- Do not call `get_issue` or `list_comments` for every issue in the set. Read
+  only the fields a decision needs, for the issues that need them.
+- Call `save_issue` only when a field changes, with all of that issue's changes
+  in one call. Treat the mutation response as the result; do not reread it.
+- On `rate_limited`, HTTP 429, or `upstream credential rejected for linear`,
+  stop every tracker call. Do not retry. Report the exact pending changes.
+
 When handoff quality depends on information outside this boundary, leave the
 exact missing field for To Issues or a human. When an issue needs verification
 the scripts did not provide, leave an Orchestrator next action such as "verify
