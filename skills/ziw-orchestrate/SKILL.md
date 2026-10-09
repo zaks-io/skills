@@ -100,9 +100,9 @@ node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo> > /tmp/ziw-tick-sna
 For batch Linear reads, run `node <skill-dir>/scripts/linear-graphql.mjs setup`
 once on macOS, then include `--linear-team <KEY|UUID|NAME>`. Candidates and active
 claims require the repo route label; override with `--linear-route-label <label>`.
-`LINEAR_API_KEY` is also accepted. Pass the same `--state <file>` to collection
-and planning for automatic receipt/scope alias resolution. Tracker tools supply
-full bodies and comments.
+`LINEAR_API_KEY` is also accepted, or `LINEAR_API_URL` for a proxy that adds the
+key. Pass the same `--state <file>` to collection and planning for automatic
+receipt/scope alias resolution. Tracker tools supply full bodies and comments.
 
 Build compact JSON using the [planner contract](references/planner-input.md).
 The planner rejects invalid fields and types before emitting actions. Run:

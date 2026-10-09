@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Minimal Linear GraphQL transport with macOS-only encrypted local credential storage.
+// LINEAR_API_URL replaces the endpoint, e.g. a proxy that adds the credential itself.
 //
 // Usage:
 //   node linear-graphql.mjs setup [--store <path>] [--service <name>] [--account <prefix>]
@@ -248,8 +249,9 @@ export function readDecryptKeyFromKeychain(options = {}) {
 }
 
 export function hasLinearCredential(options = {}) {
+  const env = options.env ?? process.env;
   return (
-    Boolean(options.env?.LINEAR_API_KEY ?? process.env.LINEAR_API_KEY) ||
+    Boolean(env.LINEAR_API_KEY || env.LINEAR_API_URL) ||
     existsSync(options.storePath ?? DEFAULT_STORE_PATH)
   );
 }
@@ -260,8 +262,10 @@ export function readStoredLinearApiKey(options = {}) {
 
   const storePath = options.storePath ?? DEFAULT_STORE_PATH;
   if (!existsSync(storePath)) {
+    // A custom endpoint may authenticate on our behalf.
+    if (env.LINEAR_API_URL) return undefined;
     throw new Error(
-      `no Linear credential found; run linear-graphql.mjs setup or set LINEAR_API_KEY`,
+      `no Linear credential found; run linear-graphql.mjs setup, set LINEAR_API_KEY or LINEAR_API_URL`,
     );
   }
 
@@ -276,12 +280,14 @@ export function readStoredLinearApiKey(options = {}) {
 }
 
 export async function linearGraphqlRequest(options = {}) {
+  const env = options.env ?? process.env;
   const apiKey = options.apiKey ?? readStoredLinearApiKey(options);
-  const response = await (options.fetchImpl ?? fetch)(options.endpoint ?? LINEAR_GRAPHQL_ENDPOINT, {
+  const endpoint = options.endpoint ?? (env.LINEAR_API_URL || LINEAR_GRAPHQL_ENDPOINT);
+  const response = await (options.fetchImpl ?? fetch)(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: apiKey,
+      ...(apiKey ? { Authorization: apiKey } : {}),
     },
     body: JSON.stringify({ query: options.query, variables: options.variables ?? {} }),
   });

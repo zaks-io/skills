@@ -8,9 +8,9 @@
 //
 // GitHub state comes from the `gh` CLI (must be installed and authenticated).
 // Linear state is included only when --linear-team is given and either
-// LINEAR_API_KEY exists or linear-graphql.mjs setup has stored a local macOS
-// credential; otherwise the tracker section reports skipped and the caller uses
-// its tracker tooling as usual. Full issue bodies stay on the tracker tools;
+// LINEAR_API_KEY or LINEAR_API_URL exists or linear-graphql.mjs setup has stored
+// a local macOS credential; otherwise the tracker section reports skipped and the
+// caller uses its tracker tooling as usual. Full issue bodies stay on the tracker tools;
 // this snapshot carries only workflow metadata and derived file footprints.
 
 import { execFileSync } from "node:child_process";

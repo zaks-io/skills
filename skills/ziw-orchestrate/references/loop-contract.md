@@ -63,7 +63,7 @@ Each tick:
    review verdicts as JSON. Reason over that snapshot instead of assembling
    the same state from many tool calls; it needs an authenticated `gh`, and
    with `--linear-team <KEY|UUID|NAME>` plus either a `linear-graphql.mjs setup` credential
-   or `LINEAR_API_KEY`, it also returns the open issue queue with unresolved
+   or `LINEAR_API_KEY` (or `LINEAR_API_URL`), it also returns the open issue queue with unresolved
    typed `blockedBy` issue references per issue. The collector automatically
    resolves missing tracker aliases from the supplied receipt/scope state and
    PR links in one bounded read-only pass. Then run

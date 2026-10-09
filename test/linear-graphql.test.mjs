@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url";
 import {
   decryptLinearApiKeyBlob,
   encryptLinearApiKey,
+  hasLinearCredential,
   linearGraphqlRequest,
   readStoredLinearApiKey,
 } from "../skills/ziw-orchestrate/scripts/linear-graphql.mjs";
@@ -134,4 +135,43 @@ test("Linear GraphQL request injects authorization without exposing auth in body
   assert.equal(JSON.parse(observed.init.body).variables.team, "SKI");
   assert.doesNotMatch(observed.init.body, /lin_api_request_for_tests/);
   assert.deepEqual(body.data.viewer, { id: "viewer-id" });
+});
+
+test("LINEAR_API_URL replaces the endpoint and needs no local credential", async () => {
+  const env = { LINEAR_API_URL: "http://127.0.0.1:8766/linear-api" };
+  const storePath = path.join(tmpdir(), "ziw-linear-missing", "linear.json");
+  let observed;
+  const body = await linearGraphqlRequest({
+    env,
+    storePath,
+    query: "query Viewer { viewer { id } }",
+    fetchImpl: async (url, init) => {
+      observed = { url, init };
+      return { ok: true, json: async () => ({ data: { viewer: { id: "viewer-id" } } }) };
+    },
+  });
+
+  assert.equal(hasLinearCredential({ env, storePath }), true);
+  assert.equal(hasLinearCredential({ env: {}, storePath }), false);
+  assert.equal(observed.url, "http://127.0.0.1:8766/linear-api");
+  assert.equal("Authorization" in observed.init.headers, false);
+  assert.deepEqual(body.data.viewer, { id: "viewer-id" });
+});
+
+test("LINEAR_API_URL keeps sending LINEAR_API_KEY when both are set", async () => {
+  let observed;
+  await linearGraphqlRequest({
+    env: {
+      LINEAR_API_URL: "https://linear.example/graphql",
+      LINEAR_API_KEY: "lin_api_env_for_tests",
+    },
+    query: "{ viewer { id } }",
+    fetchImpl: async (url, init) => {
+      observed = { url, init };
+      return { ok: true, json: async () => ({ data: {} }) };
+    },
+  });
+
+  assert.equal(observed.url, "https://linear.example/graphql");
+  assert.equal(observed.init.headers.Authorization, "lin_api_env_for_tests");
 });
