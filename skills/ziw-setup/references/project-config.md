@@ -21,7 +21,8 @@ Project state: configured issue tracker. This file stores stable configuration o
   flag required checks outside the entrypoint as a config gap
 - Baseline check policy: required job names and which job post-merge checks judge;
   store current failures and their repair work in the tracker, not this file
-- Local gate cache policy:
+- Local gate cache policy: task caches are trusted evidence; list only specific
+  tasks whose cache keys miss inputs, or `trusted`
 - CI env passthrough:
 - Separate threshold gates: coverage, smoke, secret scan, generated artifacts, or
   none; include the exact local command for each hosted job not covered by the

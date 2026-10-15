@@ -246,9 +246,9 @@ Workflow issue triage means the published `$ziw-triage` skill or the namespaced
 model. A normal run processes configured intake such as `Triage`; complete
 implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
 
-- Create PR: turns the current branch into a PR after required checks and any
-  judgment-based author QA. This is the worker's shipping step, not a separate
-  orchestration stage.
+- Create PR: commits, pushes, and opens or updates the PR in one pass, reusing
+  the worker's passing checks. This is the worker's shipping step, not a
+  separate verification, review, or orchestration stage.
 - Code Review: shared bug-focused review gate.
 
 Setup, Grill, To Issues, Issue Triage, Agent Orchestrator, Agent Implement, and
@@ -707,14 +707,13 @@ Default rule:
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.
-- Create PR can attach or mark the PR ready-for-review when its local gates
-  pass, verify the code-host PR is non-draft, and report the review-state
-  handoff. Its local gate must match configured CI scopes, thresholds, cache
-  policy, generated-artifact checks, and secret-scan range. Separate coverage,
-  smoke, generated-artifact, or secret-scan threshold jobs count as required PR
-  evidence when config or CI defines them outside the full local gate. It also
-  compares the diff to the linked issue's scope boundary and stops when adjacent
-  ticket work was bundled in.
+- Create PR ships the branch in one pass: it reuses checks that already passed
+  on the tree, otherwise runs cached focused checks, commits, pushes, opens or
+  updates a non-draft PR, links a named issue, and hands off without waiting
+  for CI. Hooks and CI run the full gate. It does not search for or create
+  issues, request hosted bot review, or post evidence comments. It stops when
+  the diff mixes unrelated work or contains work the linked issue names out of
+  scope.
 - Agent Review can post findings and verdicts. For a GitHub PR explicitly
   targeted with `--submit`, it posts one `COMMENT` review with the workflow
   verdict in the body and attachable P0-P2 findings as inline threads. It checks

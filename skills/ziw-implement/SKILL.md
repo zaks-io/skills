@@ -133,8 +133,8 @@ Treat implementation, verification, and PR creation as one pipeline:
    whether another pass would add evidence.
 6. Run `ziw-pr` to commit, push, create or update the PR, and update the issue
    tracker. Tell Create PR whether author QA ran or was skipped, why, whether
-   any result covers the current diff, which checks passed on the current tree,
-   and whether hosted bot escalation remains.
+   any result covers the current diff, and which checks passed on the current
+   tree so Create PR reuses them instead of rerunning.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.
@@ -172,10 +172,13 @@ handoff. If the target repo exposes `pnpm format:docs:check`, run that command
 instead of waiting for CI or a hook to catch Prettier drift. Local hooks are a
 backstop, not handoff evidence.
 
-If the repo uses task caches, env filtering, or sharded hosted checks, run the
-cache-busted or CI-equivalent variant named by config before handoff. When adding
-or changing CI env vars, feature flags, or test gates, prove the invoked process
-receives them rather than only setting them in the outer command.
+Use task caches. A cache hit is valid evidence; never pass `--force`,
+`--no-cache`, or other cache-busting flags. When config names a task whose cache
+key misses inputs, rerun only that task. A config policy that distrusts the
+cache wholesale is stale: use the cache and report that `ziw-setup` should
+refresh it. When adding or changing CI env vars, feature flags, or test gates,
+prove the invoked process receives them rather than only setting them in the
+outer command.
 
 After conflict resolution, branch update, rebase, generated artifact refresh, or
 any worker-applied review fix, rerun the affected final checks on the new head.

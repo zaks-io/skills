@@ -479,8 +479,8 @@ current committed code, and returns freshness, refactor candidates, and a
 verdict; integrate is the auto-merge gate that defines green, updates moved
 GitHub PR branches with `gh pr update-branch <pr>`, delegates only merge
 conflicts, merges with the configured method, and runs a post-merge check.
-Worker and PR local gates must match configured CI scopes, thresholds, cache
-policy, generated-artifact checks, and secret-scan range.
+Local gates use task caches; a cache hit is valid evidence. Create PR reuses the
+worker's passing checks and does not wait for CI.
 
 The research behind this operating model is captured in
 [docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short
@@ -522,8 +522,8 @@ glue should stay under `.agents/` unless it proves portable.
   working trees, plus independent latest-committed PR review, checkpointed
   main-drift review, review-debt issue filing, and explicit current-head GitHub
   review submission from clean context.
-- `ziw-pr`: helper shipping gate that checks, reviews, commits,
-  pushes, creates or updates the PR, and hands tracker state to Orchestrator.
+- `ziw-pr`: one-pass shipping step that runs cached focused checks, commits,
+  pushes, creates or updates the PR, and links the named issue.
 
 ## Recommended Flow
 

@@ -89,6 +89,14 @@ Orchestrator with the planner input contract loads about 5,878
 estimated tokens. Dispatch policy adds 1,919 when that branch applies.
 The script fixes execute without loading their source into model context.
 
+## Create PR one-pass rewrite
+
+Measured 2026-10-15 with the same tokenizer. `ziw-pr` drops from 2,449 to 1,278
+tokens by removing issue search and creation, threshold-job and cache-busted
+reruns, hosted bot review resolution, and the tracker evidence comment. Hooks
+and CI own the full gate. `ziw-implement` grows from 2,765 to 2,811 by replacing
+its cache-busting rule with trusted task caches.
+
 ## Identity handoff references
 
 | Reference              | Tokens | Load condition                                  |

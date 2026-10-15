@@ -177,8 +177,9 @@ handoff and configured tracker rather than repeating the template as prose.
 Check gate parity: local hooks and the required CI job should use the same
 verification entrypoint. Record its command and job. Flag required checks
 outside that entrypoint as a config gap rather than implying a partial local
-command is the full gate. Preserve exact cache, threshold, environment, and
-secret-scan scopes.
+command is the full gate. Preserve exact threshold, environment, and
+secret-scan scopes. Record task caches as trusted; name only specific tasks
+whose cache keys miss inputs.
 
 For hosted or unattended workflows, verify environment-enforced hooks, worker
 continuation, loop limits, and production deploy approval from current evidence.

@@ -13,7 +13,7 @@ cache them here.
 - Package manager: `pnpm@10.19.0`
 - Install: `pnpm install --frozen-lockfile`
 - Full local gate: `pnpm ci:check`
-- Local gate cache policy: do not rely on cache for final verification
+- Local gate cache policy: `trusted`; no task cache in this repo
 - CI env passthrough: no repo-specific env required for CI validation
 - Coverage and secret-scan scope: `node --test`; `gitleaks detect --no-git --source . --redact --no-banner` locally; full-history Gitleaks in CI
 - Focused checks: `pnpm format:check`, `pnpm check`, `pnpm test`, `pnpm validate:skills`, `pnpm security:secrets`
