@@ -6,12 +6,10 @@ argument-hint: "[spec-doc|prd-ticket|epic-ticket|project]"
 
 # To Issues
 
-The single front door for implementation tickets, including hand-created ones.
-To Issues creates and shapes tickets; it does not implement, review, open PRs,
-merge, deploy, or move active work. Flows that file tickets elsewhere, such as
-review sweeps or eval sessions, must run this intake pass or leave readiness
-labels off. A `ready-for-agent` ticket without intake metadata is a dispatch
-hazard.
+Create and shape the fewest dependency-ordered one-PR implementation tickets
+that ship safely, including hand-created tickets. A run is complete when the
+slices meet the intake contract, dependencies and footprints are recorded, and
+any required coverage matrix is complete; report gaps that prevent readiness.
 
 For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
 with the configured complaint store and this role's mutation authority.
@@ -20,287 +18,373 @@ with the configured complaint store and this role's mutation authority.
 
 - A spec, PRD, epic ticket, plan, or project. A Grill-managed spec must be
   `Ready for slicing`.
-- Repo path and `docs/agents/workflow/config.md`. Read config first; if it is
-  missing, run or request `ziw-setup` before creating tickets.
+- Repo path and `docs/agents/workflow/config.md`.
 - Existing tickets under the same parent, project, or route, including
   hand-created ones.
 
-Before any tracker write, confirm from config: provider location, project, team,
-parent, and routing label; status names, ready state, and intake states; kind,
-readiness, risk, type, and area labels and their policies; estimate field,
-scale, and requiredness; body contract; dependency and blocker fields; footprint
-convention. Read the body contract, label rules, and Estimate Rules from
-[../ziw-setup/references/issue-tracker-contract.md](../ziw-setup/references/issue-tracker-contract.md).
+## Steps
 
-## Planning Handoff
+1. [Read config](#read-config) before any tracker write.
+2. [Check the planning handoff](#check-the-planning-handoff).
+3. [Plan slices](#plan-slices) and consolidate the whole list before writing.
+4. [Adopt before creating](#adopt-before-creating) tickets.
+5. [Fill the body contract](#fill-the-body-contract) for every slice.
+6. [Set labels, estimates, and readiness](#set-labels-estimates-and-readiness).
+7. [Record the dependency graph](#record-the-dependency-graph).
+8. [Record file footprints](#record-file-footprints) and compare siblings.
+9. [Map coverage](#map-coverage) when the source is a spec, PRD, or container linking one.
+10. [Heal structure](#heal-structure) and [report](#done) results and gaps.
 
-- `Status: Ready for slicing`, or its configured equivalent, may proceed.
-- `Status: Draft`, or its configured equivalent, stops; report its blocking
-  questions. If the user explicitly
-  asks to preserve it, create or update only a non-ready `kind-spec` or
-  `kind-epic` container carrying the gaps.
-- A legacy plan without status proceeds only when outcome, scope, non-goals,
-  behavior, acceptance signals, and material open questions are clear enough
-  for the ticket contract.
-- A contradiction or question that could change slice boundaries, risk,
-  dependencies, or required proof returns to `ziw-grill`. Never invent the
-  decision.
+## Read config
 
-Existing tickets do not weaken this gate; adopt them only once the source
-defines their boundaries.
+- Read config first.
+- Exception: if config is missing, run or request `ziw-setup` before creating tickets.
+- Read the body contract, label rules, and Estimate Rules from
+  [issue-tracker-contract.md](../ziw-setup/references/issue-tracker-contract.md).
 
-## Kinds
+Before any tracker write, confirm these mappings and policies from config:
 
-Kind is separate from type. Set exactly one kind on every ticket you touch and
-clear any other `kind-*`, even when the tracker group allows several.
+- Provider location, project, team, parent, and routing label.
+- Status names, ready state, and intake states.
+- Kind, readiness, risk, type, and area labels and their policies.
+- Estimate field, scale, and requiredness.
+- Body contract.
+- Dependency and blocker fields.
+- Footprint convention.
 
-- `kind-spec` (spec or PRD prose) and `kind-epic` (parent or workstream) are
-  containers. Read their prose, linked docs, and acceptance signals, and link
-  emitted slices under them. Never mark them `ready-for-agent` or dispatch them.
+### Ticket kinds
+
+- Kind is separate from type.
+- Set exactly one kind on every ticket you touch.
+- Clear any other `kind-*`, even when the tracker group allows several.
+- `kind-spec` holds spec or PRD prose; `kind-epic` holds a parent or workstream.
+  Both are containers.
+- Read containers' prose, linked docs, and acceptance signals.
+- Link emitted slices under their containers.
 - `kind-slice` is a one-PR implementation ticket, the only kind a worker runs.
 
-## Adopt Before Creating
+### Intake ownership
 
-Re-runs converge; they never duplicate. Before creating any ticket:
+- To Issues is the single front door for implementation tickets, including
+  hand-created ones.
+- Flows that file tickets elsewhere, such as review sweeps or eval sessions,
+  must run this intake pass or leave readiness labels off.
+- A `ready-for-agent` ticket without intake metadata is a dispatch hazard.
 
-1. Inventory existing tickets under the target. Match planned slices by
-   outcome, scope, and area, and adopt each match: bring it to the body
-   contract, set `kind-slice`, and fix labels and links.
-2. Create new `kind-slice` tickets only for planned work with no match.
-3. When two tickets cover one slice, keep the canonical one and mark the other
-   a duplicate.
-4. Fold unstarted tickets that fail the merge test into one canonical unstarted
-   ticket: carry over scope, acceptance criteria, spec citations, and
-   footprint, re-estimate, repoint dependency links and coverage rows, and mark
-   the rest duplicates.
-5. Never fold into or out of a ticket that is claimed, active, or linked to an
-   open PR. A fragment whose partner is active stays open, blocked by it, with
-   `needs-info` asking whether the partner's PR covers it. Once the partner is
-   Done, close it as covered or reshape it as its own slice.
-6. Preserve and report tickets the plan does not cover, such as worker
-   follow-ups or review debt. Do not fold them or mark them duplicates.
+## Check the planning handoff
 
-Adoption fixes mechanics from plan evidence. It never invents scope or criteria;
-where intent is unknowable, apply `needs-info` with the exact question.
+- `Status: Ready for slicing`, or its configured equivalent, may proceed.
+- Exception: `Status: Draft`, or its configured equivalent, stops. Report its
+  blocking questions.
+- Exception: if the user explicitly asks to preserve a Draft, create or update
+  only a non-ready `kind-spec` or `kind-epic` container carrying the gaps.
+- A legacy plan without status proceeds only when its outcome, scope,
+  non-goals, behavior, acceptance signals, and material open questions are
+  clear enough for the ticket contract.
+- Return contradictions or questions to `ziw-grill` when they could change
+  slice boundaries, risk, dependencies, or required proof.
+- Existing tickets do not weaken this gate. Adopt them only once the source
+  defines their boundaries.
 
-## Slice
+## Plan slices
 
-Cut the fewest one-PR slices that ship safely. Each slice costs a worker
-session, a check run, a review, a PR, and a merge, so default to the larger
-slice and split only for a split reason.
-
-A slice is one outcome that a user, operator, or later slice can observe, with
-everything needed to ship it: code in every layer, tests, docs, config,
-fixtures, generated artifacts, and migration. It is verifiable end to end, fits
-one PR, and its Done never requires multiple PRs.
-
-Ticket only requirements the plan states. Unrequested polish, cleanup,
-hardening, future-proofing, and follow-ups you thought of are not tickets: name
-tempting ones in out-of-scope and raise important ones as open questions on the
-container. Leave vague ideas un-ticketed until scope is clear; record them as
-open questions. Do not bundle unrelated outcomes, unrequired
-adjacent fixes, or work the plan assigns to another slice. A merge-test batch
-of trivial same-area items is one outcome, not a bundle.
+- Cut the fewest one-PR slices that ship safely.
+- Default to the larger slice; split only for a split reason.
+- Each slice costs a worker session, a check run, a review, a PR, and a merge.
+- A slice is one outcome a user, operator, or later slice can observe.
+- Include everything needed to ship it: code in every layer, tests, docs,
+  config, fixtures, generated artifacts, and migration.
+- Each slice must be verifiable end to end and fit one PR, including its Done.
+- Ticket only requirements the plan states.
+- Name tempting unrequested polish, cleanup, hardening, future-proofing, and
+  follow-ups in out-of-scope; raise important ones as open questions on the container.
+- Leave vague ideas un-ticketed until scope is clear; record them as open questions.
+- A merge-test batch of trivial same-area items is one outcome, not a bundle.
 
 ### Split Reasons
 
-Keep work in separate slices only for:
+Keep work in separate slices only for these reasons:
 
 - Distinct outcome: each is observable and useful alone, and neither exists
   only to serve the other.
-- Size: together they exceed one reviewable PR or the configured estimate
-  maximum. Start with a tracer bullet that proves the path end to end, then
-  widen with slices that each add observable behavior.
-- Rollout order: a deploy gate separates the steps, such as data cleanup before
-  a schema change or a flag or preview flip after the code it enables. Put
-  gated slices under a `kind-epic` so the first PR cannot close the whole scope.
+- Size: together they exceed one reviewable PR or the configured estimate maximum.
+- Rollout order: a deploy gate separates the steps. Examples include data cleanup
+  before a schema change, or a flag or preview flip after the code it enables.
 - Risk or authority: one part needs human planning, security judgment,
   production approval, or a different risk label.
 - Readiness: one part waits on an open question or external dependency while
   the rest can start.
 
-Never split by layer (schema, API, UI), artifact type (tests, docs, types,
-config), file or module, work step (scaffold, wire up, clean up, verify), spec
-section, or acceptance criterion.
+For size splits:
+
+- Start with a tracer bullet that proves the path end to end.
+- Then widen with slices that each add observable behavior.
+
+For rollout-order splits:
+
+- Put gated slices under a `kind-epic` so the first PR cannot close the whole scope.
 
 ### Merge Test
 
 A slice matching any line below is a fragment, not a ticket, unless a split
-reason separates it from its fold target. Any split reason keeps it apart,
-including the no-behavior lines: a gated flag flip or an expand-only migration
-stays its own slice.
-Depending on a sibling does not make a fragment; lacking observable
-behavior of its own does. "Another slice" means an unmerged one; work for
-behavior that already shipped stands alone.
+reason separates it from its fold target.
 
-- No consumer or observable behavior in its own PR (scaffold, types, interface,
-  stub, config, wiring): fold into the first slice that uses it.
+- Exception: any split reason keeps it apart, including the no-behavior cases.
+  A gated flag flip or an expand-only migration stays its own slice.
+- Depending on a sibling does not make a fragment; lacking observable
+  behavior of its own does.
+- "Another slice" means an unmerged one. Work for behavior that already shipped
+  stands alone.
+
+Apply the test:
+
+- No consumer or observable behavior in its own PR, such as scaffold, types,
+  interface, stub, config, or wiring: fold into the first slice that uses it.
 - Only tests, docs, fixtures, or generated artifacts for another slice's
   behavior: fold into that slice.
-- A step, not a change (run checks, verify deploy, confirm migration, open PR):
-  make it an acceptance criterion or required check on the slice it verifies.
-- One mechanical change repeated across files, modules, or call sites: one
+- A step, such as running checks, verifying deploy, confirming migration, or
+  opening a PR: make it an acceptance criterion or required check on the slice it verifies.
+- One mechanical change repeated across files, modules, or call sites: keep one
   slice unless size forces a split.
-- Trivially small (rename, copy tweak, config value, one-line fix) with other
-  planned work in the same area: fold it in, or batch trivial items that share
-  area, risk label, and required checks into one slice whose single outcome
-  covers the group, such as "settings copy matches the spec". A small fix that
-  is the whole request stays one ticket.
+- Trivially small work, such as a rename, copy tweak, config value, or one-line
+  fix, with other planned work in the same area: fold it in.
+- Exception: trivial items sharing area, risk label, and required checks may be
+  batched into one slice with a single outcome, such as "settings copy matches the spec".
+- Exception: a small fix that is the whole request stays one ticket.
 - Shares most of its predicted footprint with the one slice it blocks or is
-  blocked by.
+  blocked by: treat it as a fragment, subject to the split-reason exception above.
 
 ### Consolidate Before Writing
 
 Draft the whole slice list before any tracker write, then:
 
-1. Name the split reason separating each slice from every slice it blocks, is
-   blocked by, or shares files with.
-2. Apply the merge test and merge each pair with no split reason. In a chain
-   where each slice only unblocks the next, merge only the links without one;
-   a rollout gate keeps its two links apart.
-3. Re-split any merged slice that no longer fits one PR, on a split reason.
-4. Record each split reason in the slice's dependencies or blockers section so
-   triage can see it, and list it in the run summary.
+- Name the split reason separating each slice from every slice it blocks, is
+  blocked by, or shares files with.
+- Apply the merge test and merge each pair with no split reason.
+- In a chain where each slice only unblocks the next, merge only the links
+  without a split reason. A rollout gate keeps its two links apart.
+- Re-split any merged slice that no longer fits one PR, on a split reason.
+- Record each split reason in the slice's dependencies or blockers section so
+  triage can see it.
+- List each split reason in the run summary.
 
-## Body Contract
+## Adopt before creating
 
-Every `kind-slice` gets the agent-ready body: outcome; context docs; likely
-files, packages, or artifacts; in scope; out of scope; acceptance criteria;
-required checks; security, privacy, data, and operational invariants;
-dependencies or blockers; and estimate when config stores it in the body.
+Re-runs converge without duplicating tickets. Before creating any ticket:
 
-- Scope is a hard stop line. `In scope` names only the behavior, files, docs,
-  tests, and workflow state this PR may change. `Out of scope` names tempting
-  adjacent work, sibling ticket IDs when known, optional polish, broad refactors,
-  production actions, and follow-up behavior. If the boundary is too unclear to
-  write, keep the work under a container or mark it `needs-info`.
+- Inventory existing tickets under the target.
+- Match planned slices by outcome, scope, and area.
+- Adopt each match: bring it to the body contract, set `kind-slice`, and fix
+  labels and links.
+- Create new `kind-slice` tickets only for planned work with no match.
+- When two tickets cover one slice, keep the canonical one and mark the other
+  a duplicate.
+- Fold unstarted tickets that fail the merge test into one canonical unstarted ticket.
+- When folding, carry over scope, acceptance criteria, spec citations, and footprint.
+- Re-estimate the canonical ticket after folding.
+- Repoint dependency links and coverage rows, and mark the rest duplicates.
+
+Exceptions:
+
+- A fragment whose partner is active stays open, blocked by it, with
+  `needs-info` asking whether the partner's PR covers it.
+- Once the partner is Done, close the fragment as covered or reshape it as its own slice.
+- Preserve and report tickets the plan does not cover, such as worker follow-ups
+  or review debt. Leave them separate and do not mark them duplicates.
+- Adoption fixes mechanics from plan evidence. Where intent is unknowable,
+  apply `needs-info` with the exact question.
+
+## Fill the body contract
+
+Every `kind-slice` gets the agent-ready body:
+
+- Outcome.
+- Context docs.
+- Likely files, packages, or artifacts.
+- In scope.
+- Out of scope.
+- Acceptance criteria.
+- Required checks.
+- Security, privacy, data, and operational invariants.
+- Dependencies or blockers.
+- Estimate when config stores it in the body.
+
+### Scope and citations
+
+- Scope is a hard stop line.
+- `In scope` names only the behavior, files, docs, tests, and workflow state
+  this PR may change.
+- `Out of scope` names tempting adjacent work, sibling ticket IDs when known,
+  optional polish, broad refactors, production actions, and follow-up behavior.
+- Exception: if the boundary is too unclear to write, keep the work under a
+  container or mark it `needs-info`.
 - In context docs, cite the exact spec, PRD, or ADR sections a slice implements
-  as resolvable anchors, such as `docs/specs/<file>.md#<section-anchor>`, and verify each
-  resolves. Do not paraphrase spec behavior without a citation or cite a whole
-  document when sections apply. A spec-derived slice without resolvable
+  as resolvable anchors, such as `docs/specs/<file>.md#<section-anchor>`.
+- Verify each anchor resolves. A spec-derived slice without resolvable
   citations is not ready.
-- Write acceptance criteria as proof obligations that map one-for-one to
-  evidence. For structural requirements such as "derive, do not copy", "fail
-  closed", "no production-path assertion", "real driver path", or "env var
-  reaches the test process", name the exact behavior and regression test.
+
+### Acceptance evidence
+
+- Write acceptance criteria as proof obligations that map one-for-one to evidence.
+- For structural requirements, name the exact behavior and regression test.
+  Examples include "derive, do not copy", "fail closed", "no production-path
+  assertion", "real driver path", and "env var reaches the test process".
 - Make deploy prerequisites, runtime secrets, hosted gates, generated artifact
-  updates, and CI env passthrough explicit acceptance criteria or required
-  checks, not background-doc notes.
-- Put exact external literals (config values, resource IDs, provider names,
-  label slugs, secret names, environment values) or their config lookup
-  location in the body, not only in prior comments.
-- Auth, bootstrap, claim, invitation, one-use grant, custody, or ownership
-  slices name the authenticated actor, tenant or resource binding, replay
+  updates, and CI env passthrough explicit acceptance criteria or required checks.
+  Background-doc notes are insufficient.
+- Put exact external literals or their config lookup location in the body,
+  not only in prior comments. These include config values, resource IDs,
+  provider names, label slugs, secret names, and environment values.
+
+### Boundary-specific evidence
+
+- For auth, bootstrap, claim, invitation, one-use grant, custody, or ownership
+  slices, name the authenticated actor, tenant or resource binding, replay
   behavior, atomic consume or claim, and concurrency checks before ready.
-- Custody, persistence, driver, or provider integration slices get executable
-  criteria that exercise the real boundary, such as multi-instance readback,
-  concurrent first use, real driver queries, env passthrough, or provider-shape
-  checks, not prose-only assertions. A mock of the integrated seam is never the
-  only proof.
-- Slices that drop or narrow schema on retained data put deploy order in the
-  criteria: pre-deploy cleanup lands before the schema change when the platform
-  validates existing rows, bulk migrations use a resumable batched runner
-  rather than one transaction, and the criteria name the production deploy
-  status that proves it landed. A green preview does not.
+- For custody, persistence, driver, or provider integration slices, use
+  executable criteria that exercise the real boundary.
+  Examples include multi-instance readback, concurrent first use, real driver
+  queries, env passthrough, or provider-shape checks. Prose-only assertions are insufficient.
 
-Agent suitability decides readiness labels, not slice boundaries. Never carve
-tests, docs, or a small refactor out of an outcome to make an agent-fit ticket.
-Route high-risk or ambiguous work to human planning when the plan does not
-settle the security, product, data, or architecture decision.
+### Retained-data schema changes
 
-When any required field, required estimate, or scope boundary is unknowable
-from the plan, add the heading, apply `needs-info` (or `ready-for-human` for an
-unknowable required estimate) with the exact question, and do not mark the
-ticket ready. Never fabricate content to make a ticket look
-ready.
+For slices that drop or narrow schema on retained data:
 
-## Labels, Estimates, And Readiness
+- Put deploy order in the criteria.
+- When the platform validates existing rows, require pre-deploy cleanup to
+  land before the schema change.
+- Require bulk migrations to use a resumable batched runner rather than one transaction.
+- Name the production deploy status that proves it landed. A green preview
+  does not prove it.
+
+### Missing information
+
+- Agent suitability decides readiness labels, not slice boundaries.
+- Route high-risk or ambiguous work to human planning when the plan does not
+  settle the security, product, data, or architecture decision.
+
+When a required field, required estimate, or scope boundary is unknowable
+from the plan:
+
+- Add the heading and the exact question.
+- Apply `needs-info` and leave the ticket non-ready.
+- Exception: for an unknowable required estimate, apply `ready-for-human`.
+
+## Set labels, estimates, and readiness
 
 For each `kind-slice`:
 
-- apply one type and one risk label, plus routing and area labels, from config
-- estimate after consolidation per the Estimate Rules, only in the configured
-  field and scale and only when policy grants To Issues that authority; omit
-  estimates when config defines none
-- apply the worker environment label only when its approval criteria are met;
-  dependency state never withholds it
-- apply `ready-for-agent` only when the slice fits one PR, survives the merge
-  test, is routed, typed, risk-labeled, estimated if required, has concrete
-  scope boundaries, is complete enough to verify, and its body does not say
-  human setup, credentials, provider decisions, or security judgment remain
-- place ready slices in the configured ready state, usually `Todo`, even when
-  blocked; never park them in Linear `Backlog`
-- otherwise apply `needs-info` or `ready-for-human` with the exact gap
+- Apply one type and one risk label, plus routing and area labels, from config.
+- Estimate after consolidation per the Estimate Rules.
+- Use only the configured estimate field and scale, and only when policy grants
+  To Issues that authority.
+- Exception: omit estimates when config defines none.
+- Apply the worker environment label only when its approval criteria are met.
+- Dependency state never withholds the worker environment label.
 
-`ready-for-agent` means no further human refinement is needed; it does not mean
-unblocked or startable. Encode blockers separately; they never remove `ready-for-agent`, the ready
-state, or a worker environment label.
+Apply `ready-for-agent` only when the slice:
 
-## Dependency Graph
+- Fits one PR and survives the merge test.
+- Is routed, typed, risk-labeled, and estimated if required.
+- Has concrete scope boundaries and is complete enough to verify.
+- Has no body statement that human setup, credentials, provider decisions, or
+  security judgment remain.
+
+Then:
+
+- Place ready slices in the configured ready state, usually `Todo`, even when blocked.
+- Otherwise, apply `needs-info` or `ready-for-human` with the exact gap.
+- Encode blockers separately.
+- `ready-for-agent` means no further human refinement is needed; it does not
+  mean unblocked or startable.
+- Blockers never remove `ready-for-agent`, the ready state, or a worker
+  environment label.
+
+## Record the dependency graph
 
 Emit a graph so the orchestrator can compute the ready frontier and run safe
 work in parallel.
 
-- Use tracker relationship or blocker fields when supported, otherwise the
-  configured body shape, in the configured direction. By default, if A needs B
-  first, A is blocked by B.
-- Order slices so each depends only on earlier ones; break and report cycles.
-- Serialize slices that must not run concurrently even without a data
-  dependency, such as shared schema or migration ordering.
+- Use tracker relationship or blocker fields when supported.
+- Exception: when unsupported, use the configured body shape.
+- Use the configured direction.
+- By default, if A needs B first, A is blocked by B.
+- Order slices so each depends only on earlier ones.
+- Break and report cycles.
+- Serialize slices that must not run concurrently even without a data dependency,
+  such as shared schema or migration ordering.
 - When surviving slices converge on the same core files or regenerate the same
   shared artifact, land the convergent slice first or immediately adjacent to
-  its siblings,
-  or serialize the cohort. Same-base siblings all conflict once one merges.
+  its siblings, or serialize the cohort.
+- Same-base siblings all conflict once one merges.
 
-## File Footprint
+## Record file footprints
 
 Record each slice's predicted footprint in the configured location and shape so
-the orchestrator can avoid concurrent collisions. It is a prediction; workers
-may diverge.
+the orchestrator can avoid concurrent collisions. It is a prediction; workers may diverge.
 
-- Unless config names another shape, write them under `## Likely files,
-packages, or artifacts`, one backticked path per bullet.
+- By default, write it under `## Likely files, packages, or artifacts`, with one
+  backticked path per bullet.
+- Exception: use another shape when config names one.
 - List likely files, directories, or packages, including shared document
   surfaces such as dense markdown lists, status ledgers, registries,
   changelogs, config tables, and docs sections many slices edit.
-- Treat heavy overlap between two slices as a merge candidate first; flag them
-  for serializing or sequencing only when a split reason keeps them apart.
+- Treat heavy overlap between two slices as a merge candidate first.
+- Exception: flag them for serializing or sequencing only when a split reason
+  keeps them apart.
 - After assigning footprints, compare siblings and record hot files or packages
   and safe fan-out pairs so collisions surface before workers are in flight.
 
-## Coverage Matrix
+## Map coverage
 
 For a spec, PRD, or container linking one, emit a coverage matrix so dropped
-requirements surface at slicing time, not as drift after merge.
+requirements surface at slicing time.
 
-- Rows are the spec's section anchors, the same ones slices cite; no separate
-  numbering. A section is a row, not a slice boundary, and one slice usually
-  covers several.
+- Use the spec's section anchors as rows, the same ones slices cite, with no
+  separate numbering.
+- A section is a row, not a slice boundary; one slice usually covers several.
 - Map each requirement-bearing section to exactly one of: implementing slice
-  IDs, `deferred` with reason and owning ticket, or an open `needs-info`
-  question. Mark sections without requirements `not-applicable`; an absent
-  anchor is an uncovered gap.
-- Record it on the container body or the configured location. Re-runs update
-  the one matrix in place.
+  IDs, `deferred` with reason and owning ticket, or an open `needs-info` question.
+- Mark sections without requirements `not-applicable`.
+- An absent anchor is an uncovered gap.
+- Record the matrix on the container body or the configured location.
+- Re-runs update the one matrix in place.
 - The run is incomplete while any requirement-bearing section is unmapped.
-  Report those gaps and do not mark the container's slices ready until every
+- Report those gaps and keep the container's slices non-ready until every
   requirement-bearing section is mapped.
 
-## Self-Healing
+## Heal structure
 
-Repair stale or inconsistent structure from current evidence, escalate missing
-intent or authority, never leave a silent dead end, and record every fix. Heal
-wrong or duplicate `kind-*` values, stale labels that resolve to a verified
-one, re-run duplicates, and over-split cohorts. Escalate unknowable scope or
-acceptance criteria with `needs-info`.
+- Repair stale or inconsistent structure from current evidence.
+- Escalate missing intent or authority.
+- Record every fix and leave no silent dead end.
+- Heal wrong or duplicate `kind-*` values, stale labels that resolve to a
+  verified one, re-run duplicates, and over-split cohorts.
+- Escalate unknowable scope or acceptance criteria with `needs-info`.
 
-## Guardrails
+## Never
 
-- Do not duplicate tickets, ship or ready a container, or invent scope,
-  acceptance criteria, or product decisions.
+- Do not implement, review, open PRs, merge, deploy, or move active work.
+- Do not ship or ready containers, mark them `ready-for-agent`, or dispatch them.
+- Do not duplicate tickets or invent scope, acceptance criteria, or product decisions.
+- Do not invent the decisions returned to `ziw-grill`.
 - Do not ticket unrequired work or a layer, step, or fragment of another slice.
-- Do not create label taxonomies or statuses without config or explicit user
-  approval.
+- Do not bundle unrelated outcomes, unrequired adjacent fixes, or work the plan
+  assigns to another slice.
+- Do not split by layer (schema, API, UI), artifact type (tests, docs, types,
+  config), file or module, work step (scaffold, wire up, clean up, verify),
+  spec section, or acceptance criterion.
+- Do not carve tests, docs, or a small refactor out of an outcome to make an
+  agent-fit ticket.
+- Do not fold into or out of a ticket that is claimed, active, or linked to an
+  open PR.
+- Do not paraphrase spec behavior without a citation or cite a whole document
+  when sections apply.
+- For custody, persistence, driver, or provider integration slices, do not use
+  a mock of the integrated seam as the only proof.
+- Do not fabricate content to make a ticket look ready.
+- Do not park ready slices in Linear `Backlog`.
+- Do not create label taxonomies or statuses without config or explicit user approval.
 - Keep ticket text metadata-only: no secrets, customer data, signed URLs,
   credentials, or private logs.
 
@@ -308,14 +392,14 @@ acceptance criteria with `needs-info`.
 
 Report:
 
-- source plan and target location
-- slices created, adopted, and merged, duplicates converged, slice count, and
-  each slice's split reason
-- kinds set and contradictions healed
-- estimates set, preserved, omitted by policy, or left with exact questions
-- tickets marked `ready-for-agent`, `needs-info`, or `ready-for-human`
-- dependency graph, cycles, and required serializations
-- footprints recorded and overlaps flagged
-- coverage matrix location, rows mapped, and uncovered or deferred sections
-- heals applied, gaps escalated with exact questions, and what the user must
-  answer before the remaining slices can become ready
+- Source plan and target location.
+- Slices created, adopted, and merged, duplicates converged, slice count, and
+  each slice's split reason.
+- Kinds set and contradictions healed.
+- Estimates set, preserved, omitted by policy, or left with exact questions.
+- Tickets marked `ready-for-agent`, `needs-info`, or `ready-for-human`.
+- Dependency graph, cycles, and required serializations.
+- Footprints recorded and overlaps flagged.
+- Coverage matrix location, rows mapped, and uncovered or deferred sections.
+- Heals applied, gaps escalated with exact questions, and what the user must
+  answer before the remaining slices can become ready.
