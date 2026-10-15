@@ -101,6 +101,30 @@ re-verification for dispatched work, and by a scanning-first layout. Agent
 Orchestrator reads code-host PR state itself instead of requiring it in worker
 handoffs.
 
+## Scanning-first rewrite
+
+Measured 2026-10-15 with the same tokenizer, against `main` before the Create
+PR rewrite. Every skill now opens with its outcome and an ordered Steps list,
+uses one rule per bullet, and collects hard limits in a Never list. Rules are
+unchanged outside `ziw-pr` and `ziw-implement`.
+
+| Skill              | Before |  After | Change |
+| ------------------ | -----: | -----: | -----: |
+| `ziw-architecture` |    644 |    769 |   +19% |
+| `ziw-code-review`  |  2,548 |  2,814 |   +10% |
+| `ziw-debug`        |  1,034 |  1,254 |   +21% |
+| `ziw-grill`        |  1,159 |  1,365 |   +18% |
+| `ziw-orchestrate`  |  2,836 |  2,888 |    +2% |
+| `ziw-setup`        |  2,840 |  2,945 |    +4% |
+| `ziw-to-issues`    |  3,709 |  4,125 |   +11% |
+| `ziw-triage`       |  4,518 |  4,713 |    +4% |
+| `ziw-implement`    |  2,765 |  2,296 |   -17% |
+| `ziw-pr`           |  2,449 |  1,643 |   -33% |
+| All ten            | 24,502 | 24,812 |    +1% |
+
+Headings, Steps lists, and Never lists add tokens to skills whose rules did not
+change; cutting duplicated process in Create PR and Implement pays for them.
+
 ## Identity handoff references
 
 | Reference              | Tokens | Load condition                                  |
