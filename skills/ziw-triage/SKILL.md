@@ -325,8 +325,8 @@ Graph rules:
 - Keep transitive-only edges out unless the tracker requires them.
 - If tracker and cited source-of-truth docs leave sequence ambiguous, leave
   the issue for To Issues or human clarification.
-- Keep `ready-for-agent` and worker-environment labels when dependency blockers
-  remain.
+- Dependency blockers never remove `ready-for-agent` or worker-environment
+  labels.
 - Encode order with tracker relationships, blocker fields, or the dependencies
   body section so Orchestrator can compute startability.
 
