@@ -55,8 +55,10 @@ and CI are the evidence; trust a caller's report as given. Two exceptions:
 
 If a hook fails, fix it and commit again, rerunning only that hook. Stop and
 report when the fix needs a product, design, or scope decision. Never use
-`--no-verify`, `--force`, `--no-cache`, or other cache-busting flags. A cache
-hit is valid evidence, whatever config says about cache policy.
+`--no-verify`. A cache hit is valid evidence, whatever config says about cache
+policy; never pass `--force`, `--no-cache`, or other cache-busting flags,
+except to bypass the cache for one task config names as having a cache key
+that misses inputs.
 
 ## Review
 
