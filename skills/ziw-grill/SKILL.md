@@ -7,109 +7,134 @@ argument-hint: "[idea|plan|spec-path|prd|adr]"
 # Grill
 
 Turn fuzzy or contradictory plans into shared understanding and authoritative
-planning artifacts. Grill owns clarification, not tickets or implementation.
+planning artifacts. Finish with the spec's status and either the next question
+round or the exact To Issues handoff. Grill owns clarification, not tickets or
+implementation.
 
 ## Inputs
 
 - An idea, plan, question, PRD, ADR set, or existing spec to challenge.
 - The current repo, caller context, and workflow config when available.
 
+## Steps
+
+1. [Read context](#read-context) and the planning-artifact contract.
+2. [Build the decision tree](#build-the-decision-tree) from evidence and unresolved decisions.
+3. [Ask a question round](#ask-a-question-round) with independent, ready questions.
+4. [Update artifacts](#update-artifacts) after explicit confirmation, then recompute the tree.
+5. [Confirm readiness](#confirm-readiness) when the pre-approval gate can pass.
+6. [Hand off to the caller](#hand-off-to-the-caller) within the original scope.
+7. [Report the result](#done).
+
 ## Invocation Threshold
 
-Explicit invocation always starts. Invoke implicitly only when an unresolved
-product, domain, scope, or architecture decision could change behavior, ticket
-boundaries, risk, dependencies, or required proof after available evidence is
-checked. Say what ambiguity caused the pause. Do not invoke for routine details,
-harmless preferences, or discoverable facts.
+- Explicit invocation always starts.
+- Invoke implicitly only when an unresolved product, domain, scope, or architecture decision could change behavior, ticket boundaries, risk, dependencies, or required proof.
+- Check available evidence before implicit invocation.
+- Say what ambiguity caused the pause.
+- Do not invoke for routine details, harmless preferences, or discoverable facts.
 
-## Context
+## Read context
 
-Read repo instructions first. Then read the planning-artifact mapping in
-`docs/agents/workflow/config.md` when present. Load
-[references/planning-artifacts.md](references/planning-artifacts.md) for
-authority, default formats, ADR rules, and the readiness contract.
+- Read repo instructions first.
+- Then read the planning-artifact mapping in `docs/agents/workflow/config.md` when present.
+- Load [references/planning-artifacts.md](references/planning-artifacts.md) for authority, default formats, ADR rules, and the readiness contract.
 
 Load additional references only for the matching work:
 
 - Designing or changing a module interface:
   [codebase-design.md](../ziw-architecture/references/codebase-design.md).
-- Planning across sessions: [references/resumable-planning.md](references/resumable-planning.md).
-- Encountered friction: [../ziw-orchestrate/references/friction-log.md](../ziw-orchestrate/references/friction-log.md).
+- Planning across sessions:
+  [references/resumable-planning.md](references/resumable-planning.md).
+- Encountered friction:
+  [../ziw-orchestrate/references/friction-log.md](../ziw-orchestrate/references/friction-log.md).
 
-If config does not map planning artifacts, discover existing specs, context or
-glossary files, ADRs, roadmaps, and relevant implementation. Preserve the
-established convention and report the missing mapping as a Setup gap.
+**Exception: config does not map planning artifacts.**
 
-Treat code and external systems as evidence, not automatically as intended
-behavior. For existing artifacts, run a contradiction and requirement-coverage
-pass first. For a new idea, build the decision tree from scratch. Both paths
-converge on the same readiness contract.
+- Discover existing specs, context or glossary files, ADRs, roadmaps, and relevant implementation.
+- Preserve the established convention.
+- Report the missing mapping as a Setup gap.
 
-## Grilling Loop
+## Build the decision tree
 
-1. Build a private decision tree ordered by dependency and impact. Cover only
-   applicable outcome, actor, language, scope, behavior, data, security,
-   failure, concurrency, integration, operations, rollout, and acceptance
-   branches.
-2. Resolve discoverable facts from code, docs, config, or authoritative sources.
-3. Ask the ready questions in one numbered round, ordered by impact. A ready
-   question has no unresolved prerequisite. Give each question evidence, a
-   recommended answer, and its consequence. Keep rounds easy to answer; split
-   a large frontier into coherent batches. A single ready question stays single.
-   If one answer could change another question's options or recommendation,
-   ask the dependent question later. Authoritative facts need no reconfirmation.
-4. Wait for the user's answers. Record only what each answer confirms, without
-   adding exclusivity or other unstated constraints. Keep unanswered ready
-   questions in the next round unless the user explicitly defers them. Ground
-   recommendations in this task's evidence and label assumptions. Questions
-   depending on an answer in this round belong to a later round. Investigate
-   facts independently, but never answer a product or architecture decision on
-   the user's behalf.
-5. Challenge vague terminology and propose one canonical term.
-6. Stress-test the answers with concrete scenarios, especially boundary,
-   lifecycle, failure, concurrency, authorization, and recovery cases.
-7. After explicit confirmation, update the smallest authoritative artifact set
-   immediately and keep the active spec `Draft`.
-8. Recompute the tree and repeat until the pre-approval gate can pass.
+- Treat code and external systems as evidence, not automatically as intended behavior.
+- For existing artifacts, run a contradiction and requirement-coverage pass first.
+- **Exception: a new idea.** Build the decision tree from scratch.
+- Use the same readiness contract for both paths.
+- Build a private decision tree ordered by dependency and impact.
+- Cover only applicable outcome, actor, language, scope, behavior, data, security, failure, concurrency, integration, operations, rollout, and acceptance branches.
+- Resolve discoverable facts from code, docs, config, or authoritative sources.
 
-## Artifact Updates
+## Ask a question round
 
-Update the spec that already owns the behavior, or create one focused spec when
-none does. Update context docs only for domain language. Create an ADR only
-after a confirmed decision passes all three ADR tests in the reference. Never
-substitute an ADR, transcript, scratch note, or ticket for current truth. In
-conversation-only use, emit a self-contained Markdown spec.
+- Ask ready questions in one numbered round, ordered by impact.
+- A ready question has no unresolved prerequisite.
+- Give each question evidence, a recommended answer, and its consequence.
+- Keep rounds easy to answer.
+- Split a large set of ready questions into coherent batches.
+- Keep a single ready question single.
+- If an answer could change another question's options or recommendation, ask the dependent question in a later round.
+- Accept authoritative facts without reconfirmation.
+- Wait for the user's answers.
+- Record only what each answer confirms, without adding exclusivity or unstated constraints.
+- Keep unanswered ready questions in the next round.
+- **Exception: explicit deferral.** Leave questions the user explicitly defers out of the next round.
+- Ground recommendations in this task's evidence.
+- Label assumptions.
+- Investigate facts independently.
+- Challenge vague terminology and propose one canonical term.
+- Stress-test answers with concrete scenarios, especially boundary, lifecycle, failure, concurrency, authorization, and recovery cases.
 
-## Readiness
+## Update artifacts
 
-Keep the active spec `Draft`. After the reference's pre-approval gate and final
-contradiction pass, present the recommendation, outcome, non-goals, deferred
-questions, changed artifacts, risks, and assumptions.
+- After explicit confirmation, update the smallest authoritative artifact set immediately.
+- Keep the active spec `Draft`.
+- Update the spec that already owns the behavior.
+- **Exception: no spec owns the behavior.** Create one focused spec.
+- Update context docs only for domain language.
+- Create an ADR only after a confirmed decision passes all three ADR tests in the reference.
+- In conversation-only use, emit a self-contained Markdown spec.
+- Recompute the decision tree from the answers and evidence before repeating the question round.
+- Repeat for unresolved branches until the reference's pre-approval gate can pass, then move to readiness confirmation.
 
-Ask exactly one final question: `Mark this spec ready for slicing?`
+## Confirm readiness
 
-Only explicit confirmation may change status to `Ready for slicing`. Run
-configured documentation checks. Failed checks return the spec to `Draft`.
+- Keep the active spec `Draft`.
+- After the reference's pre-approval gate and final contradiction pass, present the recommendation, outcome, non-goals, deferred questions, changed artifacts, risks, and assumptions.
+- Ask exactly one final question: `Mark this spec ready for slicing?`
+- Change status to `Ready for slicing` only after explicit confirmation.
+- Run configured documentation checks.
+- Failed checks return the spec to `Draft`.
 
-## Caller Handoff
+## Hand off to the caller
 
-Return to an implementation caller only when no ticket scope, risk, dependency,
-acceptance, or proof boundary changed. Otherwise stop implementation, never
-widen the PR or silently rewrite tracker work. Handoff with:
+- Return to an implementation caller only when no ticket scope, risk, dependency, acceptance, or proof boundary changed.
+- **Exception: a boundary changed.** Stop implementation.
+
+Use the matching handoff:
 
 - File: `$ziw-to-issues <spec-path>`
 - Conversation: `$ziw-to-issues use the Ready for slicing spec in this conversation`
 
-## Guardrails
+## Never
 
 - Do not create or edit tracker tickets.
 - Do not invoke To Issues, implement code, open PRs, merge, or deploy.
 - Do not edit planning artifacts before the user confirms the decision.
 - Do not ask a question that available evidence can answer.
+- Do not answer a product or architecture decision on the user's behalf.
+- Do not substitute an ADR, transcript, scratch note, or ticket for current truth.
+- Do not widen the PR or silently rewrite tracker work when a boundary changes.
 - Do not expose secrets or private customer data in planning artifacts.
 
 ## Done
 
-Report spec status and path, decisions and evidence, changed artifacts, blocking
-and deferred questions, checks, Setup gaps, and either the next question round
-or the exact file-backed or conversation-only To Issues handoff.
+Report:
+
+- Spec status and path.
+- Decisions and evidence.
+- Changed artifacts.
+- Blocking and deferred questions.
+- Checks.
+- Setup gaps.
+- Either the next question round or the exact file-backed or conversation-only To Issues handoff.
