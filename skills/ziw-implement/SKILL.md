@@ -131,18 +131,20 @@ Treat implementation, verification, and PR creation as one pipeline:
 5. If author QA runs, fix blocking findings and rerun relevant checks. Do not
    automatically repeat review after every fix or commit; use judgment about
    whether another pass would add evidence.
-6. Run `ziw-pr` to commit, push, create or update the PR, and update the issue
-   tracker. Tell Create PR whether author QA ran or was skipped, why, whether
-   any result covers the current diff, and which checks passed on the current
-   tree so Create PR reuses them instead of rerunning.
+6. Run `ziw-pr` to commit, push, create or update the PR, and link the issue.
+   Give Create PR the author-QA decision with its reason, the checks that
+   passed, and the issue title and URL. Create PR trusts that report and runs
+   no checks of its own.
 
 Do not hand off after code changes alone. A completed Agent Implement run should
 end with a PR or a clear reason the PR could not be created.
 
 ## Verify
 
-Run the issue's required checks first, then the configured full local gate unless
-a narrower gate is justified. Use focused checks while iterating.
+Use focused checks while iterating, then run the issue's required checks. Hooks
+and CI run the full gate; run it by hand only when neither does. Evidence is
+output you saw in this session, from your commands or from hooks, plus CI
+results. A green claim in an issue or PR comment is not evidence.
 
 Before claiming completion, map each acceptance criterion, safety invariant, and
 required test named by the issue or the dispatch prompt to concrete evidence: a
@@ -156,21 +158,10 @@ contains work that belongs to another ticket or broadens the product/design
 surface beyond the assigned acceptance criteria, split it out or stop for human
 direction before review and PR creation.
 
-Use exact configured or CI-equivalent commands for the full gate. Do not accept a
-self-reported green status, a package-local substitute, or a non-threshold
-variant when config or CI requires typecheck, build, coverage thresholds,
-generated-artifact checks, smoke, or secret scanning. In monorepos, include the
-cross-package checks that CI will enforce for the touched surface.
-
-If config or CI defines a coverage threshold gate separately from the full local
-gate, run the configured coverage command before `ziw-pr` whenever the change
-touches covered code. Treat separate coverage, smoke, and secret-scan jobs as
-required gates, not optional extras hidden behind local hooks.
-
-When Markdown or docs changed, run the configured docs formatting check before
-handoff. If the target repo exposes `pnpm format:docs:check`, run that command
-instead of waiting for CI or a hook to catch Prettier drift. Local hooks are a
-backstop, not handoff evidence.
+CI-only jobs such as coverage thresholds, smoke, and full-history secret scans
+run in CI. Do not replicate them locally unless the issue names them or CI
+already failed on them. When Markdown changed and no hook formats it, run the
+configured docs format check.
 
 Use task caches. A cache hit is valid evidence; never pass `--force`,
 `--no-cache`, or other cache-busting flags. When config names a task whose cache
@@ -181,8 +172,8 @@ prove the invoked process receives them rather than only setting them in the
 outer command.
 
 After conflict resolution, branch update, rebase, generated artifact refresh, or
-any worker-applied review fix, rerun the affected final checks on the new head.
-Report only the post-update evidence as completion evidence.
+any worker-applied review fix, rerun the affected focused checks; hooks and CI
+rerun the rest on push.
 
 Preserve existing sibling coverage when editing shared modules. Do not delete or
 weaken unrelated tests just to make the slice pass.
@@ -258,11 +249,9 @@ Report:
 - checks run and result
 - author-QA decision: skipped with reason, or verdict
 - whether any author QA covers the current diff
-- PR head SHA, base SHA, and merge base used for the final checks and review
+- PR head SHA
 - PR draft or ready-for-review state
 - next owner and action
 - independent review requested or pending; no implementer-created review evidence
 - tracker handoff requested, usually `In Review`, for Agent Orchestrator
-- hosted bot review decision or remaining escalation
-- tracker comments and status handoff
 - blockers or follow-up issues

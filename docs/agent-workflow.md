@@ -246,8 +246,8 @@ Workflow issue triage means the published `$ziw-triage` skill or the namespaced
 model. A normal run processes configured intake such as `Triage`; complete
 implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
 
-- Create PR: commits, pushes, and opens or updates the PR in one pass, reusing
-  the worker's passing checks. This is the worker's shipping step, not a
+- Create PR: commits, pushes, and opens or updates the PR in one pass, trusting
+  the worker's check report. This is the worker's shipping step, not a
   separate verification, review, or orchestration stage.
 - Code Review: shared bug-focused review gate.
 
@@ -707,13 +707,12 @@ Default rule:
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.
-- Create PR ships the branch in one pass: it reuses checks that already passed
-  on the tree, otherwise runs cached focused checks, commits, pushes, opens or
-  updates a non-draft PR, links a named issue, and hands off without waiting
-  for CI. Hooks and CI run the full gate. It does not search for or create
-  issues, request hosted bot review, or post evidence comments. It stops when
-  the diff mixes unrelated work or contains work the linked issue names out of
-  scope.
+- Create PR ships the branch in one pass: it commits, pushes, opens or updates
+  a non-draft PR, links a named issue, and hands off without waiting for CI. It
+  runs no checks of its own; the caller's report, hooks, and CI are the
+  evidence. It does not search for or create issues, run code review unless the
+  user asks, request hosted bot review, or post evidence comments. It stops when
+  the diff mixes unrelated work.
 - Agent Review can post findings and verdicts. For a GitHub PR explicitly
   targeted with `--submit`, it posts one `COMMENT` review with the workflow
   verdict in the body and attachable P0-P2 findings as inline threads. It checks

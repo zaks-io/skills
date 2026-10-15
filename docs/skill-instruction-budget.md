@@ -91,11 +91,11 @@ The script fixes execute without loading their source into model context.
 
 ## Create PR one-pass rewrite
 
-Measured 2026-10-15 with the same tokenizer. `ziw-pr` drops from 2,449 to 1,278
-tokens by removing issue search and creation, threshold-job and cache-busted
-reruns, hosted bot review resolution, and the tracker evidence comment. Hooks
-and CI own the full gate. `ziw-implement` grows from 2,765 to 2,811 by replacing
-its cache-busting rule with trusted task caches.
+Measured 2026-10-15 with the same tokenizer. `ziw-pr` drops from 2,449 to 1,231
+tokens: it runs no checks of its own, no code review unless asked, no issue
+search or creation, no hosted bot review resolution, and no tracker evidence
+comment. `ziw-implement` drops from 2,765 to 2,662 by trusting hooks, CI, and
+task caches instead of replicating CI jobs locally with the cache disabled.
 
 ## Identity handoff references
 
