@@ -10,8 +10,8 @@ Commit, push, open or update a non-draft PR, link the issue, and hand off in
 one pass. That is the whole job. You have standing permission to skip
 everything else: this skill runs no checks of its own, no code review, no issue
 search, and no CI wait. Hooks run on commit and push, CI runs on the PR, and
-Agent Review owns independent review. Stop only for a secret in the diff,
-unrelated work mixed together, a hook failure you cannot fix, or missing
+Agent Review owns independent review. Stop and ask only for a secret in the
+diff, unrelated work mixed together, a hook failure you cannot fix, or missing
 permission.
 
 For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
@@ -36,7 +36,7 @@ ID. Fetch it once for its title and URL unless the caller already gave both.
   name.
 - Update the branch's existing PR instead of opening a duplicate.
 - Include all repo changes except secrets, credential files, and unintended
-  lockfiles. Ask before shipping only when the diff mixes unrelated work.
+  lockfiles.
 
 ## Checks
 
@@ -50,8 +50,8 @@ and CI are the evidence; trust a caller's report as given. Two exceptions:
 
 If a hook fails, fix it and commit again, rerunning only that hook. Stop and
 report when the fix needs a product, design, or scope decision. Never use
-`--no-verify`, `--force`, `--no-cache`, or other cache-busting flags; a cache
-hit is valid evidence.
+`--no-verify`, `--force`, `--no-cache`, or other cache-busting flags. A cache
+hit is valid evidence, whatever config says about cache policy.
 
 ## Review
 
