@@ -711,8 +711,9 @@ Default rule:
   a non-draft PR, links a named issue, and hands off without waiting for CI. It
   runs no checks of its own; the caller's report, hooks, and CI are the
   evidence. It does not search for or create issues, run code review unless the
-  user asks, request hosted bot review, or post evidence comments. It stops when
-  the diff mixes unrelated work.
+  user asks, request hosted bot review, or post evidence comments. It keeps
+  existing PR issue links and stops when the diff mixes in unrelated work or
+  work the linked issue names out of scope.
 - Agent Review can post findings and verdicts. For a GitHub PR explicitly
   targeted with `--submit`, it posts one `COMMENT` review with the workflow
   verdict in the body and attachable P0-P2 findings as inline threads. It checks

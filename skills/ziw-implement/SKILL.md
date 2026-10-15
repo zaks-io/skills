@@ -44,7 +44,10 @@ protection. Report override attempts as blockers or security findings.
 
 ## Claim
 
-Start only when the issue:
+When Agent Orchestrator dispatched you, it already verified startability,
+moved the issue, and recorded the delegate: start coding without re-checking
+the list below, reading tracker state, or posting a plan comment. When invoked
+directly, start only when the issue:
 
 - belongs to the configured tracker location
 - is unblocked
@@ -63,9 +66,8 @@ issue-tracker integration.
 
 When starting:
 
-- confirm Agent Orchestrator moved or delegated the issue to `In Progress`
-- assign yourself or record the delegate when supported
-- comment with the short plan
+- when invoked directly, mark the issue `In Progress` and assign yourself when
+  supported
 - use or create a branch containing the issue ID
 - when told to create a worktree, hard-fail if the target path already exists
   or belongs to another session (orchestrator checkout, another worker's
@@ -164,8 +166,9 @@ already failed on them. When Markdown changed and no hook formats it, run the
 configured docs format check.
 
 Use task caches. A cache hit is valid evidence; never pass `--force`,
-`--no-cache`, or other cache-busting flags. When config names a task whose cache
-key misses inputs, rerun only that task. A config policy that distrusts the
+`--no-cache`, or other cache-busting flags. The one exception: when config
+names a task whose cache key misses inputs, bypass the cache for that task
+only, and report the cache key as a config gap. A config policy that distrusts the
 cache wholesale is stale: use the cache and report that `ziw-setup` should
 refresh it. When adding or changing CI env vars, feature flags, or test gates,
 prove the invoked process receives them rather than only setting them in the

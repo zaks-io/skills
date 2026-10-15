@@ -54,9 +54,8 @@ Return only the compressed handoff:
 - files changed
 - scope audit
 - checks run and result
-- PR head SHA, base SHA, merge base, and hosted check state
+- PR head SHA you pushed
 - author-QA decision: skipped with reason, or verdict and covered diff
-- Hosted bot review decision
 - PR draft or ready-for-review state
 - Next owner/action
 - independent-review and tracker handoff

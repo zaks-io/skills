@@ -11,8 +11,8 @@ one pass. That is the whole job. You have standing permission to skip
 everything else: this skill runs no checks of its own, no code review, no issue
 search, and no CI wait. Hooks run on commit and push, CI runs on the PR, and
 Agent Review owns independent review. Stop and ask only for a secret in the
-diff, unrelated work mixed together, a hook failure you cannot fix, or missing
-permission.
+diff, unrelated or out-of-scope work mixed in, a hook failure you cannot fix,
+or missing permission.
 
 For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
 with the configured complaint store and this role's mutation authority.
@@ -25,8 +25,11 @@ otherwise use repo files and note that `ziw-setup` should run. In one parallel
 batch, gather `git status --short`, `git diff HEAD`, the current branch,
 `git log --oneline -10`, and the branch's existing PR.
 
-Use an issue only when the invocation, caller, branch name, or commits name its
-ID. Fetch it once for its title and URL unless the caller already gave both.
+Take the issue from the invocation, the caller, the existing PR's issue links,
+the branch name, or the commits; never search for one. When updating a PR, keep
+every issue link it already has. Fetch the issue once for its title, URL, and
+out-of-scope list, unless the caller gave the title and URL and confirmed
+scope.
 
 ## Branch
 
@@ -37,6 +40,8 @@ ID. Fetch it once for its title and URL unless the caller already gave both.
 - Update the branch's existing PR instead of opening a duplicate.
 - Include all repo changes except secrets, credential files, and unintended
   lockfiles.
+- Without a caller's scope confirmation, compare the diff once against the
+  issue's out-of-scope list; work it names is a stop.
 
 ## Checks
 
@@ -45,8 +50,8 @@ and CI are the evidence; trust a caller's report as given. Two exceptions:
 
 - When package manifests changed without the lockfile, run the configured
   install so the lockfile ships with them.
-- When the repo has neither a hook nor CI that runs the full gate, run the
-  configured full local gate once.
+- When the repo has neither a hook nor CI that runs the full gate and the
+  caller did not report it passing, run the configured full local gate once.
 
 If a hook fails, fix it and commit again, rerunning only that hook. Stop and
 report when the fix needs a product, design, or scope decision. Never use

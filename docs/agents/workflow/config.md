@@ -184,8 +184,8 @@ cache them here.
 
 - PR title: Conventional Commits style when possible
 - PR body: Summary, Changes, Risk, Test plan, linked Linear issue when present
-- Required checks: `pnpm ci:check` locally; GitHub CI jobs `Validate skills`, `Static security checks`, `Secret scan`
-- Code review: `ziw-code-review` before PR handoff and for independent PR/head review
+- Required checks: GitHub CI jobs `Validate skills`, `Static security checks`, `Secret scan`; local equivalent `pnpm ci:check`, run by the implementer, not rerun by Create PR
+- Code review: author QA is the implementer's judgment call; independent `ziw-code-review` PR/head review runs after the PR opens
 - Local GitHub review submission actor policy: use `gh-useotto api` for explicit `--submit` review mode so reviews are attributed to `useotto-dev[bot]`; submit `COMMENT` reviews only
 - Hosted bot review provider policy: optional for high-risk/complex diffs or explicit user request; CodeRabbit or Cursor Bugbot only with a verified repo integration and applicable usage eligibility. Naming a provider here does not enable it; resolve availability live.
 - Hosted bot review trigger policy: resolve current provider auto-review state and trigger policy before posting commands; do not guess Cursor Bugbot commands when app policy is unknown
@@ -193,9 +193,9 @@ cache them here.
 - CodeRabbit bot handle: `@coderabbitai`
 - CodeRabbit command policy: local review first; verify provider configuration, trigger policy, and current review state live before an authorized request
 - Cursor Bugbot command policy: use only a verified integration and trigger that meets the configured usage policy
-- Draft PR policy: draft only while checks, requested human prep, or required author fixes are incomplete; draft state alone is not a code review request; draft PRs consume file-contention seams but not worker slots unless a worker is repairing them
-- Ready-for-review owner: Agent Orchestrator or PR owner after local gates and review are clean
-- Issue update: link PR and update SKI issue comments/labels with PR URL, reviewed head SHA, and check evidence when scoped
+- Draft PR policy: open non-draft by default; draft only for requested human prep or known required author fixes; pending CI is not a reason for draft; draft state alone is not a code review request; draft PRs consume file-contention seams but not worker slots unless a worker is repairing them
+- Ready-for-review owner: Create PR opens non-draft; Agent Orchestrator repairs stuck drafts
+- Issue update: PR URL in the PR body links the SKI issue; Agent Orchestrator records reviewed head SHA and check evidence after independent review
 - Merge authority: human
 
 ## Environments
