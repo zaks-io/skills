@@ -522,8 +522,9 @@ glue should stay under `.agents/` unless it proves portable.
   working trees, plus independent latest-committed PR review, checkpointed
   main-drift review, review-debt issue filing, and explicit current-head GitHub
   review submission from clean context.
-- `ziw-pr`: one-pass shipping step that commits, pushes, creates or updates
-  the PR, and links the named issue; hooks and CI are its check gate.
+- `ziw-pr`: shipping step that commits, pushes, creates or updates the PR,
+  and links the named issue in bounded fix rounds; hooks and CI are its check
+  gate.
 
 ## Recommended Flow
 

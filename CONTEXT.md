@@ -189,7 +189,7 @@ The bug-focused review gate used by implementation, PR review, and main-drift re
 _Avoid_: style pass, lint, Agent Review
 
 **Create PR**:
-The workflow step that ships a branch as a ready-for-review pull request in one pass; hooks and CI run the full gate.
+The workflow step that ships a branch as a ready-for-review pull request, taking fix rounds only while they make progress; hooks and CI run the full gate.
 _Avoid_: publish, ship, merge
 
 **Integrate**:

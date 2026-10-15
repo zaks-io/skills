@@ -246,8 +246,8 @@ Workflow issue triage means the published `$ziw-triage` skill or the namespaced
 model. A normal run processes configured intake such as `Triage`; complete
 implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
 
-- Create PR: commits, pushes, and opens or updates the PR in one pass, trusting
-  the worker's check report. This is the worker's shipping step, not a
+- Create PR: commits, pushes, and opens or updates the PR, trusting the
+  worker's check report and stopping fix rounds that make no progress. This is the worker's shipping step, not a
   separate verification, review, or orchestration stage.
 - Code Review: shared bug-focused review gate.
 
@@ -707,8 +707,10 @@ Default rule:
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.
-- Create PR ships the branch in one pass: it commits, pushes, opens or updates
-  a non-draft PR, links a named issue, and hands off without waiting for CI. It
+- Create PR ships the branch: it commits, pushes, opens or updates a non-draft
+  PR, links a named issue, and hands off without waiting for CI. It takes fix
+  rounds only while each changes something, at most three, and stops when the
+  same failure survives two fixes. It
   runs no checks of its own; the caller's report, hooks, and CI are the
   evidence. It does not search for or create issues, run code review unless the
   user asks, request hosted bot review, or post evidence comments. It keeps

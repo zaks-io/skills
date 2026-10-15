@@ -89,16 +89,17 @@ Orchestrator with the planner input contract loads about 5,878
 estimated tokens. Dispatch policy adds 1,919 when that branch applies.
 The script fixes execute without loading their source into model context.
 
-## Create PR one-pass rewrite
+## Create PR shipping rewrite
 
-Measured 2026-10-15 with the same tokenizer. `ziw-pr` drops from 2,449 to 1,312
+Measured 2026-10-15 with the same tokenizer. `ziw-pr` drops from 2,449 to 1,643
 tokens: it runs no checks of its own, no code review unless asked, no issue
 search or creation, no hosted bot review resolution, and no tracker evidence
-comment. `ziw-implement` drops from 2,765 to 2,717 by trusting hooks, CI, and
-task caches instead of replicating CI jobs locally with the cache disabled, and
-by skipping claim re-verification when Agent Orchestrator dispatched the work.
-Agent Orchestrator reads code-host PR state itself instead of requiring it in
-worker handoffs.
+comment, and it bounds hook fixes with explicit progress rules and a
+three-round cap. `ziw-implement` drops from 2,765 to 2,296 by trusting hooks,
+CI, and task caches instead of replicating CI jobs locally, by skipping claim
+re-verification for dispatched work, and by a scanning-first layout. Agent
+Orchestrator reads code-host PR state itself instead of requiring it in worker
+handoffs.
 
 ## Identity handoff references
 
