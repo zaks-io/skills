@@ -89,10 +89,8 @@ Build the default issue set from config and script output. Include:
 
 Default exclusions and their exceptions:
 
-- Skip unrelated Linear `Backlog`, icebox, Duplicate, Done, canceled, and other
-  parked or terminal states.
-- Skip Linear `Backlog`, icebox, someday, roadmap, or equivalent states when
-  config treats them as parked.
+- Skip unrelated Duplicate, Done, canceled, and other terminal states, and
+  Linear `Backlog`, icebox, someday, roadmap, or equivalent configured parked states.
 - **Exception:** include those parked states when the user explicitly asks for
   Linear Backlog review, cleanup, or backfill.
 - A generic "backlog" request follows repo config's backlog-grooming scope.
@@ -131,13 +129,15 @@ Read only:
   projects, parents, and relationships.
 - Explicit user instructions.
 - Approved workflow script outputs from `skills/ziw-orchestrate/scripts`.
+- Filenames from the bounded location lookup below.
 
 Use tracker/MCP tools only to apply mutations and read specific ticket fields
 that scripts do not return. The inventory and investigation limits are in
 [Never](#never).
 
-- When handoff quality needs information outside this boundary, leave the exact
-  missing field for To Issues or a human.
+- When handoff quality needs information outside this boundary, route the exact
+  missing field to To Issues. Ask a human only for intent, decisions, or access
+  the available evidence cannot supply.
 - When scripts omit needed verification, leave an Orchestrator next action.
   For example, "verify linked PR is merged and update status if complete."
 
@@ -233,18 +233,10 @@ An issue can receive `ready-for-agent` only when all of these hold:
 - It has concrete in-scope and out-of-scope boundaries.
 - It is complete enough for Orchestrator to decide startability and dispatch.
 
-Required body fields:
-
-- Outcome.
-- Context docs or tracker links.
-- Likely files, packages, or artifacts.
-- In scope.
-- Out of scope.
-- Acceptance criteria.
-- Required checks.
-- Security, privacy, data, and operational invariants.
-- Dependencies or blockers.
-- Estimate when config stores estimates in the body.
+Required body fields: outcome; context docs/tracker links; likely files,
+packages, or artifacts; in scope; out of scope; acceptance criteria; required
+checks; security/privacy/data/operational invariants; dependencies/blockers;
+and estimate when config stores it in the body.
 
 Scope and source rules:
 
@@ -254,14 +246,25 @@ Scope and source rules:
   broad refactors, production actions, and follow-up behavior the worker must
   not deliver.
 - Take likely files, packages, or artifacts only from tracker text, config,
-  To Issues output, or approved script output.
-- **Missing likely files, packages, or artifacts:** withhold `ready-for-agent`.
-  Leave the issue for To Issues or human clarification.
+  To Issues output, approved script output, or the bounded lookup below.
 - **Conflicting readiness:** the body wins over `ready-for-agent` when it says
   the issue waits on human setup, credentials, provider decisions, security
   judgment, or a `ready-for-human` rationale.
 - Remove or withhold `ready-for-agent` in that case. Preserve the exact human
   decision needed and report the contradiction.
+
+### Missing locations
+
+If the only missing field is likely files/packages/artifacts and scope,
+non-goals, and acceptance are already clear, make one location-only lookup
+inside the assigned repo/package. Use `rg --files` or `rg -l -F` for a literal
+or component named by the ticket; collect filenames, not implementation contents.
+Record an unambiguous result in the body and continue normal readiness checks.
+
+If the result is absent or ambiguous, withhold `ready-for-agent` and route only
+that lookup to To Issues. Keep the accepted ticket boundaries; do not restart
+planning or ask a human solely to find a path. This exception grants no code
+inspection, dependency inference, tests, or broader inventory.
 
 ## Apply tracker repairs
 
@@ -372,7 +375,8 @@ collision-safe dispatch, including the unknown-footprint lane its policy allows.
   or production triage.
 - Implement code, create PRs, merge, deploy, or mutate production.
 - Leave the evidence boundary or invent a new investigation path.
-- Use code search, implementation file reads, tests, one-off `gh` queries,
+- Use code search beyond the location-only exception, implementation file reads,
+  tests, one-off `gh` queries,
   PR list spelunking, branch, CI, or deploy checks, logs, alerts, security
   scans, package audits, or repo-health sweeps.
 - Follow PR, CI, deploy, log, or unrelated external links.
@@ -415,23 +419,8 @@ The final `Todo` queue has:
 - Final `starts`, a blocked-ready list, and next actions Orchestrator can
   consume without re-triaging the same queue.
 
-Report:
-
-- Scripts run, script inputs, and any script fallback used.
-- Scope reviewed; dry-run, partial, or applied mode; Linear Backlog or intake
-  states skipped or explicitly included.
-- Issues changed, unchanged, parked, and needing human decision.
-- Orphans routed or left with reasons.
-- Labels, priorities, estimates, body contracts, dependency relationships, and
-  status recommendations updated.
-- Ready-state issues made agent-ready or left with exact missing fields.
-- Intake and review-debt issues promoted, left for To Issues, parked, or left
-  for a human decision.
-- Issues ready for Orchestrator, blocked-but-ready, missing metadata, missing
-  body fields, duplicate, cyclic, or config-blocked.
-- Stale tracker state repaired from script output, including Done/readiness,
-  review evidence, and human-merge label repairs.
-- Exact Orchestrator next actions for linked PR or status verification.
-- Final `Todo` handoff: starts, blocked-ready, and not-ready tickets removed or
-  marked with their exact next owner.
-- User questions asked or exact human next actions left.
+Report scope/mode, scripts/inputs/fallbacks, changes and unchanged/parked issues,
+and the final starts, blocked-ready list, and not-ready tickets with exact gaps
+and owners. Include orphan, duplicate, cycle, config, stale-state, intake, and
+review-debt outcomes only when present. Name any pending PR/status verification
+for Orchestrator and material questions for humans; avoid empty report categories.

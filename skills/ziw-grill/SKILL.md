@@ -6,10 +6,9 @@ argument-hint: "[idea|plan|spec-path|prd|adr]"
 
 # Grill
 
-Turn fuzzy or contradictory plans into shared understanding and authoritative
-planning artifacts. Finish with the spec's status and either the next question
-round or the exact To Issues handoff. Grill owns clarification, not tickets or
-implementation.
+Resolve material ambiguity. Return a confirmed clarification to its caller, or
+prepare authoritative planning artifacts for an explicitly approved slicing handoff.
+Grill owns clarification, not tickets or implementation.
 
 ## Inputs
 
@@ -18,27 +17,28 @@ implementation.
 
 ## Steps
 
-1. [Read context](#read-context) and the planning-artifact contract.
-2. [Build the decision tree](#build-the-decision-tree) from evidence and unresolved decisions.
-3. [Ask a question round](#ask-a-question-round) with independent, ready questions.
-4. [Update artifacts](#update-artifacts) after explicit confirmation, then recompute the tree.
-5. [Confirm readiness](#confirm-readiness) when the pre-approval gate can pass.
-6. [Hand off to the caller](#hand-off-to-the-caller) within the original scope.
-7. [Report the result](#done).
+1. [Choose scope](#choose-scope) and check available evidence.
+2. [Ask a question round](#ask-a-question-round) for material unresolved decisions.
+3. Return a resolved scoped clarification, or [update planning artifacts](#update-planning-artifacts).
+4. For slicing handoffs, [confirm readiness](#confirm-readiness) and report the result.
 
-## Invocation Threshold
+## Choose scope
 
 - Explicit invocation always starts.
-- Invoke implicitly only when an unresolved product, domain, scope, or architecture decision could change behavior, ticket boundaries, risk, dependencies, or required proof.
-- Check available evidence before implicit invocation.
-- Say what ambiguity caused the pause.
-- Do not invoke for routine details, harmless preferences, or discoverable facts.
-
-## Read context
-
-- Read repo instructions first.
-- Then read the planning-artifact mapping in `docs/agents/workflow/config.md` when present.
-- Load [references/planning-artifacts.md](references/planning-artifacts.md) for authority, default formats, ADR rules, and the readiness contract.
+- Invoke implicitly only after checking evidence for an unresolved product,
+  domain, scope, or architecture decision affecting behavior, ticket boundaries,
+  risk, dependencies, or required proof. Name the ambiguity causing the pause.
+- Read repo instructions and the planning-artifact mapping in
+  `docs/agents/workflow/config.md`. Discover unmapped specs, glossaries, ADRs,
+  roadmaps, and relevant implementation; preserve conventions and report the Setup gap.
+- **Scoped clarification:** when the confirmed answer leaves ticket scope, risk,
+  dependencies, acceptance, and proof boundaries unchanged, return it to the caller.
+  Update an existing owning doc only when needed, with applicable documentation
+  checks. No new spec, Draft transition, slicing approval, or To Issues handoff is required.
+- **Planning:** for new plans or changed boundaries, load
+  [references/planning-artifacts.md](references/planning-artifacts.md) for authority,
+  ADR rules, and readiness. A changed boundary stops implementation; continue
+  clarification without widening the PR or silently rewriting tracker work.
 
 Load additional references only for the matching work:
 
@@ -49,69 +49,46 @@ Load additional references only for the matching work:
 - Encountered friction:
   [../ziw-orchestrate/references/friction-log.md](../ziw-orchestrate/references/friction-log.md).
 
-**Exception: config does not map planning artifacts.**
-
-- Discover existing specs, context or glossary files, ADRs, roadmaps, and relevant implementation.
-- Preserve the established convention.
-- Report the missing mapping as a Setup gap.
-
-## Build the decision tree
-
-- Treat code and external systems as evidence, not automatically as intended behavior.
-- For existing artifacts, run a contradiction and requirement-coverage pass first.
-- **Exception: a new idea.** Build the decision tree from scratch.
-- Use the same readiness contract for both paths.
-- Build a private decision tree ordered by dependency and impact.
-- Cover only applicable outcome, actor, language, scope, behavior, data, security, failure, concurrency, integration, operations, rollout, and acceptance branches.
-- Resolve discoverable facts from code, docs, config, or authoritative sources.
-
 ## Ask a question round
 
-- Ask ready questions in one numbered round, ordered by impact.
-- A ready question has no unresolved prerequisite.
-- Give each question evidence, a recommended answer, and its consequence.
-- Keep rounds easy to answer.
-- Split a large set of ready questions into coherent batches.
-- Keep a single ready question single.
-- If an answer could change another question's options or recommendation, ask the dependent question in a later round.
+- Build a private decision tree ordered by dependency and impact. Check existing
+  artifacts for contradictions and requirement coverage; start new ideas from scratch.
+- Cover applicable outcome, actor, language, scope, behavior, data, security,
+  failure, concurrency, integration, operations, rollout, and acceptance branches.
+  Code and external systems are evidence, not automatically intended behavior.
+- Resolve discoverable facts independently from code, docs, config, or authoritative sources.
+- Ask ready questions in one numbered round, ordered by impact, with evidence,
+  a recommendation, and its consequence. Split large sets into coherent batches;
+  keep a single question single. Defer dependent questions whose options or
+  recommendations could change with another answer.
 - Accept authoritative facts without reconfirmation.
-- Wait for the user's answers.
-- Record only what each answer confirms, without adding exclusivity or unstated constraints.
-- Keep unanswered ready questions in the next round.
-- **Exception: explicit deferral.** Leave questions the user explicitly defers out of the next round.
-- Ground recommendations in this task's evidence.
-- Label assumptions.
-- Investigate facts independently.
-- Challenge vague terminology and propose one canonical term.
-- Stress-test answers with concrete scenarios, especially boundary, lifecycle, failure, concurrency, authorization, and recovery cases.
+- Wait for answers and record only what they confirm, without unstated constraints.
+  Retain unanswered ready questions unless explicitly deferred.
+- Ground recommendations in evidence, label assumptions, propose canonical terms,
+  and stress-test boundary, lifecycle, failure, concurrency, authorization, and recovery cases.
+- Recompute after answers. Continue only while material decisions remain; do not
+  repeat answered questions or add rounds for harmless preferences. If a round
+  yields no answer or new evidence, report the pending decision instead of looping.
 
-## Update artifacts
+## Update planning artifacts
 
-- After explicit confirmation, update the smallest authoritative artifact set immediately.
-- Keep the active spec `Draft`.
-- Update the spec that already owns the behavior.
-- **Exception: no spec owns the behavior.** Create one focused spec.
-- Update context docs only for domain language.
+- After explicit confirmation, update the smallest authoritative artifact set.
+  Update the owning spec, or create one focused spec when none exists. Keep it
+  `Draft` until readiness approval. Both existing and new specs use the reference's readiness contract.
+- Update context docs only for domain language. In conversation-only planning,
+  emit a self-contained Markdown spec.
 - Create an ADR only after a confirmed decision passes all three ADR tests in the reference.
-- In conversation-only use, emit a self-contained Markdown spec.
-- Recompute the decision tree from the answers and evidence before repeating the question round.
-- Repeat for unresolved branches until the reference's pre-approval gate can pass, then move to readiness confirmation.
 
 ## Confirm readiness
 
-- Keep the active spec `Draft`.
-- After the reference's pre-approval gate and final contradiction pass, present the recommendation, outcome, non-goals, deferred questions, changed artifacts, risks, and assumptions.
+- After the reference's pre-approval gate and final contradiction pass, present
+  the recommendation, outcome, non-goals, deferred questions, artifacts, risks, and assumptions.
 - Ask exactly one final question: `Mark this spec ready for slicing?`
 - Change status to `Ready for slicing` only after explicit confirmation.
 - Run configured documentation checks.
 - Failed checks return the spec to `Draft`.
 
-## Hand off to the caller
-
-- Return to an implementation caller only when no ticket scope, risk, dependency, acceptance, or proof boundary changed.
-- **Exception: a boundary changed.** Stop implementation.
-
-Use the matching handoff:
+For a ready spec, return the matching handoff without invoking it:
 
 - File: `$ziw-to-issues <spec-path>`
 - Conversation: `$ziw-to-issues use the Ready for slicing spec in this conversation`
@@ -121,20 +98,14 @@ Use the matching handoff:
 - Do not create or edit tracker tickets.
 - Do not invoke To Issues, implement code, open PRs, merge, or deploy.
 - Do not edit planning artifacts before the user confirms the decision.
+- Do not invoke for routine details, harmless preferences, or discoverable facts.
 - Do not ask a question that available evidence can answer.
 - Do not answer a product or architecture decision on the user's behalf.
 - Do not substitute an ADR, transcript, scratch note, or ticket for current truth.
-- Do not widen the PR or silently rewrite tracker work when a boundary changes.
 - Do not expose secrets or private customer data in planning artifacts.
 
 ## Done
 
-Report:
-
-- Spec status and path.
-- Decisions and evidence.
-- Changed artifacts.
-- Blocking and deferred questions.
-- Checks.
-- Setup gaps.
-- Either the next question round or the exact file-backed or conversation-only To Issues handoff.
+Report the confirmed clarification or spec status/path, decisions and evidence,
+changed artifacts/checks, material questions, and Setup gaps. Return to the caller,
+ask the next ready question round, or give the exact To Issues handoff as applicable.

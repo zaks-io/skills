@@ -12,12 +12,10 @@ Finish when the requested boundary is reached or no safe workflow action remains
 
 ## Inputs
 
-- Repo path and configured tracker/code-host location.
+- Repo/config, tracker/code-host location, checks, worker environments,
+  capacity/provider limits, merge authority, and friction intake.
 - Optional ticket IDs, URLs, project, milestone, label, status, Linear Backlog
   scope, delivery scope, loop budget, worker count, or pass count.
-- Current tracker, PR, preview, worker, ledger, and review evidence state.
-- Repo config, required checks, worker environments, merge authority, worker
-  concurrency cap, provider limits, and friction intake.
 
 ## Steps
 
@@ -72,13 +70,19 @@ Finish when the requested boundary is reached or no safe workflow action remains
 
 ## Refresh state
 
-Refresh systems of record before each action:
+Collect one snapshot per tick, covering the relevant systems of record:
 
 - Tracker workflow state, labels, assignments, comments, and relations.
 - Code-host branches, open PRs, draft state, checks, reviews, labels, and merge state.
 - Preview/deploy state when configured.
 - Local Git refs, worktrees, branch status, and HEAD when local checkouts matter.
 
+- Reuse this snapshot for planning and independent lanes; do not recollect the
+  whole inventory before each action. Refresh affected records before claims,
+  workflow/PR mutations, or acting on observed changes. Use mutation responses
+  for immediate follow-up actions instead of rereading unchanged records.
+- Merge preflight still verifies current head, base, checks, review, draft state,
+  unresolved threads, and authority immediately before merge.
 - Treat draft PRs as visible active work that occupies file-footprint seams.
 - Count open PRs and previews against worker slots only while a worker actively repairs them.
 - Use systems of record as authority, not the ledger.
@@ -111,9 +115,8 @@ node <skill-dir>/scripts/tick-plan.mjs /tmp/ziw-tick-snapshot.json \
   --state /tmp/ziw-queue-state.json
 ```
 
-- Follow the advisory planner unless current evidence exposes a gap it cannot model.
-- Use its compact plan for every PR action, worker wait, explicit hold, worker
-  capacity, and collision-safe dispatch for this tick.
+- Follow the advisory plan for PR actions, waits, holds, capacity, and safe
+  dispatch unless current evidence exposes a gap it cannot model.
 - Reconcile the ephemeral ledger with refreshed tracker and PR state,
   repo-scoped claims, and non-default worktrees using the [identity contract](references/planner-input.md).
 - Use `--debug` only to diagnose the planner.
@@ -144,11 +147,10 @@ By default, run dispatch and PR lanes concurrently after one refreshed snapshot.
 - Select by backlog leverage and priority.
 - Choose an authorized remote or local worker within explicit budget policy.
 - Hold every unselected start with a collision, authority, or budget reason.
-- Fill worker headroom whenever safe work exists. An idle slot with safe ready
-  work is an orchestration failure.
+- An idle slot with safe ready work is an orchestration failure.
 - Apply the planner's `trackerStateUpdates` and confirm the configured
   in-progress state before delegating. Delegate only after the corresponding claim succeeds.
-- Dispatch the whole selected set this tick.
+- Dispatch the whole selected set this tick; never let two workers own one branch.
 - Give each worker a one-sentence scope and explicit non-goals, including sibling
   tickets the worker must not deliver.
 - Map one ticket to one PR.
@@ -158,14 +160,14 @@ By default, run dispatch and PR lanes concurrently after one refreshed snapshot.
 
 - Advance every actionable PR, preview, draft stall, base-branch drift, check,
   review, label, and merge item in parallel with dispatch.
-- For every returned PR, call the review/integrate state machine.
-- Load [integrate-checklist.md](references/integrate-checklist.md) for the full
-  order of operations before acting on a returned PR.
+- For returned PRs, follow [integrate-checklist.md](references/integrate-checklist.md)
+  before acting, reusing the snapshot and refreshing only affected records.
 - Expire review evidence when the review-relevant diff changes.
   Exception: a base-only update preserving the reviewed diff needs fresh checks, not repeated review.
 - Apply the configured policy to required hosted review evidence.
 - Treat draft state as an orchestration repair signal, not a review request.
-- Send feedback to the original worker continuation target on the same branch/PR.
+- Send fixes to the original worker continuation target on the same branch/PR
+  when it can continue; do not start a replacement worker by habit.
 - Reuse one substantive review for one review-relevant diff.
 - Repair GitHub base-branch drift as orchestrator. Refresh PR state, run
   `gh pr update-branch <pr>`, rerun checks, and reuse review when the review-relevant diff is equivalent.
@@ -180,8 +182,7 @@ By default, run dispatch and PR lanes concurrently after one refreshed snapshot.
 
 ## Persist and stop
 
-- Write only compact state, tracker updates, and friction entries.
-- At tick end, persist only ledger/checkpoint updates and friction entries.
+- Persist authorized tracker updates and compact ledger/checkpoint/friction entries only.
 - Stop the recurring scope when the queue is completely blocked.
   Otherwise exit until the next scheduled tick, subject to the requested scope boundary.
 
@@ -190,8 +191,9 @@ Stop and report when:
 - No startable work exists and no active work can advance.
 - All active work waits on humans, credentials, providers, customer input,
   production access, merge authority, or a decision outside orchestrator authority.
-- The next action needs product, security, ADR, or scope judgment.
-- Tracker, code host, required worker tooling, or required checks are unavailable.
+- Required product, security, ADR, or scope judgment blocks the remaining work.
+- Unavailable tracker, code host, worker tooling, or checks leave no safe action.
+  Otherwise hold only the affected lane and continue unrelated authorized work.
 - The configured budget is exhausted.
 - A configured thrash circuit breaker trips.
 
@@ -207,11 +209,6 @@ Stop and report when:
 - Never implement, review diffs, or merge by hand when a delegated worker,
   `ziw-code-review`, independent review, or integrate gate owns the step.
 - Never dispatch blocked work, vague work, `kind-spec`, or `kind-epic`.
-- Never start a worker while its ticket remains ready.
-- Never let two workers own one branch.
-- Never save startable tickets for later wake-ups.
-- Never finish the PR lane before starting dispatch.
-- Never start a new worker for review fixes when the original worker can continue.
 - Never close a legitimate active PR just to free capacity.
 - Never add readiness or human-attention labels from labels alone; verify the facts.
 - Never mark a ticket `ready-for-human` or a PR `needs-human-merge` while
@@ -229,14 +226,7 @@ Stop and report when:
 
 ## Done
 
-Report compact evidence:
-
-- Issues started, nudged, reviewed, integrated, blocked, moved, or marked done.
-- PRs checked, reviewed, merged, labeled, unlabeled, draft-repaired, or blocked.
-- Worker slots used, cap, headroom, and any justified idle slots.
-- Workers launched or messaged, with continuation targets used.
-- Tracker updates, readiness/review-evidence label changes, hosted review actions,
-  and human-merge PR label decisions.
-- Whether the recurring loop continues or stopped because the scope is blocked.
-- Friction entries and delivery metrics by category.
-- Remaining blockers and next safe action, or delivered-scope summary.
+Report changed issues/PRs, workers and continuation targets, capacity/headroom
+with justified idle slots, tracker/review/human-merge decisions, and encountered
+friction/metrics. State whether the loop continues, the scope is delivered, or
+remaining work is blocked, with the next safe action. Omit empty categories.

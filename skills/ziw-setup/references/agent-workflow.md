@@ -13,8 +13,9 @@ Use this when writing or refreshing `docs/agents/workflow/config.md`.
 - Grill: resolves material ambiguity in an idea, plan, PRD, ADR set, or existing
   spec in rounds of independent questions. It checks discoverable evidence before asking,
   updates confirmed planning artifacts, and requires explicit user approval
-  before a spec is ready for slicing. It does not create tracker tickets or
-  implement code.
+  before a spec is ready for slicing. A confirmed scoped clarification returns
+  directly when ticket scope, risk, dependencies, acceptance, and proof remain
+  unchanged, without spec-readiness steps. It does not create tickets or implement code.
 - To Issues: turns a spec, PRD, or epic ticket into the fewest
   dependency-ordered one-PR `kind-slice` tickets that ship safely. Adopts
   hand-created tickets instead of duplicating them, merges fragments,
@@ -51,6 +52,10 @@ project backlog, an Unknowns checklist, or a status snapshot in config.
 Repo Config maps the current-truth spec authority and paths, glossary or context
 docs, context map, ADR convention, authority hierarchy, spec status convention,
 and documentation checks.
+
+Initial setup and explicit full verification cover all applicable fields. A
+scoped refresh verifies changed or suspect fields and their dependencies,
+preserving unrelated stable mappings without claiming a full revalidation.
 
 Grill writes confirmed decisions while a spec is `Draft`. It changes the status
 to `Ready for slicing` only after the readiness contract passes, documentation
@@ -98,7 +103,8 @@ domain behavior, and performance work without benchmarks.
 ## Flow
 
 1. Grill resolves material planning ambiguity and keeps the authoritative spec
-   `Draft` until the user approves `Ready for slicing`.
+   `Draft` until the user approves `Ready for slicing`. Scoped clarification
+   can return directly to its caller without starting this planning flow.
 2. To Issues turns a ready spec, complete PRD, or epic ticket into `kind-slice` tickets, applies
    the body contract, labels, and configured estimates, and emits the dependency
    graph and footprint.

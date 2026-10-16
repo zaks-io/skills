@@ -3,6 +3,11 @@
 Use the repo's established formats when they satisfy this semantic contract.
 Use the defaults below only when the repo has no convention.
 
+This contract governs preparing specs for slicing or changing ticket boundaries.
+A confirmed scoped clarification returns to its caller when scope, risk,
+dependencies, acceptance, and proof remain unchanged. It needs no new spec,
+status transition, or slicing approval; check only any existing docs actually edited.
+
 ## Authority
 
 Planning artifacts have distinct jobs:

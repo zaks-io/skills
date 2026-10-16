@@ -38,11 +38,12 @@ tracker. Read CI, PR, review, deployment, and tool availability live. Do not add
 state snapshots, a verification transcript, or an `Unknowns` checklist to config.
 Status names and label IDs define the workflow schema, not current work state.
 
-Setup must verify every populated value that can affect agent behavior. That
-includes repo commands, code host state, CI checks, tracker metadata, worker
-delegation, adapter paths, and environment safety rules. Values that cannot be
-verified are omitted; missing required fields block the affected workflow and
-actionable verification work is tracked outside config.
+Initial setup and explicit full verification cover every applicable field,
+including commands, CI, tracker mappings, delegation, adapters, and safety rules.
+A scoped refresh verifies changed or suspect fields and their dependencies;
+unrelated stable mappings remain without a claim of revalidation. Omit in-scope
+values that cannot be verified. Required gaps block only the affected workflow;
+track actionable verification work outside config.
 
 ## Planning Artifacts
 
@@ -65,6 +66,11 @@ and ADRs preserve rationale for hard-to-reverse, surprising tradeoffs. Code,
 tracker tickets, and prior ADRs can expose contradictions but do not silently
 override the current-truth spec.
 
+A confirmed clarification returns directly to its caller when ticket scope,
+risk, dependencies, acceptance, and proof remain unchanged. No new spec, Draft
+transition, slicing approval, or To Issues handoff is required. Check any
+existing documentation actually edited; changed boundaries still stop implementation.
+
 ## Diagnostic and design roles
 
 Debug owns symptom reproduction, hypothesis tests, and verified narrow repairs
@@ -72,6 +78,10 @@ when authorized. A diagnosis-only request returns evidence without leaving a
 repair applied. Direct debugging needs no tracker ticket and does not start PR
 shipping. For tracked work, Implement invokes Debug within the issue's boundary
 and resumes its existing verification and delivery gates afterward.
+Debug reruns the reproducer and affected checks, reusing current evidence under
+the caller's verification policy. Docs, copy, and mechanical changes need only
+applicable document checks unless behavior changes or the task requires more.
+Hooks and CI keep ownership of configured full gates.
 
 Architecture owns requested structural assessment and module interface proposals.
 It traces real callers and compares alternatives, then may finish with a
@@ -99,7 +109,11 @@ integration sync is active. GitHub PR status can automatically advance Linear
 ticket state, so agents refresh both systems before deciding a manual transition
 is needed.
 
-Agents must refresh the relevant systems of record before mutating anything. The
+Orchestrator collects one snapshot per tick for planning and independent lanes.
+Refresh only affected records before claims, workflow/PR mutations, or acting on
+observed changes. Use mutation responses for immediate follow-ups instead of
+rebuilding unchanged inventory. Merge preflight always verifies current head,
+base, checks, review, draft, threads, and authority immediately before merge. The
 dispatch ledger is an ephemeral, non-authoritative cache of in-flight delegations
 for stuck-worker detection and duplicate suppression; it may be empty on any tick
 and is always reconciled against the tracker and code host.
@@ -209,7 +223,8 @@ config-gap finding when the conflict affects the workflow.
   in rounds of independent questions. It checks code, docs, config, and authoritative
   external sources before asking, updates confirmed authoritative planning
   artifacts, and requires user approval before a spec becomes
-  `Ready for slicing`. It does not create tracker tickets or implement code.
+  `Ready for slicing`. A confirmed bounded clarification can return directly
+  without spec-readiness steps. It does not create tickets or implement code.
 - To Issues: the front door that turns a spec, PRD, or epic ticket into the
   fewest dependency-ordered one-PR `kind-slice` tickets that ship safely. Adopts
   hand-created tickets instead of duplicating them, merges fragments into the

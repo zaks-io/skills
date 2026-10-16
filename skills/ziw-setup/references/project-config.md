@@ -398,7 +398,10 @@ authorized scope. Missing required fields block their workflow. If the repo
 differs from the org-wide defaults, document the mapping in this file instead of
 changing the shared skills.
 
-Verify every populated value that affects workflow behavior. Do not persist an
+Initial setup and explicit full verification cover every applicable populated
+value. A scoped refresh verifies changed or suspect fields and dependencies,
+preserving unrelated stable mappings without claiming they were revalidated.
+Do not persist an
 `Unknowns` checklist, verification transcript, open-work inventory, active
 claims, current CI/PR health, provider budget, or session availability in config.
 Status IDs, label mappings, capacity limits, and approval rules are stable

@@ -6,8 +6,11 @@ file carries the order of operations.
 
 ## Review And Readiness
 
-1. Refresh PR draft status, branch head, required checks, review comments, and
-   linked issue state from the code host and tracker. If the tracker/code-host
+1. Read PR draft status, branch head, required checks, review comments, and
+   linked issue state from the current tick snapshot or focused code-host/tracker
+   reads. Reuse observed state for planning; refresh affected records before
+   mutations or when change signals arrive. Do not rebuild whole inventories
+   per PR action. If the tracker/code-host
    integration syncs linked PRs and tickets, assume the synced state is real
    when both linked entities exist; manually repair only after both systems
    have been refreshed. Read PR head, base, merge base, draft state, hosted
