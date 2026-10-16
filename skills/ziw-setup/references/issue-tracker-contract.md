@@ -128,6 +128,9 @@ a tracker estimate field, estimate labels, a body heading, or no estimates.
 
 ## Label Treatment Rules
 
+- If a clear ticket lacks only likely files/packages/artifacts, Issue Triage may
+  use its bounded filename-only lookup and repair the body. An unresolved lookup
+  goes to To Issues without reopening accepted scope; missing intent still needs clarification.
 - Repo config owns the treatment policy for every readiness and worker
   environment label. The defaults below apply only when the repo has no
   different verified mapping.

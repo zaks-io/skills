@@ -188,6 +188,7 @@ globalThis.fetch = async (url, options) => {
     env: {
       ...process.env,
       LINEAR_API_KEY: "offline-fixture-credential",
+      LINEAR_API_URL: "https://api.linear.app/graphql",
       PATH: `${dir}${path.delimiter}${process.env.PATH}`,
     },
   };

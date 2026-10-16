@@ -101,6 +101,61 @@ re-verification for dispatched work, and by a scanning-first layout. Agent
 Orchestrator reads code-host PR state itself instead of requiring it in worker
 handoffs.
 
+## PR 22: readable, proportionate workflows
+
+Measured 2026-10-16 with the same tokenizer. Compare PR 22 against its actual
+stack base, PR 21 at `02fe12c06cdf41eb257dc5a59242147e8a4161de`, separately from
+PR 21's Create PR and Implement savings. The original PR 22 head was
+`53e9057a3e73049cbdaa51c805cbc9b8910ac53c`.
+
+| Skill              | PR 21 base | Original PR 22 | Revised PR 22 |
+| ------------------ | ---------: | -------------: | ------------: |
+| `ziw-architecture` |        644 |            769 |           629 |
+| `ziw-code-review`  |      2,548 |          2,814 |         2,516 |
+| `ziw-debug`        |      1,034 |          1,254 |         1,084 |
+| `ziw-grill`        |      1,159 |          1,365 |         1,203 |
+| `ziw-orchestrate`  |      2,836 |          2,888 |         2,818 |
+| `ziw-setup`        |      2,855 |          2,945 |         1,737 |
+| `ziw-to-issues`    |      3,709 |          4,125 |         3,292 |
+| `ziw-triage`       |      4,518 |          4,712 |         4,697 |
+| Eight rewritten    |     19,303 |         20,872 |        17,976 |
+| `ziw-implement`    |      2,296 |          2,296 |         2,340 |
+| `ziw-pr`           |      1,643 |          1,643 |         1,643 |
+| All ten            |     23,242 |         24,811 |        21,959 |
+
+The eight rewritten entrypoints are 13.9% smaller than original PR 22 and
+6.9% smaller than their actual stack base. Ordered actions replace repeated
+outlines and prose. The new decision rules allow scoped Grill returns, affected
+Setup verification, bounded Triage path discovery, snapshot reuse, and
+proportionate Debug checks. Implement adds the documentation-check exception
+at its main verification step.
+
+### Representative loaded paths
+
+These totals include every file named in each path, including conditional
+references. They exclude config, task evidence, and adapter prompts as above.
+Shared files already in context need not be loaded twice. Section-specific
+reads can be smaller than these full-file estimates.
+
+| Path                                                | Original PR 22 | Revised PR 22 |
+| --------------------------------------------------- | -------------: | ------------: |
+| Direct Debug                                        |          1,254 |         1,084 |
+| Implement + Debug + behavioral testing reference    |          3,865 |         3,739 |
+| Scoped Grill clarification                          |          2,498 |         1,203 |
+| Grill planning + planning-artifact contract         |          2,498 |         2,391 |
+| Setup + full config index                           |          8,688 |         7,507 |
+| Orchestrate + planner input contract                |          5,945 |         5,875 |
+| Orchestrate + planner + integration checklist       |          8,530 |         8,499 |
+| Same integration path + loop configuration contract |         10,934 |        10,963 |
+
+The planning-artifact reference grows from 1,133 to 1,188 tokens and now loads
+only for planning or changed boundaries. It does not load for a resolved scoped
+clarification. The config index grows from 5,743 to 5,770, the integration
+checklist from 2,585 to 2,624, and the loop contract from 2,404 to 2,464.
+Those increases align scope and freshness rules; no bulk entrypoint content
+was moved into references to claim a reduction. A configured orchestration loop
+does not reload its setup contract on every tick.
+
 ## Identity handoff references
 
 | Reference              | Tokens | Load condition                                  |

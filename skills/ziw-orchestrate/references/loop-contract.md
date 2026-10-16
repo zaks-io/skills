@@ -50,6 +50,11 @@ becoming a human escalation.
 
 Each tick:
 
+Collect inventory once for planning and concurrent lanes. Refresh only affected
+records before claims, workflow/PR mutations, or acting on observed changes;
+reuse mutation responses for immediate follow-ups. Merge preflight still checks
+current head/base, checks, review, draft, threads, and authority immediately before merge.
+
 1. Wake light. Load only repo config, scope, the dispatch ledger, and the review
    checkpoint. Refresh local Git refs, HEAD, worktree list, and
    `git status --short --branch` when a local checkout is in play. Do not carry

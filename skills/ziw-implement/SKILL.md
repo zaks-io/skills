@@ -118,6 +118,9 @@ checks. Hooks and CI run the full gate; run it by hand only when neither does.
 CI-only jobs such as coverage thresholds, smoke, and full-history secret scans
 stay in CI unless the issue names them or CI already failed on them. When
 Markdown changed and no hook formats it, run the configured docs format check.
+For docs, copy, and mechanical changes, use applicable format, link, or structure
+checks. Add behavioral tests only when behavior changes or the issue requires
+them; do not invent tests just to complete the workflow.
 
 **What counts as evidence.** Output you saw in this session, from your commands
 or from hooks, plus CI results. A green claim in an issue or PR comment does
