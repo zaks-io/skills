@@ -6,91 +6,56 @@ description: Assess codebase architecture and propose module interface or owners
 # Architecture
 
 Find worthwhile structural improvements or design a named module interface.
-Finish with evidence, alternatives, and a recommendation the user can act on,
-including a reason when no improvement earns its cost.
+Finish with evidence, alternatives, and an actionable recommendation.
 
 ## Inputs
 
-- The requested assessment area or interface design problem and its constraints.
-- Repo instructions.
-- Workflow config when present.
-- Real callers, tests, relevant specs, glossary, and accepted ADRs.
+Requested area or interface problem and constraints; repo instructions; workflow
+config when present; real callers, tests, relevant specs, glossary, and accepted ADRs.
 
 ## Steps
 
-1. [Choose the work](#choose-the-work) and load the relevant context.
-2. [Recommend](#recommend) from concrete evidence and alternatives.
-3. [Hand off](#hand-off) within the request's authority.
-4. [Report the result](#done).
-
-## Choose the work
-
-- **Assessment:** load [references/assessment.md](references/assessment.md)
-  and investigate the named area.
-- **Module design:** load [references/codebase-design.md](references/codebase-design.md),
-  trace real callers, and compare plausible interfaces.
-- A named module request does not require a whole-codebase assessment.
-- Ordinary implementation and PR review callers may consult the design
-  reference directly for their scoped changes.
-- Read configured planning paths before discovering conventions.
-- For unmapped glossary paths, use
-  [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md).
-- For encountered friction, use
-  [friction-log.md](../ziw-orchestrate/references/friction-log.md).
-
-## Recommend
-
-- Separate observed implementation from intended behavior.
-- Support each proposed change with real caller knowledge, repeated
-  orchestration, change locality, or a verification gap.
-- Cite affected paths.
-- Compare compatibility, testability, migration cost, and domain ownership.
-- Prefer existing interfaces and the simplest design that resolves the
-  observed problem.
-- A future adapter or a line-count preference alone does not justify a new
-  abstraction.
-- Show concrete call examples or before/after dependency diagrams when useful.
-- Explain which behavior becomes easier to verify and at what public interface.
-- State recommendation strength and uncertainty.
-- If no improvement earns its cost, say so.
-
-## Hand off
-
-- Assessment and design requests authorize investigation and proposals.
-- Keep proposed designs distinct from accepted decisions.
-- Return an assessment report in conversation or write it to the requested
-  location.
-- Label written reports as proposals rather than current-truth specs.
-- Report ADR implications within the limits in [Never](#never).
-- An assessment may end with recommendations. An interview is not required
-  to finish it.
-- A scoped implementation caller retains its original acceptance and proof
-  boundaries.
-
-**Selected proposal with material unanswered decisions:**
-
-- Hand its evidence, alternatives, constraints, and ready questions to `$ziw-grill`.
-- Selection authorizes exploring that proposal. It does not accept every
-  design detail.
-- Grill owns confirmed specs and explicit readiness approval.
+1. Load context for the requested work.
+   - For assessments, load [assessment.md](references/assessment.md) and
+     investigate the named area.
+   - For module design, load [codebase-design.md](references/codebase-design.md),
+     trace real callers, and compare plausible interfaces. A named module
+     does not require a whole-codebase assessment.
+   - Ordinary implementation and PR review may consult the design reference
+     directly. This workflow is not mandatory for them.
+   - Read configured planning paths before discovering conventions. For unmapped
+     glossary paths, use [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md).
+   - For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md).
+2. Recommend from concrete evidence.
+   - Separate observed implementation from intended behavior. Support each
+     change with real caller knowledge, repeated orchestration, change locality,
+     or a verification gap; cite affected paths.
+   - Compare compatibility, testability, migration cost, and domain ownership.
+     Prefer existing interfaces and the simplest design that resolves the problem.
+     A future adapter or line-count preference alone cannot justify an abstraction.
+   - Show call examples or before/after dependency diagrams when useful. Explain
+     which behavior becomes easier to verify and at what public interface.
+   - State recommendation strength and uncertainty.
+3. Return the report in conversation or at the requested location. Label written
+   reports as proposals, distinct from accepted decisions and current-truth specs.
+   - Assessment and design authorize investigation and proposals. Report ADR
+     implications within that authority. An assessment needs no interview to finish.
+   - If the user selects a proposal with material unanswered decisions, hand its
+     evidence, alternatives, constraints, and ready questions to `$ziw-grill`.
+     Selection authorizes exploration, not acceptance of every detail. Grill owns
+     confirmed specs and explicit readiness approval.
+   - Scoped implementation callers retain their original acceptance and proof boundaries.
 
 ## Never
 
-- Make this workflow mandatory for ordinary implementation or PR review.
 - Manufacture candidates or infer defects from code alone.
 - Implement code, change tracker state, create tickets or PRs, or mark specs
   ready under assessment or design authority.
 - Create or override an accepted ADR.
-- Launch implementation or ticket creation as part of the handoff.
+- Launch implementation or ticket creation during handoff.
 
 ## Done
 
-Return:
-
-- Investigated scope and source evidence.
-- Candidates, or the reason none warrant change.
-- Interface alternatives.
-- Compatibility and migration implications.
-- Verification opportunities.
-- Unresolved decisions.
-- The recommended next action.
+Return investigated scope and source evidence, candidates or why none warrant
+change, interface alternatives, compatibility and migration implications,
+verification opportunities, unresolved decisions, and the recommended next action.
