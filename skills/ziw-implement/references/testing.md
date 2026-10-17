@@ -22,7 +22,7 @@ could change the required proof. Debug owns cause investigation for failures.
 
 Docs, copy, and mechanical changes do not need artificial tests. Follow the
 issue's required checks, and still exercise the actual endpoint or UI when
-that is the affected user flow. Tests do not replace the configured full gate.
+that is the affected user flow. Hooks and CI still run the full gate.
 
 ## Sources
 

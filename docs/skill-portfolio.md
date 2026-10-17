@@ -37,7 +37,7 @@ reference rather than an eleventh skill. Measure real use before further splits.
 | `ziw-orchestrate`  | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.                              |
 | `ziw-implement`    | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                                         |
 | `ziw-code-review`  | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.                   |
-| `ziw-pr`           | Keep, measure overlap | Shared shipping gate for branch-to-PR work. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.                                 |
+| `ziw-pr`           | Keep, measure overlap | Shared shipping step for branch-to-PR work, with bounded fix rounds. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.        |
 
 ## Adapted Guidance
 

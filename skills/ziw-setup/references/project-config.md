@@ -21,7 +21,8 @@ Project state: configured issue tracker. This file stores stable configuration o
   flag required checks outside the entrypoint as a config gap
 - Baseline check policy: required job names and which job post-merge checks judge;
   store current failures and their repair work in the tracker, not this file
-- Local gate cache policy:
+- Local gate cache policy: task caches are trusted evidence; list only specific
+  tasks whose cache keys miss inputs, or `trusted`
 - CI env passthrough:
 - Separate threshold gates: coverage, smoke, secret scan, generated artifacts, or
   none; include the exact local command for each hosted job not covered by the
@@ -319,8 +320,10 @@ Project state: configured issue tracker. This file stores stable configuration o
 
 - PR title:
 - PR body:
-- Required checks:
-- Code review:
+- Required checks: CI job names; hooks and CI run them, so Create PR does not
+  rerun them
+- Code review: author QA is the implementer's judgment call; independent
+  review runs after the PR opens
 - Local GitHub review submission actor policy: verified CLI command and account
   used to submit local review results; omit unverified identity and block submission
 - Hosted bot review provider policy: allowed configured providers, optional or
@@ -344,15 +347,18 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Cursor Bugbot command policy: use only the verified repo-configured trigger or
   automatic review policy; if trigger or actor is unknown, record the gap rather
   than guessing; keep that follow-up outside config
-- Draft PR policy: draft only while checks, requested human prep, or required
-  author fixes are incomplete; draft state alone is not a code review request.
+- Draft PR policy: open non-draft by default; draft only for requested human
+  prep or known required author fixes. Pending or running CI is not a reason
+  for draft; draft state alone is not a code review request.
   Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts
   ready-for-review, and verifies the code-host PR is non-draft unless this repo
   says otherwise. A kept-draft PR is pre-review, not ready-for-review. Draft PRs
   consume file-contention seams but not worker slots unless a worker is actively
   repairing them
-- Ready-for-review owner: Agent Orchestrator
-- Issue update:
+- Ready-for-review owner: Create PR opens non-draft; Agent Orchestrator
+  repairs stuck drafts
+- Issue update: PR URL in the PR body links the issue; evidence comments are
+  Agent Orchestrator's, after review
 - Merge authority:
 
 ## Environments
@@ -392,7 +398,10 @@ authorized scope. Missing required fields block their workflow. If the repo
 differs from the org-wide defaults, document the mapping in this file instead of
 changing the shared skills.
 
-Verify every populated value that affects workflow behavior. Do not persist an
+Initial setup and explicit full verification cover every applicable populated
+value. A scoped refresh verifies changed or suspect fields and dependencies,
+preserving unrelated stable mappings without claiming they were revalidated.
+Do not persist an
 `Unknowns` checklist, verification transcript, open-work inventory, active
 claims, current CI/PR health, provider budget, or session availability in config.
 Status IDs, label mappings, capacity limits, and approval rules are stable

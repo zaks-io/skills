@@ -1,172 +1,112 @@
 ---
 name: ziw-pr
-description: Use when opening, refreshing, or shipping the current branch as a pull request with local checks, judgment-based author QA, Conventional Commits, PR creation, and issue tracking.
+description: Use when opening, refreshing, or shipping the current branch as a pull request with Conventional Commits, push, PR creation, and issue linking, in bounded fix rounds; hooks and CI are the check gate.
 argument-hint: "[issue-id|branch|pr-url]"
 ---
 
 # Create PR
 
-Take the current code to a non-draft ready-for-review PR. Do the whole workflow
-unless blocked.
+Get the branch to an open, non-draft PR linked to its issue, then hand off.
+That is the whole job. You have standing permission to skip everything else:
+no checks of your own, no code review, no issue search, no CI wait. Hooks run on
+commit and push, CI runs on the PR, and Agent Review owns independent review.
 
 For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
 with the configured complaint store and this role's mutation authority.
 
 ## Inputs
 
-- Current branch and all intended staged or unstaged repo changes.
-- Optional issue ID, branch name, or PR URL from the invocation.
-- Repo config for checks, branch naming, PR format, and tracker updates.
+- The current branch and its changes.
+- Optional issue ID, branch, or PR URL from the invocation.
+- The caller's report, when Agent Implement calls you: author-QA decision,
+  checks that passed, issue title and URL, and scope confirmation.
 
-## Context
+## Steps
 
-Read `docs/agents/workflow/config.md` first. If missing, infer the minimum from
-repo files and note that `ziw-setup` should be run.
+1. [Gather](#gather) branch state and the issue.
+2. [Check the branch and scope](#branch-and-scope).
+3. [Commit and push](#commit-and-push), taking [fix rounds](#fix-rounds) for
+   hook failures.
+4. [Open or update the PR](#pr) as non-draft and link the issue.
+5. [Report](#done) without waiting for CI.
 
-Gather in parallel:
+## Gather
 
-- `git status --short`
-- `git diff HEAD`
-- `git branch --show-current`
-- `git log --oneline -10`
-- existing PR for the branch
+Read `docs/agents/workflow/config.md` if present; otherwise use repo files and
+note that `ziw-setup` should run. In one parallel batch, gather
+`git status --short`, `git diff HEAD`, the current branch,
+`git log --oneline -10`, and the branch's existing PR.
 
-## Issue Tracker
+Take the issue from the invocation, the caller, the existing PR's issue links,
+the branch name, or the commits. Never search for one. Fetch it once for its
+title, URL, and out-of-scope list, unless the caller gave the title and URL and
+confirmed scope.
 
-Find or create tracking before naming the PR:
+## Branch And Scope
 
-1. If the branch or commits include an issue ID, fetch that issue.
-2. Otherwise search the issue tracker using branch name, commit subjects, touched packages,
-   and diff keywords.
-3. If exactly one issue is a strong match, use it. If matches are ambiguous,
-   ask. If none exists and the change is non-trivial, create a tracking issue
-   in the configured provider location with the repo routing label.
-4. Capture original intent: title, scope, out of scope, acceptance criteria,
-   required checks, and linked docs.
-5. Compare the current diff to that intent. A PR may satisfy the assigned issue
-   and directly required mechanics; it must not quietly deliver adjacent tickets,
-   optional polish, broad refactors, or behavior named out of scope.
+- Never push to the default branch. On the default branch or detached HEAD,
+  create a branch with the configured prefix, such as
+  `<branch-prefix>/<issue-id>-<short-slug>`. Keep any other branch name.
+- Update the branch's existing PR instead of opening a duplicate, and keep
+  every issue link it already has.
+- Include all repo changes except secrets, credential files, and unintended
+  lockfiles.
+- Without a caller's scope confirmation, compare the diff once against the
+  issue's out-of-scope list.
 
-Skip issue tracker only when tools are unavailable or config lacks enough information.
-Record the skip in the final report.
+Stop when the diff holds a secret, unrelated work, or work the issue names out
+of scope.
 
-## Scope And Branch
+## Commit And Push
 
-- Never push to the default branch.
-- If already on a feature branch, use it.
-- If on the default branch or detached HEAD, create a branch using the repo
-  config branch prefix, such as `<branch-prefix>/<issue-id>-<short-slug>` when
-  an issue exists.
-- If a PR already exists for this branch, update that PR instead of creating a
-  duplicate.
-- Include all staged and unstaged repo changes by default, except secrets.
-- If the diff is unrelated work mixed together, stop and ask how to split.
-- If the diff contains work outside the tracked issue boundary, split, revert,
-  or ask before creating or updating the PR. Do not use one PR to close multiple
-  tickets unless the user explicitly requested a multi-ticket PR and config
-  allows it.
+**Checks: run none.** A caller's reported results, the hooks, and CI are the
+evidence; trust a caller's report as given. Two exceptions, both before the
+first commit and neither counted as a fix round:
 
-## Checks
+- Package manifests changed without the lockfile: run the configured install
+  so the lockfile ships with them.
+- Neither a hook nor CI runs the full gate, and the caller did not report it
+  passing: run the configured full local gate once.
 
-Run the repo full local gate from config. If absent, discover it from package
-scripts, CI, Makefile, Justfile, lockfiles, and touched languages. When Agent
-Implement reports the gate and threshold checks passing on the exact tree being
-committed, reuse those results; run only checks it skipped or that a later file,
-manifest, generated-artifact, or environment change invalidates.
+Then:
 
-Use the configured command and runner for each check. Do not infer a test runner
-from filename alone, and do not replace the full gate with a package-local alias
-when CI enforces broader build, typecheck, coverage, generated-artifact, smoke,
-or secret-scan checks. When running secret scanning locally, use the same
-branch, diff, or source scope that CI uses instead of scanning unrelated local
-refs.
+- Stage with `git add -A`; unstage `.env*`, credential files, local secrets,
+  and unintended lockfiles.
+- Use Conventional Commits, with the configured issue trailer when an issue
+  exists, defaulting to `Issue: <ISSUE-ID>`.
+- Push.
 
-If CI exposes coverage, smoke, or secret scanning as separate threshold jobs,
-run the configured local equivalent before PR handoff when the current diff
-touches that surface. A passing full local gate is not enough when config says a
-threshold job lives outside that gate.
+A cache hit is valid evidence, whatever config says about cache policy.
 
-When CI has threshold gates, cache-sensitive tasks, or env-filtered test gates,
-run the exact threshold-enforcing and cache-busted command named by config. A
-cached green local gate is not PR evidence unless config says the cache is valid
-for the current diff and environment.
+## Fix Rounds
 
-If the branch changes package manifests, lockfiles, generated artifacts, or the
-workspace dependency graph, run the repo-configured install, lockfile validation,
-or artifact refresh before the final gate.
+A hook failure or rejected push starts a fix round: find the cause, fix it,
+commit, optionally run just the failing task to confirm, then push again.
 
-If Markdown or docs changed, run the configured docs formatting check before the
-PR handoff. Use `pnpm format:docs:check` when that command exists in the target
-repo. Do not rely only on pre-commit hook installation or CI to prove docs
-formatting.
+- A round must change something. One plain retry with no change is allowed
+  for a transient error such as a network failure; it is not a round.
+- A different failure after a fix is progress and does not reset the count.
+- "The same failure" means the same check failing with the same error.
 
-Run focused checks for high-risk touched areas. Fix mechanical failures and
-rerun. Never use `--no-verify`.
+Stop and report, instead of starting another round, when:
 
-## Code Review
-
-Before committing, decide whether author QA would materially improve confidence.
-Use a fresh `ziw-code-review` for high-risk, broad, unfamiliar, weakly tested, or
-ambiguous changes, or when explicitly requested. Reuse current author-QA
-evidence when it still applies. Skip author QA for low-risk, mechanical,
-well-covered changes when required checks provide enough evidence. A changed
-diff or new commit alone is not a reason to run or repeat author QA, and Create
-PR must not duplicate Agent Implement's judgment without a concrete risk signal.
-If review runs, fix P0/P1 findings and obvious mechanical P2 findings. Ask before
-broad architecture, product, security, or data-behavior changes. When Create PR
-runs inside Agent Implement, this is author QA, not independent review evidence.
-
-Use the configured hosted bot review provider per the merge-safety rules in
-[../ziw-setup/references/operating-profile.md](../ziw-setup/references/operating-profile.md)
-and the `ziw-code-review` recommendation. CodeRabbit and Cursor Bugbot are both
-valid providers when repo config enables them. Use hosted bot review only for
-high-risk changes, when repo policy requires it, or when the user asks.
-
-Do not post hosted-review commands or run a provider CLI until the provider,
-auto-review mode, trigger policy, and current hosted review state are resolved.
-If a hosted review is enabled, pending, or complete for the current
-review-relevant diff, do not request another; report it as `auto pending` or
-`complete` and hand off.
-Evaluating its findings belongs to Orchestrator. Never use CodeRabbit CLI for an existing PR, and
-do not apply CodeRabbit commands to Cursor Bugbot. Use `@coderabbitai ignore` in
-the PR description only when CodeRabbit policy allows skipping optional
-auto-review. For Cursor Bugbot, use only the repo-configured trigger or
-automatic review policy; report `unresolved` if the trigger is unknown. Missing
-auth, rate limits, or credits are a recorded skip, not a blocker, unless repo
-policy or the user requires that provider; then report `unresolved`.
-
-## Commit
-
-- Stage with `git add -A`.
-- Unstage `.env*`, credential files, local secrets, and unintended lockfiles.
-- Use Conventional Commits.
-- Include the configured issue trailer or link when an issue exists, such as
-  `Issue: <ISSUE-ID>`, `Fixes #123`, or the repo's configured equivalent.
-- If hooks fail, fix root cause and create a new commit. Do not amend published
-  commits unless the user explicitly asks.
+- you cannot find a cause; do not try speculative changes;
+- the same failure survives two fixes;
+- three fix rounds have run, even if a fourth looks close; or
+- the fix needs a product, design, or scope decision, such as editing a
+  package outside the issue; or
+- the push or PR needs a permission you lack.
 
 ## PR
 
-Create or update a ready-for-review PR unless the user asked for draft or a
-required review gate has not passed. Ready-for-review means non-draft.
+Create or update the PR as non-draft, and mark an existing draft ready now,
+unless the user or config requires a draft; report a required draft as
+pre-review. Do not wait for CI or hosted review.
 
-If an existing PR is draft, mark it ready-for-review when required local checks
-pass, no known blocker remains, and the user did not ask to keep it draft.
-Refresh the code-host PR state afterward and verify it is non-draft. If
-hosted bot review `PR REVIEW` is recommended for a high-risk or complex open
-PR, report that post-PR escalation in the handoff; do not use draft state as a
-holding pen after author QA is clean.
+Title: the issue title, otherwise the commit subject; under 70 characters when
+practical.
 
-If the user or repo config requires a draft PR, report the PR as a draft
-pre-review handoff. Do not call it ready-for-review until it is marked non-draft
-in the code host.
-
-PR title:
-
-- Use the tracker issue title when available.
-- Keep under 70 characters when practical.
-
-PR body:
+Body:
 
 ```markdown
 ## Summary
@@ -179,78 +119,62 @@ PR body:
 
 ## Risk: LOW | MEDIUM | HIGH
 
-- Areas touched:
-- Security:
-- Performance:
-- Breaking:
+[what could break]
 
 ## Test plan
 
-- [ ] [command or verification]
+- [x] [command and result, including hook runs and reused caller checks]
 
 [Issue: ISSUE-ID](url)
 ```
 
-Keep the exact tracker issue URL in the PR body for work this PR delivers.
-Return the PR number and known `issueKey`/`issueUuid` through the
-[handoff contract](../ziw-setup/references/handoff.md). A title or branch token is
-only a delivery hint; it cannot replace an explicit issue association or confirm
-that the implementation session returned.
+Risk is a label for the reader and triggers nothing. HIGH: auth, secrets,
+destructive data, schema migrations, queues or background jobs, production data
+flow, public contracts, broad refactors. MEDIUM: normal feature logic. LOW:
+docs, tests, copy, isolated UI.
 
-Risk is HIGH for auth, authorization, secrets, destructive data, schema
-migrations, queues/background jobs, production data flow, public contracts, or
-broad refactors. MEDIUM is normal feature/business logic work. LOW is docs,
-tests, copy, or isolated UI.
+Issue linking:
 
-## Issue Tracker Update
+- Put the issue's exact URL in the PR body. With a tracker and code-host
+  integration, that link is the association and the integration moves issue
+  state; otherwise attach the PR URL to the issue.
+- A title or branch token alone is only a delivery hint.
+- Change issue state only when config or the user delegates it to Create PR.
 
-When an issue exists:
+## Review
 
-- attach the PR URL
-- report the configured review-state transition, usually `In Review`, for
-  Agent Orchestrator
-- if this PR is part of a direct single-ticket orchestration, perform the
-  configured review-state update for that issue only when config or the user
-  grants mutation authority
-- when the repo uses Linear + GitHub and the PR is linked to the ticket, assume
-  the integration sync is active and may advance Linear state from PR status; do
-  not duplicate manual state changes unless config delegates that authority
-- comment with checks run, author-QA decision or verdict, hosted bot review decision,
-  PR draft or ready-for-review state, current PR head SHA, base SHA, merge base,
-  independent-review request or current independently reviewed head evidence,
-  acceptance criteria status, scope-boundary status, hosted check state, and
-  differences from original intent
-- never move to `Done`; merge is not complete
+Author QA is the implementer's judgment-based call, made before this skill
+runs. Run `ziw-code-review` here only when the user asks for it in this
+request; a new commit alone never calls for it. Hosted bot review belongs to
+Agent Orchestrator or the user.
 
 Create PR does not own approval state. Author QA is not independent review
-evidence. Do not apply or clear review-evidence labels, move the issue to
-`Ready to Merge`, or apply merge-ready PR labels. Agent Review produces review
-evidence; Agent Orchestrator owns those tracker and PR mutations.
+evidence.
 
-Do not move workflow state unless the repo config or user explicitly delegates
-that authority to Create PR.
+## Never
+
+- Do not apply or clear review-evidence labels, move the issue to
+  `Ready to Merge` or `Done`, or apply merge-ready PR labels.
+- Do not use `--no-verify`, commit secrets, or deploy production.
+- Do not pass `--force`, `--no-cache`, or other cache-busting flags, except to
+  bypass the cache for one task config names as having a cache key that misses
+  inputs.
+- Do not amend published commits or force-push unless the user asks.
+- Do not request hosted bot review.
 
 ## Done
 
-Report:
+The PR exists on the code host, or a stop rule fired. Fill the report from what
+you just did, without polling. A stop is a report, not a wait: name the
+decision needed and hand back. Agent Implement copies these fields into its
+[handoff](../ziw-setup/references/handoff.md).
 
 ```text
-PR:     <url>
-Title:  <title>
-Risk:   <LOW|MEDIUM|HIGH>
-Checks: <commands and result>
-Review: author QA <skipped with reason|verdict>; hosted bot <provider skipped|CLI|PR review|auto pending|complete|unresolved>
-Evidence: head <sha>; base <sha>; merge-base <sha>; hosted checks <state>
-PR state: <draft|ready-for-review>
-Scope: <matches issue|split needed|untracked, with reason>
-Issue:  <issue, handoff status, created, or skipped>
+PR:     <url and number> (<ready-for-review|draft>) | none, stopped
+Head:   <sha>, <pushed|unpushed>
+Checks: <reused caller checks and hook runs, with results>; CI <pending|state|not run>
+Review: author QA <caller's decision | user-requested verdict | none>
+Issue:  <issueKey and URL>, <linked|not linked yet> | untracked
+Rounds: <count and what each tried; if stopped, the rule and the failure>
 Next:   <owner and exact next action>
 ```
-
-## Guardrails
-
-- Never bypass hooks.
-- Never commit secrets.
-- Never force-push unless the user explicitly requested it for an existing PR
-  maintenance flow.
-- Never deploy production manually.

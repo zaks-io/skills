@@ -30,8 +30,10 @@ issue set, then fix the tickets. Include direct blockers of configured ready/int
 tickets, but do not include unrelated Backlog or Duplicate by default. Use tracker/MCP
 tools for specific ticket reads and mutations, not to rediscover queue state the
 scripts already computed. If no issues are in scope, report that and stop. Do not
-do ad hoc code, GitHub, CI, deploy, log, alert, or repo-health exploration
-outside the scripts.
+do ad hoc code, GitHub, CI, deploy, log, alert, or repo-health exploration.
+Exception: the skill permits one filename-only lookup when location is the
+only missing field. Route unresolved locations to To Issues without reopening
+accepted scope or asking a human solely to find a path.
 
 A normal triage run processes configured intake without another opt-in phrase.
 Move complete `ready-for-agent` `kind-slice` tickets from configured intake states

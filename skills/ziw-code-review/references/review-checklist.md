@@ -141,8 +141,9 @@ Confidence guide:
 - CI env vars, feature flags, or test gates are set in workflow config but may be
   stripped by the task runner, shell, or env filtering before reaching the test
   process.
-- Local verification does not match CI scope, thresholds, cache mode, generated
-  artifact checks, or secret-scan range.
+- A changed behavior has no test or check anywhere, local or CI. Checks that
+  CI owns, such as coverage thresholds, smoke, and full-history secret scans,
+  are covered even when not run locally; pending CI is not missing coverage.
 - Idempotency tests only cover first success, not completed retry, in-flight retry, retry after optional side effects, and retry under rate-limit pressure.
 - Destructive or revocation tests assert database state but not the externally
   visible API behavior after invalidation, such as old URLs or handles failing.

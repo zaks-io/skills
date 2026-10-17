@@ -24,6 +24,29 @@ workflow docs together. Preserve existing invocation policy. Add a published
 role only when a distinct caller and outcome justify it; record that rationale
 in the skill portfolio.
 
+## Write for scanning
+
+Agents and humans skim. A rule they cannot find, or cannot tell apart from its
+exception, gets ignored or over-applied.
+
+- Open with the outcome and the done condition in two or three sentences.
+- Put the ordered path in one numbered `Steps` list near the top; detail lives
+  in sections named after the steps.
+- One rule per bullet. One idea per sentence, ideally under 25 words.
+- State the default first, then label exceptions right below it
+  (`Exception:`, **Dispatched:** / **Invoked directly:**).
+- Grant permissions as plainly as prohibitions: "Start coding. Do not
+  re-check..." beats a conditional buried in a paragraph.
+- Bound every loop with a progress rule and a cap: each round must change
+  something; stop when it does not, when the same failure survives two fixes,
+  or at the cap.
+- Collect hard limits in one short `Never` list instead of scattering them.
+- Prefer plain words to workflow jargon; define a term once in `CONTEXT.md`.
+- Move detail needed by only one branch into a reference with a load
+  condition.
+- A readability rewrite keeps every rule. Compare old and new instruction by
+  instruction before committing, and keep test-pinned phrases intact.
+
 ## Validate behavior
 
 Compare entrypoint token estimates and representative loaded-reference paths.

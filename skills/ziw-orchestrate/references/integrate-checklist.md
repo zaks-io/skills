@@ -6,15 +6,19 @@ file carries the order of operations.
 
 ## Review And Readiness
 
-1. Refresh PR draft status, branch head, required checks, review comments, and
-   linked issue state from the code host and tracker. If the tracker/code-host
+1. Read PR draft status, branch head, required checks, review comments, and
+   linked issue state from the current tick snapshot or focused code-host/tracker
+   reads. Reuse observed state for planning; refresh affected records before
+   mutations or when change signals arrive. Do not rebuild whole inventories
+   per PR action. If the tracker/code-host
    integration syncs linked PRs and tickets, assume the synced state is real
    when both linked entities exist; manually repair only after both systems
-   have been refreshed. Require evidence-complete handoff before treating a
-   returned PR as ready for review or merge: current PR head SHA, base SHA,
-   merge base, exact checks, hosted check state, review verdict, hosted bot
-   review decision, and non-draft state unless a blocker says why the PR must
-   remain draft.
+   have been refreshed. Read PR head, base, merge base, draft state, hosted
+   checks, and hosted bot review state from the code host yourself; never send
+   a worker back to collect them. From the worker, require only what the code
+   host cannot know: issue and PR identity, scope audit, local checks run, and
+   the author-QA decision. The review verdict comes from Agent Review, after
+   this step.
 2. If the PR is draft, diagnose draft state before asking for review: inspect
    repo draft policy, PR body, check state, unresolved review comments, linked
    issue state, handoff notes, configured review evidence label state, and the

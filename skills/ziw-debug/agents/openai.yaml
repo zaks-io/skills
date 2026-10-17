@@ -1,6 +1,6 @@
 interface:
   display_name: "Debug"
   short_description: "Diagnose failures and verify narrow fixes"
-  default_prompt: "Use $ziw-debug to reproduce this bug or failure, test competing hypotheses, and return the supported cause and verification evidence. Apply a narrow fix only when authorized; diagnosis does not create tickets or PRs."
+  default_prompt: "Use $ziw-debug to reproduce the failure, test hypotheses, and verify a narrow fix only when authorized. Rerun the reproducer and affected checks; follow the caller's verification policy and reuse current evidence. Docs and mechanical fixes need no artificial tests. Return cause, evidence, and limits; diagnosis does not create tickets or PRs."
 policy:
   allow_implicit_invocation: true
