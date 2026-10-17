@@ -30,7 +30,9 @@ export function extractFullLocalGate(configPath) {
   }
 
   const text = readFileSync(configPath, "utf8");
-  const match = text.match(/^\s*- Full local(?:\/CI| pre-push)? gate:[ \t]*`([^`]+)`/m);
+  const match = text.match(
+    /^\s*(?:- Full local(?:\/CI| pre-push)? gate:[ \t]*|\|\s*Full(?: local)? gate\s*\|\s*)`([^`]+)`/m,
+  );
   return match?.[1] ?? null;
 }
 
