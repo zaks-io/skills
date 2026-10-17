@@ -77,14 +77,16 @@ when the tracker label group does not.
   is startable; the orchestrator hard-refuses to dispatch a container.
 
 `kind-slice` work should close in one PR, and one PR should carry a whole
-outcome with its tests, docs, config, and migration. To Issues cuts the fewest
-slices that ship safely and separates work only for a distinct outcome, size,
-rollout order, risk or authority, or readiness. Steps that rollout order forces
-into several PRs, such as data cleanup before a schema change, become separate
-slices under a container so the first linked PR cannot falsely close the whole
-scope. A layer, scaffold, verification step, or the tests or docs for an
-unmerged sibling's behavior merges into the slice it serves unless a split
-reason keeps it apart.
+outcome with its tests, docs, config, and migration. To Issues starts from one
+slice per feature, cuts the fewest slices that ship safely, and separates work
+only for size, rollout order, authority, readiness, or separate features. Size
+means over the configured estimate maximum, or too large to review in one
+sitting when no scale is configured. It asks the user before creating more than
+three new slices in one run. Steps that rollout order forces into several PRs,
+such as data cleanup before a schema change, become separate slices under a
+container so the first linked PR cannot falsely close the whole scope. A layer,
+scaffold, verification step, or the tests or docs for an unmerged sibling's
+behavior merges into the slice it serves unless a split reason keeps it apart.
 
 Every ready `kind-slice` needs one primary outcome and explicit `in scope` and
 `out of scope` sections. The out-of-scope section is the worker's stop list:

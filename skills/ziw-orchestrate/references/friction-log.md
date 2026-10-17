@@ -129,11 +129,11 @@ handoff rather than filing a success-only complaint.
 ## Category Map
 
 - `ambiguous-ticket`: To Issues or triage needs clearer scope.
-- `over-sliced`: To Issues cut a fragment: a ticket with no consumer or
+- `over-sliced`: To Issues cut a fragment (a ticket with no consumer or
   observable behavior of its own, a worker PR that had nothing verifiable
-  without a sibling ticket's change, or a diff that did not justify its own PR.
-  A slice with its own behavior that lacked a blocker edge is
-  `dependency-wrong`.
+  without a sibling ticket's change, or a diff that did not justify its own PR)
+  or split one feature into several tickets without a split reason. A slice
+  with its own behavior that lacked a blocker edge is `dependency-wrong`.
 - `dependency-wrong`: To Issues or triage dependency modeling was wrong.
 - `file-collision`: To Issues footprint prediction or serialization needs work.
 - `stuck-worker`: worker liveness or continuation tuning.

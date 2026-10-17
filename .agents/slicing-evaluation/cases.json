@@ -1,0 +1,42 @@
+[
+  {
+    "id": "one_feature_many_surfaces",
+    "skill": "ziw-to-issues",
+    "request": "$ziw-to-issues docs/specs/flag-audit-spec.md",
+    "observations": {
+      "config": "config.md",
+      "spec": "flag-audit-spec.md",
+      "existing_tickets": "none"
+    }
+  },
+  {
+    "id": "one_feature_small",
+    "skill": "ziw-to-issues",
+    "request": "$ziw-to-issues docs/specs/saved-filters-spec.md",
+    "observations": {
+      "config": "config.md",
+      "spec": "saved-filters-spec.md",
+      "existing_tickets": "none"
+    }
+  },
+  {
+    "id": "rollout_gate",
+    "skill": "ziw-to-issues",
+    "request": "$ziw-to-issues docs/specs/contact-email-spec.md",
+    "observations": {
+      "config": "config.md",
+      "spec": "contact-email-spec.md",
+      "existing_tickets": "none"
+    }
+  },
+  {
+    "id": "separate_features",
+    "skill": "ziw-to-issues",
+    "request": "$ziw-to-issues docs/specs/q4-batch-spec.md",
+    "observations": {
+      "config": "config.md",
+      "spec": "q4-batch-spec.md",
+      "existing_tickets": "none"
+    }
+  }
+]
