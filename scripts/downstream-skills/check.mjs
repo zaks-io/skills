@@ -11,7 +11,6 @@ const FROZEN_INSTALLS = [
   ["bun.lock", "bun install --frozen-lockfile"],
   ["bun.lockb", "bun install --frozen-lockfile"],
   ["package-lock.json", "npm ci"],
-  ["yarn.lock", "yarn install --immutable"],
 ];
 
 export function frozenInstallCommand(repoRoot) {

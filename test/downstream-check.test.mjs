@@ -35,7 +35,6 @@ test("frozenInstallCommand follows the repo lockfile", () => {
     ["bun.lock", "bun install --frozen-lockfile"],
     ["bun.lockb", "bun install --frozen-lockfile"],
     ["package-lock.json", "npm ci"],
-    ["yarn.lock", "yarn install --immutable"],
   ];
   for (const [lockfile, command] of cases) {
     const root = tempDir();
