@@ -385,9 +385,12 @@ refuses to dispatch a container even if it carries `ready-for-agent`.
 `kind-slice` work should close in one PR, and one PR should carry a whole
 outcome: the code in every layer it touches plus its tests, docs, config, and
 migration. Every slice costs a worker session, a check run, a review, a PR, and
-a merge, so To Issues cuts the fewest slices that ship safely. It separates work
-only for a distinct outcome, size, rollout order, risk or authority, or
-readiness. When rollout order forces several PRs, such as data cleanup before a
+a merge, so To Issues starts from one slice per feature and cuts the fewest
+slices that ship safely. It separates work only for size, rollout order,
+authority, readiness, or separate features. Size means over the configured
+estimate maximum, or too large to review in one sitting when no scale is
+configured. It asks the user before creating more than three new slices in one
+run. When rollout order forces several PRs, such as data cleanup before a
 schema change or a preview flip after the code it enables, each gated step is
 its own slice under a container so the first linked PR cannot falsely close the
 whole scope. A layer, a scaffold, a verification step, or the tests or docs for

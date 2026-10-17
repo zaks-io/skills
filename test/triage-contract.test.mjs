@@ -61,3 +61,51 @@ test("fragment contract agrees across To Issues, triage, and the tracker contrac
     assert.match(content, partnerStates);
   }
 });
+
+test("split reasons start from one slice per feature and agree across docs", () => {
+  const toIssues = read("skills/ziw-to-issues/SKILL.md");
+  const adapter = read("skills/ziw-to-issues/agents/openai.yaml");
+
+  assert.match(toIssues, /Start\s+from\s+one\s+slice\s+per\s+feature/i);
+  assert.match(toIssues, /Parts\s+of\s+one\s+feature\s+never\s+qualify/i);
+  assert.match(toIssues, /different\s+risk\s+label\s+alone\s+is\s+not\s+a\s+split\s+reason/i);
+  assert.match(
+    toIssues,
+    /Before\s+creating\s+more\s+than\s+three\s+new\s+slices\s+in\s+one\s+run/i,
+  );
+  assert.match(adapter, /one\s+slice\s+per\s+feature/i);
+  assert.match(adapter, /more\s+than\s+three\s+new\s+slices/i);
+  assert.match(toIssues, /keeps\s+every\s+check,\s+approval,\s+and\s+reviewer\s+routing/i);
+  assert.doesNotMatch(toIssues, /highest\s+risk\s+label/i);
+
+  for (const file of [
+    "README.md",
+    "docs/agent-workflow.md",
+    "skills/ziw-setup/references/agent-workflow.md",
+  ]) {
+    const content = read(file);
+    assert.match(content, /one\s+slice\s+per\s+feature/i, file);
+    assert.match(
+      content,
+      /only\s+for\s+size,\s+rollout\s+order,\s+authority,\s+readiness,\s+or\s+separate\s+features/i,
+      file,
+    );
+    assert.match(
+      content,
+      /too\s+large\s+to\s+review\s+in\s+one\s+sitting\s+when\s+no\s+scale/i,
+      file,
+    );
+    assert.match(content, /more\s+than\s+three\s+new\s+slices/i, file);
+  }
+
+  for (const file of [
+    "skills/ziw-to-issues/SKILL.md",
+    "README.md",
+    "docs/agent-workflow.md",
+    "skills/ziw-setup/references/agent-workflow.md",
+  ]) {
+    const content = read(file);
+    assert.doesNotMatch(content, /distinct\s+outcome/i, file);
+    assert.doesNotMatch(content, /tracer\s+bullet/i, file);
+  }
+});

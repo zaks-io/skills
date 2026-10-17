@@ -171,3 +171,10 @@ Recount entrypoints and representative loaded paths after meaningful edits.
 Moving text into a mandatory reference does not reduce the path's total.
 Prefer a precise load condition, a canonical source, and a demonstrated
 behavioral benefit over an arbitrary file-size threshold.
+
+## To Issues slicing
+
+Measured 2026-10-17 with the same tokenizer against the PR 21 head,
+`3f68b61b83fe83bf4211af8a8ebcc510648a39e7`. `ziw-to-issues` grows from 3,292 to
+3,534 entrypoint tokens for the one-slice-per-feature default, the narrowed
+split reasons, and the confirmation before more than three new slices.

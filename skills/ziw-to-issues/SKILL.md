@@ -117,11 +117,16 @@ A `ready-for-agent` ticket without intake metadata is a dispatch hazard.
 
 ## Plan slices
 
-Default to the larger slice; each slice costs a worker session, checks, review,
-PR, and merge. Split only for a split reason. A slice delivers one outcome
-observable by a user, operator, or later slice, verifiable end to end in one PR,
-including its Done. Include every needed layer, tests, docs, config, fixtures,
-generated artifacts, and migration.
+Start from one slice per feature the plan asks for. Add a slice only when a
+split reason forces it. Each slice costs a worker session, checks, review, PR,
+and merge. That overhead outweighs smaller diffs, easier review, and parallel
+fan-out, so none of those justify a split.
+
+A slice delivers one outcome observable by a user, operator, or later slice,
+verifiable end to end in one PR, including its Done. Include every needed layer,
+tests, docs, config, fixtures, generated artifacts, and migration. A feature's
+screens, endpoints, commands, states, and acceptance criteria are parts of its
+one outcome, even when each is observable alone.
 
 Ticket only stated requirements. Name tempting unrequested polish, cleanup,
 hardening, future-proofing, and follow-ups in out-of-scope; raise important ones
@@ -132,21 +137,30 @@ assigned work. A merge-test batch of trivial same-area items is one outcome.
 
 ### Split Reasons
 
-Keep slices separate only for:
+A split reason names what would break if the parts shipped in one PR. Keep
+slices separate only for:
 
-- Distinct outcome: each is observable and useful alone; neither only serves the other.
-- Size: together they exceed one reviewable PR or configured estimate maximum.
-  Start with an end-to-end tracer bullet, then widen with observable behavior per slice.
+- Size: the merged slice's estimate exceeds the configured maximum. Exception:
+  without an estimate scale, the diff is too large to review in one sitting.
+  Cut it into the fewest parts that fit, each with observable behavior.
 - Rollout order: a deploy gate separates steps, such as cleanup before schema
   change or a flag or preview flip after enabling code. Put gated slices under a
   `kind-epic` so the first PR cannot close the whole scope.
-- Risk or authority: one part needs human planning, security judgment,
-  production approval, or a different risk label.
+- Authority: one part needs human planning, unsettled security judgment, or
+  production approval that the rest does not.
 - Readiness: one part awaits a question or external dependency while the rest can start.
+- Separate features: the plan asks for unrelated features that it lets ship
+  independently. Parts of one feature never qualify.
 
-Do not split by layer, artifact type, file or module, work step, spec section, or
-acceptance criterion. Agent suitability determines readiness, not boundaries;
-do not carve out tests, docs, or a small refactor to make an agent-fit ticket.
+Do not split by layer, artifact type, file or module, work step, spec section,
+acceptance criterion, screen, endpoint, command, or user state.
+
+A different risk label alone is not a split reason. The merged slice keeps every
+check, approval, and reviewer routing its parts' risks require, and its
+invariants section names each risk.
+
+Agent suitability determines readiness, not boundaries; do not carve out tests,
+docs, or a small refactor to make an agent-fit ticket.
 
 ### Merge Test
 
@@ -174,11 +188,16 @@ does not make a fragment; lacking its own observable behavior does.
 
 - Name the split reason separating each slice from every slice it blocks, is
   blocked by, or shares files with.
-- Apply the merge test; merge pairs without split reasons. In chains only
+- Apply the merge test; merge pairs without split reasons. Size keeps a pair
+  apart only when the merged pair meets the size reason above. In chains only
   unblocking the next link, merge only links without a split reason; rollout
   gates keep their two links apart.
 - Re-split merged work exceeding one PR using a split reason.
 - Record every split reason in dependencies or blockers for triage and in the run summary.
+- Before creating more than three new slices in one run, show the user each
+  slice's outcome, estimate, and split reason. Create only the list they confirm.
+  Exception: when no user can confirm, create no slices and report the proposed
+  list as the open question.
 
 ## Body evidence
 
@@ -232,6 +251,7 @@ Report:
 
 - Source plan and target location.
 - Slices created, adopted, and merged, duplicates converged, count, and each split reason.
+- The user's confirmation when more than three new slices were created.
 - Kinds set and contradictions healed.
 - Estimates set, preserved, omitted by policy, or left with exact questions.
 - Tickets marked `ready-for-agent`, `needs-info`, or `ready-for-human`.
