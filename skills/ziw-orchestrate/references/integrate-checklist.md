@@ -49,10 +49,12 @@ file carries the order of operations.
    wasted, log the cost with an existing friction category, usually
    `stuck-worker` for live worker churn or `config-gap` for missing
    check-state expectations.
-6. When the review target is stable and no equivalent-diff request exists, run one
-   independent `ziw-code-review` in a
-   subagent or disposable worktree. Parallel reviews must use isolated
-   worktrees or sessions, never one shared mutable checkout.
+6. When the review target is stable and no equivalent-diff request exists, enforce
+   [Review limits](../../ziw-code-review/SKILL.md#review-limits) before dispatch.
+   Launch one independent `ziw-code-review` directly in a fresh reviewer session
+   or subagent, never through a review coordinator that launches more agents.
+   Supply the round count, limit, prior findings, attempted fixes, and any
+   high-risk extension reason. Require the reviewer to do all review work itself.
 7. Read the review verdict and hosted bot review recommendation from the review
    artifact. If multiple current review artifacts disagree on blocking
    findings, reconcile conservatively: treat the PR as blocked until a focused
@@ -67,11 +69,14 @@ file carries the order of operations.
 10. Move the issue to `Changes Requested` when author fixes are needed.
 11. Send feedback as a direct reply to the original worker's continuation
     target when available. Do not use a top-level issue comment for a remote
-    Cursor agent unless config verifies that route. Record a `review-thrash`
-    friction entry when a ticket returns to review more than the configured
-    number of times.
-12. Keep fixes on the same branch and PR. After fixes, rerun review and
-    required checks.
+    Cursor agent unless config verifies that route. Persist the completed round
+    count and remaining blockers with the review evidence, across ticks and sessions.
+12. Keep fixes on the same branch and PR. Rerun required checks after fixes;
+    request another review only within the review limits and progress rule.
+    If a limit or progress stop leaves blockers, record `review-thrash` friction
+    and escalate them to the user. Do not dispatch another review or mark the
+    PR merge-ready while blockers or missing current evidence remain.
+    A nitpick-only stop can proceed through the normal readiness gates.
 13. When review is clean for the current review-relevant diff, apply the configured review
     evidence label to the issue and record the PR URL, reviewed head SHA,
     review-diff fingerprint, review artifact, and reviewer path in a tracker

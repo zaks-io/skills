@@ -56,6 +56,8 @@ Return only the compressed handoff:
 - checks run and result
 - PR head SHA you pushed
 - author-QA decision: skipped with reason, or verdict and covered diff
+- completed review rounds including all Author QA, limit, prior findings,
+  attempted fixes, and any stop condition; preserve incoming history
 - PR draft or ready-for-review state
 - Next owner/action
 - independent-review and tracker handoff

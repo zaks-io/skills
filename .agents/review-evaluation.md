@@ -63,6 +63,30 @@ routing without a full review of the skill. Apply the same offline run rules.
 - `unchanged_diff`: reuse verified evidence without a new review; identify the
   original reviewed head and current head without claiming to have reviewed it.
 
+## Review limit cases
+
+Use [these cases](review-limits-evaluation/cases.json) for delegation depth and
+review/fix stopping decisions. Give a fresh evaluator the edited review skill,
+caller instructions, and raw cases. Keep this scoring guide out of its prompt.
+Apply the same offline provider rules; no live mutations are needed.
+
+- `reviewer-delegation`: inspect the packages itself without launching helpers.
+- `ordinary-round-three`: stop at three, escalate the blocker, and hold merge.
+- `sensitive-nitpicks`: stop without round four; non-blocking preferences add no gate.
+- `high-risk-round-four`: permit round four under the five-round cap, supplying
+  the concrete tenant-isolation risk and prior findings/fixes.
+- `high-risk-round-five`: stop at five, escalate the blocker, and hold merge.
+- `repeated-failure`: stop after two unsuccessful fixes despite the five-round cap.
+- `qa-and-ticks`: count all three completed rounds; a new commit or reviewer
+  cannot reset the count. Hold merge without current clean evidence.
+- `stricter-cap`: stop at two and escalate; the exception cannot override the user.
+- `first-round-nitpicks`: stop after one without a fix/re-review loop.
+- `equivalent-diff`: reuse approval, rerun checks, and consume no new round.
+- `implementation-handoff`: return both QA rounds, limit, findings, attempted
+  fix, and stop status; the next independent review is round three.
+- `repair-continuation`: send and preserve the two completed rounds, limit,
+  input-validation finding, attempted fixes, and stop status.
+
 ## Recorded run: 2026-09-17
 
 Baseline commit: `5556879141593887ee49545f5d1391508d3f0830`.
@@ -114,3 +138,32 @@ This follow-up makes the checklist conditional and prioritizes short focused
 reviews over a universal report. Structure, formatting, and 84 targeted ownership
 and workflow-contract tests passed. Full-suite, discovery, plugin, and secret
 scans were not repeated for this narrow instruction/fixture update.
+
+## Recorded run: 2026-10-26
+
+Base HEAD: `d32f3a5b1733efdc0cdc445d5e41a054210379aa`. Local review only,
+covering uncommitted changes; no committed independent-PR evidence was claimed.
+Two fresh GPT-6.1 Sol/high T3 sessions ran with full access and no child agents:
+
+- [Validate review limits and review instruction changes](t3-thread://v1/thread:delegated-task:command%3Amcp%3Adf9e5f7e-222b-4fd8-88b1-2ab555e6134d%3Adelegate-task%3A631eac0b-574e-4ca2-a610-590d95eb33ec)
+  returned correct decisions for the ten original cases. It found three
+  instruction defects: lost Author QA history at handoff, stop wording blocking
+  clean nitpick-only PRs, and a broken relative link in generated config.
+- [Recheck review limits and handoff fixes](t3-thread://v1/thread:delegated-task:command%3Amcp%3Adf9e5f7e-222b-4fd8-88b1-2ab555e6134d%3Adelegate-task%3A93be64cc-f713-48f7-9bdb-32aabd07574e)
+  verified all three fixes with no remaining material findings. It passed five
+  cases: both nitpick stops, cumulative QA/tick counting, and the two new
+  implementation-handoff and repair-continuation cases. All twelve unique cases
+  therefore have passing decisions, with affected paths rechecked after fixes.
+
+The first evaluator saw the scoring guide during final diff inspection; that
+run was not fully blinded. The recheck excluded scoring and prior evaluator
+outputs. Both were offline instruction checks, not live integration tests.
+Complete outputs were preserved outside skill discovery at
+`/tmp/ziw-review-limits-round-1.json` and `/tmp/ziw-review-limits-round-2.json`.
+
+Validation: full `pnpm ci:check` passed on Node 24.21.0, including 513 tests,
+discovery, formatting, structure, and secret scanning. After the instruction
+fixes, `pnpm check`, `pnpm format:check`, and `git diff --check` passed again.
+Tests and discovery were not repeated after prose-only fixes. Claude plugin
+validation passed with warnings for root CLAUDE.md context and the missing icon.
+No PR, hosted bot review, tracker update, or production action was performed.

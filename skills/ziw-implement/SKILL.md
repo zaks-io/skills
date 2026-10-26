@@ -175,6 +175,9 @@ for review evidence and merge readiness.
 
 When resuming after review:
 
+- Preserve the caller's completed review count, limit, findings, and attempted
+  fixes. Enforce [Review limits](../ziw-code-review/SKILL.md#review-limits)
+  before another fix/review round; return to the caller at a stop.
 - Read PR comments, failed checks, the issue, and config again.
 - Address only the requested changes and the tests or docs they require.
 - Push fixes to the same PR and comment with what changed and the checks rerun.
@@ -212,6 +215,8 @@ Report, per the [handoff contract](../ziw-setup/references/handoff.md):
 - checks run and results
 - author-QA decision (skipped with reason, or verdict) and whether it covers
   the current diff
+- completed review rounds, including every Author QA pass, limit, prior findings,
+  attempted fixes, and any stop condition; preserve incoming history on continuation
 - independent review requested or pending; no implementer-created review
   evidence
 - tracker handoff requested, usually `In Review`

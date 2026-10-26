@@ -127,7 +127,7 @@ cache them here.
 - PR closure guard: close PRs only with refreshed code-host and tracker evidence of duplicate, explicitly canceled or abandoned, terminal, or policy-required work; never close draft or active PRs only to make room
 - Stuck-worker timeout: one business day with no branch, PR, comment, or check signal before nudge; re-dispatch only after checking for duplicates
 - Duplicate worker or PR policy: current GitHub open PR list and Linear issue links decide canonical work; close duplicates only with refreshed evidence
-- Attempt cap: 3 implement+review cycles before escalating review thrash
+- Attempt cap: follow `ziw-code-review` Review limits; 3 review rounds including initial review and any Author QA, up to 5 only for concrete unresolved high-risk blockers; stop earlier for nitpicks or lack of progress
 - Required checks for merge: GitHub CI `Validate skills`, `Static security checks`, and `Secret scan`; local equivalent is `pnpm ci:check`
 - Auto-merge risk tiers: none; human merge unless explicitly requested
 - Merge method policy: use the repository-allowed GitHub method at the authorized merge action

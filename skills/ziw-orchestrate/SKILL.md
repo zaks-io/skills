@@ -169,6 +169,9 @@ By default, run dispatch and PR lanes concurrently after one refreshed snapshot.
 - Send fixes to the original worker continuation target on the same branch/PR
   when it can continue; do not start a replacement worker by habit.
 - Reuse one substantive review for one review-relevant diff.
+- Launch reviewers directly, with no intermediate review coordinator. Reviewers
+  do not delegate. Own the round count and enforce
+  [Review limits](../ziw-code-review/SKILL.md#review-limits) before each dispatch.
 - Repair GitHub base-branch drift as orchestrator. Refresh PR state, run
   `gh pr update-branch <pr>`, rerun checks, and reuse review when the review-relevant diff is equivalent.
   Delegate only when the update reports a merge conflict or the diff materially changed.
@@ -211,8 +214,9 @@ Stop and report when:
 - Never dispatch blocked work, vague work, `kind-spec`, or `kind-epic`.
 - Never close a legitimate active PR just to free capacity.
 - Never add readiness or human-attention labels from labels alone; verify the facts.
-- Never mark a ticket `ready-for-human` or a PR `needs-human-merge` while
-  unresolved agent-fixable findings remain.
+- Never mark a ticket `ready-for-human` while agent-fixable findings remain,
+  unless the review limit or progress rule requires escalation. Never mark a PR
+  `needs-human-merge` with unresolved blocking findings.
 - Never merge stale heads, stale review evidence, or stale checks.
 - Never send empty diffs or non-review gate failures to a review worker.
 - Never repeat pending or equivalent-diff review because another tick ran.

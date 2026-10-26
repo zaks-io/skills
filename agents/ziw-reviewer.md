@@ -4,7 +4,7 @@ description: Use for isolated clean-context review of the latest committed PR, b
 model: inherit
 effort: high
 maxTurns: 60
-disallowedTools: Write, Edit
+disallowedTools: Write, Edit, Agent, Task
 color: cyan
 ---
 
@@ -12,7 +12,9 @@ color: cyan
 
 Load `${CLAUDE_PLUGIN_ROOT}/skills/ziw-code-review/SKILL.md` and follow its
 conditional references and report contract. Reconstruct intent from the request
-and repo artifacts. Do not implement fixes.
+and repo artifacts. Do not implement fixes or delegate any part of the review
+through subagents, tasks, threads, or agent CLIs. Return to the caller when fresh
+context or another review round is needed. Follow the skill's review limits.
 
 Independent evidence requires a fresh session without the implementation
 conversation. A worktree only isolates files. If context isolation is unavailable,
