@@ -1798,6 +1798,20 @@ test("a saved label-presence flag cannot hide a live human-merge label on a chan
   assert.equal(output.decisions.humanMergeLabels[0].action, "CLEAR_HUMAN_MERGE_PR_LABEL");
 });
 
+test("findings on the exact current head route to a fix when no fingerprint exists", () => {
+  const input = reviewLifecycleInput(
+    {},
+    {},
+    {
+      reviewEvidenceByPr: {
+        7: { reviewedHeadSha: "base-merged-head", reviewVerdict: "NEEDS REVISION" },
+      },
+    },
+  );
+  delete input.snapshot.prs[0].reviewDiffFingerprint;
+  assert.equal(runCompactPlan(input).actions[0].kind, "route-fix");
+});
+
 test("a risk tier recorded with review evidence also requires hosted review", () => {
   const output = runCompactPlan(
     reviewLifecycleInput(

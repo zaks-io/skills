@@ -249,7 +249,7 @@ The collector emits `patch-id:<hex>` from GitHub's PR diff through
 `git patch-id --verbatim`. Base merges that leave the PR's hunks and their
 context lines unchanged preserve it. When the diff is unavailable, it falls back
 to a `sha256:` hash of the file records plus the head SHA, so that evidence
-never outlives its head. Review entries include `authorType` (`User` or `Bot`).
+never outlives its head. Review entries include `authorType` (`User` or `Bot`); other actor types omit it.
 Human comments do not replace verdicts; bots keep their latest review of any
 state. Repeatable `--hosted-review-bot <login>` flags enable historical
 bot-review fingerprints. Historical human approvals use the same

@@ -788,6 +788,7 @@ test("collector retains bot comments and fingerprints only eligible historical r
       review("CodeRabbitAI[bot]", "Bot", "COMMENTED", "bot-head"),
       review("other-bot", "Bot", "APPROVED", "ignored-head"),
       review("second-bot", "Bot", "COMMENTED", "second-head"),
+      review("imported", "Mannequin", "APPROVED", "head"),
     ],
     ["--hosted-review-bot", "coderabbitai", "--hosted-review-bot", "second-bot[bot]"],
   );
@@ -803,6 +804,8 @@ test("collector retains bot comments and fingerprints only eligible historical r
   assert.equal(latest["second-bot"].reviewDiffFingerprint, pr.reviewDiffFingerprint);
   assert.equal("reviewDiffFingerprint" in latest["failed-lookup"], false);
   assert.equal("reviewDiffFingerprint" in latest["other-bot"], false);
+  assert.equal(latest.imported.state, "APPROVED");
+  assert.equal("authorType" in latest.imported, false);
   const endpoints = calls()
     .flat()
     .filter((arg) => arg.includes("/compare/"));

@@ -223,7 +223,10 @@ const latestReviewByAuthor = (reviews, pr, currentFingerprint) => {
     if (!review.author?.login) continue;
     if (review.author.__typename !== "Bot" && review.state === "COMMENTED") continue;
     byAuthor.set(review.author.login, {
-      authorType: review.author.__typename,
+      // Other actor types, such as Mannequin, stay unattributed and never count.
+      ...(["User", "Bot"].includes(review.author.__typename)
+        ? { authorType: review.author.__typename }
+        : {}),
       state: review.state,
       submittedAt: review.submittedAt,
       headSha: review.commit?.oid ?? null,

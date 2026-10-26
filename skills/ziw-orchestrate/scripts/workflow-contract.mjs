@@ -569,9 +569,16 @@ function independentReviewCount(state = {}) {
 export function currentReviewStatus(state = {}, config = {}) {
   const localCurrent = currentReviewEvidence(state);
   const hostedCurrent = hostedReviewCountsAsEvidence(state);
-  const localCovers = localCurrent || reviewCoversCurrentDiff(state);
+  const localCovers =
+    localCurrent ||
+    diffCoverage(
+      reviewedDiffFingerprint(state),
+      state.reviewedHeadSha,
+      currentReviewDiffFingerprint(state),
+      state.currentPrHeadSha ?? state.headSha,
+    ) === true;
   // Local verdict fields describe the reviewed diff, so they block only when
-  // that review covers the current diff.
+  // that review covers the current diff, including by exact head.
   if (localCovers && (hasBlockingReview(state) || reviewVerdictKind(state) === "revision")) {
     return { status: "blocking", reason: "blocking findings or changes requested remain" };
   }
