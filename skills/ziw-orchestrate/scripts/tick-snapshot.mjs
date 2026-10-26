@@ -4,7 +4,7 @@
 // snapshot instead of dozens of tool round-trips.
 //
 // Usage:
-//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY|UUID|NAME] [--no-local-worktrees] [--pretty]
+//   node tick-snapshot.mjs [--repo owner/name] [--limit 50] [--linear-team KEY|UUID|NAME] [--hosted-review-bot login] [--no-local-worktrees] [--pretty]
 //
 // GitHub state comes from the `gh` CLI (must be installed and authenticated).
 // Linear state is included only when --linear-team is given and either
@@ -36,10 +36,13 @@ const options = Object.fromEntries([
     name,
     { type: "string" },
   ]),
-  ...["linear-state", "linear-states", "linear-issue-key", "linear-issue-uuid"].map((name) => [
-    name,
-    { type: "string", multiple: true },
-  ]),
+  ...[
+    "linear-state",
+    "linear-states",
+    "linear-issue-key",
+    "linear-issue-uuid",
+    "hosted-review-bot",
+  ].map((name) => [name, { type: "string", multiple: true }]),
   ...["pretty", "no-local-worktrees"].map((name) => [name, { type: "boolean" }]),
 ]);
 let values;
@@ -176,7 +179,7 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
         autoMergeRequest { enabledAt }
         labels(first: 20) { nodes { name } }
         reviewThreads(first: 100) { totalCount nodes { isResolved } }
-        reviews(last: 20) { totalCount nodes { author { login } state submittedAt commit { oid } } }
+        reviews(last: 20) { totalCount nodes { author { login __typename } state submittedAt commit { oid } } }
         commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 60) { totalCount nodes {
           ... on CheckRun { name conclusion status }
           ... on StatusContext { context state }
@@ -207,15 +210,43 @@ const checkSummary = (rollup) => {
   };
 };
 
-const latestReviewByAuthor = (reviews) => {
+const normalizeLogin = (login) =>
+  String(login)
+    .trim()
+    .toLowerCase()
+    .replace(/\[bot\]$/, "");
+const hostedReviewBots = new Set(argValues("--hosted-review-bot").map(normalizeLogin));
+
+const latestReviewByAuthor = (reviews, pr, currentFingerprint) => {
   const byAuthor = new Map();
   for (const review of reviews ?? []) {
-    if (!review.author?.login || review.state === "COMMENTED") continue;
+    if (!review.author?.login) continue;
+    if (review.author.__typename !== "Bot" && review.state === "COMMENTED") continue;
     byAuthor.set(review.author.login, {
+      authorType: review.author.__typename,
       state: review.state,
       submittedAt: review.submittedAt,
       headSha: review.commit?.oid ?? null,
     });
+  }
+  const fingerprints = new Map();
+  for (const [login, review] of byAuthor) {
+    if (review.headSha === pr.headRefOid) {
+      review.reviewDiffFingerprint = currentFingerprint;
+    } else if (
+      review.headSha &&
+      ((review.authorType === "User" && review.state === "APPROVED") ||
+        hostedReviewBots.has(normalizeLogin(login)))
+    ) {
+      if (!fingerprints.has(review.headSha)) {
+        fingerprints.set(
+          review.headSha,
+          patchIdForEndpoint(`repos/${repo}/compare/${pr.baseRefName}...${review.headSha}`),
+        );
+      }
+      const fingerprint = fingerprints.get(review.headSha);
+      if (fingerprint) review.reviewDiffFingerprint = fingerprint;
+    }
   }
   return Object.fromEntries(byAuthor);
 };
@@ -249,6 +280,31 @@ const reviewDiffFingerprint = (files) => {
     }))
     .sort((left, right) => left.filename.localeCompare(right.filename));
   return `sha256:${createHash("sha256").update(JSON.stringify(canonical)).digest("hex")}`;
+};
+
+// Large diffs can be unavailable from GitHub. Keep collection usable and let
+// missing historical fingerprints fail closed at the planner boundary.
+const patchIdForEndpoint = (endpoint) => {
+  try {
+    const diff = execFileSync(
+      "gh",
+      ["api", endpoint, "-H", "Accept: application/vnd.github.diff"],
+      {
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    const result = execFileSync("git", ["patch-id", "--verbatim"], {
+      input: diff,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    const match = result.match(/^([a-f0-9]{40,64})\s+[a-f0-9]+$/);
+    return match ? `patch-id:${match[1]}` : undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 const prsByNumber = new Map();
@@ -306,6 +362,8 @@ const linkedLinearIssues = (body) =>
 
 const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
   const files = pullRequestFiles(pr.number, pr.changedFiles);
+  const fingerprint =
+    patchIdForEndpoint(`repos/${repo}/pulls/${pr.number}`) ?? reviewDiffFingerprint(files);
   return {
     number: pr.number,
     title: pr.title,
@@ -323,7 +381,7 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
     footprint: [
       ...new Set(files.flatMap((file) => [file.filename, file.previous_filename]).filter(Boolean)),
     ],
-    reviewDiffFingerprint: reviewDiffFingerprint(files),
+    reviewDiffFingerprint: fingerprint,
     headRefName: pr.headRefName,
     headSha: pr.headRefOid,
     baseRefName: pr.baseRefName,
@@ -335,7 +393,7 @@ const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
     unresolvedThreads: (pr.reviewThreads?.nodes ?? []).filter((t) => !t.isResolved).length,
     reviewThreadsTruncated: (pr.reviewThreads?.totalCount ?? 0) > 100,
     reviewsTruncated: (pr.reviews?.totalCount ?? 0) > (pr.reviews?.nodes?.length ?? 0),
-    latestReviews: latestReviewByAuthor(pr.reviews?.nodes),
+    latestReviews: latestReviewByAuthor(pr.reviews?.nodes, pr, fingerprint),
     checks: checkSummary(pr.commits?.nodes?.[0]?.commit?.statusCheckRollup),
   };
 });

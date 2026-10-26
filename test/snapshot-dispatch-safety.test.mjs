@@ -131,7 +131,9 @@ test("route-excluded issue metadata still carries risk labels into PR merge rout
       headRefName: "spl-1-schema-update",
       headSha: "reviewed-head",
       checks: { state: "SUCCESS" },
-      latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+      latestReviews: {
+        reviewer: { authorType: "User", state: "APPROVED", headSha: "reviewed-head" },
+      },
     },
   ]);
   assert.equal(

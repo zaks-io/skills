@@ -38,7 +38,7 @@ export const evidenceProperties = {
     linkedPrChanged evidenceMissing requiredChecksPassed requiredChecksGreen checksPassing
     checksGreen ciGreen scopeMatches diffMatchesScope hostedReviewRequired codeRabbitRequired
     hostedReviewComplete codeRabbitComplete hostedReviewSkipped codeRabbitSkipped
-    hostedReviewPending hostedReviewCurrent recommended required highRisk prExists
+    hostedReviewPending hostedReviewCurrent recommended required skipped highRisk prExists
     explicitLocalCliRequest remoteWorker supportsLocalCli requiresAutoReviewResolution
     humanMergePrLabelApplied humanReviewPrLabelApplied hasHumanMergePrLabel
     hasHumanReviewPrLabel productionAction humanDecisionPending`,
@@ -49,7 +49,7 @@ export const evidenceProperties = {
     reviewDiffFingerprint currentReviewDiffFingerprint reviewRelevantDiffFingerprint
     reviewedDiffFingerprint reviewedReviewDiffFingerprint hostedReviewDiffFingerprint
     hostedReviewedDiffFingerprint hostedReviewHeadSha hostedReviewProvider reviewProvider
-    provider autoReviewMode autoReview prUrl reviewHeadSha status
+    provider autoReviewMode autoReview prUrl reviewHeadSha status deltaFrom
     conformanceHeadSha humanMergePrLabel humanReviewPrLabel reviewDecision`,
     nullableText,
   ),
@@ -121,7 +121,11 @@ export const legacyDefinitions = {
         additionalProperties: {
           type: "object",
           required: ["state"],
-          properties: { state: text, ...fields("headSha commitSha", nullableText) },
+          properties: {
+            state: text,
+            authorType: { type: "string", enum: ["User", "Bot"] },
+            ...fields("headSha commitSha reviewDiffFingerprint", nullableText),
+          },
         },
       },
     },
@@ -274,7 +278,11 @@ export const canonicalDefinitions = {
         additionalProperties: {
           type: "object",
           required: ["state"],
-          properties: { state: text, ...fields("headSha commitSha", nullableText) },
+          properties: {
+            state: text,
+            authorType: { type: "string", enum: ["User", "Bot"] },
+            ...fields("headSha commitSha reviewDiffFingerprint", nullableText),
+          },
         },
       },
       ...issueFields,

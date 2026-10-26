@@ -83,7 +83,7 @@ test("tick-plan reuses a current GitHub approval and merges without another revi
           changedFiles: 3,
           checks: { state: "SUCCESS", failed: [], pending: [] },
           latestReviews: {
-            reviewer: { state: "APPROVED", headSha: "approved-head" },
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "approved-head" },
           },
         },
       ],
@@ -144,7 +144,9 @@ test("optional hosted review state never parks an otherwise merge-ready PR", () 
           headSha: "approved-head",
           changedFiles: 2,
           checks: { state: "SUCCESS", failed: [], pending: [] },
-          latestReviews: { reviewer: { state: "APPROVED", headSha: "approved-head" } },
+          latestReviews: {
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "approved-head" },
+          },
         },
       ],
     },
@@ -176,7 +178,7 @@ test("tick-plan reuses a pending hosted review for an equivalent rebased diff", 
           changedFiles: 2,
           checks: { state: "SUCCESS", failed: [], pending: [] },
           latestReviews: {
-            reviewer: { state: "APPROVED", headSha: "rebased-head" },
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "rebased-head" },
           },
         },
       ],
@@ -215,7 +217,7 @@ test("tick-plan requests hosted review again when the review-relevant diff chang
           changedFiles: 2,
           checks: { state: "SUCCESS", failed: [], pending: [] },
           latestReviews: {
-            reviewer: { state: "APPROVED", headSha: "new-head" },
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "new-head" },
           },
         },
       ],
@@ -277,7 +279,7 @@ test("tick-plan conservatively normalizes hosted-review required aliases", () =>
             changedFiles: 2,
             checks: { state: "SUCCESS", failed: [], pending: [] },
             latestReviews: {
-              reviewer: { state: "APPROVED", headSha: `head-${number}` },
+              reviewer: { authorType: "User", state: "APPROVED", headSha: `head-${number}` },
             },
           },
         ],
@@ -342,7 +344,7 @@ test("tick-plan never routes a conformance gap into another code review", () => 
           changedFiles: 1,
           checks: { state: "SUCCESS", failed: [], pending: [] },
           latestReviews: {
-            reviewer: { state: "APPROVED", headSha: "reviewed-head" },
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "reviewed-head" },
           },
         },
       ],
@@ -405,7 +407,7 @@ test("tick-plan does not re-arm auto-merge on every tick", () => {
           autoMergeArmed: true,
           checks: { state: "SUCCESS", failed: [], pending: [] },
           latestReviews: {
-            reviewer: { state: "APPROVED", headSha: "approved-head" },
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "approved-head" },
           },
         },
       ],
@@ -460,7 +462,7 @@ test("published tick-plan is self-contained", () => {
   }
 });
 
-test("tick-plan repairs draft PRs without withholding worker dispatch", () => {
+test("tick-plan reviews draft PRs without withholding worker dispatch", () => {
   const output = runPlan({
     snapshot: {
       repo: "zaks-io/example",
@@ -485,7 +487,7 @@ test("tick-plan repairs draft PRs without withholding worker dispatch", () => {
   assert.equal(output.decisions.dispatch.selected.length, 1);
   assert.deepEqual(
     output.actions.map((action) => action.kind),
-    ["dispatch", "repair-draft"],
+    ["dispatch", "request-review"],
   );
 });
 
@@ -550,7 +552,9 @@ for (const riskField of ["labels", "issueLabels"]) {
             headSha: "reviewed-head",
             [riskField]: ["risk-security-sensitive"],
             checks: { state: "SUCCESS" },
-            latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+            latestReviews: {
+              reviewer: { authorType: "User", state: "APPROVED", headSha: "reviewed-head" },
+            },
           },
         ],
       },
@@ -578,7 +582,9 @@ test("tick-plan carries matched tracker risk labels into merge decisions", () =>
           headRefName: "ski-12-security-fix",
           headSha: "reviewed-head",
           checks: { state: "SUCCESS" },
-          latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+          latestReviews: {
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "reviewed-head" },
+          },
         },
       ],
       linear: { issues: [{ identifier: "SKI-12", state: "In Review", labels: ["risk-schema"] }] },
@@ -605,7 +611,9 @@ test("compact tick-plan includes label application and invalidation actions", ()
           state: "open",
           headSha: "reviewed-head",
           checks: { state: "SUCCESS" },
-          latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+          latestReviews: {
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "reviewed-head" },
+          },
         },
         {
           number: 13,
@@ -1294,4 +1302,337 @@ test("tick-plan verifies a conformance FAIL recorded for an older head", () => {
   const kinds = output.actions.map((action) => action.kind);
   assert.ok(kinds.includes("verify-conformance"), JSON.stringify(output.actions));
   assert.ok(!kinds.includes("route-fix"));
+});
+
+function reviewLifecycleInput(pr = {}, config = {}, state = {}) {
+  return {
+    snapshot: {
+      v: 3,
+      repo: "example/repo",
+      prs: [
+        {
+          number: 7,
+          state: "open",
+          headSha: "base-merged-head",
+          changedFiles: 1,
+          reviewDiffFingerprint: "patch-id:current",
+          checks: { state: "SUCCESS", failed: [], pending: [] },
+          ...pr,
+        },
+      ],
+    },
+    config: { mergeAuthority: "agent", ...config },
+    state,
+  };
+}
+const humanApproval = (overrides = {}) => ({
+  authorType: "User",
+  state: "APPROVED",
+  headSha: "reviewed-head",
+  reviewDiffFingerprint: "patch-id:current",
+  ...overrides,
+});
+
+test("a human approval survives a base merge when its fingerprint still covers the diff", () => {
+  const output = runCompactPlan(
+    reviewLifecycleInput({ latestReviews: { human: humanApproval() } }),
+  );
+  assert.deepEqual(
+    output.actions.map((action) => action.kind),
+    ["arm-auto-merge"],
+  );
+  assert.equal(
+    output.actions.some((action) => action.kind === "request-review"),
+    false,
+  );
+});
+
+for (const [name, authorType, login] of [
+  ["bot approval", "Bot", "some-bot"],
+  ["unknown authorship", undefined, "reviewer"],
+  ["configured hosted login marked User", "User", "CodeRabbitAI[bot]"],
+]) {
+  test(`${name} never supplies independent review evidence`, () => {
+    const output = runCompactPlan(
+      reviewLifecycleInput(
+        {
+          latestReviews: { [login]: humanApproval({ authorType }) },
+        },
+        { hostedReviewProvider: "CodeRabbit" },
+      ),
+    );
+    assert.deepEqual(
+      output.actions.map((action) => action.kind),
+      ["request-review"],
+    );
+  });
+}
+
+test("a fingerprint mismatch prevents approval reuse even when the commit matches", () => {
+  const output = runCompactPlan(
+    reviewLifecycleInput({
+      latestReviews: {
+        human: humanApproval({
+          headSha: "base-merged-head",
+          reviewDiffFingerprint: "patch-id:old",
+        }),
+      },
+    }),
+  );
+  assert.equal(output.actions[0].kind, "request-review");
+});
+
+test("an approval without a fingerprint falls back only to the current head", () => {
+  for (const [headSha, expected] of [
+    ["base-merged-head", "arm-auto-merge"],
+    ["older", "request-review"],
+  ]) {
+    const output = runCompactPlan(
+      reviewLifecycleInput({
+        latestReviews: {
+          human: humanApproval({ headSha, reviewDiffFingerprint: undefined }),
+        },
+      }),
+    );
+    assert.equal(output.actions[0].kind, expected);
+  }
+});
+
+const hostedLifecycleInput = (review = {}, config = {}, state = {}) =>
+  reviewLifecycleInput(
+    {
+      labels: ["risk-security-sensitive"],
+      latestReviews: {
+        human: humanApproval(),
+        "CodeRabbitAI[bot]": {
+          authorType: "Bot",
+          state: "COMMENTED",
+          headSha: "old-bot-head",
+          reviewDiffFingerprint: "patch-id:current",
+          ...review,
+        },
+      },
+    },
+    { hostedReviewProvider: "CodeRabbit", hostedReviewRiskTiers: "high", ...config },
+    state,
+  );
+
+test("a CodeRabbit COMMENTED review of the diff completes required hosted review at high risk", () => {
+  const output = runPlan(hostedLifecycleInput());
+  assert.equal(
+    output.actions.some((action) => action.kind === "route-human-merge"),
+    true,
+  );
+  assert.equal(
+    output.actions.some((action) => action.kind === "request-hosted-review"),
+    false,
+  );
+  assert.equal(output.waits.length, 0);
+  assert.equal(output.decisions.humanMergeLabels[0].action, "APPLY_HUMAN_MERGE_PR_LABEL");
+});
+
+test("hosted review never substitutes for a second required independent review", () => {
+  const output = runCompactPlan(hostedLifecycleInput({}, { requiredIndependentReviews: 2 }));
+  assert.equal(output.actions[0].kind, "request-review");
+});
+
+for (const [name, review, config] of [
+  ["stale diff", { reviewDiffFingerprint: "patch-id:stale" }, {}],
+  ["changes requested", { state: "CHANGES_REQUESTED" }, {}],
+  ["missing fingerprint on an older commit", { reviewDiffFingerprint: undefined }, {}],
+  ["explicit empty bot list", {}, { hostedReviewBots: [] }],
+]) {
+  test(`hosted ${name} leaves the required review incomplete`, () => {
+    const output = runCompactPlan(hostedLifecycleInput(review, config));
+    assert.equal(output.actions[0].kind, "resolve-hosted-review-mode");
+  });
+}
+
+test("hosted bot logins normalize case and suffixes, and explicit state fields win", () => {
+  const input = hostedLifecycleInput(
+    {},
+    {
+      hostedReviewProvider: "Other provider",
+      hostedReviewBots: ["CODERABBITAI"],
+      hostedReviewRiskTiers: ["high"],
+    },
+  );
+  assert.equal(
+    runCompactPlan(input).actions.some((action) => action.kind === "route-human-merge"),
+    true,
+  );
+  input.state.hostedReviewByPr = { 7: { hostedReviewComplete: false } };
+  assert.equal(runCompactPlan(input).actions[0].kind, "request-hosted-review");
+  input.state.hostedReviewByPr = { 7: { skipped: true, hostedReviewComplete: false } };
+  assert.equal(
+    runCompactPlan(input).actions.some((action) => action.kind === "route-human-merge"),
+    true,
+  );
+});
+
+test("tier policy requires hosted review even when explicit required is false", () => {
+  const output = runCompactPlan(
+    hostedLifecycleInput(
+      { reviewDiffFingerprint: "stale" },
+      {},
+      {
+        hostedReviewByPr: { 7: { required: false } },
+      },
+    ),
+  );
+  assert.equal(output.actions[0].kind, "resolve-hosted-review-mode");
+});
+
+test("missing tier policy leaves hosted review optional", () => {
+  const input = hostedLifecycleInput(
+    { reviewDiffFingerprint: "stale" },
+    { hostedReviewRiskTiers: undefined },
+  );
+  assert.equal(
+    runCompactPlan(input).actions.some((action) => action.kind === "route-human-merge"),
+    true,
+  );
+});
+
+test("a draft requests review, waits for equivalent work, then becomes ready without merging", () => {
+  const input = reviewLifecycleInput({ isDraft: true }, { hostedReviewRiskTiers: ["medium"] });
+  const requested = runCompactPlan(input);
+  assert.equal(requested.actions[0].kind, "request-review");
+  input.state.reviewRequestsByPr = {
+    7: {
+      headSha: "old-request-head",
+      reviewDiffFingerprint: "patch-id:current",
+      status: "running",
+    },
+  };
+  assert.equal(runCompactPlan(input).waits[0].reason, "REVIEW_IN_FLIGHT");
+  input.snapshot.prs[0].latestReviews = { human: humanApproval() };
+  const ready = runPlan(input);
+  assert.deepEqual(ready.actions, [
+    { target: "pr:7", kind: "mark-ready", owner: "orchestrator", reason: "REVIEW_CLEAN" },
+  ]);
+  assert.equal(ready.decisions.humanMergeLabels[0].action, "LEAVE_UNCHANGED");
+  assert.equal(
+    ready.actions.some((action) => ["arm-auto-merge", "route-human-merge"].includes(action.kind)),
+    false,
+  );
+  input.snapshot.prs[0].isDraft = false;
+  assert.equal(runCompactPlan(input).actions[0].kind, "resolve-hosted-review-mode");
+});
+
+for (const [change, kind] of [
+  [{ reviewThreadsTruncated: true }, null],
+  [{ changedFiles: 0 }, "reconcile-empty-pr"],
+  [{ reviewDecision: "CHANGES_REQUESTED" }, "route-review-fix"],
+  [{ unresolvedThreads: 1 }, "route-review-fix"],
+  [{ mergeable: "CONFLICTING" }, "route-conflict-fix"],
+  [{ mergeStateStatus: "BEHIND" }, "update-branch"],
+  [{ checks: { state: "FAILURE", failed: ["unit"] } }, "route-check-fix"],
+  [{ checks: { state: "PENDING", pending: ["unit"] } }, null],
+  [{ checks: { state: "NONE" } }, "verify-checks"],
+]) {
+  test(`draft lifecycle handles ${JSON.stringify(change)} before review`, () => {
+    const output = runCompactPlan(reviewLifecycleInput({ isDraft: true, ...change }));
+    assert.equal(output.actions[0]?.kind ?? null, kind);
+    assert.equal(
+      output.actions.some((action) => action.kind === "mark-ready"),
+      false,
+    );
+  });
+}
+
+for (const reviewVerdict of ["Ready to Merge", "NEEDS REVISION"]) {
+  test(`changed diff requests a delta after ${reviewVerdict}`, () => {
+    const input = reviewLifecycleInput(
+      { isDraft: true },
+      {},
+      {
+        reviewEvidenceByPr: {
+          7: {
+            reviewEvidenceCurrent: false,
+            reviewedHeadSha: "prior-reviewed-head",
+            reviewedDiffFingerprint: "patch-id:prior",
+            independentReviewCount: 1,
+            reviewVerdict,
+          },
+        },
+        reviewRequestsByPr: {
+          7: {
+            headSha: "base-merged-head",
+            reviewDiffFingerprint: "patch-id:prior",
+            status: "running",
+          },
+        },
+      },
+    );
+    const output = runCompactPlan(input);
+    assert.deepEqual(output.actions[0], {
+      target: "pr:7",
+      kind: "request-review",
+      owner: "review-worker",
+      reason: "REVIEW_REQUIRED",
+      reviewDiffFingerprint: "patch-id:current",
+      deltaFrom: "prior-reviewed-head",
+      idempotencyKey: "review:7:patch-id:current",
+    });
+  });
+}
+
+test("a current fingerprint requires request fingerprint equality, while missing fingerprints use heads", () => {
+  const input = reviewLifecycleInput(
+    {},
+    {},
+    {
+      reviewRequestsByPr: { 7: { headSha: "base-merged-head", status: "running" } },
+    },
+  );
+  assert.equal(runCompactPlan(input).actions[0].kind, "request-review");
+  delete input.snapshot.prs[0].reviewDiffFingerprint;
+  assert.equal(runCompactPlan(input).waits[0].reason, "REVIEW_IN_FLIGHT");
+  input.state = {};
+  assert.equal(runCompactPlan(input).actions[0].idempotencyKey, "review:7:base-merged-head");
+});
+
+test("a hosted review without a fingerprint counts only on the current head", () => {
+  const output = runCompactPlan(
+    hostedLifecycleInput({ headSha: "base-merged-head", reviewDiffFingerprint: undefined }),
+  );
+  assert.ok(output.actions.some((action) => action.kind === "route-human-merge"));
+});
+
+test("current findings on a draft route to fixes before readiness", () => {
+  const output = runCompactPlan(
+    reviewLifecycleInput(
+      { isDraft: true },
+      {},
+      {
+        reviewEvidenceByPr: {
+          7: {
+            reviewedDiffFingerprint: "patch-id:current",
+            reviewVerdict: "NEEDS REVISION",
+            blockingFindings: true,
+          },
+        },
+      },
+    ),
+  );
+  assert.deepEqual(
+    output.actions.map((action) => action.kind),
+    ["route-fix"],
+  );
+});
+
+test("a prior GitHub approval supplies the head for a delta review", () => {
+  const output = runCompactPlan(
+    reviewLifecycleInput({
+      latestReviews: {
+        human: humanApproval({
+          headSha: "last-reviewed-head",
+          reviewDiffFingerprint: "patch-id:previous",
+        }),
+      },
+    }),
+  );
+  assert.equal(output.actions[0].deltaFrom, "last-reviewed-head");
+  assert.equal(output.actions[0].reviewDiffFingerprint, "patch-id:current");
 });

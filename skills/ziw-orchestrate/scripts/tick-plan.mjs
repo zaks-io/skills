@@ -28,13 +28,16 @@ import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
 import {
   activeDeliveryFootprint,
   capacityDecision,
+  currentReviewStatus,
   dispatchSelectionDecision,
   hasCompletedIndependentReview,
   hostedReviewEscalationDecision,
   humanMergePrLabelDecision,
   mergeEligibilityDecision,
+  mergeReadinessFacts,
   readyStatePromotionDecision,
   reviewEvidenceDecision,
+  riskTier,
 } from "./workflow-contract.mjs";
 
 const startedAt = performance.now();
@@ -74,6 +77,9 @@ const checkState = (pr) => {
   if (toArray(checks.pending).length > 0) return "pending";
   const state = normalize(checks.state);
   if (state === "success") return "pass";
+  if (["failure", "error", "timed_out", "cancelled", "action_required"].includes(state))
+    return "fail";
+  if (["pending", "queued", "in_progress", "expected", "waiting"].includes(state)) return "pending";
   if (state === "none") return "absent";
   return "unknown";
 };
@@ -98,7 +104,24 @@ const mergePrLists = (snapshotPrs, statePrs) => {
   return [...byNumber.values()];
 };
 
-const evidenceForPr = (state, pr) => {
+const normalizeLogin = (login) => normalize(login).replace(/\[bot\]$/, "");
+const hostedReviewBots = (config) =>
+  new Set(
+    (
+      config.hostedReviewBots ??
+      (normalize(config.hostedReviewProvider).replace(/[\s_-]/g, "") === "coderabbit"
+        ? ["coderabbitai"]
+        : [])
+    ).map(normalizeLogin),
+  );
+const reviewCoversPr = (review, fingerprint, pr) =>
+  review.reviewDiffFingerprint
+    ? Boolean(fingerprint && normalize(review.reviewDiffFingerprint) === normalize(fingerprint))
+    : Boolean(
+        pr.headSha && normalize(review.headSha ?? review.commitSha) === normalize(pr.headSha),
+      );
+
+const evidenceForPr = (state, pr, config) => {
   const byPr = state.reviewEvidenceByPr ?? state.reviewEvidence ?? {};
   const explicit = byPr[pr.number] ?? {};
   const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
@@ -110,10 +133,13 @@ const evidenceForPr = (state, pr) => {
     ["needs revision", "do not merge"].includes(
       normalize(explicit.reviewVerdict ?? explicit.codeReviewVerdict),
     );
-  const currentApprovals = Object.values(pr.latestReviews ?? {}).filter(
-    (review) =>
+  const bots = hostedReviewBots(config);
+  const currentApprovals = Object.entries(pr.latestReviews ?? {}).filter(
+    ([login, review]) =>
+      review.authorType === "User" &&
+      !bots.has(normalizeLogin(login)) &&
       normalize(review.state) === "approved" &&
-      normalize(review.headSha ?? review.commitSha) === normalize(pr.headSha),
+      reviewCoversPr(review, currentFingerprint, pr),
   );
   const githubEvidence =
     currentApprovals.length > 0
@@ -167,25 +193,41 @@ const reviewDiffFingerprintForPr = (state, pr) =>
   state.reviewDiffByPr?.[pr.number] ??
   state.reviewDiffByPr?.[String(pr.number ?? "")];
 
-const hostedReviewForPr = (state, pr) => {
+const hostedReviewForPr = (state, pr, config) => {
   const byPr = state.hostedReviewByPr ?? {};
-  const hostedReview = byPr[pr.number] ?? {};
+  const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
+  const bots = hostedReviewBots(config);
+  const complete = Object.entries(pr.latestReviews ?? {}).some(
+    ([login, review]) =>
+      bots.has(normalizeLogin(login)) &&
+      normalize(review.state) !== "changes_requested" &&
+      reviewCoversPr(review, currentFingerprint, pr),
+  );
+  const hostedReview = {
+    ...(complete
+      ? { hostedReviewComplete: true, hostedReviewDiffFingerprint: currentFingerprint }
+      : {}),
+    ...byPr[pr.number],
+  };
   const requiredAliases = [
     hostedReview.required,
     hostedReview.hostedReviewRequired,
     hostedReview.codeRabbitRequired,
   ].filter((value) => value != null);
-  const required =
-    requiredAliases.length === 0 ? undefined : requiredAliases.some((value) => value === true);
+  const tierRequired = toArray(config.hostedReviewRiskTiers).includes(riskTier(pr, config));
+  const required = tierRequired || requiredAliases.some((value) => value === true);
   return {
     ...hostedReview,
-    ...(required == null ? {} : { required, hostedReviewRequired: required }),
+    ...(hostedReview.skipped == null ? {} : { hostedReviewSkipped: hostedReview.skipped }),
+    ...(requiredAliases.length > 0 || tierRequired
+      ? { required, hostedReviewRequired: required }
+      : {}),
   };
 };
 
 const humanMergeDecisionForPr = (state, config, pr) => {
-  const evidence = evidenceForPr(state, pr);
-  const hostedReview = hostedReviewForPr(state, pr);
+  const evidence = evidenceForPr(state, pr, config);
+  const hostedReview = hostedReviewForPr(state, pr, config);
   const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
   return {
     pr: pr.number,
@@ -210,7 +252,7 @@ const humanMergeDecisionForPr = (state, config, pr) => {
 };
 
 const hostedReviewDecisionForPr = (state, config, pr) => {
-  const hostedReview = hostedReviewForPr(state, pr);
+  const hostedReview = hostedReviewForPr(state, pr, config);
   const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
   if (!hostedReview.required) return null;
   return {
@@ -240,18 +282,63 @@ const reviewRequestForPr = (state, pr) => {
       request.reviewRelevantDiffFingerprint ??
       request.reviewedDiffFingerprint,
   );
-  if (currentFingerprint && requestedFingerprint) {
+  if (currentFingerprint) {
     return currentFingerprint === requestedFingerprint ? request : null;
   }
-  return normalize(request.headSha ?? request.reviewHeadSha) === normalize(pr.headSha)
+  return pr.headSha && normalize(request.headSha ?? request.reviewHeadSha) === normalize(pr.headSha)
     ? request
     : null;
 };
 
+const previousReviewHeadForPr = (state, pr, config) => {
+  const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
+  const explicit = (state.reviewEvidenceByPr ?? state.reviewEvidence ?? {})[pr.number] ?? {};
+  const priorFingerprint =
+    explicit.reviewedDiffFingerprint ?? explicit.reviewedReviewDiffFingerprint;
+  const priorHead = explicit.reviewedHeadSha;
+  const hasVerdict =
+    explicit.blockingFindings ||
+    [
+      "approve",
+      "approved",
+      "ready for pr",
+      "ready to merge",
+      "ready_to_merge",
+      "needs revision",
+      "do not merge",
+    ].includes(normalize(explicit.reviewVerdict ?? explicit.codeReviewVerdict));
+  if (
+    priorHead &&
+    hasVerdict &&
+    (currentFingerprint
+      ? priorFingerprint && normalize(priorFingerprint) !== normalize(currentFingerprint)
+      : normalize(priorHead) !== normalize(pr.headSha))
+  ) {
+    return priorHead;
+  }
+  const bots = hostedReviewBots(config);
+  return Object.entries(pr.latestReviews ?? {})
+    .filter(
+      ([login, review]) =>
+        review.authorType === "User" &&
+        !bots.has(normalizeLogin(login)) &&
+        ["approved", "changes_requested"].includes(normalize(review.state)) &&
+        (currentFingerprint
+          ? review.reviewDiffFingerprint &&
+            normalize(review.reviewDiffFingerprint) !== normalize(currentFingerprint)
+          : normalize(review.headSha ?? review.commitSha) !== normalize(pr.headSha)),
+    )
+    .sort(([, left], [, right]) =>
+      normalize(right.submittedAt).localeCompare(normalize(left.submittedAt)),
+    )
+    .map(([, review]) => review.headSha ?? review.commitSha)
+    .find(Boolean);
+};
+
 const prDisposition = (state, config, pr) => {
   const target = targetForPr(pr);
-  const evidence = evidenceForPr(state, pr);
-  const hostedReview = hostedReviewForPr(state, pr);
+  const evidence = evidenceForPr(state, pr, config);
+  const hostedReview = hostedReviewForPr(state, pr, config);
   const owner = state.continuationByPr?.[pr.number] ?? "orchestrator";
   const status = checkState(pr);
 
@@ -267,12 +354,6 @@ const prDisposition = (state, config, pr) => {
         owner: "orchestrator",
         reason: "EMPTY_DIFF",
       },
-    };
-  }
-  if (pr.isDraft) {
-    return {
-      bucket: "actions",
-      value: { target, kind: "repair-draft", owner, reason: "DRAFT_PR" },
     };
   }
   if (normalize(pr.reviewDecision) === "changes_requested") {
@@ -321,50 +402,56 @@ const prDisposition = (state, config, pr) => {
     };
   }
 
-  const decision = mergeEligibilityDecision(
-    {
-      ...pr,
-      prState: pr.state,
-      isDraft: pr.isDraft,
-      currentPrHeadSha: pr.headSha,
-      requiredChecksPassed: true,
-      unresolvedThreads: pr.unresolvedThreads,
-      reviewDecision: pr.reviewDecision,
-      ...hostedReview,
-      ...evidence,
-      ...(reviewDiffFingerprintForPr(state, pr)
-        ? { reviewDiffFingerprint: reviewDiffFingerprintForPr(state, pr) }
-        : {}),
-    },
-    config,
-  );
-
-  if (decision.action === "ARM_AUTO_MERGE") {
-    if (pr.autoMergeArmed || pr.autoMergeRequest) {
-      return {
-        bucket: "waits",
-        value: { target, signal: "merge", reason: "AUTO_MERGE_ARMED" },
-      };
-    }
+  const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
+  const reviewState = {
+    ...pr,
+    prState: pr.state,
+    currentPrHeadSha: pr.headSha,
+    requiredChecksPassed: true,
+    ...hostedReview,
+    ...evidence,
+    ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
+  };
+  const review = currentReviewStatus(reviewState, config);
+  if (review.status === "blocking") {
     return {
       bucket: "actions",
-      value: { target, kind: "arm-auto-merge", owner: "orchestrator", reason: "MERGE_READY" },
+      value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
     };
   }
-  if (decision.action === "ROUTE_HUMAN_MERGE") {
+  if (review.status === "missing") {
+    const existingRequest = reviewRequestForPr(state, pr);
+    if (
+      existingRequest &&
+      !["completed", "failed", "stopped"].includes(normalize(existingRequest.status))
+    ) {
+      return {
+        bucket: "waits",
+        value: { target, signal: "review", reason: "REVIEW_IN_FLIGHT" },
+      };
+    }
+    const deltaFrom = previousReviewHeadForPr(state, pr, config);
     return {
       bucket: "actions",
       value: {
         target,
-        kind: "route-human-merge",
-        owner: "human",
-        reason: /not configured/.test(decision.reason)
-          ? "MERGE_AUTHORITY_MISSING"
-          : "HUMAN_MERGE_REQUIRED",
+        kind: "request-review",
+        owner: "review-worker",
+        reason: "REVIEW_REQUIRED",
+        ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
+        ...(deltaFrom ? { deltaFrom } : {}),
+        idempotencyKey: `review:${pr.number}:${reviewDiffFingerprint ?? pr.headSha}`,
       },
     };
   }
-  if (/hosted review/i.test(decision.reason)) {
+  if (mergeReadinessFacts(reviewState).draft) {
+    return {
+      bucket: "actions",
+      value: { target, kind: "mark-ready", owner: "orchestrator", reason: "REVIEW_CLEAN" },
+    };
+  }
+
+  if (mergeReadinessFacts(reviewState).hostedReviewBlocked) {
     const hostedDecision = hostedReviewDecisionForPr(state, config, pr);
     if (hostedDecision?.action === "REQUEST_PR_REVIEW") {
       return {
@@ -396,7 +483,33 @@ const prDisposition = (state, config, pr) => {
       value: { target, signal: "hosted-review", reason: "HOSTED_REVIEW_PENDING" },
     };
   }
-  if (/finding|scope/i.test(decision.reason)) {
+  const decision = mergeEligibilityDecision(reviewState, config);
+  if (decision.action === "ARM_AUTO_MERGE") {
+    if (pr.autoMergeArmed || pr.autoMergeRequest) {
+      return {
+        bucket: "waits",
+        value: { target, signal: "merge", reason: "AUTO_MERGE_ARMED" },
+      };
+    }
+    return {
+      bucket: "actions",
+      value: { target, kind: "arm-auto-merge", owner: "orchestrator", reason: "MERGE_READY" },
+    };
+  }
+  if (decision.action === "ROUTE_HUMAN_MERGE") {
+    return {
+      bucket: "actions",
+      value: {
+        target,
+        kind: "route-human-merge",
+        owner: "human",
+        reason: /not configured/.test(decision.reason)
+          ? "MERGE_AUTHORITY_MISSING"
+          : "HUMAN_MERGE_REQUIRED",
+      },
+    };
+  }
+  if (mergeReadinessFacts(reviewState).scopeMismatch) {
     return {
       bucket: "actions",
       value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
@@ -410,30 +523,6 @@ const prDisposition = (state, config, pr) => {
         kind: "verify-conformance",
         owner: "orchestrator",
         reason: "CONFORMANCE_REQUIRED",
-      },
-    };
-  }
-  if (/code review evidence|review depth/i.test(decision.reason)) {
-    const existingRequest = reviewRequestForPr(state, pr);
-    if (
-      existingRequest &&
-      !["completed", "failed", "stopped"].includes(normalize(existingRequest.status))
-    ) {
-      return {
-        bucket: "waits",
-        value: { target, signal: "review", reason: "REVIEW_IN_FLIGHT" },
-      };
-    }
-    return {
-      bucket: "actions",
-      value: {
-        target,
-        kind: "request-review",
-        owner: "review-worker",
-        reason: "REVIEW_REQUIRED",
-        idempotencyKey: `review:${pr.number}:${
-          pr.reviewDiffFingerprint ?? pr.reviewRelevantDiffFingerprint ?? pr.headSha
-        }`,
       },
     };
   }

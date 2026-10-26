@@ -591,7 +591,7 @@ test("authoritative scope aliases select the same PR actions and never widen the
   const byUuid = plans({ ...base, state: { scopeIssues: [{ issueUuid: uuid }] } });
   assert.deepEqual(decisions(byKey), decisions(byUuid));
   assert.ok(
-    byKey.actions.some((action) => action.target === "pr:22" && action.kind === "repair-draft"),
+    byKey.actions.some((action) => action.target === "pr:22" && action.kind === "verify-checks"),
   );
   assert.equal(
     byKey.actions.some((action) => action.target === "pr:23"),
@@ -620,7 +620,7 @@ test("typed linkedIssues establish scoped PR association without a scalar refere
   );
   held(plan);
   assert.ok(
-    plan.actions.some((action) => action.target === "pr:22" && action.kind === "repair-draft"),
+    plan.actions.some((action) => action.target === "pr:22" && action.kind === "verify-checks"),
   );
 });
 
@@ -704,7 +704,7 @@ test("issue metadata matched by UUID retains security risk on a ready PR", () =>
         headSha: "head",
         changedFiles: 2,
         checks: { state: "SUCCESS" },
-        latestReviews: { first: { state: "APPROVED", headSha: "head" } },
+        latestReviews: { first: { authorType: "User", state: "APPROVED", headSha: "head" } },
       },
     ),
   ]);
@@ -829,7 +829,7 @@ for (const [name, reference] of Object.entries(historical)) {
     if (reference) held(plan, reference);
     if (["unresolved-uuid-pr", "mixed-pr", "mixed-generic-pr"].includes(name))
       assert.ok(
-        plan.actions.some((action) => action.target === "pr:22" && action.kind === "repair-draft"),
+        plan.actions.some((action) => action.target === "pr:22" && action.kind === "verify-checks"),
       );
     if (name === "pseudo-ticket-reservations") {
       assert.equal(plan.capacity.used, 1);
@@ -857,7 +857,7 @@ for (const [name, reference] of Object.entries(historical)) {
     if (name === "worker-cap-undercount") assert.equal(plan.capacity.used, 2);
     if (name === "overlap")
       assert.ok(
-        plan.actions.some((action) => action.target === "pr:1" && action.kind === "repair-draft"),
+        plan.actions.some((action) => action.target === "pr:1" && action.kind === "request-review"),
       );
   });
 }

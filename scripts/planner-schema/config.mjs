@@ -92,6 +92,8 @@ const schema = {
     ),
     deliveryMode: { type: "string", enum: ["production", "velocity"] },
     autoMergeRiskTiers: tiers,
+    hostedReviewRiskTiers: tiers,
+    hostedReviewBots: { type: "array", items: string },
     requiredIndependentReviews: requiredReviewCounts,
     ...fields(
       [
