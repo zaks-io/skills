@@ -122,8 +122,9 @@ domain behavior, and performance work without benchmarks.
    fixes known blockers, opens its own draft PR via `ziw-pr`, and hands it back
    without applying review evidence or merge-ready state. A new commit alone
    does not require another author-QA pass.
-7. After required checks pass, Agent Orchestrator calls Agent Review as a step,
-   in a fresh isolated thread and preferably on a different model from the author.
+7. After required checks pass, Agent Orchestrator launches Agent Review directly
+   as a step, in a fresh isolated thread and preferably on a different model from
+   the author. The reviewer does the review itself and never delegates to another agent.
 8. Agent Review fetches latest state, runs `ziw-code-review` in a clean context
    against current committed code, and reports freshness, findings, hosted bot
    review recommendation, PR readiness, orchestrator refactor candidates, and
@@ -134,6 +135,12 @@ domain behavior, and performance work without benchmarks.
    it, applies or removes the configured review evidence label, or calls the
    integrate step to merge on green, move the issue to the done state, and
    remove `ready-for-agent`.
+
+The caller enforces `ziw-code-review`'s Review limits across sessions and commits:
+at most three rounds including the initial review and any Author QA, or up to
+five only for concrete unresolved high-risk blockers. Stop earlier for nitpicks
+or lack of progress. Escalate remaining blockers at the limit; never approve
+because the review budget ran out.
 
 ## Loop Model
 

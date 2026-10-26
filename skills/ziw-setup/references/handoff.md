@@ -42,6 +42,7 @@ the decision or keep the work.
 - Checks:
 - Hosted checks:
 - Code review:
+- Review rounds, limit, prior findings, attempted fixes, and stop condition:
 - Review evidence:
 - Hosted bot review:
 - Tracker updates:
@@ -63,6 +64,9 @@ Rules:
   for machine-readable returns. Persist project progress and blockers in Linear;
   Repo Config contains stable mappings and policy only.
 - Say whether code review covers the current diff.
+- Carry every completed review round, including Author QA, through handoffs and
+  continuations. Preserve prior counts; never replace cumulative history with
+  only the latest verdict. Follow `ziw-code-review`'s Review limits.
 - Say whether the diff stayed inside the linked issue's in-scope and
   out-of-scope boundary. If it did not, name the split, revert, or human
   decision needed before handoff.

@@ -48,6 +48,8 @@ Always include:
   cannot mutate review-evidence labels or merge-ready state
 - author-QA policy: use worker judgment based on risk, uncertainty, scope, and
   test evidence; do not require review after every change
+- review history on review/repair continuations: completed rounds including
+  Author QA, limit, prior findings, attempted fixes, and any stop condition
 
 If a critical literal exists only in a prior comment, update or route the issue
 body first so the worker does not rediscover it from history.
@@ -65,6 +67,7 @@ Branch/worktree: <branch-or-create-policy>
 Scope: <one sentence from issue>
 Non-goals: <out-of-scope line from issue, including sibling tickets; do not deliver adjacent work>
 Required checks: <commands or config reference>
+Review history: <completed rounds including Author QA, limit, findings, attempted fixes, stop condition; preserve on return>
 Constraints: preserve unrelated changes; no production deploy; no secrets. Use best judgment on whether author QA adds value; do not run or repeat it merely because a commit changed. Author QA is not independent review evidence. Do not apply or clear review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready PR labels.
 Return the workflow handoff, including actual receipt/session identity, PR number,
 worktree path, and explicit running/returned/stopped lifecycle. Opening a PR does
@@ -84,6 +87,8 @@ Review target: <head SHA and review-diff fingerprint; one request per materially
 Delta from: <previously reviewed head SHA from the planner's deltaFrom, or none for a full review>
 Intent source: <issue or PR URL>
 Required checks: <commands or config reference>
+Review history: <completed rounds including Author QA, limit, findings, attempted fixes, stop condition>
+Do the review yourself. Never spawn subagents or delegate any review work.
 Return the review report and no code changes. With a delta, review how the PR's
 own patch changed since that head and the interactions it affects. Compare
 `git diff <base>...<delta>` with `git diff <base>...HEAD`, including merge

@@ -111,7 +111,7 @@ Project state: Linear. This file stores stable configuration only.
   slot; record why any slot remains idle while ready work exists
 - Stuck-worker timeout: no branch/PR/agent-thread reply within <N> min -> direct
   thread nudge, then escalate or re-delegate only if the session cannot continue
-- Attempt cap: 3 implement+review cycles before the thrash breaker escalates
+- Attempt cap: follow `ziw-code-review` Review limits; 3 review rounds including initial review and any Author QA, up to 5 only for concrete unresolved high-risk blockers; stop earlier for nitpicks or lack of progress
 - Required checks for merge: <CI check names that define green>
 - Auto-merge risk tiers: orchestrator may auto-merge LOW and MEDIUM when green;
   HIGH routes to human merge

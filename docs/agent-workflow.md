@@ -266,6 +266,13 @@ implementation-ready slices move to `Todo`. Linear `Backlog` remains opt-in.
   separate verification, review, or orchestration stage.
 - Code Review: shared bug-focused review gate.
 
+The caller launches the reviewer directly; reviewers do all review work themselves
+and never launch subagents. The caller tracks review rounds across sessions and
+commits under `skills/ziw-code-review/SKILL.md#review-limits`: three rounds maximum,
+including the initial review and any Author QA. Up to five are allowed only for
+concrete unresolved high-risk blockers. Stop earlier for nitpicks or lack of
+progress. Reaching a limit with blockers requires human escalation, not approval.
+
 Setup, Grill, To Issues, Issue Triage, Agent Orchestrator, Agent Implement, and
 Agent Review are the core workflow roles. Code Review, Create PR, and Secret
 Redaction are helper gates used by those roles.

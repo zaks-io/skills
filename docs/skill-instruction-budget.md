@@ -178,3 +178,24 @@ Measured 2026-10-17 with the same tokenizer against the PR 21 head,
 `3f68b61b83fe83bf4211af8a8ebcc510648a39e7`. `ziw-to-issues` grows from 3,292 to
 3,534 entrypoint tokens for the one-slice-per-feature default, the narrowed
 split reasons, and the confirmation before more than three new slices.
+
+## Bounded review rounds
+
+Measured 2026-10-26 against `d32f3a5b1733efdc0cdc445d5e41a054210379aa`
+with `tiktoken 0.14.0`, `o200k_base`. These are instruction estimates, not
+billed usage. Review adds one-level delegation, a three-round cap with a
+five-round high-risk exception, and progress and nitpick stopping rules.
+
+| Loaded path                                       | Before | After |
+| ------------------------------------------------- | -----: | ----: |
+| Code Review entrypoint                            |  2,516 | 2,932 |
+| Orchestrate entrypoint                            |  2,818 | 2,883 |
+| Implement entrypoint                              |  2,340 | 2,426 |
+| Orchestrate + integration checklist + Code Review |  7,958 | 8,552 |
+| Code Review + remote-worker review reference      |  3,242 | 3,726 |
+| Implement + handoff reference                     |  3,232 | 3,382 |
+| Orchestrate + delegation policy                   |  4,338 | 4,493 |
+
+The integration checklist loads for returned PRs; the remote-worker reference
+loads only for a remote review handoff. The review skill owns the limits;
+callers link to it instead of loading an additional policy reference.

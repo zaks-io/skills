@@ -168,6 +168,9 @@ merge item in parallel with dispatch. Carry out each planner PR action with
 - A draft PR has not yet had an independent review. After its required checks
   pass, run one local `ziw-code-review` in a fresh isolated thread. Prefer a
   different model from the author's.
+- Launch reviewers directly, with no intermediate review coordinator. Reviewers
+  do not delegate. Own the round count and enforce
+  [Review limits](../ziw-code-review/SKILL.md#review-limits) before each dispatch.
 - Fixes go to the original worker on the same branch while the PR stays draft.
   Do not start a replacement worker by habit.
 - A clean review of the current diff marks the PR ready for review.
@@ -211,8 +214,9 @@ Stop and report when:
 - Never dispatch blocked work, vague work, `kind-spec`, or `kind-epic`.
 - Never close a legitimate active PR just to free capacity.
 - Never add readiness or human-attention labels from labels alone; verify the facts.
-- Never mark a ticket `ready-for-human` or a PR `needs-human-merge` while
-  unresolved agent-fixable findings remain.
+- Never mark a ticket `ready-for-human` while agent-fixable findings remain,
+  unless the review limit or progress rule requires escalation. Never mark a PR
+  `needs-human-merge` with unresolved blocking findings.
 - Never merge stale heads, stale review evidence, or stale checks.
 - Never send empty diffs or non-review gate failures to a review worker.
 - Never repeat pending or equivalent-diff review because another tick ran.

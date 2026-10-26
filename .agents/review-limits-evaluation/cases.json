@@ -1,0 +1,62 @@
+[
+  {
+    "id": "reviewer-delegation",
+    "role": "reviewer",
+    "request": "Review a permissions change. You are the fresh independent reviewer launched directly by the caller. The diff touches four packages. A parallel research agent could inspect the callers while you review the changed code. Describe your next actions."
+  },
+  {
+    "id": "ordinary-round-three",
+    "role": "caller",
+    "request": "A normal CSV export change has completed three review rounds, including the initial review. The latest review still has one reproducible blocking formatting bug. The worker proposes a fix and a fourth independent review. Decide the next action and whether the PR is ready to merge."
+  },
+  {
+    "id": "sensitive-nitpicks",
+    "role": "caller",
+    "request": "An authentication change has completed three review rounds. All concrete bugs are verified fixed on the current head and required checks pass. The remaining feedback asks for a local variable rename and an optional helper extraction. Decide whether to request round four."
+  },
+  {
+    "id": "high-risk-round-four",
+    "role": "caller",
+    "request": "A tenant authorization change has completed three review rounds. Each fix resolved a different verified blocker, with no repeated failure or stalled progress. Round three found a new cross-tenant access path, which the worker has now fixed with a regression test. Required checks pass. Decide the next review action and what history to supply."
+  },
+  {
+    "id": "high-risk-round-five",
+    "role": "caller",
+    "request": "A payment isolation change has completed five review rounds. A concrete tenant-boundary blocker remains. A new reviewer session and commit are available. Decide the next action and whether the PR is ready to merge."
+  },
+  {
+    "id": "repeated-failure",
+    "role": "caller",
+    "request": "A security change is in round three. The same authorization bypass has survived two attempted fixes. The worker proposes trying a third fix and reviewing again because the high-risk cap is five. Decide the next action."
+  },
+  {
+    "id": "qa-and-ticks",
+    "role": "caller",
+    "request": "An ordinary change had one Author QA review and two independent post-fix reviews across separate orchestrator ticks. A new commit fixes the last finding. The caller wants to start counting again with a replacement reviewer. Determine the completed round count and next action."
+  },
+  {
+    "id": "stricter-cap",
+    "role": "caller",
+    "request": "The user capped this high-risk migration at two review rounds. Two rounds have completed with progress and a data-loss blocker remains. Decide whether the skill permits a third review."
+  },
+  {
+    "id": "first-round-nitpicks",
+    "role": "caller",
+    "request": "The initial independent review of an ordinary change found only a naming preference. Current-head conformance and all required checks pass. Decide whether to send the worker back for a fix and request a second review."
+  },
+  {
+    "id": "equivalent-diff",
+    "role": "caller",
+    "request": "Three rounds have completed. Current independent evidence approved the diff, and a base-only branch update preserves that exact review-relevant diff. Required checks must rerun. Decide whether the update consumes another review round or blocks merge merely because three rounds have run."
+  },
+  {
+    "id": "implementation-handoff",
+    "role": "implementer",
+    "request": "You are returning a normal change to Orchestrator after two Author QA reviews. The first found a CSV quoting bug, the worker fixed it, and the second verified it fixed. No independent review has run. State the review information required in the compressed handoff, and the next review round available to the caller."
+  },
+  {
+    "id": "repair-continuation",
+    "role": "caller",
+    "request": "An ordinary change has completed one Author QA and one independent review. The independent reviewer found a blocking input-validation bug. Prepare the review-related part of the original implementation worker's continuation prompt and explain what history its return must preserve."
+  }
+]

@@ -58,12 +58,17 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 - Otherwise defer to the next tick.
 - If a review pass was wasted on an unstable target, log `stuck-worker` for
   worker churn or `config-gap` for missing check-state expectations.
-- Start one `ziw-code-review` in a fresh session or subagent without the
-  implementation conversation. A worktree isolates files, not context.
+- Enforce [Review limits](../../ziw-code-review/SKILL.md#review-limits) before
+  dispatch.
+- Launch one `ziw-code-review` directly in a fresh session or subagent without
+  the implementation conversation. A worktree isolates files, not context.
+  Never route it through a review coordinator that launches more agents; the
+  reviewer does all review work itself.
 - Use a different model or provider from the author when one is available.
   Record the reviewer and model. A fresh same-model thread is the minimum.
 - Pass the PR, base, intent source, required checks, and the planner's
-  `reviewDiffFingerprint`.
+  `reviewDiffFingerprint`. Also pass the round count, limit, prior findings,
+  attempted fixes, and any high-risk extension reason.
 - When the action carries `deltaFrom`, ask for a review of how the PR's own
   patch changed since that head, plus any interactions it affects:
   - compare `git diff <base>...<deltaFrom>` with `git diff <base>...HEAD`
@@ -99,8 +104,15 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
   through the configured mechanism instead of sending the worker back.
 - Otherwise reply directly to the original worker's continuation target. For a remote
   Cursor agent, use a top-level issue comment only when config verifies that route.
-- Keep fixes on the same branch and PR. The planner then requests a delta review.
-- Log `review-thrash` when a ticket returns to review more often than configured.
+- Persist the completed round count and remaining blockers with the review
+  evidence, across ticks and sessions.
+- Keep fixes on the same branch and PR. Rerun required checks; the planner then
+  requests a delta review. Dispatch it only within the review limits and
+  progress rule.
+- When a limit or progress stop leaves blockers, record `review-thrash`
+  friction and escalate them to the user. Do not dispatch another review or
+  mark the PR merge-ready while blockers or missing current evidence remain.
+  A nitpick-only stop can proceed through the normal readiness gates.
 - Act on hosted findings only when they are high priority: P0/P1, security,
   data loss, correctness regressions, production blockers, or user-requested.
 

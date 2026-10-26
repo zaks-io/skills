@@ -223,7 +223,9 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Duplicate worker or PR policy: idempotency key, session-handle source, and how
   to choose a canonical PR when one dispatch creates more than one session
-- Attempt cap: implement+review attempts on one ticket before the thrash circuit breaker escalates
+- Attempt cap: any stricter repo limit on review rounds; otherwise follow
+  `ziw-code-review`'s Review limits section, including the
+  high-risk exception, progress rule, and escalation with remaining blockers
 - Required checks for merge: the CI checks that define green for the integrate gate
 - Auto-merge risk tiers: which risk tiers Orchestrator may auto-merge vs route to human merge
 - Code-host human-merge PR label: GitHub or code-host label for PRs that are
