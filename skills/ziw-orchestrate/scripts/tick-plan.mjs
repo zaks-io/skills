@@ -115,12 +115,31 @@ const hostedReviewBots = (config) =>
         : [])
     ).map(normalizeLogin),
   );
+const fingerprintKind = (fingerprint) => normalize(fingerprint).split(":")[0];
+
+// Fingerprints compare only within one format; otherwise coverage falls back to
+// the exact reviewed head. Returns null when neither comparison is possible.
+const diffCoverage = (reviewedFingerprint, reviewedHead, currentFingerprint, currentHead) => {
+  if (
+    reviewedFingerprint &&
+    currentFingerprint &&
+    fingerprintKind(reviewedFingerprint) === fingerprintKind(currentFingerprint)
+  ) {
+    return normalize(reviewedFingerprint) === normalize(currentFingerprint);
+  }
+  if (reviewedHead && currentHead) return normalize(reviewedHead) === normalize(currentHead);
+  return null;
+};
+
 const reviewCoversPr = (review, fingerprint, pr) =>
-  review.reviewDiffFingerprint
-    ? Boolean(fingerprint && normalize(review.reviewDiffFingerprint) === normalize(fingerprint))
-    : Boolean(
-        pr.headSha && normalize(review.headSha ?? review.commitSha) === normalize(pr.headSha),
-      );
+  diffCoverage(
+    review.reviewDiffFingerprint,
+    review.headSha ?? review.commitSha,
+    fingerprint,
+    pr.headSha,
+  ) === true;
+
+const COMPLETED_REVIEW_STATES = new Set(["approved", "commented"]);
 
 const evidenceForPr = (state, pr, config) => {
   const byPr = state.reviewEvidenceByPr ?? state.reviewEvidence ?? {};
@@ -128,12 +147,13 @@ const evidenceForPr = (state, pr, config) => {
   const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
   const reviewedFingerprint =
     explicit.reviewedDiffFingerprint ?? explicit.reviewedReviewDiffFingerprint;
-  const currentRevisionVerdict =
-    currentFingerprint &&
-    normalize(currentFingerprint) === normalize(reviewedFingerprint) &&
-    ["needs revision", "do not merge"].includes(
-      normalize(explicit.reviewVerdict ?? explicit.codeReviewVerdict),
-    );
+  const coverage = diffCoverage(
+    reviewedFingerprint,
+    explicit.reviewedHeadSha,
+    currentFingerprint,
+    pr.headSha,
+  );
+  const currentRevisionVerdict = coverage === true && reviewVerdictKind(explicit) === "revision";
   const bots = hostedReviewBots(config);
   const currentApprovals = Object.entries(pr.latestReviews ?? {}).filter(
     ([login, review]) =>
@@ -157,26 +177,24 @@ const evidenceForPr = (state, pr, config) => {
       : {};
   if (currentApprovals.length > 0) return { ...explicit, ...githubEvidence };
 
-  if (
-    currentFingerprint &&
-    reviewedFingerprint &&
-    normalize(currentFingerprint) !== normalize(reviewedFingerprint)
-  ) {
+  if (coverage === false) {
     return {
       ...explicit,
       reviewEvidenceCurrent: false,
       hasReviewEvidence: false,
-      reviewDiffFingerprint: currentFingerprint,
+      ...(currentFingerprint ? { reviewDiffFingerprint: currentFingerprint } : {}),
     };
   }
-  if (currentFingerprint && normalize(currentFingerprint) === normalize(reviewedFingerprint)) {
+  if (coverage === true) {
     const completed = hasCompletedIndependentReview(explicit);
+    // Matching evidence is restated in the current format so later checks compare like with like.
     return {
       ...explicit,
       hasReviewEvidence: completed,
       reviewEvidenceCurrent: completed,
-      reviewDiffFingerprint: currentFingerprint,
-      reviewedDiffFingerprint: reviewedFingerprint,
+      ...(currentFingerprint
+        ? { reviewDiffFingerprint: currentFingerprint, reviewedDiffFingerprint: currentFingerprint }
+        : {}),
       ...(completed ? { reviewedHeadSha: pr.headSha } : {}),
     };
   }
@@ -202,7 +220,7 @@ const hostedReviewForPr = (state, pr, config) => {
     ([login, review]) =>
       review.authorType === "Bot" &&
       bots.has(normalizeLogin(login)) &&
-      normalize(review.state) !== "changes_requested" &&
+      COMPLETED_REVIEW_STATES.has(normalize(review.state)) &&
       reviewCoversPr(review, currentFingerprint, pr),
   );
   const hostedReview = {
@@ -216,7 +234,9 @@ const hostedReviewForPr = (state, pr, config) => {
     hostedReview.hostedReviewRequired,
     hostedReview.codeRabbitRequired,
   ].filter((value) => value != null);
-  const tierRequired = toArray(config.hostedReviewRiskTiers).includes(riskTier(pr, config));
+  const hostedTiers =
+    config.hostedReviewRiskTiers === undefined ? ["high"] : toArray(config.hostedReviewRiskTiers);
+  const tierRequired = hostedTiers.map(normalize).includes(riskTier(pr, config));
   const required = tierRequired || requiredAliases.some((value) => value === true);
   return {
     ...hostedReview,
@@ -411,7 +431,8 @@ const prDisposition = (state, config, pr) => {
   const explicitEvidence = (state.reviewEvidenceByPr ?? state.reviewEvidence ?? {})[pr.number];
   const hostedReviewsDelta =
     !facts.draft && facts.hostedReviewBlocked && reviewVerdictKind(explicitEvidence) === "clean";
-  if (review.status === "blocking") {
+  // Known scope drift is fixed before review, readiness, or hosted review.
+  if (review.status === "blocking" || facts.scopeMismatch) {
     return {
       bucket: "actions",
       value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
@@ -505,12 +526,6 @@ const prDisposition = (state, config, pr) => {
           ? "MERGE_AUTHORITY_MISSING"
           : "HUMAN_MERGE_REQUIRED",
       },
-    };
-  }
-  if (facts.scopeMismatch) {
-    return {
-      bucket: "actions",
-      value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
     };
   }
   if (/conformance/i.test(decision.reason)) {

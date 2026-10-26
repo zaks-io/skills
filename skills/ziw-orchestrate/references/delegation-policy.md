@@ -84,9 +84,10 @@ Review target: <head SHA and review-diff fingerprint; one request per materially
 Delta from: <previously reviewed head SHA from the planner's deltaFrom, or none for a full review>
 Intent source: <issue or PR URL>
 Required checks: <commands or config reference>
-Return the review report and no code changes. With a delta, review the changes
-since that head and the interactions they affect. Refuse an empty diff or a
-duplicate equivalent-diff review request.
+Return the review report and no code changes. With a delta, review how the PR's
+own patch changed since that head (compare merge-base diffs, such as with
+`git range-diff`; not `git diff <delta> HEAD`) and the interactions it affects.
+Refuse an empty diff or a duplicate equivalent-diff review request.
 ```
 
 ## Triage Prompt

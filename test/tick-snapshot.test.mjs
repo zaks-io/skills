@@ -703,7 +703,7 @@ const args = process.argv.slice(2);
 appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
 const endpoint = args.find(arg => arg.startsWith("repos/"));
 if (endpoint?.includes("/files")) {
-  process.stdout.write(JSON.stringify([[{ filename: "src/a.js", sha: fixture.head,
+  process.stdout.write(JSON.stringify([[{ filename: "src/a.js", sha: fixture.blob ?? fixture.head,
     status: "modified", additions: 1, deletions: 1, changes: 2 }]]));
 } else if (endpoint) {
   if (fixture.failDiff || endpoint.endsWith("...unavailable")) process.exit(1);
@@ -762,6 +762,11 @@ test("unavailable GitHub diff falls back to the file-record fingerprint", (t) =>
   assert.notEqual(
     original.reviewDiffFingerprint,
     collect({ failDiff: true, head: "other-blob" }).reviewDiffFingerprint,
+  );
+  // File records omit removed content, so the fallback never outlives its head.
+  assert.notEqual(
+    collect({ failDiff: true, blob: "same-blob" }).reviewDiffFingerprint,
+    collect({ failDiff: true, blob: "same-blob", head: "rebased-head" }).reviewDiffFingerprint,
   );
 });
 

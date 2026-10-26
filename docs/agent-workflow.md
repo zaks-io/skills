@@ -282,8 +282,10 @@ fingerprint, explicit verdict, and completed independent reviewer identity/count
 A new commit clears it only when that review-relevant diff changes.
 The bundled snapshot defines that fingerprint as `git patch-id --verbatim` of
 the PR's merge-base diff, so base updates, rebases, and empty commits keep it.
-When the code host refuses the diff, the snapshot falls back to SHA-256 over
-sorted changed-file records. Snapshot adapters must emit an equivalent
+Context lines count, so a base change next to a PR hunk earns a small delta
+review. When the code host refuses the diff, the snapshot falls back to SHA-256
+over sorted changed-file records plus the head SHA, which binds that evidence to
+its exact head. Snapshot adapters must emit an equivalent
 content-sensitive fingerprint or omit it and fail closed. A head SHA is only a
 backward-compatible request key, not proof that review evidence is current.
 Matching fingerprints preserve completed clean reviews; they never create a

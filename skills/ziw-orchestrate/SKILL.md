@@ -81,8 +81,9 @@ Collect one snapshot per tick, covering the relevant systems of record:
   whole inventory before each action. Refresh affected records before claims,
   workflow/PR mutations, or acting on observed changes. Use mutation responses
   for immediate follow-up actions instead of rereading unchanged records.
-- Merge preflight still verifies current head, base, checks, review, draft state,
-  unresolved threads, and authority immediately before merge.
+- The readiness preflight still verifies current head, base, checks, review,
+  draft state, every unresolved thread, and authority. It runs immediately before
+  `Ready to Merge`, the human-merge label, or a merge.
 - Treat draft PRs as visible active work that occupies file-footprint seams.
 - Count open PRs and previews against worker slots only while a worker actively repairs them.
 - Use systems of record as authority, not the ledger.

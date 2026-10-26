@@ -1378,6 +1378,11 @@ test("a hosted review of the current diff is independent evidence that stale loc
   );
   assert.equal(currentReviewStatus({ ...hostedOnly, hostedReviewSkipped: true }).status, "missing");
   assert.equal(
+    currentReviewStatus({ ...hostedOnly, conformance: "FAIL", conformanceHeadSha: "abc123" })
+      .status,
+    "blocking",
+  );
+  assert.equal(
     currentReviewStatus({ ...hostedOnly, hostedReviewDiffFingerprint: "old" }).status,
     "missing",
   );

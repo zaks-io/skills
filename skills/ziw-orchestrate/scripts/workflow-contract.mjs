@@ -551,24 +551,25 @@ function independentReviewCount(state = {}) {
 export function currentReviewStatus(state = {}, config = {}) {
   const localCurrent = currentReviewEvidence(state);
   const hostedCurrent = hostedReviewCountsAsEvidence(state);
+  const localCovers = localCurrent || reviewCoversCurrentDiff(state);
   // Local verdict fields describe the reviewed diff, so they block only when
   // that review covers the current diff.
-  if (localCurrent || reviewCoversCurrentDiff(state)) {
-    if (hasBlockingReview(state) || reviewVerdictKind(state) === "revision") {
-      return { status: "blocking", reason: "blocking findings or changes requested remain" };
-    }
-    const currentHead = state.currentPrHeadSha ?? state.headSha;
-    if (
-      CONFORMANCE_FAIL.has(normalize(state.conformance ?? state.conformanceVerdict)) &&
-      (state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead))
-    ) {
-      return {
-        status: "blocking",
-        reason: "conformance table has FAIL rows; route findings back to the worker",
-      };
-    }
-  } else if (hostedCurrent && normalize(state.reviewDecision) === "changes_requested") {
+  if (localCovers && (hasBlockingReview(state) || reviewVerdictKind(state) === "revision")) {
     return { status: "blocking", reason: "blocking findings or changes requested remain" };
+  }
+  if (!localCovers && hostedCurrent && normalize(state.reviewDecision) === "changes_requested") {
+    return { status: "blocking", reason: "blocking findings or changes requested remain" };
+  }
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  if (
+    (localCovers || hostedCurrent) &&
+    CONFORMANCE_FAIL.has(normalize(state.conformance ?? state.conformanceVerdict)) &&
+    (state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead))
+  ) {
+    return {
+      status: "blocking",
+      reason: "conformance table has FAIL rows; route findings back to the worker",
+    };
   }
   if (!localCurrent && !hostedCurrent) {
     return {
@@ -609,6 +610,9 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
     state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead);
   if (!facts.open) return hold("PR is not open");
   if (facts.draft) return hold("draft PRs cannot merge");
+  if (state.reviewThreadsTruncated === true) {
+    return hold("review thread evidence is truncated; inspect every thread first");
+  }
   const review = currentReviewStatus(state, config);
   if (review.status !== "clean") return hold(review.reason);
   if (!facts.checksPassed) return hold("required checks are not confirmed passing");

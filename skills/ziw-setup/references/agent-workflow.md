@@ -311,10 +311,11 @@ For issue-assigned delegation:
   review-diff fingerprint, and remove it when that review-relevant diff changes,
   blocking findings appear, the linked PR changes, or evidence is missing.
   The bundled snapshot computes the fingerprint as `git patch-id --verbatim`
-  of the PR's merge-base diff, so base updates and rebases keep it. When the
-  code host refuses the diff, it falls back to SHA-256 over sorted changed-file
-  records. Other snapshot adapters must emit an equivalent content-sensitive
-  value or omit it and fail closed.
+  of the PR's merge-base diff, so base updates and rebases keep it unless they
+  touch lines next to the PR's changes. When the code host refuses the diff, it
+  falls back to SHA-256 over sorted changed-file records plus the head SHA, so
+  that evidence covers only its exact head. Other snapshot adapters must emit
+  an equivalent content-sensitive value or omit it and fail closed.
 - The configured code-host human-merge PR label, such as
   `needs-human-merge`, is a merge-ready signal. Apply it only to open non-draft
   PRs that are ready to merge except for required human merge authority: current

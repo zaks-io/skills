@@ -63,14 +63,19 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 - Use a different model or provider from the author when one is available.
   Record the reviewer and model. A fresh same-model thread is the minimum.
 - Pass the PR, base, intent source, required checks, and the planner's
-  `reviewDiffFingerprint`. When the action carries `deltaFrom`, ask for a review
-  of the changes since that head, plus any interactions they affect.
+  `reviewDiffFingerprint`.
+- When the action carries `deltaFrom`, ask for a review of how the PR's own
+  patch changed since that head, plus any interactions it affects. Compare the
+  two merge-base diffs, for example with `git range-diff`. Never use
+  `git diff <deltaFrom> HEAD`; after a base merge it includes the base's changes.
 - Give parallel reviewers separate sessions and checkouts, never one shared
   mutable checkout.
 
 ### Reading a review
 
 - Read the verdict and the hosted-review recommendation from the review artifact.
+- When the artifact recommends `PR REVIEW`, record hosted review as required
+  for this PR in planner state (`hostedReviewByPr`).
 - When current artifacts disagree on blocking findings, treat the PR as blocked
   until a focused re-review settles those findings or the risky diff is fixed.
 - Clean verdict:
@@ -86,7 +91,10 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 
 ### route-fix and route-review-fix
 
-- Reply directly to the original worker's continuation target. For a remote
+- First check whether a `CHANGES_REQUESTED` verdict predates the current head
+  and its findings are resolved on that head. If so, dismiss or re-request it
+  through the configured mechanism instead of sending the worker back.
+- Otherwise reply directly to the original worker's continuation target. For a remote
   Cursor agent, use a top-level issue comment only when config verifies that route.
 - Keep fixes on the same branch and PR. The planner then requests a delta review.
 - Log `review-thrash` when a ticket returns to review more often than configured.
@@ -160,10 +168,10 @@ Apply label actions exactly as the planner emits them.
 
 ### route-human-merge and arm-auto-merge
 
-- When the issue meets the merge gate above, move it to `Ready to Merge`.
+- Run the readiness preflight below first. Then move the issue to `Ready to Merge`.
 - `route-human-merge`: apply the human-merge label. Report the merge decision
   to the user in the configured shape.
-- `arm-auto-merge`: run merge preflight, then merge as described below.
+- `arm-auto-merge`: merge as described below.
 
 ### reconcile-empty-pr
 
@@ -172,16 +180,16 @@ merged, superseded, or nothing pushed. Close it only under the
 [PR closure guard](dispatch-policy.md#pr-closure-guard). Otherwise route it to
 the worker.
 
-## Merge preflight
+## Readiness preflight
+
+Run it before moving an issue to `Ready to Merge`, applying the human-merge
+label, or merging.
 
 - Enumerate every unresolved review thread with severity, using the code host's
   thread-level view. A partial comment count can green-light a real bug.
-- A `CHANGES_REQUESTED` verdict can predate the current head with its findings
-  resolved. If so, dismiss or re-request it through the configured mechanism.
-- Refresh local Git refs and code-host state immediately before merging.
-- Verify the PR head, default-branch HEAD, merge base, required checks, review
-  verdict, and draft state. When a value is stale or missing, update and rerun
-  the affected gate.
+- Refresh local Git refs and code-host state. Verify the PR head, fingerprint,
+  default-branch HEAD, merge base, required checks, review verdict, and draft
+  state. When a value is stale or missing, update and rerun the affected gate.
 - When the default branch moved, run `update-branch` above. Never send routine
   branch updates to the implementation worker.
 

@@ -45,7 +45,7 @@ function plan(linear, state = {}, prs = []) {
       file,
       JSON.stringify({
         snapshot: { v: 3, repo: routeLabel, prs, linear },
-        config: { workerConcurrencyCap: 3, mergeAuthority: "agent" },
+        config: { workerConcurrencyCap: 3, mergeAuthority: "agent", hostedReviewRiskTiers: [] },
         state,
       }),
     );

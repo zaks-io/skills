@@ -267,8 +267,10 @@ const pullRequestFiles = (number, expectedCount) => {
   return files;
 };
 
-const reviewDiffFingerprint = (files) => {
-  const canonical = files
+// Fallback when the PR diff is unavailable. File records omit removed content,
+// so the head is part of the hash and this evidence never outlives its commit.
+const reviewDiffFingerprint = (files, headSha) => {
+  const canonicalFiles = files
     .map((file) => ({
       additions: file.additions,
       changes: file.changes,
@@ -279,6 +281,7 @@ const reviewDiffFingerprint = (files) => {
       status: file.status,
     }))
     .sort((left, right) => left.filename.localeCompare(right.filename));
+  const canonical = { headSha, files: canonicalFiles };
   return `sha256:${createHash("sha256").update(JSON.stringify(canonical)).digest("hex")}`;
 };
 
@@ -363,7 +366,8 @@ const linkedLinearIssues = (body) =>
 const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
   const files = pullRequestFiles(pr.number, pr.changedFiles);
   const fingerprint =
-    patchIdForEndpoint(`repos/${repo}/pulls/${pr.number}`) ?? reviewDiffFingerprint(files);
+    patchIdForEndpoint(`repos/${repo}/pulls/${pr.number}`) ??
+    reviewDiffFingerprint(files, pr.headRefOid);
   return {
     number: pr.number,
     title: pr.title,
