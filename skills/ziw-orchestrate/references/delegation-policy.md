@@ -9,11 +9,13 @@ Orchestrator is the only active work loop. It decides the next workflow action
 and delegates context-heavy work.
 
 - Implementation workers write code, run required checks, use best judgment on
-  whether `ziw-code-review` author QA adds value, and open or update their PR
-  through `ziw-pr` before independent review. A new commit alone never requires
+  whether `ziw-code-review` author QA adds value, and open or update a draft PR
+  through `ziw-pr` for independent review. A new commit alone never requires
   another author-QA pass.
 - Review workers run independent `ziw-code-review` from clean context and return
-  findings or a clean verdict.
+  findings or a clean verdict. Launch them on a different model or provider
+  from the implementation worker when one is available, and record the
+  reviewer model. A fresh same-model session is the minimum.
 - Triage workers repair issue shape, dependencies, routing, readiness, and
   startable queue truth.
 - Integrate handles merge authority and default-branch writes.
@@ -79,10 +81,12 @@ Repo: <path>
 PR/branch/range: <target>
 Base: <base branch or range>
 Review target: <head SHA and review-diff fingerprint; one request per materially distinct diff>
+Delta from: <previously reviewed head SHA from the planner's deltaFrom, or none for a full review>
 Intent source: <issue or PR URL>
 Required checks: <commands or config reference>
-Return the review report and no code changes. Refuse an empty diff or a duplicate
-equivalent-diff review request.
+Return the review report and no code changes. With a delta, review the changes
+since that head and the interactions they affect. Refuse an empty diff or a
+duplicate equivalent-diff review request.
 ```
 
 ## Triage Prompt

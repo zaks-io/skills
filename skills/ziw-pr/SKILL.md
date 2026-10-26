@@ -6,8 +6,8 @@ argument-hint: "[issue-id|branch|pr-url]"
 
 # Create PR
 
-Get the branch to an open, non-draft PR linked to its issue, then hand off.
-That is the whole job. You have standing permission to skip everything else:
+Get the branch to an open draft PR linked to its issue, then hand off for
+independent review. That is the whole job. You have standing permission to skip everything else:
 no checks of your own, no code review, no issue search, no CI wait. Hooks run on
 commit and push, CI runs on the PR, and Agent Review owns independent review.
 
@@ -27,7 +27,7 @@ with the configured complaint store and this role's mutation authority.
 2. [Check the branch and scope](#branch-and-scope).
 3. [Commit and push](#commit-and-push), taking [fix rounds](#fix-rounds) for
    hook failures.
-4. [Open or update the PR](#pr) as non-draft and link the issue.
+4. [Open or update the PR](#pr) as draft and link the issue.
 5. [Report](#done) without waiting for CI.
 
 ## Gather
@@ -99,9 +99,12 @@ Stop and report, instead of starting another round, when:
 
 ## PR
 
-Create or update the PR as non-draft, and mark an existing draft ready now,
-unless the user or config requires a draft; report a required draft as
-pre-review. Do not wait for CI or hosted review.
+Open a new PR as draft. Draft means it still needs independent review; hosted
+reviewers skip drafts, so local review fixes land first. Agent Orchestrator
+marks it ready after a clean review. Keep an existing PR's draft state.
+
+Exception: open it non-draft when the user asks or repo config says to; report
+that independent review is still pending. Do not wait for CI or hosted review.
 
 Title: the issue title, otherwise the commit subject; under 70 characters when
 practical.

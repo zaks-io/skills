@@ -156,6 +156,8 @@ Project state: Linear. This file stores stable configuration only.
 - Hosted bot review provider policy: optional CodeRabbit or Cursor Bugbot only with a verified integration; resolve availability live
 - Hosted bot review trigger policy: resolve provider auto-review state and exact
   trigger before posting commands
+- Hosted review risk tiers: `high`
+- Hosted review bot logins: `coderabbitai`
 - CodeRabbit config source: root `.coderabbit.yaml`
 - CodeRabbit bot handle: @coderabbitai
 - CodeRabbit auto-review: enabled for non-draft PRs unless root config says

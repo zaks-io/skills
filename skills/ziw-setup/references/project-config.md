@@ -232,9 +232,9 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Code-host human-merge PR label policy: apply only to open non-draft PRs
   after current clean code review evidence, passing required checks, complete or
   policy-skipped hosted review, matching issue scope, and zero unresolved
-  blocking review threads; clear on new commits, draft transitions, failed or
-  pending required checks, blocking findings, unresolved review threads,
-  stale/missing review evidence, close, or merge
+  blocking review threads; clear on review-relevant diff changes, draft
+  transitions, failed or pending required checks, blocking findings, unresolved
+  review threads, stale/missing review evidence, close, or merge
 - Merge method policy: squash, merge commit, rebase merge, or repo-specific command
 - Post-merge preparation: install, build, generated-artifact, or dependency refresh needed before local post-merge checks are trustworthy
 - Post-merge check: command or signal that confirms the default branch is healthy after merge, if any
@@ -322,13 +322,24 @@ Project state: configured issue tracker. This file stores stable configuration o
 - PR body:
 - Required checks: CI job names; hooks and CI run them, so Create PR does not
   rerun them
-- Code review: author QA is the implementer's judgment call; independent
-  review runs after the PR opens
+- Code review: author QA is the implementer's judgment call; one independent
+  `ziw-code-review` runs on the draft PR after required checks pass, in a fresh
+  isolated thread, preferably on a different model from the author
+- Review model policy: reviewer models or providers to prefer over the author's
+  model, and the strongest model for HIGH-risk work; record the reviewer model
+  with review evidence
 - Local GitHub review submission actor policy: verified CLI command and account
   used to submit local review results; omit unverified identity and block submission
-- Hosted bot review provider policy: allowed configured providers, optional or
-  required-by-risk/request policy; naming an allowed provider does not enable
-  its integration. Omit unverified integration settings and resolve availability live.
+- Hosted bot review provider policy: allowed configured providers; naming an
+  allowed provider does not enable its integration. Omit unverified integration
+  settings and resolve availability live.
+- Hosted review risk tiers: risk tiers that require hosted review after local
+  review, default `high`; other PRs rely on the local independent review unless
+  explicitly requested or the reviewer names a concrete uncertainty
+- Hosted review substitute: what replaces required hosted review when the
+  provider is unavailable, such as a strongest-model local review, or human merge
+- Hosted review bot logins: provider bot accounts whose reviews count as hosted
+  review, such as `coderabbitai`; other bot approvals never count
 - Hosted bot review trigger policy: automatic, top-level PR comment,
   label/description opt-in, provider app UI, or explicitly disabled; include
   the exact configured command only when verified
@@ -347,16 +358,14 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Cursor Bugbot command policy: use only the verified repo-configured trigger or
   automatic review policy; if trigger or actor is unknown, record the gap rather
   than guessing; keep that follow-up outside config
-- Draft PR policy: open non-draft by default; draft only for requested human
-  prep or known required author fixes. Pending or running CI is not a reason
-  for draft; draft state alone is not a code review request.
-  Agent Orchestrator diagnoses stuck draft PRs, marks unblocked drafts
-  ready-for-review, and verifies the code-host PR is non-draft unless this repo
-  says otherwise. A kept-draft PR is pre-review, not ready-for-review. Draft PRs
-  consume file-contention seams but not worker slots unless a worker is actively
-  repairing them
-- Ready-for-review owner: Create PR opens non-draft; Agent Orchestrator
-  repairs stuck drafts
+- Draft PR policy: open draft by default; draft means not yet independently
+  reviewed. CI runs on the draft and hosted reviewers skip it, so local review
+  fixes land first. Agent Orchestrator marks it ready-for-review after a clean
+  review of the current diff and verifies it is non-draft. A PR kept draft for
+  human prep is pre-review. Draft PRs consume file-contention seams but not
+  worker slots unless a worker is actively repairing them
+- Ready-for-review owner: Create PR opens draft; Agent Orchestrator marks it
+  ready after a clean independent review
 - Issue update: PR URL in the PR body links the issue; evidence comments are
   Agent Orchestrator's, after review
 - Merge authority:

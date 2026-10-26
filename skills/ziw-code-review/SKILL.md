@@ -16,7 +16,8 @@ A clean review is not the full merge gate.
 ## Inputs
 
 Target, base branch or range start, intent/requirements, and configured checks.
-Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
+Workflow handoffs also supply the reviewed head and orchestrator fingerprint,
+plus the previously reviewed head for a delta review.
 `--submit` requires an explicit GitHub PR target.
 
 ## Steps
@@ -73,7 +74,8 @@ Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
      implementation conversation. Supply target, repo path, base, intent, required
      checks, and orchestrator fingerprint when available. A worktree isolates files,
      not context. Without fresh context, report independent review as blocked;
-     never substitute Author QA or claim independent evidence.
+     never substitute Author QA or claim independent evidence. Callers should pick
+     a different model from the author when one is available; report your model.
    - Give parallel reviewers separate mutable checkouts. Remove only disposable
      worktrees created for this review, including on failure; preserve user files.
    - Use the narrowest sufficient target. Reserve broad repository review for explicit
@@ -95,8 +97,8 @@ Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
    - Recommend `APPLY` only with `READY FOR PR` or `APPROVE`, a verified committed
      target, and exhibited conformance with no blocking rows. Missing evidence cannot
      support `APPLY`.
-   - Record completed independent reviewer identity and count, verdict, applicable PR URL,
-     reviewed SHA, and the review-diff fingerprint supplied by the orchestrator snapshot.
+   - Record completed independent reviewer identity, model, and count, verdict, applicable
+     PR URL, reviewed SHA, and the review-diff fingerprint supplied by the orchestrator snapshot.
    - Recommend `CLEAR` when blocking findings, changed review-relevant diff, or
      missing/stale evidence invalidate an existing label; otherwise `LEAVE UNCHANGED`.
    - Orchestrator also checks required CI, non-draft state, hosted-review policy,
@@ -192,8 +194,9 @@ Add only applicable handoff fields:
 - Standard PR reviews and workflow handoffs: applicable hosted-review fields and
   `PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY | UNKNOWN, because <reason>`.
   Without observed draft state, use `UNKNOWN`, even with blockers; report them
-  separately. Lack of mutation authority does not keep a clean PR in draft.
-  Orchestrator owns the transition.
+  separately. A draft awaiting this review is the normal stage; recommend
+  `MARK READY FOR REVIEW` when clean. Lack of mutation authority does not keep a
+  clean PR in draft. Orchestrator owns the transition.
 - `--submit`: `GitHub submission: POSTED <URL> | ALREADY CURRENT <URL> | FAILED, because <reason>`.
 - Main drift/intake: reviewed range, checkpoint result, audited spec sections,
   issues created or recommended, and Orchestrator handoff. Report freshness per target

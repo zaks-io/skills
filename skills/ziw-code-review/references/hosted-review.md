@@ -16,11 +16,14 @@ incremental-review behavior only when it changes the recommendation.
 
 ## Recommendation
 
-- Default to `SKIP` after clean review of low-risk changes.
-- Recommend `PR REVIEW` for an existing PR when required by repo policy,
-  explicitly requested, or warranted by risk, complexity, or unresolved
-  uncertainty. Examples include auth, secrets, payments, destructive data,
-  migrations, background jobs, public contracts, and cross-cutting refactors.
+- Default to `SKIP`. A clean local independent review is enough unless a rule
+  below applies.
+- Recommend `PR REVIEW` for an existing PR when the repo's hosted-review risk
+  tiers include this change, when it is explicitly requested, or when you name a
+  concrete unresolved uncertainty a second reviewer could settle. High-risk
+  examples include auth, secrets, payments, destructive data, migrations,
+  background jobs, public contracts, and cross-cutting refactors.
+- Hosted review runs after local fixes land and the PR leaves draft.
 - If a current review is pending, recommend `WAIT` with no command. If automatic
   push review is enabled and the current diff is eligible, let it run without
   another trigger. If auto-review mode, actor, or permissions are unknown,

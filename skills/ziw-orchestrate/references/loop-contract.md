@@ -105,7 +105,7 @@ current head/base, checks, review, draft, threads, and authority immediately bef
    Do not count human assignees, open PRs, previews, or abandoned worktrees as
    workers. Keep those signals in the action and collision inventory.
 5. Act on everything actionable this tick and refill worker slots immediately:
-   advance returned PRs, previews, and stuck drafts while dispatching unrelated
+   advance returned PRs, draft reviews, and previews while dispatching unrelated
    safe work. Merge green PRs, route fixes, run
    `gh pr update-branch <pr>` on GitHub PRs after main moves, inspect previews,
    and dispatch unrelated new work concurrently. Do not delegate routine branch
@@ -116,9 +116,8 @@ current head/base, checks, review, draft, threads, and authority immediately bef
    footprints against active PRs, active branches, and selected candidates;
    hold concrete collisions; derive unknown footprints in the same tick unless
    one unknown-footprint lane can safely start with nothing to collide against
-   instead of spending spare slots. Draft state is an orchestration repair
-   signal, not a code review request, and capacity pressure is not a reason to
-   close a draft or in-progress PR.
+   instead of spending spare slots. A draft PR is the local-review stage, and
+   capacity pressure is not a reason to close a draft or in-progress PR.
 6. For every selected ticket, apply the dispatch action's `targetState` and
    require the tracker to confirm the configured in-progress state before
    launching an isolated worker. If that transition fails, do not start the
