@@ -51,8 +51,9 @@ plus the previously reviewed head for a delta review.
      Report original and current heads, reason, and evidence reference without a new
      review claim. A new SHA alone does not warrant full review. Review follow-up
      deltas and affected interactions; expand only where prior evidence no longer applies.
-     For a supplied delta head, compare the PR's merge-base diffs at both heads,
-     such as with `git range-diff`; a plain head-to-head diff includes base merges.
+     For a supplied delta head, compare `git diff <base>...<delta>` with
+     `git diff <base>...HEAD`, including merge-conflict resolutions. `git range-diff`
+     skips merge commits; a plain head-to-head diff includes base merges.
      `--submit` retains its exact-head checks.
 3. Read `AGENTS.md`, `docs/agents/workflow/config.md`, and the configured glossary.
    - For unmapped glossary paths, use [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md).

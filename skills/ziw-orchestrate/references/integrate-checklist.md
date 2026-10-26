@@ -65,9 +65,12 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 - Pass the PR, base, intent source, required checks, and the planner's
   `reviewDiffFingerprint`.
 - When the action carries `deltaFrom`, ask for a review of how the PR's own
-  patch changed since that head, plus any interactions it affects. Compare the
-  two merge-base diffs, for example with `git range-diff`. Never use
-  `git diff <deltaFrom> HEAD`; after a base merge it includes the base's changes.
+  patch changed since that head, plus any interactions it affects:
+  - compare `git diff <base>...<deltaFrom>` with `git diff <base>...HEAD`
+  - the current patch includes merge-conflict resolutions; `git range-diff`
+    skips merge commits, so it can only summarize the delta
+  - never use `git diff <deltaFrom> HEAD`; after a base merge it includes the
+    base's changes
 - Give parallel reviewers separate sessions and checkouts, never one shared
   mutable checkout.
 

@@ -72,11 +72,29 @@ const reviewedDiffFingerprint = (state = {}) =>
 const reviewCoversCurrentDiff = (state = {}) =>
   fingerprintEquals(reviewedDiffFingerprint(state), currentReviewDiffFingerprint(state));
 
+const fingerprintKind = (fingerprint) => normalize(fingerprint).split(":")[0];
+
+// Fingerprints compare only within one format; otherwise coverage falls back to
+// the exact reviewed head. Returns null when neither comparison is possible.
+export function diffCoverage(reviewedFingerprint, reviewedHead, currentFingerprint, currentHead) {
+  if (
+    reviewedFingerprint &&
+    currentFingerprint &&
+    fingerprintKind(reviewedFingerprint) === fingerprintKind(currentFingerprint)
+  ) {
+    return fingerprintEquals(reviewedFingerprint, currentFingerprint);
+  }
+  if (reviewedHead && currentHead) return shaEquals(reviewedHead, currentHead);
+  return null;
+}
+
 const hostedReviewCoversCurrentDiff = (state = {}) =>
-  fingerprintEquals(
+  diffCoverage(
     state.hostedReviewDiffFingerprint ?? state.hostedReviewedDiffFingerprint,
+    state.hostedReviewHeadSha,
     currentReviewDiffFingerprint(state),
-  );
+    state.currentPrHeadSha ?? state.headSha,
+  ) === true;
 
 const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boolean));
 

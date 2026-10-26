@@ -1708,17 +1708,32 @@ for (const reviewVerdict of ["Ready to Merge", "NEEDS REVISION"]) {
   });
 }
 
-test("a current fingerprint requires request fingerprint equality, while missing fingerprints use heads", () => {
-  const input = reviewLifecycleInput(
-    {},
-    {},
-    {
-      reviewRequestsByPr: { 7: { headSha: "base-merged-head", status: "running" } },
-    },
+test("a running review request covers the PR by same-format fingerprint, else by exact head", () => {
+  const input = reviewLifecycleInput();
+  const outcome = (request) => {
+    input.state = { reviewRequestsByPr: { 7: { status: "running", ...request } } };
+    const output = runCompactPlan(input);
+    return output.waits[0]?.reason ?? output.actions[0].kind;
+  };
+  assert.equal(outcome({ headSha: "base-merged-head" }), "REVIEW_IN_FLIGHT");
+  assert.equal(
+    outcome({ headSha: "base-merged-head", reviewDiffFingerprint: "sha256:same-head" }),
+    "REVIEW_IN_FLIGHT",
   );
-  assert.equal(runCompactPlan(input).actions[0].kind, "request-review");
+  assert.equal(
+    outcome({ headSha: "older-head", reviewDiffFingerprint: "sha256:older" }),
+    "request-review",
+  );
+  assert.equal(
+    outcome({ headSha: "older-head", reviewDiffFingerprint: "patch-id:current" }),
+    "REVIEW_IN_FLIGHT",
+  );
+  assert.equal(
+    outcome({ headSha: "base-merged-head", reviewDiffFingerprint: "patch-id:other" }),
+    "request-review",
+  );
   delete input.snapshot.prs[0].reviewDiffFingerprint;
-  assert.equal(runCompactPlan(input).waits[0].reason, "REVIEW_IN_FLIGHT");
+  assert.equal(outcome({ headSha: "base-merged-head" }), "REVIEW_IN_FLIGHT");
   input.state = {};
   assert.equal(runCompactPlan(input).actions[0].idempotencyKey, "review:7:base-merged-head");
 });
@@ -1728,6 +1743,70 @@ test("a hosted review without a fingerprint counts only on the current head", ()
     hostedLifecycleInput({ headSha: "base-merged-head", reviewDiffFingerprint: undefined }),
   );
   assert.ok(output.actions.some((action) => action.kind === "route-human-merge"));
+});
+
+test("a fingerprint saved with old evidence cannot stand in for the live diff", () => {
+  const output = runPlan(
+    reviewLifecycleInput(
+      {},
+      { hostedReviewRiskTiers: [] },
+      {
+        reviewEvidenceByPr: { 7: { currentReviewDiffFingerprint: "patch-id:old" } },
+        hostedReviewByPr: {
+          7: { hostedReviewComplete: true, hostedReviewDiffFingerprint: "patch-id:old" },
+        },
+      },
+    ),
+  );
+  assert.equal(output.actions[0].kind, "request-review");
+  assert.equal(output.decisions.humanMergeLabels[0].action, "LEAVE_UNCHANGED");
+});
+
+test("checks and threads saved with evidence cannot override the live PR for the label", () => {
+  const output = runPlan(
+    reviewLifecycleInput(
+      {
+        checks: { state: "FAILURE", failed: ["unit"], pending: [] },
+        unresolvedThreads: 1,
+        latestReviews: { human: humanApproval() },
+      },
+      { mergeAuthority: "human", hostedReviewRiskTiers: [] },
+      { reviewEvidenceByPr: { 7: { requiredChecksPassed: true, unresolvedThreads: 0 } } },
+    ),
+  );
+  assert.notEqual(output.decisions.humanMergeLabels[0].action, "APPLY_HUMAN_MERGE_PR_LABEL");
+});
+
+test("a risk tier recorded with review evidence also requires hosted review", () => {
+  const output = runCompactPlan(
+    reviewLifecycleInput(
+      { latestReviews: { human: humanApproval() } },
+      {},
+      { reviewEvidenceByPr: { 7: { riskTier: "high" } } },
+    ),
+  );
+  assert.equal(output.actions[0].kind, "resolve-hosted-review-mode");
+});
+
+test("recorded hosted evidence in another fingerprint format covers its exact head", () => {
+  const kinds = (hostedReviewHeadSha) =>
+    runCompactPlan(
+      reviewLifecycleInput(
+        { labels: ["risk-security-sensitive"], latestReviews: { human: humanApproval() } },
+        { hostedReviewRiskTiers: ["high"] },
+        {
+          hostedReviewByPr: {
+            7: {
+              hostedReviewComplete: true,
+              hostedReviewDiffFingerprint: "sha256:same-head",
+              hostedReviewHeadSha,
+            },
+          },
+        },
+      ),
+    ).actions.map((action) => action.kind);
+  assert.equal(kinds("base-merged-head").includes("route-human-merge"), true);
+  assert.equal(kinds("older-head")[0], "resolve-hosted-review-mode");
 });
 
 test("current findings on a draft route to fixes before readiness", () => {

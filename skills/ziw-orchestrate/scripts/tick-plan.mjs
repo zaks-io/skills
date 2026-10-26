@@ -29,6 +29,7 @@ import {
   activeDeliveryFootprint,
   capacityDecision,
   currentReviewStatus,
+  diffCoverage,
   dispatchSelectionDecision,
   hasCompletedIndependentReview,
   hostedReviewEscalationDecision,
@@ -115,22 +116,6 @@ const hostedReviewBots = (config) =>
         : [])
     ).map(normalizeLogin),
   );
-const fingerprintKind = (fingerprint) => normalize(fingerprint).split(":")[0];
-
-// Fingerprints compare only within one format; otherwise coverage falls back to
-// the exact reviewed head. Returns null when neither comparison is possible.
-const diffCoverage = (reviewedFingerprint, reviewedHead, currentFingerprint, currentHead) => {
-  if (
-    reviewedFingerprint &&
-    currentFingerprint &&
-    fingerprintKind(reviewedFingerprint) === fingerprintKind(currentFingerprint)
-  ) {
-    return normalize(reviewedFingerprint) === normalize(currentFingerprint);
-  }
-  if (reviewedHead && currentHead) return normalize(reviewedHead) === normalize(currentHead);
-  return null;
-};
-
 const reviewCoversPr = (review, fingerprint, pr) =>
   diffCoverage(
     review.reviewDiffFingerprint,
@@ -213,7 +198,7 @@ const reviewDiffFingerprintForPr = (state, pr) =>
   state.reviewDiffByPr?.[String(pr.number ?? "")];
 
 const hostedReviewForPr = (state, pr, config) => {
-  const byPr = state.hostedReviewByPr ?? {};
+  const record = state.hostedReviewByPr?.[pr.number] ?? {};
   const currentFingerprint = reviewDiffFingerprintForPr(state, pr);
   const bots = hostedReviewBots(config);
   const complete = Object.entries(pr.latestReviews ?? {}).some(
@@ -223,71 +208,80 @@ const hostedReviewForPr = (state, pr, config) => {
       COMPLETED_REVIEW_STATES.has(normalize(review.state)) &&
       reviewCoversPr(review, currentFingerprint, pr),
   );
-  const hostedReview = {
-    ...(complete
-      ? { hostedReviewComplete: true, hostedReviewDiffFingerprint: currentFingerprint }
-      : {}),
-    ...byPr[pr.number],
-  };
-  const requiredAliases = [
-    hostedReview.required,
-    hostedReview.hostedReviewRequired,
-    hostedReview.codeRabbitRequired,
-  ].filter((value) => value != null);
-  const hostedTiers =
-    config.hostedReviewRiskTiers === undefined ? ["high"] : toArray(config.hostedReviewRiskTiers);
-  const tierRequired = hostedTiers.map(normalize).includes(riskTier(pr, config));
-  const required = tierRequired || requiredAliases.some((value) => value === true);
   return {
-    ...hostedReview,
-    ...(hostedReview.skipped == null ? {} : { hostedReviewSkipped: hostedReview.skipped }),
-    ...(requiredAliases.length > 0 || tierRequired
-      ? { required, hostedReviewRequired: required }
+    ...(complete
+      ? {
+          hostedReviewComplete: true,
+          hostedReviewDiffFingerprint: currentFingerprint,
+          hostedReviewHeadSha: pr.headSha,
+        }
       : {}),
+    ...record,
+    ...(record.skipped == null ? {} : { hostedReviewSkipped: record.skipped }),
   };
 };
 
-const humanMergeDecisionForPr = (state, config, pr) => {
-  const evidence = evidenceForPr(state, pr, config);
-  const hostedReview = hostedReviewForPr(state, pr, config);
-  const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
+// Any recorded request requires hosted review; the risk tier comes from the
+// same merged state that merge readiness uses.
+const hostedReviewRequirement = (sources, reviewState, config) => {
+  const aliases = sources
+    .flatMap((source) => [source.required, source.hostedReviewRequired, source.codeRabbitRequired])
+    .filter((value) => value != null);
+  const tiers =
+    config.hostedReviewRiskTiers === undefined ? ["high"] : toArray(config.hostedReviewRiskTiers);
+  const tierRequired = tiers.map(normalize).includes(riskTier(reviewState, config));
+  if (aliases.length === 0 && !tierRequired) return {};
+  const required = tierRequired || aliases.includes(true);
+  return { required, hostedReviewRequired: required };
+};
+
+// Code-host facts from this tick override any copy saved with older evidence.
+const livePrFacts = (state, pr) => {
+  const fingerprint = reviewDiffFingerprintForPr(state, pr);
+  const unresolvedThreads = pr.unresolvedReviewThreads ?? pr.unresolvedThreads;
   return {
-    pr: pr.number,
+    prState: pr.state,
+    prLabels: pr.labels,
+    isDraft: pr.isDraft,
     headSha: pr.headSha,
-    ...humanMergePrLabelDecision(
-      {
-        ...pr,
-        prState: pr.state,
-        prLabels: pr.labels,
-        isDraft: pr.isDraft,
-        currentPrHeadSha: pr.headSha,
-        requiredChecksPassed: checksPassed(pr),
-        unresolvedThreads: pr.unresolvedThreads,
-        reviewDecision: pr.reviewDecision,
-        ...hostedReview,
-        ...evidence,
-        ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
-      },
-      config,
-    ),
+    currentPrHeadSha: pr.headSha,
+    requiredChecksPassed: checksPassed(pr),
+    unresolvedThreads,
+    unresolvedReviewThreads: unresolvedThreads,
+    reviewDecision: pr.reviewDecision,
+    reviewThreadsTruncated: pr.reviewThreadsTruncated,
+    currentReviewDiffFingerprint: fingerprint,
+    reviewDiffFingerprint: fingerprint,
+    reviewRelevantDiffFingerprint: fingerprint,
   };
 };
+
+const reviewContextForPr = (state, config, pr) => {
+  const hostedRecord = hostedReviewForPr(state, pr, config);
+  const evidence = evidenceForPr(state, pr, config);
+  const live = livePrFacts(state, pr);
+  const merged = { ...pr, ...hostedRecord, ...evidence, ...live };
+  const requirement = hostedReviewRequirement([hostedRecord, evidence], merged, config);
+  return {
+    reviewState: { ...merged, ...requirement },
+    hostedReview: { ...hostedRecord, ...requirement, ...live },
+  };
+};
+
+const humanMergeDecisionForPr = (state, config, pr) => ({
+  pr: pr.number,
+  headSha: pr.headSha,
+  ...humanMergePrLabelDecision(reviewContextForPr(state, config, pr).reviewState, config),
+});
 
 const hostedReviewDecisionForPr = (state, config, pr) => {
-  const hostedReview = hostedReviewForPr(state, pr, config);
-  const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
+  const { hostedReview } = reviewContextForPr(state, config, pr);
   if (!hostedReview.required) return null;
   return {
     pr: pr.number,
     headSha: pr.headSha,
     ...hostedReviewEscalationDecision(
-      {
-        prExists: true,
-        prState: pr.isDraft ? "draft" : pr.state,
-        currentPrHeadSha: pr.headSha,
-        ...hostedReview,
-        ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
-      },
+      { ...hostedReview, prExists: true, prState: pr.isDraft ? "draft" : pr.state },
       config,
     ),
   };
@@ -298,18 +292,15 @@ const targetForPr = (pr) => `pr:${pr.number}`;
 const reviewRequestForPr = (state, pr) => {
   const byPr = state.reviewRequestsByPr ?? state.reviewRequestByPr ?? {};
   const request = byPr[pr.number] ?? {};
-  const currentFingerprint = normalize(reviewDiffFingerprintForPr(state, pr));
-  const requestedFingerprint = normalize(
+  const coverage = diffCoverage(
     request.reviewDiffFingerprint ??
       request.reviewRelevantDiffFingerprint ??
       request.reviewedDiffFingerprint,
+    request.headSha ?? request.reviewHeadSha,
+    reviewDiffFingerprintForPr(state, pr),
+    pr.headSha,
   );
-  if (currentFingerprint) {
-    return currentFingerprint === requestedFingerprint ? request : null;
-  }
-  return pr.headSha && normalize(request.headSha ?? request.reviewHeadSha) === normalize(pr.headSha)
-    ? request
-    : null;
+  return coverage === true ? request : null;
 };
 
 const previousReviewHeadForPr = (state, pr, config) => {
@@ -349,8 +340,6 @@ const previousReviewHeadForPr = (state, pr, config) => {
 
 const prDisposition = (state, config, pr) => {
   const target = targetForPr(pr);
-  const evidence = evidenceForPr(state, pr, config);
-  const hostedReview = hostedReviewForPr(state, pr, config);
   const owner = state.continuationByPr?.[pr.number] ?? "orchestrator";
   const status = checkState(pr);
 
@@ -415,15 +404,7 @@ const prDisposition = (state, config, pr) => {
   }
 
   const reviewDiffFingerprint = reviewDiffFingerprintForPr(state, pr);
-  const reviewState = {
-    ...pr,
-    prState: pr.state,
-    currentPrHeadSha: pr.headSha,
-    requiredChecksPassed: true,
-    ...hostedReview,
-    ...evidence,
-    ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
-  };
+  const { reviewState } = reviewContextForPr(state, config, pr);
   const review = currentReviewStatus(reviewState, config);
   const facts = mergeReadinessFacts(reviewState);
   // A ready PR that already passed local review gets its follow-up fixes

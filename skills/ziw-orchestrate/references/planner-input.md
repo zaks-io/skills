@@ -236,9 +236,14 @@ identity in `reviewedDiffFingerprint` or `reviewedReviewDiffFingerprint`;
 
 Coverage compares fingerprints of the same format (`patch-id:` or `sha256:`).
 When formats differ or a fingerprint is missing, coverage falls back to the
-exact reviewed head (`reviewedHeadSha`, or a review's commit). Recorded evidence
-with neither a comparable fingerprint nor a reviewed head keeps the caller's
-`reviewEvidenceCurrent` boolean.
+exact reviewed head (`reviewedHeadSha`, `hostedReviewHeadSha`, a request's
+`headSha`, or a review's commit). The same rule matches pending review requests
+and recorded hosted evidence. Recorded evidence with neither a comparable
+fingerprint nor a reviewed head keeps the caller's `reviewEvidenceCurrent` boolean.
+
+Live PR facts override copies saved in evidence or hosted records: head, state,
+draft flag, labels, checks, threads, review decision, truncation, and the current
+fingerprint. Saved records cannot vouch for a newer diff or newer checks.
 
 The collector emits `patch-id:<hex>` from GitHub's PR diff through
 `git patch-id --verbatim`. Base merges that leave the PR's hunks and their
@@ -259,8 +264,9 @@ trailing `[bot]`. A `COMMENTED` or `APPROVED` review by a configured login with
 pending, and other states do not. Explicit `state.hostedReviewByPr` fields
 override derived fields, including completion and `skipped`.
 
-Hosted review is required when explicitly required or when the PR risk tier is
-in `hostedReviewRiskTiers`. Omitted tiers default to `["high"]`; an empty list
+Hosted review is required when any hosted or evidence record requires it, or
+when the risk tier is in `hostedReviewRiskTiers`. The tier comes from the same
+merged PR, hosted, and evidence state that merge readiness uses. Omitted tiers default to `["high"]`; an empty list
 disables the tier rule. A completed, unskipped hosted review of the current diff
 is independent review evidence and adds one to the review count. Local verdict
 fields block only while their review covers the current diff. A current-head
