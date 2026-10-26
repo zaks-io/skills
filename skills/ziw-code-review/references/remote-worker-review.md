@@ -1,6 +1,8 @@
 # Remote Worker Review
 
 Use this when the user asks for a remote worker agent to review a branch or PR.
+These launch instructions are for the caller. An active reviewer returns to
+the caller instead of launching another worker.
 
 ## Start Options
 
@@ -23,6 +25,8 @@ credentials.
 
 ```text
 Code review only. Do not edit files, commit, push, or open a PR.
+Do the review yourself. Do not spawn subagents or delegate research, checks,
+or review through tasks, threads, or agent CLIs.
 
 Repo/branch: <repo and branch or PR URL>
 Immutable target SHA: <full reviewed head or checkpoint SHA>
@@ -31,6 +35,7 @@ Intent: <user request or issue outcome>
 Linked issue and acceptance criteria: <issue URL/key and exact criteria, or explicitly missing>
 Cited spec sections: <exact sections, or none>
 Required checks: <configured commands and code-host checks>
+Review round/limit and history: <round, limit, prior findings and attempted fixes>
 Review-diff fingerprint: <orchestrator-supplied value, or explicitly missing>
 Review skill: <installed ziw-code-review/SKILL.md path or supplied instructions>
 

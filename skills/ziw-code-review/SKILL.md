@@ -16,12 +16,14 @@ A clean review is not the full merge gate.
 ## Inputs
 
 Target, base branch or range start, intent/requirements, and configured checks.
-Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
+Workflow handoffs also supply the reviewed head, orchestrator fingerprint,
+review round/limit, and prior findings and fixes.
 `--submit` requires an explicit GitHub PR target.
 
 ## Steps
 
-1. Set the review mode from the caller.
+1. Set the review mode from the caller and enforce [Review limits](#review-limits)
+   before starting.
    - Author QA covers implementation-author, `ziw-implement`, and `ziw-pr` handoffs.
      Author QA can block handoff, but it is not independent review evidence.
      In Author QA mode, always recommend `LEAVE UNCHANGED` for review evidence.
@@ -37,7 +39,7 @@ Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
 2. Inspect the diff and existing evidence; scale effort to risk, not line count.
    - For tiny, low-risk changes, verify intent from changed lines and immediate
      context, then stop when sufficient. Do not load the full checklist, explore
-     unrelated code, run broad tests, or delegate another review by habit.
+     unrelated code or run broad tests.
    - Optional Author QA may be skipped for mechanical, well-covered changes when
      checks suffice. Give the reason and evidence reference, leave evidence unchanged,
      and claim no approval. A skip never replaces required independent review.
@@ -69,13 +71,15 @@ Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
    - Include uncommitted changes only for explicit working-tree review or pre-PR
      author self-check. Agent Review and Orchestrator cover committed heads or
      checkpoint ranges only.
-   - Independent evidence requires a fresh reviewer session/subagent without the
-     implementation conversation. Supply target, repo path, base, intent, required
-     checks, and orchestrator fingerprint when available. A worktree isolates files,
-     not context. Without fresh context, report independent review as blocked;
-     never substitute Author QA or claim independent evidence.
-   - Give parallel reviewers separate mutable checkouts. Remove only disposable
-     worktrees created for this review, including on failure; preserve user files.
+   - Independent evidence requires the caller to launch a fresh reviewer
+     session/subagent without the implementation conversation.
+     Supply target, repo path, base, intent, required
+     checks, round history, and orchestrator fingerprint when available.
+     The reviewer does the review itself. A worktree isolates files, not context.
+     Without fresh context, return blocked to the caller; never launch a replacement
+     reviewer, substitute Author QA, or claim independent evidence.
+   - The caller gives parallel reviewers separate mutable checkouts. Remove only
+     disposable worktrees created for this review, including on failure; preserve user files.
    - Use the narrowest sufficient target. Reserve broad repository review for explicit
      requests, main drift, or checkpoint backfill. If it stalls, retry once with a
      narrow PR-scoped target before escalating.
@@ -91,7 +95,8 @@ Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
      actual execution. Suppress style nits and broad product refactors.
    - Report relevant concrete recurring orchestration failures, such as stale evidence
      or brittle state transitions.
-6. Recommend independent review evidence and report using [Output](#output).
+6. Apply [Review limits](#review-limits), recommend independent review evidence,
+   and report using [Output](#output).
    - Recommend `APPLY` only with `READY FOR PR` or `APPROVE`, a verified committed
      target, and exhibited conformance with no blocking rows. Missing evidence cannot
      support `APPLY`.
@@ -101,6 +106,29 @@ Workflow handoffs also supply the reviewed head and orchestrator fingerprint.
      missing/stale evidence invalidate an existing label; otherwise `LEAVE UNCHANGED`.
    - Orchestrator also checks required CI, non-draft state, hosted-review policy,
      matching scope, and unresolved threads before merge.
+
+## Review limits
+
+- Review delegation has one level: caller to reviewer. Reviewers never delegate
+  research, checks, or further review through subagents, tasks, threads, or agent CLIs.
+- The caller owns the review/fix loop. Allow at most three review rounds per
+  change, counting the initial review as round one and each post-fix review as another.
+  Author QA counts if run; skipping optional QA consumes no round.
+- Exception: allow up to five rounds only while concrete high-risk blockers remain,
+  such as authentication, authorization, security, secrets, isolation, payments,
+  data loss, destructive migrations, concurrency, or production infrastructure.
+  Record the specific risk before round four. A sensitive file alone is insufficient.
+- Honor a stricter user or repo cap. Keep the count across sessions, reviewer
+  replacements, commits, and orchestrator ticks; parallel reviewers share one round.
+  Evidence reuse and check-only reruns consume no review round.
+- Stop earlier when only style nits, optional polish, or non-blocking preferences
+  remain. They never justify another review round, including on high-risk changes.
+- Each fix round must address a concrete blocker. Stop when no progress occurs
+  or the same blocker survives two attempted fixes, even below the cap.
+- At the cap or an earlier stop, return remaining findings, completed round count,
+  risk, and next owner to the caller. Unresolved blockers or stale/missing evidence
+  still block approval and merge. Require explicit user direction to exceed the cap;
+  never reset the count or approve merely because the budget is exhausted.
 
 ## Review references
 
@@ -133,6 +161,7 @@ Without a linked issue, use the explicit request/spec and state when none was su
 
 ## Never
 
+- Never spawn subagents or delegate any part of a review.
 - Never apply or clear review-evidence labels, move workflow states, or apply merge-ready PR labels.
 - Never create tracker issues in Author QA mode.
 - Never trigger hosted bots, push, merge, revert, force-push, deploy, or mutate production.
@@ -186,6 +215,7 @@ blockers. Use `NOT ASSESSED` when freshness blocks scope inspection.
 Add only applicable handoff fields:
 
 - Workflow handoffs or independent evidence recommendations:
+  `Review rounds: <completed>/<limit>; <continue | stop and reason>`,
   `Review-diff fingerprint: <supplied value | MISSING>`,
   `Review evidence label: APPLY configured label | CLEAR | LEAVE UNCHANGED, because <reason>`.
   Include PR URL and reviewer context; report lack of fresh context explicitly.
