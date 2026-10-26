@@ -1777,6 +1777,27 @@ test("checks and threads saved with evidence cannot override the live PR for the
   assert.notEqual(output.decisions.humanMergeLabels[0].action, "APPLY_HUMAN_MERGE_PR_LABEL");
 });
 
+test("a saved label-presence flag cannot hide a live human-merge label on a changed diff", () => {
+  const output = runPlan(
+    reviewLifecycleInput(
+      { labels: ["needs-human-merge"] },
+      { mergeAuthority: "human", hostedReviewRiskTiers: [] },
+      {
+        reviewEvidenceByPr: {
+          7: {
+            reviewedDiffFingerprint: "patch-id:old",
+            reviewVerdict: "Ready to Merge",
+            independentReviewCount: 1,
+            humanMergePrLabelApplied: false,
+          },
+        },
+      },
+    ),
+  );
+  assert.ok(output.actions.some((action) => action.kind === "request-review"));
+  assert.equal(output.decisions.humanMergeLabels[0].action, "CLEAR_HUMAN_MERGE_PR_LABEL");
+});
+
 test("a risk tier recorded with review evidence also requires hosted review", () => {
   const output = runCompactPlan(
     reviewLifecycleInput(

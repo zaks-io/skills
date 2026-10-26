@@ -242,7 +242,7 @@ and recorded hosted evidence. Recorded evidence with neither a comparable
 fingerprint nor a reviewed head keeps the caller's `reviewEvidenceCurrent` boolean.
 
 Live PR facts override copies saved in evidence or hosted records: head, state,
-draft flag, labels, checks, threads, review decision, truncation, and the current
+draft flag, labels (including saved label-presence flags), checks, threads, review decision, truncation, and the current
 fingerprint. Saved records cannot vouch for a newer diff or newer checks.
 
 The collector emits `patch-id:<hex>` from GitHub's PR diff through

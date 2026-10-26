@@ -239,9 +239,21 @@ const hostedReviewRequirement = (sources, reviewState, config) => {
 const livePrFacts = (state, pr) => {
   const fingerprint = reviewDiffFingerprintForPr(state, pr);
   const unresolvedThreads = pr.unresolvedReviewThreads ?? pr.unresolvedThreads;
+  // Known PR labels replace saved label-presence flags, which the contract reads first.
+  const liveLabels =
+    pr.labels == null
+      ? {}
+      : {
+          prLabels: pr.labels,
+          pullRequestLabels: pr.labels,
+          humanMergePrLabelApplied: undefined,
+          humanReviewPrLabelApplied: undefined,
+          hasHumanMergePrLabel: undefined,
+          hasHumanReviewPrLabel: undefined,
+        };
   return {
     prState: pr.state,
-    prLabels: pr.labels,
+    ...liveLabels,
     isDraft: pr.isDraft,
     headSha: pr.headSha,
     currentPrHeadSha: pr.headSha,
