@@ -1352,6 +1352,33 @@ test("current review status is independent of draft and hosted-review merge gate
       },
       { requiredIndependentReviews: 2 },
     ).status,
+    "clean",
+  );
+});
+
+test("a hosted review of the current diff is independent evidence that stale local verdicts cannot block", () => {
+  const hostedOnly = {
+    ...greenPr,
+    reviewEvidenceCurrent: false,
+    independentReviewCount: 1,
+    reviewVerdict: "NEEDS REVISION",
+    reviewedDiffFingerprint: "old",
+    reviewDiffFingerprint: "new",
+    hostedReviewComplete: true,
+    hostedReviewDiffFingerprint: "new",
+  };
+  assert.equal(currentReviewStatus(hostedOnly).status, "clean");
+  assert.equal(
+    currentReviewStatus(hostedOnly, { requiredIndependentReviews: 2 }).status,
+    "missing",
+  );
+  assert.equal(
+    currentReviewStatus({ ...hostedOnly, reviewDecision: "CHANGES_REQUESTED" }).status,
+    "blocking",
+  );
+  assert.equal(currentReviewStatus({ ...hostedOnly, hostedReviewSkipped: true }).status, "missing");
+  assert.equal(
+    currentReviewStatus({ ...hostedOnly, hostedReviewDiffFingerprint: "old" }).status,
     "missing",
   );
 });

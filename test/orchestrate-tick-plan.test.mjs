@@ -1431,9 +1431,55 @@ test("a CodeRabbit COMMENTED review of the diff completes required hosted review
   assert.equal(output.decisions.humanMergeLabels[0].action, "APPLY_HUMAN_MERGE_PR_LABEL");
 });
 
-test("hosted review never substitutes for a second required independent review", () => {
-  const output = runCompactPlan(hostedLifecycleInput({}, { requiredIndependentReviews: 2 }));
-  assert.equal(output.actions[0].kind, "request-review");
+test("a hosted review of the current diff counts toward review depth", () => {
+  const kinds = (config) =>
+    runCompactPlan(hostedLifecycleInput({}, config)).actions.map((action) => action.kind);
+  assert.equal(kinds({ requiredIndependentReviews: 2 }).includes("route-human-merge"), true);
+  assert.equal(kinds({ requiredIndependentReviews: 3 })[0], "request-review");
+});
+
+test("a hosted review of the current diff is independent review evidence on its own", () => {
+  const input = hostedLifecycleInput();
+  delete input.snapshot.prs[0].latestReviews.human;
+  const kinds = runCompactPlan(input).actions.map((action) => action.kind);
+  assert.equal(kinds.includes("route-human-merge"), true);
+  assert.equal(kinds.includes("request-review"), false);
+});
+
+const priorLocalReview = (reviewVerdict) => ({
+  reviewEvidenceByPr: {
+    7: {
+      reviewVerdict,
+      independentReviewCount: 1,
+      reviewedHeadSha: "locally-reviewed-head",
+      reviewedDiffFingerprint: "patch-id:before-hosted-fix",
+    },
+  },
+});
+
+test("after a ready PR changes, the required hosted reviewer covers the delta", () => {
+  const input = hostedLifecycleInput(
+    { reviewDiffFingerprint: "patch-id:before-hosted-fix" },
+    {},
+    priorLocalReview("APPROVE"),
+  );
+  delete input.snapshot.prs[0].latestReviews.human;
+  const kinds = runCompactPlan(input).actions.map((action) => action.kind);
+  assert.equal(kinds[0], "resolve-hosted-review-mode");
+  assert.equal(kinds.includes("request-review"), false);
+
+  input.snapshot.prs[0].isDraft = true;
+  const draft = runCompactPlan(input).actions[0];
+  assert.equal(draft.kind, "request-review");
+  assert.equal(draft.deltaFrom, "locally-reviewed-head");
+});
+
+test("a stale local revision verdict does not block a hosted review of the new diff", () => {
+  const input = hostedLifecycleInput({}, {}, priorLocalReview("NEEDS REVISION"));
+  delete input.snapshot.prs[0].latestReviews.human;
+  const kinds = runCompactPlan(input).actions.map((action) => action.kind);
+  assert.equal(kinds.includes("route-human-merge"), true);
+  assert.equal(kinds.includes("route-fix"), false);
 });
 
 for (const [name, review, config] of [

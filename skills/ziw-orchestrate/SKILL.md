@@ -99,6 +99,8 @@ One wake-up is one tick. Clear the scope as fast as safety gates allow.
 node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo> > /tmp/ziw-tick-snapshot.json
 ```
 
+- Add `--hosted-review-bot <login>` for each configured hosted reviewer so its
+  reviews of older commits keep their fingerprint.
 - For batch Linear reads, run `node <skill-dir>/scripts/linear-graphql.mjs setup`
   once on macOS, then include `--linear-team <KEY|UUID|NAME>`.
 - Candidates and active claims require the repo route label. Override it with

@@ -37,6 +37,7 @@ import {
   mergeReadinessFacts,
   readyStatePromotionDecision,
   reviewEvidenceDecision,
+  reviewVerdictKind,
   riskTier,
 } from "./workflow-contract.mjs";
 
@@ -199,6 +200,7 @@ const hostedReviewForPr = (state, pr, config) => {
   const bots = hostedReviewBots(config);
   const complete = Object.entries(pr.latestReviews ?? {}).some(
     ([login, review]) =>
+      review.authorType === "Bot" &&
       bots.has(normalizeLogin(login)) &&
       normalize(review.state) !== "changes_requested" &&
       reviewCoversPr(review, currentFingerprint, pr),
@@ -296,17 +298,7 @@ const previousReviewHeadForPr = (state, pr, config) => {
   const priorFingerprint =
     explicit.reviewedDiffFingerprint ?? explicit.reviewedReviewDiffFingerprint;
   const priorHead = explicit.reviewedHeadSha;
-  const hasVerdict =
-    explicit.blockingFindings ||
-    [
-      "approve",
-      "approved",
-      "ready for pr",
-      "ready to merge",
-      "ready_to_merge",
-      "needs revision",
-      "do not merge",
-    ].includes(normalize(explicit.reviewVerdict ?? explicit.codeReviewVerdict));
+  const hasVerdict = explicit.blockingFindings || reviewVerdictKind(explicit) !== null;
   if (
     priorHead &&
     hasVerdict &&
@@ -413,13 +405,19 @@ const prDisposition = (state, config, pr) => {
     ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
   };
   const review = currentReviewStatus(reviewState, config);
+  const facts = mergeReadinessFacts(reviewState);
+  // A ready PR that already passed local review gets its follow-up fixes
+  // reviewed by the required hosted reviewer instead of a second local pass.
+  const explicitEvidence = (state.reviewEvidenceByPr ?? state.reviewEvidence ?? {})[pr.number];
+  const hostedReviewsDelta =
+    !facts.draft && facts.hostedReviewBlocked && reviewVerdictKind(explicitEvidence) === "clean";
   if (review.status === "blocking") {
     return {
       bucket: "actions",
       value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },
     };
   }
-  if (review.status === "missing") {
+  if (review.status === "missing" && !hostedReviewsDelta) {
     const existingRequest = reviewRequestForPr(state, pr);
     if (
       existingRequest &&
@@ -444,14 +442,14 @@ const prDisposition = (state, config, pr) => {
       },
     };
   }
-  if (mergeReadinessFacts(reviewState).draft) {
+  if (facts.draft) {
     return {
       bucket: "actions",
       value: { target, kind: "mark-ready", owner: "orchestrator", reason: "REVIEW_CLEAN" },
     };
   }
 
-  if (mergeReadinessFacts(reviewState).hostedReviewBlocked) {
+  if (facts.hostedReviewBlocked) {
     const hostedDecision = hostedReviewDecisionForPr(state, config, pr);
     if (hostedDecision?.action === "REQUEST_PR_REVIEW") {
       return {
@@ -509,7 +507,7 @@ const prDisposition = (state, config, pr) => {
       },
     };
   }
-  if (mergeReadinessFacts(reviewState).scopeMismatch) {
+  if (facts.scopeMismatch) {
     return {
       bucket: "actions",
       value: { target, kind: "route-fix", owner, reason: "FIX_REQUIRED" },

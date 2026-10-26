@@ -41,7 +41,8 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 - Evidence counts from three sources:
   - a local `ziw-code-review` run in a fresh isolated thread
   - a human GitHub approval covering the current diff
-  - the configured hosted reviewer, which counts as hosted review
+  - the configured hosted reviewer's bot account, which also satisfies
+    required hosted review
 - No other bot approval counts.
 - Never review an empty diff. Never repeat a pending or equivalent-diff review.
 - Never send conformance, CI, provider, or authority failures to a reviewer.

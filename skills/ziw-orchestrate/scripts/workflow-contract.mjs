@@ -524,15 +524,37 @@ export function reviewDepthRequirement(tier, config = {}) {
   };
 }
 
+export function reviewVerdictKind(evidence = {}) {
+  const verdict = normalize(evidence.reviewVerdict ?? evidence.codeReviewVerdict);
+  if (valueSet(CLEAN_REVIEW_VERDICTS).has(verdict)) return "clean";
+  if (REVISION_REVIEW_VERDICTS.has(verdict)) return "revision";
+  return null;
+}
+
+// The configured hosted reviewer is independent: a completed hosted review of
+// the current diff is review evidence without a second local pass.
+function hostedReviewCountsAsEvidence(state = {}) {
+  return Boolean(
+    (state.hostedReviewComplete || state.codeRabbitComplete) &&
+    !(state.hostedReviewSkipped || state.codeRabbitSkipped) &&
+    hostedReviewCoversCurrentDiff(state),
+  );
+}
+
 function independentReviewCount(state = {}) {
-  const explicit = state.independentReviewCount ?? state.independentReviews;
-  return countEvidence(explicit);
+  const local = currentReviewEvidence(state)
+    ? countEvidence(state.independentReviewCount ?? state.independentReviews)
+    : 0;
+  return local + (hostedReviewCountsAsEvidence(state) ? 1 : 0);
 }
 
 export function currentReviewStatus(state = {}, config = {}) {
-  if (currentReviewEvidence(state) || reviewCoversCurrentDiff(state)) {
-    const verdict = normalize(state.reviewVerdict ?? state.codeReviewVerdict);
-    if (hasBlockingReview(state) || REVISION_REVIEW_VERDICTS.has(verdict)) {
+  const localCurrent = currentReviewEvidence(state);
+  const hostedCurrent = hostedReviewCountsAsEvidence(state);
+  // Local verdict fields describe the reviewed diff, so they block only when
+  // that review covers the current diff.
+  if (localCurrent || reviewCoversCurrentDiff(state)) {
+    if (hasBlockingReview(state) || reviewVerdictKind(state) === "revision") {
       return { status: "blocking", reason: "blocking findings or changes requested remain" };
     }
     const currentHead = state.currentPrHeadSha ?? state.headSha;
@@ -545,8 +567,10 @@ export function currentReviewStatus(state = {}, config = {}) {
         reason: "conformance table has FAIL rows; route findings back to the worker",
       };
     }
+  } else if (hostedCurrent && normalize(state.reviewDecision) === "changes_requested") {
+    return { status: "blocking", reason: "blocking findings or changes requested remain" };
   }
-  if (!currentReviewEvidence(state)) {
+  if (!localCurrent && !hostedCurrent) {
     return {
       status: "missing",
       reason: "current review-relevant diff lacks clean code review evidence",
