@@ -368,8 +368,9 @@ const linkedLinearIssues = (body) =>
 
 const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
   const files = pullRequestFiles(pr.number, pr.changedFiles);
+  // Pin the diff to the snapshot head; the PR diff endpoint follows later pushes.
   const fingerprint =
-    patchIdForEndpoint(`repos/${repo}/pulls/${pr.number}`) ??
+    patchIdForEndpoint(`repos/${repo}/compare/${pr.baseRefName}...${pr.headRefOid}`) ??
     reviewDiffFingerprint(files, pr.headRefOid);
   return {
     number: pr.number,

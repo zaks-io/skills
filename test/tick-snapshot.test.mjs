@@ -754,6 +754,15 @@ test("patch-id survives a base merge outside a repository and changes with PR hu
   assert.notEqual(original.reviewDiffFingerprint, changed.reviewDiffFingerprint);
 });
 
+test("the current fingerprint reads the diff pinned to the snapshot head", (t) => {
+  const { collect, calls } = reviewCollector(t);
+  collect({ head: "snapshot-head" });
+  const diffRequests = calls()
+    .filter((args) => args.includes("Accept: application/vnd.github.diff"))
+    .map((args) => args.find((arg) => arg.startsWith("repos/")));
+  assert.deepEqual(diffRequests, ["repos/example/repo/compare/main...snapshot-head"]);
+});
+
 test("unavailable GitHub diff falls back to the file-record fingerprint", (t) => {
   const { collect } = reviewCollector(t);
   const original = collect({ failDiff: true });
@@ -811,7 +820,7 @@ test("collector retains bot comments and fingerprints only eligible historical r
     .filter((arg) => arg.includes("/compare/"));
   assert.deepEqual(
     endpoints.sort(),
-    ["prior-head", "unavailable", "bot-head", "second-head"]
+    ["head", "prior-head", "unavailable", "bot-head", "second-head"]
       .map((head) => `repos/example/repo/compare/main...${head}`)
       .sort(),
   );

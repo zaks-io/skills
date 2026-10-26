@@ -245,8 +245,9 @@ Live PR facts override copies saved in evidence or hosted records: head, state,
 draft flag, labels (including saved label-presence flags), checks, threads, review decision, truncation, and the current
 fingerprint. Saved records cannot vouch for a newer diff or newer checks.
 
-The collector emits `patch-id:<hex>` from GitHub's PR diff through
-`git patch-id --verbatim`. Base merges that leave the PR's hunks and their
+The collector emits `patch-id:<hex>` from GitHub's `<base>...<headSha>` compare
+diff through `git patch-id --verbatim`. The diff is pinned to the snapshot head,
+so a push during collection cannot lend a newer diff's fingerprint to older reviews. Base merges that leave the PR's hunks and their
 context lines unchanged preserve it. When the diff is unavailable, it falls back
 to a `sha256:` hash of the file records plus the head SHA, so that evidence
 never outlives its head. Review entries include `authorType` (`User` or `Bot`); other actor types omit it.
