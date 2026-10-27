@@ -1,9 +1,16 @@
 # Integrate Checklist
 
-How to carry out each PR action that `tick-plan` emits. The planner decides
-which action is next from the snapshot. This file says how to perform it
-safely. Follow the planner unless current evidence exposes a gap it cannot
-model.
+Carry out `tick-plan` PR actions through review and authorized integration.
+Done means the PR is merged and verified, or truthfully handed off for human
+merge. Follow the planner unless current evidence exposes a gap it cannot model.
+
+## Steps
+
+1. Apply the [ground rules](#ground-rules).
+2. Follow the [review lifecycle](#review-lifecycle), preserving [evidence](#review-evidence).
+3. Perform the planner's [action](#actions).
+4. Run the [readiness preflight](#readiness-preflight) before readiness or merge.
+5. [Merge and verify](#merge), or hand off under human authority.
 
 ## Ground rules
 
@@ -25,17 +32,15 @@ model.
 5. Hosted review runs only when required, after the PR is ready.
 6. The PR merges, or receives the human-merge label.
 
-Run local review first so fixes land before any hosted reviewer sees the PR.
-A non-draft PR that lacks review, such as one opened by a human or under an
-older config, follows the same path without the draft step.
+Exception: an unreviewed non-draft PR follows this path without the draft step.
+Finish merge-ready artifacts promptly.
 
 ## Review evidence
 
 Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 `reviewDiffFingerprint` identifies those changes.
 
-- Same fingerprint, new head: keep the evidence. Base updates, rebases, empty
-  commits, and squashes rerun checks, never review.
+- Same fingerprint, new head: keep evidence and rerun checks, not review.
 - New fingerprint: the evidence expires. The next review covers only the delta.
 - A missing fingerprint fails closed: evidence counts only for its exact head.
 - Evidence counts from three sources:
@@ -44,46 +49,37 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
   - the configured hosted reviewer's bot account, which also satisfies
     required hosted review
 - No other bot approval counts.
-- Never review an empty diff. Never repeat a pending or equivalent-diff review.
-- Never send conformance, CI, provider, or authority failures to a reviewer.
+- Review only nonempty, materially changed diffs without a pending equivalent request.
+- Resolve conformance, CI, provider, and authority failures before requesting review.
 
 ## Actions
 
 ### request-review
 
-- Confirm the target is stable first:
-  - the PR head matches the code host
-  - the worker has stopped pushing
-  - required checks are attached to the current head
-- Otherwise defer to the next tick.
+- Confirm the PR head matches the code host.
+- Confirm the worker has stopped pushing.
+- Require checks attached to the current head.
+- Exception: an unstable target waits until the next tick.
 - If a review pass was wasted on an unstable target, log `stuck-worker` for
   worker churn or `config-gap` for missing check-state expectations.
-- Enforce [Review limits](../../ziw-code-review/SKILL.md#review-limits) before
-  dispatch.
-- Launch one `ziw-code-review` directly in a fresh session or subagent without
-  the implementation conversation. A worktree isolates files, not context.
-  Never route it through a review coordinator that launches more agents; the
-  reviewer does all review work itself.
+- Enforce [Review limits](../../ziw-code-review/SKILL.md#review-limits), including no nested reviewer delegation.
+- Launch one `ziw-code-review` directly in a fresh thread without the implementation conversation.
 - Use a different model or provider from the author when one is available.
   Record the reviewer and model. A fresh same-model thread is the minimum.
 - Pass the PR, base, intent source, required checks, and the planner's
   `reviewDiffFingerprint`. Also pass the round count, limit, prior findings,
   attempted fixes, and any high-risk extension reason.
-- When the action carries `deltaFrom`, ask for a review of how the PR's own
-  patch changed since that head, plus any interactions it affects:
+- With `deltaFrom`, review the PR patch changes since that head and affected interactions:
   - compare `git diff <base>...<deltaFrom>` with `git diff <base>...HEAD`
-  - the current patch includes merge-conflict resolutions; `git range-diff`
-    skips merge commits, so it can only summarize the delta
-  - never use `git diff <deltaFrom> HEAD`; after a base merge it includes the
-    base's changes
+  - include merge resolutions; `git range-diff` skips merges and only summarizes the delta
+  - avoid `git diff <deltaFrom> HEAD`, which includes base changes after a merge
 - Give parallel reviewers separate sessions and checkouts, never one shared
   mutable checkout.
 
 ### Reading a review
 
-- Read the verdict and the hosted-review recommendation from the review artifact.
-- When the artifact recommends `PR REVIEW`, record hosted review as required
-  for this PR in planner state (`hostedReviewByPr`).
+- Read the artifact's verdict and hosted-review recommendation.
+- For `PR REVIEW`, require hosted review in this PR's `hostedReviewByPr` state.
 - When current artifacts disagree on blocking findings, treat the PR as blocked
   until a focused re-review settles those findings or the risky diff is fixed.
 - Clean verdict:
@@ -99,20 +95,17 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 
 ### route-fix and route-review-fix
 
-- First check whether a `CHANGES_REQUESTED` verdict predates the current head
-  and its findings are resolved on that head. If so, dismiss or re-request it
-  through the configured mechanism instead of sending the worker back.
+- Dismiss or re-request outdated, resolved `CHANGES_REQUESTED` verdicts through
+  the configured mechanism before sending workers back.
 - Otherwise reply directly to the original worker's continuation target. For a remote
   Cursor agent, use a top-level issue comment only when config verifies that route.
 - Persist the completed round count and remaining blockers with the review
   evidence, across ticks and sessions.
-- Keep fixes on the same branch and PR. Rerun required checks; the planner then
-  requests a delta review. Dispatch it only within the review limits and
-  progress rule.
-- When a limit or progress stop leaves blockers, record `review-thrash`
-  friction and escalate them to the user. Do not dispatch another review or
-  mark the PR merge-ready while blockers or missing current evidence remain.
-  A nitpick-only stop can proceed through the normal readiness gates.
+- Keep fixes on the same branch and PR. Rerun checks; dispatch the planner's
+  delta review within review limits and the progress rule.
+- At a limit/progress stop with blockers, log `review-thrash` and escalate.
+  Hold further review and readiness until blockers and missing current evidence resolve.
+- Exception: a nitpick-only stop proceeds through normal readiness gates.
 - Act on hosted findings only when they are high priority: P0/P1, security,
   data loss, correctness regressions, production blockers, or user-requested.
 
@@ -126,7 +119,6 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 ### update-branch and route-conflict-fix
 
 - On GitHub, run `gh pr update-branch <pr>` yourself, then rerun checks.
-- Reuse review evidence while the fingerprint holds.
 - Delegate only when the update reports a merge conflict. Log `merge-conflict`
   and send it to the worker.
 
@@ -142,11 +134,9 @@ Evidence belongs to the PR's own changes, not to a commit. The snapshot's
 
 ### Hosted review
 
-- Hosted review is required when any of these is true:
-  - the risk tier is in the configured hosted-review tiers
-  - the user or config explicitly asks for it
-  - the local reviewer flags concrete uncertainty
-- Otherwise skip it. Optional hosted review never parks a merge-ready PR.
+- Require hosted review for configured risk tiers, explicit user/config requests,
+  or concrete local-reviewer uncertainty.
+- Otherwise skip it; optional review cannot park a merge-ready PR.
 - Before posting any command, resolve the provider, its auto-review mode, its
   trigger policy, and the PR's current hosted state. When policy is unknown,
   stop and resolve it first.
@@ -179,7 +169,9 @@ Apply label actions exactly as the planner emits them.
   - the diff matches issue scope
   - no blocking review thread is unresolved
 - Clear the human-merge label as soon as any of those facts stops holding.
-- Never apply readiness or human-attention labels while agent-fixable findings remain.
+- Apply readiness or human-attention labels only from verified facts.
+- Agent-fixable findings prevent readiness labels and human-attention routing.
+  Exception: a review limit or progress stop requires human escalation, without granting readiness.
 
 ### route-human-merge and arm-auto-merge
 
@@ -190,8 +182,8 @@ Apply label actions exactly as the planner emits them.
 
 ### reconcile-empty-pr
 
-Never send an empty diff to review. Find out why it is empty: already
-merged, superseded, or nothing pushed. Close it only under the
+Determine whether the diff is empty because it merged, was superseded, or was
+never pushed. Close it only under the
 [PR closure guard](dispatch-policy.md#pr-closure-guard). Otherwise route it to
 the worker.
 
@@ -203,10 +195,9 @@ label, or merging.
 - Enumerate every unresolved review thread with severity, using the code host's
   thread-level view. A partial comment count can green-light a real bug.
 - Refresh local Git refs and code-host state. Verify the PR head, fingerprint,
-  default-branch HEAD, merge base, required checks, review verdict, and draft
-  state. When a value is stale or missing, update and rerun the affected gate.
-- When the default branch moved, run `update-branch` above. Never send routine
-  branch updates to the implementation worker.
+  default-branch HEAD, merge base, required checks, review verdict, draft state,
+  and authority. Refresh stale/missing values and rerun the affected gate.
+- When the default branch moved, run [update-branch](#update-branch-and-route-conflict-fix).
 
 ## Merge
 

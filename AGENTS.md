@@ -24,6 +24,7 @@ content.
 - `skills/ziw-setup/references/`: templates and contracts used to create
   downstream `docs/agents/workflow/config.md`.
 - `skills/ziw-code-review/references/`: review support material.
+- `docs/planner-internals.md`: maintainer notes for planner evidence, collection, and compatibility.
 - `docs/agent-workflow.md`: technical workflow contract, state model, and role
   split.
 - `docs/skill-distribution.md`: source-backed policy for project skills,

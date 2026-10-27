@@ -1,30 +1,26 @@
 # Delegation Policy
 
 Use this reference when launching local worktree workers, issue-assigned agents,
-Cursor remote agents, or review/triage workers.
+Cursor remote agents, or review/triage workers. Done means the worker has a
+bounded prompt and a verified return path.
+
+## Steps
+
+1. [Choose the role](#role-split).
+2. [Build its prompt](#prompt-rules) using the templates below.
+3. [Verify issue-assigned agents](#issue-assigned-agents) when that route applies.
+4. [Continue the same worker](#remote-continuation) for fixes or changed scope.
+5. [Apply environment metadata](#worker-environment-metadata) from verified approval criteria.
 
 ## Role Split
 
-Orchestrator is the only active work loop. It decides the next workflow action
-and delegates context-heavy work.
-
-- Implementation workers write code, run required checks, use best judgment on
-  whether `ziw-code-review` author QA adds value, and open or update a draft PR
-  through `ziw-pr` for independent review. A new commit alone never requires
-  another author-QA pass.
-- Review workers run independent `ziw-code-review` from clean context and return
-  findings or a clean verdict. Launch them on a different model or provider
-  from the implementation worker when one is available, and record the
-  reviewer model. A fresh same-model session is the minimum.
-- Triage workers repair issue shape, dependencies, routing, readiness, and
-  startable queue truth.
-- Integrate handles merge authority and default-branch writes.
-- Orchestrator handles routine GitHub PR branch updates with
-  `gh pr update-branch <pr>`. Send branch-update work to a worker only when the
-  update reports a merge conflict or equivalent manual conflict state.
-
-Orchestrator reads tracker/PR metadata. It does not read diffs to review them
-and does not patch source as part of orchestration.
+- Orchestrator owns the loop and metadata decisions; it delegates context-heavy work without reviewing diffs or patching source.
+- Implementers code, check, choose author QA by judgment, and use `ziw-pr` for draft PR handoff.
+- Reviewers return independent findings from clean context under
+  [Review lifecycle](integrate-checklist.md#review-lifecycle) and [Review limits](../../ziw-code-review/SKILL.md#review-limits).
+- Triage repairs shape, dependencies, routing, readiness, and queue truth.
+- Integrate owns merge authority and default-branch writes.
+- Orchestrator performs routine branch updates; delegate only reported conflicts.
 
 ## Prompt Rules
 
@@ -112,53 +108,32 @@ Return changed issues, newly startable issues, blockers, and questions.
 
 ## Issue-Assigned Agents
 
-Use issue-assigned agents only when the issue tracker exposes an assignable
-coding agent or config has a verified delegation field/tool/agent ID. This is
-tracker assignment, not a local CLI invocation. The agent may be Cursor, Codex,
-or another configured worker.
+Use tracker assignment only when the tracker exposes an assignable coding agent
+or config verifies a delegation field, tool, or agent ID. This is not a local CLI invocation.
 
-Before starting issue-assigned work, verify:
-
-- issue resolves by configured tracker ID
-- status, readiness labels, routing labels, priority, body contract, blockers,
-  and dependencies are current
-- issue has one primary outcome with concrete in-scope and out-of-scope text
-- configured repo-route label is present or safely repairable
-- requested agent/delegation mechanism is verified
-- issue is not already claimed, delegated, linked to an open PR, or represented
-  by another active worker session
-- the worker concurrency cap has headroom; PR and preview inventory is not worker capacity
-
-Do not mutate a real issue to probe agent capability. Use read-only metadata,
-documented config, or stop with the missing setup item. If the user explicitly
-approves a probe, use a dedicated test issue and restore it afterward.
+- Verify the issue resolves by configured tracker ID.
+- Apply [dispatch preconditions and capacity](dispatch-policy.md#dispatch-preconditions),
+  including current priority, environment metadata, and one primary outcome.
+- Verify the requested delegation mechanism read-only.
+- Do not mutate real issues to probe capability. Use metadata or documented config; otherwise report missing setup.
+- Exception: an explicitly approved probe uses a dedicated test issue, restored afterward.
 
 ## Remote Continuation
 
-The assigned agent owns its environment, branch, implementation run, review, and
-PR return path. If fixes or scope changes are needed, reply directly to the same
-session target: the latest agent comment thread, configured reply location, or
-provider-specific continuation target.
+The assigned agent owns its environment, branch, implementation run, review,
+and PR return path.
 
-For remote Cursor agents, do not post a top-level issue comment unless config
-verifies that top-level comments continue the assigned-agent session. If no
-direct reply target can be found, stop with the missing continuation path
-instead of starting a second agent.
-
-When scope or instructions change mid-session, send one authoritative reply that
-explicitly supersedes earlier guidance. Conflicting dispatch notes, session
-replies, and top-level comments cause workers to follow the wrong instruction
-layer.
+- Send fixes or scope changes to the same session's latest agent thread,
+  configured reply location, or provider continuation target.
+- For Cursor, use top-level issue comments only when config verifies they continue that session.
+- If no direct target exists, report the missing path instead of starting a second agent.
+- Send one authoritative reply explicitly superseding earlier guidance when instructions change mid-session.
 
 ## Worker Environment Metadata
 
-Configured worker environment labels or fields, such as `remote-cursor`, are
-approval metadata. Apply or preserve them when issue identity, repo route, and
-repo-configured environment approval criteria are verified. Do not require
-dependency blockers to be clear just to apply the environment label.
+Environment labels/fields, such as `remote-cursor`, are approval metadata.
 
-Remote eligibility is not a global implementation gate. Security-sensitive,
-schema, migration, and cross-cutting tickets may be correctly barred from a
-remote worker while remaining authorized for a local worker. Route them locally
-when the local budget policy allows it, and record a local-budget hold only when
-that specific path is paused.
+- Apply or preserve them after verifying issue identity, repo route, and configured environment approval criteria.
+- Dependency blockers need not be clear to apply environment labels.
+- Remote ineligibility does not bar authorized local implementation, including sensitive or cross-cutting work.
+- Use the local budget policy; record a local-budget hold only when that path is paused.
