@@ -42,7 +42,8 @@ Done means every selected ticket has a confirmed claim and every hold has a reas
   config, refactor/test seams, and dense document hotspots.
 - Collisions need concrete overlap. Labels such as `e2e`, `schema`, or
   `security` cannot lock a whole category.
-- Report a collision hold as `file-collision`: held, not skipped.
+- Report a collision hold, `FILE_COLLISION` in planner output, as held, not
+  skipped. Its friction category is `file-collision`.
 
 ## Worker Slots
 
