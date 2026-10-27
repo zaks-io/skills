@@ -24,7 +24,7 @@ words from `wc -w`, including frontmatter and Markdown.
 | -------------------- | -----: | ----: | ------------------------------- |
 | One Orchestrate tick |  6,561 | 1,472 | `SKILL.md`, `workflow.md`       |
 | One Triage run       |  4,672 |   906 | `SKILL.md`, `workflow.md`       |
-| All published skills | 32,509 | 6,990 | 18 Markdown files, down from 42 |
+| All published skills | 32,509 | 6,990 | 18 Markdown files, down from 36 |
 
 ## Budget
 
