@@ -30,8 +30,14 @@ Agents and humans skim. A rule they cannot find, or cannot tell apart from its
 exception, gets ignored or over-applied.
 
 - Open with the outcome and the done condition in two or three sentences.
-- Put the ordered path in one numbered `Steps` list near the top; detail lives
-  in sections named after the steps.
+- Make the numbered `Steps` list near the top a complete normal path: an agent
+  handling the common case can act from it and open sections only for detail.
+- Keep an exception to one rule right below that rule. Group request-level
+  modes and fallbacks, such as dry runs, cleanups, or an unavailable tool,
+  under one later heading.
+- Do not restate what a script computes. Tell the agent to follow its output,
+  keep only the inputs and fallbacks the agent owns, and document the script's
+  rules for maintainers under `docs/`.
 - One rule per bullet. One idea per sentence, ideally under 25 words.
 - State the default first, then label exceptions right below it
   (`Exception:`, **Dispatched:** / **Invoked directly:**).

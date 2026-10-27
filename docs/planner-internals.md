@@ -107,7 +107,87 @@ session can retire a sticky tracker-only slot without removing its reservation.
 Current live observations still count; receipt-only history cannot retire a
 tracker claim. `isLiveWorker` in `worker-lifecycle.mjs` recognizes explicit
 terminal states; canonical running records cannot also assert return or stop.
-Caller counting and dispatch rules live in `dispatch-policy.md`.
+The caller's slot, ledger, and manual-selection rules live in `dispatch-policy.md`.
+
+## Input envelope and precedence
+
+`tick-plan` accepts the snapshot directly or as
+`{ "snapshot": {...}, "config": {...}, "state": {...} }`. Direct snapshot
+fields may accompany inline config and state, but not a nested snapshot.
+
+- `--config` overrides inline config; `--state` overrides inline state, which
+  overrides legacy `queue`. Merges are shallow; supplied maps replace earlier maps.
+- Each file must be a JSON object. Validation precedes merging, so overrides
+  cannot hide invalid earlier inputs.
+- `snapshot.repo` or `state.repo` must identify `owner/repo`; both must match when present.
+- `-` reads stdin for one file.
+- Unknown envelope, config, state, and review-evidence fields are errors.
+  Provider records may retain extra metadata; only documented fields affect decisions.
+
+## Record identity
+
+Collectors and handoffs emit snapshot `v: 3` with array queue collections.
+
+| Record                     | Identity                         | Associations                                                |
+| -------------------------- | -------------------------------- | ----------------------------------------------------------- |
+| Issue, metadata, startable | `issueKey`, `issueUuid`, or both | Confirmed claim `sessionId`/`receiptId` when known          |
+| Worker receipt             | `receiptId` and/or `sessionId`   | Issue fields, `prNumber`, branch/path, footprint, lifecycle |
+| PR                         | Positive integer `number`        | Issue fields or typed `linkedIssues`                        |
+| Worktree                   | `path`                           | Branch, head, dirty/merged state, footprint                 |
+| Preview                    | `previewId`                      | Optional `prNumber`, URL/path, lifecycle                    |
+
+- Session, receipt, and preview IDs are opaque nonblank strings. A UUID-shaped
+  session ID remains a session; the planner never infers issue identity from it.
+- The validator rejects retired v3 issue fields `id`, `identifier`, `issueId`,
+  `ticket`, and `key`. `issueRef` is resolved output, not producer input.
+- `candidateIssues` selects candidates; `blockedBy` records dependencies, with
+  optional provider `stateType` for satisfied blockers. Blockers outside
+  candidate scope never become extra candidates. Metadata supplies aliases,
+  labels, and risk without reserving workers.
+- `candidateScope` retains route and requested states for rechecking combined
+  evidence. `state.scopeIssues` narrows starts, PR actions, and review-label
+  actions; other PRs keep collision reservations. Empty candidate or
+  requested-scope arrays authorize no starts.
+- The collector extracts exact Linear issue URLs from PR bodies into
+  `linkedIssues`. Branch/path, title, and coincidental-number hints cannot
+  grant PR authority.
+- PR `footprint` lists changed paths plus previous filenames for renames;
+  `changedFiles` is a count.
+- PR evidence and request maps use positive PR-number keys, never heads,
+  branches, URLs, or issue keys. `reviewEvidenceChecks` needs `prNumber` or a
+  typed issue reference for its label target.
+- The current diff is `reviewDiffFingerprint`, with alias
+  `reviewRelevantDiffFingerprint`. Reviewed identity is `reviewedDiffFingerprint`,
+  with alias `reviewedReviewDiffFingerprint`, plus `reviewedHeadSha`.
+- Startable records name eligible workers in `eligibleWorkers`, with aliases
+  `workerPaths`, `allowedWorkers`, or `workers`.
+
+## Worker counting and selection
+
+`reconcileActiveDelivery` in `active-dispatches.mjs` and
+`dispatchSelectionDecision` in `workflow-contract.mjs` apply these rules, so callers follow the plan instead
+of recounting:
+
+- Workers group by confirmed session, receipt, or worker reference. Issue,
+  branch, worktree, PR, and shared-commit matches never merge two workers.
+  Receipts may be reused.
+- Active tracker claims with a session or receipt occupy a slot. Started tracker
+  work without one reserves delivery and files without inventing a session.
+- Dirty, baseline-unmerged, or uncertain non-default worktrees become file
+  reservations without inventing issue claims. Merged or PR-completed clean
+  worktrees and the baseline branch are skipped.
+- A PR matched only by branch/path or leading-title hints, or covering several
+  issues, reserves possible delivery at least at `medium` risk.
+- Selection orders candidates by unlock count, then priority. It defers
+  candidates without headroom, without a footprint while active work or an
+  earlier selection exists, or with an overlapping footprint.
+- Routing resolves each candidate's eligible workers, falling back to
+  `defaultWorkerPath`. Remote-eligible work routes remote. Local work defers at
+  the soft or hard budget stop and past `localStartsBelowSoftLimit`. With budget
+  limits configured, unknown worker kinds defer; without them, an unknown
+  default path stays usable.
+- Each deferral carries its reason, keeping startability, worker eligibility,
+  and capacity or collision selection separately visible.
 
 ## Legacy v2 adapter
 

@@ -1,85 +1,25 @@
 # Dispatch Policy
 
-Select the largest safe worker set within scope, capacity, and budget. Done
-means every selected ticket has a confirmed claim and every hold has a reason.
+The planner selects starts within scope, capacity, footprints, and budget. You
+check each start, supply missing footprints, claim, and keep the ledger true.
+Done means every selected ticket has a confirmed claim and every hold has a reason.
 
 ## Steps
 
-1. [Confirm scope](#scope-boundaries).
-2. [Reconcile worker concurrency](#worker-concurrency).
-3. [Compare file footprints](#file-footprint-dispatch).
-4. [Choose worker routes and budget](#worker-routing-and-budget).
-5. [Verify dispatch preconditions](#dispatch-preconditions).
-6. [Advance draft PRs](#draft-prs); apply the [closure guard](#pr-closure-guard) before closing any PR.
+1. [Stay in scope](#scope-boundaries).
+2. [Check each planned start](#dispatch-preconditions).
+3. [Supply missing footprints](#footprints).
+4. Claim and dispatch through [Dispatch workers](../SKILL.md#dispatch-workers),
+   then [record the worker](#worker-slots).
+5. [Advance draft PRs](#draft-prs); apply the [closure guard](#pr-closure-guard) before closing any PR.
 
 ## Scope Boundaries
 
 - Follow [Resolve scope](../SKILL.md#resolve-scope); do not widen the named or configured current-work queue.
 - Done tickets remain terminal despite stale readiness labels.
-- Use typed candidates, dependencies, and `state.scopeIssues` from [planner-input.md](planner-input.md#role-specific-identity).
 - Repair clear status, label, route, environment, review-evidence, or handoff drift from refreshed facts.
 - Escalate missing intent, authority, credentials, provider/customer input,
   production approval, security posture, or ADR judgment.
-
-## Worker Concurrency
-
-Use `Worker concurrency cap`; default to 3 active implementation or repair sessions.
-
-- Count confirmed implementation and repair sessions, including repo-scoped tracker claims, until provider-confirmed return, stop, or failure.
-- Count distinct confirmed sessions even for one issue, branch, path, or PR.
-- Deduplicate by confirmed session, or receipt identity without a session.
-- Issue, branch, worktree, PR, and shared commit matches cannot deduplicate workers.
-- Human assignees, PRs, previews, and abandoned worktrees are not workers.
-- Started tracker work reserves delivery and files without inventing a session.
-- Either live worker, PR, or claim covering an issue prevents another dispatch.
-- Record provider lifecycle; opening/linking a PR, including `prNumber` or v3 `hasPr: true`, does not free a running worker's slot.
-- A terminal receipt for the same explicit session retires a tracker-only slot,
-  preserving delivery and footprint reservations.
-- Current live observations beat historical terminal receipts without freshness evidence.
-- Receipt-only terminal history cannot retire tracker claims; receipts may be reused.
-- Use [typed identity and diagnostic rules](planner-input.md#role-specific-identity); retain unresolved references as holds.
-- Branch/path and leading-title hints reserve possible delivery with at least
-  medium risk; they cannot authorize scoped PR actions.
-- Worktree paths preserve unassociated file reservations without inventing issue claims.
-- Reconcile missing ledger entries from repo-scoped active claims and dirty,
-  baseline-unmerged, or uncertain non-default worktrees.
-- A failed worktree inventory is a snapshot failure, not zero workers.
-- Drop stale ledger entries; re-dispatch or escalate stuck workers after duplicate checks.
-- Backfill returned, failed, or stopped slots in the same tick while advancing PR actions.
-- Merge may serialize; PR inventory must not suppress unrelated dispatch.
-- Record an orchestration failure for idle slots with safe ready work.
-- Valid holds include collisions, missing footprints, authority, provider capacity, and configured budgets.
-
-## File Footprint Dispatch
-
-- Compare predicted To Issues footprints against open PRs including drafts,
-  active branches, unreturned dispatches, and selected candidates.
-- Include shared packages, schemas, migrations, generated artifacts, routes,
-  config, refactor/test seams, and dense document hotspots.
-- Dispatch the largest non-colliding set within headroom.
-- Hold collisions as `file-collision`, with "held, not skipped" evidence.
-- Derive missing footprints from likely files, packages, or artifacts in the body this tick.
-- Route to triage or To Issues only when the body lacks that information.
-- Exception: the first selected issue may start without a footprint when no active work can collide.
-- Prefer work unlocking blocked dependents, then backlog priority.
-- Compare concrete overlaps. Labels such as `e2e`, `schema`, or `security` cannot lock a whole category without overlap evidence.
-
-## Worker Routing And Budget
-
-Keep startability, worker eligibility, and capacity/collision selection visible separately.
-
-- Select by leverage and priority, not provider preference.
-- Remote ineligibility is not global blockage; check the configured local path.
-- Below the local soft stop, start the highest-leverage local-only work within
-  the per-tick limit. Prefer dependency-chain unlocks.
-- At the soft stop, pause new local-heavy starts; keep remote workers running.
-- At the hard stop, stop new local starts; keep authorized remote work running.
-- Record an authority or hold reason for every unselected start.
-- Without budget state, infer neither usage nor exhaustion.
-- Resolve the default path's local/remote kind before applying limits.
-- With limits configured, hold unknown worker kinds, including missing ticket routing.
-- Exception: an unknown default path remains usable without configured limits.
-- Use [planner policy fields](planner-input.md#policy-and-evidence) for JSON names and routing aliases.
 
 ## Dispatch Preconditions
 
@@ -88,12 +28,56 @@ Keep startability, worker eligibility, and capacity/collision selection visible 
 - Require clear dependencies and no incomplete blockers.
 - Require repo route/environment metadata present or safely repairable.
 - Exclude claimed, delegated, PR-linked, or active-session work.
-- Require a non-colliding footprint, subject to the [first-issue exception](#file-footprint-dispatch).
 - Return sibling-delivering tickets, missing non-goals, or unresolved human decisions to triage or `ready-for-human`.
 - Refuse `kind-spec` and `kind-epic`; repair unambiguous To Issues misses and log `config-gap`.
 - Body/comment evidence overrides labels; unresolved human, setup, credential,
   provider, or security decisions prevent dispatch. Heal labels or route to triage.
-- Apply claims and verify in-progress state through [Dispatch workers](../SKILL.md#dispatch-workers).
+
+## Footprints
+
+- When a candidate lacks a footprint, derive it this tick from likely files,
+  packages, or artifacts in its body. Route to triage or To Issues only when
+  the body lacks that information.
+- Include shared packages, schemas, migrations, generated artifacts, routes,
+  config, refactor/test seams, and dense document hotspots.
+- Collisions need concrete overlap. Labels such as `e2e`, `schema`, or
+  `security` cannot lock a whole category.
+- Report a collision hold as `file-collision`: held, not skipped.
+
+## Worker Slots
+
+The cap is `Worker concurrency cap`, default 3 implementation or repair sessions.
+Follow the planner's capacity and holds.
+
+- Record every dispatch in the ledger as a [state record](planner-input.md#state-records).
+- One confirmed live session is one slot until the provider confirms return,
+  stop, or failure. Opening a PR does not free it.
+- Count each confirmed session once, from the ledger or a repo-scoped tracker
+  claim, even when two share an issue or branch.
+- PRs, previews, worktrees, and human assignees are not workers. They still
+  reserve files and delivery.
+- A live worker, open PR, or claim on an issue prevents another dispatch for it.
+- A failed worktree or tracker inventory is a snapshot failure, not zero workers.
+- Drop stale ledger entries. Re-dispatch or escalate stuck workers after checking for duplicates.
+- Backfill returned, failed, or stopped slots in the same tick. Merges may
+  serialize; PR work must not hold up unrelated dispatch.
+- An idle slot with safe ready work is an orchestration failure. Valid holds:
+  collisions, missing footprints, authority, provider capacity, and configured budgets.
+
+### Without the planner
+
+Select the same way by hand:
+
+- Order startable tickets by how many blocked tickets they unlock, then priority.
+- Fill headroom with tickets whose footprints do not overlap active work, open
+  PRs including drafts, or earlier selections. The first start may lack a
+  footprint when nothing active can collide.
+- Local budget: below the soft stop, start local work up to the per-tick limit;
+  at the soft stop, pause new local starts; at the hard stop, stop them.
+  Remote workers keep running. Without budget state, infer neither usage nor exhaustion.
+- With budget limits configured, hold tickets whose worker kind is unknown.
+- Remote ineligibility is not global blockage; check the configured local path.
+- Record a hold reason for every unselected start.
 
 ## Draft PRs
 

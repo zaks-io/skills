@@ -14,16 +14,16 @@ run intake or leave readiness labels off.
 
 ## Steps
 
-1. [Read config](#read-config) before tracker writes.
-2. [Check the planning handoff](#check-the-planning-handoff).
-3. [Plan slices](#plan-slices) and consolidate the whole list before writing.
-4. [Adopt existing tickets](#adopt-existing-tickets).
-5. [Fill bodies](#body-evidence) from evidence.
-6. [Set metadata and readiness](#set-metadata-and-readiness).
-7. [Record dependencies](#record-dependencies).
-8. [Record footprints](#record-footprints).
-9. [Map coverage](#map-coverage).
-10. [Heal structure](#heal-structure) and report [Done](#done).
+1. [Read config](#read-config) and the tracker contract before any tracker write.
+2. [Check the plan](#check-the-planning-handoff) says `Ready for slicing`.
+3. [Plan slices](#plan-slices): one per feature, split only for a named
+   [split reason](#split-reasons), and fold fragments by the [merge test](#merge-test).
+4. [Consolidate the whole list](#consolidate-before-writing). Confirm it with
+   the user before creating more than three new slices.
+5. [Adopt matching tickets](#adopt-existing-tickets); create only unmatched slices.
+6. For each slice, [fill the body](#body-evidence), [set metadata and readiness](#set-metadata-and-readiness),
+   and record [dependencies](#record-dependencies) and [footprints](#record-footprints).
+7. [Map spec coverage](#map-coverage), [heal structure](#heal-structure), and [report](#done).
 
 ## Inputs
 

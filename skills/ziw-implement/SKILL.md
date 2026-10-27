@@ -85,29 +85,38 @@ production approval decisions.
 
 ## Verify
 
-- Run focused checks while iterating, then required issue checks.
-- Hooks/CI own the full gate; run it manually only when neither does.
-- Keep CI-only coverage thresholds, smoke, and full-history secret scans in CI unless named by the issue or already failing there.
-- For Markdown without a formatting hook, run the configured docs format check.
-- Use applicable format/link/structure checks for docs, copy, and mechanical edits. Add behavioral tests only for changed behavior or issue requirements.
+1. Run focused checks while iterating, then the issue's required checks.
+   Hooks/CI own the full gate; run it manually only when neither does.
+2. Map every acceptance criterion, safety invariant, and required test to a
+   test, check, doc change, or manual result. Prior-slice/dispatch constraints
+   are acceptance-critical; nearby tests for different criteria do not count.
+3. Audit the diff against non-goals. Split or stop for human direction on
+   other-ticket work or wider product/design scope.
 
-Evidence must be output observed this session from commands/hooks, or CI results.
-Issue/PR claims do not count. Cache hits count.
+Evidence is command/hook output observed this session, or CI results. Issue/PR
+claims do not count; cache hits do. Partial evidence cannot complete acceptance
+criteria. Stop and report unauthorized/unavailable required hosted verification.
 
-- Never use cache-busting flags except for a configured task whose cache key misses inputs; bypass only that task and report the key gap.
-- If config distrusts all cache hits, use them and request a `ziw-setup` refresh.
-- Map every acceptance criterion, safety invariant, and required test to a test, check, doc change, or manual result.
-- Prior-slice/dispatch constraints are acceptance-critical. Nearby tests for different criteria do not count.
-- Audit the diff against non-goals. Split or stop for human direction on other-ticket work or wider product/design scope.
-- Where practical, prove real security, data, driver, and external API boundaries through actual read paths, parsers, codecs, artifacts, or provider responses.
-- When CI env vars, flags, or test gates change, prove the invoked process receives them.
-- Source exact external literals from config, issue body, or dispatch, not older comments: resource IDs, providers, labels, secret names, and env values.
-- Missing literals require triage/config refresh; never invent placeholders.
-- Preserve sibling coverage in shared modules; never weaken unrelated tests to pass.
-- After conflict fixes, rebases, branch updates, artifact refreshes, or review fixes, rerun affected focused checks; hooks/CI rerun the rest on push.
+When they apply:
 
-Stop and report unauthorized/unavailable required hosted verification. Partial
-evidence cannot complete acceptance criteria.
+- **Docs, copy, mechanical edits:** use applicable format/link/structure checks.
+  For Markdown without a formatting hook, run the configured docs format check.
+  Add behavioral tests only for changed behavior or issue requirements.
+- **CI-only gates:** keep coverage thresholds, smoke, and full-history secret
+  scans in CI unless named by the issue or already failing there.
+- **Caches:** never use cache-busting flags, except for a configured task whose
+  cache key misses inputs; bypass only that task and report the key gap. If
+  config distrusts all cache hits, use them and request a `ziw-setup` refresh.
+- **Real boundaries:** where practical, prove security, data, driver, and
+  external API boundaries through actual read paths, parsers, codecs,
+  artifacts, or provider responses.
+- **Changed CI env vars, flags, or test gates:** prove the invoked process receives them.
+- **External literals:** source resource IDs, providers, labels, secret names,
+  and env values from config, the issue body, or dispatch, not older comments.
+  Missing literals require triage/config refresh; never invent placeholders.
+- **Shared modules:** preserve sibling coverage; never weaken unrelated tests to pass.
+- **After conflict fixes, rebases, branch updates, artifact refreshes, or review
+  fixes:** rerun affected focused checks; hooks/CI rerun the rest on push.
 
 ## Author QA
 

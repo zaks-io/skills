@@ -22,9 +22,7 @@ next external signal or stops the scoped run.
 ## One Tick
 
 - Wake with config, scope, ledger, and review checkpoint only.
-- Follow [Refresh state and Plan the tick](../SKILL.md#refresh-state) for the shared snapshot and planner path.
-- Follow [dispatch-policy.md](dispatch-policy.md) for counting, reconciliation,
-  footprints, claims, and dispatch; follow [integrate-checklist.md](integrate-checklist.md) for PR actions.
+- Run the orchestrator's [Steps](../SKILL.md#steps): one shared snapshot and plan, then dispatch and PR actions.
 - Use model judgment on refreshed evidence. Load or delegate enough evidence to
   act, repair, nudge, or escalate, including safe actions not listed here.
 - Take every safe action now, including follow-ups from mutations. Do not ration
@@ -34,10 +32,10 @@ next external signal or stops the scoped run.
 - Reduce worker returns into the compact queue and ledger before continuing.
 - Exit when remaining work waits on workers, checks, reviews, or providers.
   Never wait in context for their signal.
-- Refresh local refs, HEAD, worktrees, and `git status --short --branch` when a checkout matters.
-- Refresh local Git before decisions involving branches, PR heads, baseline drift,
-  worktrees, or contention.
-- Refresh it after mutations affecting PR, review, merge, or done state before choosing the next action.
+- When a checkout matters, refresh local refs, HEAD, worktrees, and
+  `git status --short --branch` before branch, PR-head, baseline-drift,
+  worktree, or contention decisions, and again after PR, review, merge, or done
+  mutations.
 - Delegate heavy inventory reads to isolated triage workers when available;
   retain only ID, state, readiness, blockers, PR, owner, and next action.
 
