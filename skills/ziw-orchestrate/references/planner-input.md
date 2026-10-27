@@ -1,34 +1,18 @@
 # Planner input contract
 
-Read this when assembling JSON for `scripts/tick-plan.mjs`. The complete field
-and type contract is [planner-input.schema.json](planner-input.schema.json).
-The planner validates every input before computing actions. Invalid input exits
-with status 1, writes the field path and error to stderr, and emits no plan.
+Produce valid JSON for `tick-plan` using current provider evidence. Done means
+validation passes and each diagnostic is resolved or retained as a hold.
+[planner-input.schema.json](planner-input.schema.json) defines all fields and types.
+
+## Steps
+
+1. [Collect and plan](#input-files-and-precedence) with the same state file.
+2. [Set policy](#policy-and-evidence) from verified repo config.
+3. [Use typed identities](#role-specific-identity) in v3 input.
+4. [Resolve diagnostics](#worker-lifecycle-and-unresolved-references) once.
+5. [Record review evidence](#review-evidence-and-legacy-boundary) before acting on PR output.
 
 ## Input files and precedence
-
-Pass the output of `tick-snapshot.mjs` directly, or wrap it in an envelope:
-
-```json
-{
-  "snapshot": {
-    "v": 3,
-    "repo": "owner/repo",
-    "prs": [],
-    "linear": { "issues": [] }
-  },
-  "config": {
-    "workerConcurrencyCap": 3,
-    "readyState": "Todo",
-    "mergeAuthority": "human",
-    "requireConformanceEvidence": true
-  },
-  "state": {}
-}
-```
-
-The empty collections above are illustrative. Populate them from current
-provider evidence; never replace an unavailable query with an empty collection.
 
 ```bash
 node <skill-dir>/scripts/tick-snapshot.mjs --repo <owner/repo> \
@@ -37,278 +21,105 @@ node <skill-dir>/scripts/tick-plan.mjs <snapshot.json> \
   --config <config.json> --state <state.json>
 ```
 
-- `--config` overrides matching inline `config` fields.
-- `--state` overrides matching inline `state` fields. The legacy `queue`
-  object has lower precedence than both.
-- Merges are shallow. A supplied map replaces the earlier map in full.
-- Direct snapshot fields may accompany inline config/state. Do not also supply
-  a nested `snapshot`; that would make the evidence source ambiguous.
-- `snapshot.repo` or `state.repo` must identify `owner/repo`. When both exist,
-  they must match.
-- `-` reads stdin for one file. `--pretty` formats the plan; `--debug` includes
-  full decision evidence. Missing option values and unknown flags are errors.
+- Use `linear-graphql.mjs setup` once on macOS; otherwise supply `LINEAR_API_KEY`
+  or proxy `LINEAR_API_URL` through project tooling, or use configured tracker tools.
+- Candidates and active claims require the repo route label.
+  Override it with `--linear-route-label <label>`.
+- Add `--hosted-review-bot <login>` per configured reviewer to retain historical review fingerprints.
+- Use tracker tools for full bodies and comments.
+- For only the dependency frontier, run
+  `node <skill-dir>/scripts/linear-dag-start.mjs <snapshot.json> --config <config.json>`.
 
-Each file must contain a JSON object. Validation runs before merging, so an
-override cannot hide invalid earlier input. Empty files, `null`, and arrays at
-the document root are errors.
+Pass the snapshot directly or as `{ "snapshot": {...}, "config": {...}, "state": {...} }`.
+Direct snapshot fields may accompany inline config/state, but not a nested snapshot.
+
+- `--config` overrides inline config; `--state` overrides inline state, which overrides legacy `queue`.
+- Merges are shallow; supplied maps replace earlier maps.
+- Each file must be a JSON object. Validation precedes merging; overrides cannot hide invalid earlier inputs.
+- `snapshot.repo` or `state.repo` must identify `owner/repo`; both must match when present.
+- `-` reads stdin for one file; `--pretty` formats output. Use `--debug` only for diagnostics.
 
 ## Policy and evidence
 
-Derive config values from verified `docs/agents/workflow/config.md` settings.
-The Markdown file is not a JSON input. Include only keys the planner consumes;
-the schema lists those keys and their supported aliases. Unknown config,
-envelope, state, and review-evidence fields are errors. Provider records such as
-PRs, issues, and worktrees may retain additional metadata; only their documented
-fields affect decisions.
+Derive values from verified `docs/agents/workflow/config.md`, not by passing the
+Markdown file. Include only schema-supported keys and aliases.
 
-| Repo setting                 | JSON field                                                 | Accepted value                                              |
-| ---------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
-| Worker concurrency cap       | `workerConcurrencyCap`                                     | Integer at least 0                                          |
-| Ready state                  | `readyState`                                               | Tracker state name                                          |
-| Merge authority              | `mergeAuthority`                                           | Configured authority, such as `human` or `agent`            |
-| Delivery mode                | `deliveryMode`                                             | `production` or `velocity`                                  |
-| Hosted review bots           | `hostedReviewBots`                                         | Array of bot logins                                         |
-| Hosted review risk tiers     | `hostedReviewRiskTiers`                                    | Tier or array of `low`, `medium`, `high`                    |
-| Auto-merge risk tiers        | `autoMergeRiskTiers`                                       | Tier or array of `low`, `medium`, `high`                    |
-| Required independent reviews | `requiredIndependentReviews`                               | Positive integer or object keyed by risk tier               |
-| Require conformance evidence | `requireConformanceEvidence`                               | Boolean                                                     |
-| Local budget stops           | `localBudgetSoftStopPercent`, `localBudgetHardStopPercent` | Both supplied, between 0 and 100, soft no greater than hard |
+| Repo setting                 | JSON field                                                 | Accepted value                                   |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
+| Worker concurrency cap       | `workerConcurrencyCap`                                     | Integer at least 0                               |
+| Ready state                  | `readyState`                                               | Tracker state name                               |
+| Merge authority              | `mergeAuthority`                                           | Configured authority, such as `human` or `agent` |
+| Delivery mode                | `deliveryMode`                                             | `production` or `velocity`                       |
+| Hosted review bots           | `hostedReviewBots`                                         | Array of bot logins                              |
+| Hosted review risk tiers     | `hostedReviewRiskTiers`                                    | Tier or array of `low`, `medium`, `high`         |
+| Auto-merge risk tiers        | `autoMergeRiskTiers`                                       | Tier or array of `low`, `medium`, `high`         |
+| Required independent reviews | `requiredIndependentReviews`                               | Positive integer or object keyed by risk tier    |
+| Require conformance evidence | `requireConformanceEvidence`                               | Boolean                                          |
+| Local budget stops           | `localBudgetSoftStopPercent`, `localBudgetHardStopPercent` | Both 0 to 100, soft no greater than hard         |
 
-Omitted optional policy fields retain the workflow helpers' existing defaults,
-except merge authority: an omitted or blank `mergeAuthority` routes every
-merge-ready PR to human merge. Always pass it from config.
-Validation never inserts defaults, removes fields, or converts types. Write
-`false`, not `"false"`, and `3`, not `"3"`. Empty label strings remain supported
-where the workflow uses them to disable a label. Policy enums use lowercase.
+- Always pass `mergeAuthority` from config. Missing or blank authority routes merge-ready PRs to human merge.
+- Other omitted optional policies keep helper defaults.
+- Use exact types: `false`, not `"false"`; `3`, not `"3"`. Policy enums are lowercase.
+- Empty label strings disable labels where supported.
+- Unknown envelope, config, state, and review-evidence fields are errors.
+- Provider records may retain extra metadata; only documented fields affect decisions.
+- Never replace an unavailable query with an empty collection.
+
+Routing config also accepts `remoteWorkerPaths`, `localWorkerPaths`,
+`defaultWorkerPath`, and `localStartsBelowSoftLimit`. State uses
+`localBudgetUsagePercent`. Startable records use `eligibleWorkers`, with aliases
+`workerPaths`, `allowedWorkers`, or `workers`.
 
 ## Role-specific identity
 
-New producers emit `v: 3` on the snapshot. Queue collections are arrays.
-Identity fields describe one record type; their spelling never determines a
-different type of identity.
+New producers and handoffs use snapshot `v: 3` and array queue collections.
 
-| Record                    | Identity                         | Associations and evidence                                                                        |
-| ------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Tracker issue or metadata | `issueKey`, `issueUuid`, or both | Tracker aliases plus optional confirmed claim `sessionId`/`receiptId`                            |
-| Explicit startable ticket | `issueKey`, `issueUuid`, or both | Dispatch footprint and worker eligibility; caller verifies readiness                             |
-| Worker receipt            | `receiptId` and/or `sessionId`   | Optional `issueKey`/`issueUuid`, `prNumber`, branch/worktree, footprint, and lifecycle           |
-| PR                        | Positive integer `number`        | Optional direct issue fields and `linkedIssues` typed references; current head and changed paths |
-| Worktree                  | `path`                           | Branch, head, dirty/merged observations, and footprint; no issue identity inferred from text     |
-| Preview                   | `previewId`                      | Optional `prNumber`, URL/path, and lifecycle                                                     |
+| Record                     | Identity                         | Associations                                                |
+| -------------------------- | -------------------------------- | ----------------------------------------------------------- |
+| Issue, metadata, startable | `issueKey`, `issueUuid`, or both | Confirmed claim `sessionId`/`receiptId` when known          |
+| Worker receipt             | `receiptId` and/or `sessionId`   | Issue fields, `prNumber`, branch/path, footprint, lifecycle |
+| PR                         | Positive integer `number`        | Issue fields or typed `linkedIssues`                        |
+| Worktree                   | `path`                           | Branch, head, dirty/merged state, footprint                 |
+| Preview                    | `previewId`                      | Optional `prNumber`, URL/path, lifecycle                    |
 
-`issueKey` is a tracker key such as `SKI-12`; `issueUuid` is a UUID. Receipt,
-session, and preview IDs are opaque nonblank strings. A UUID-shaped `sessionId`
-remains a session. Never put an issue reference in generic `id`, `identifier`,
-`issueId`, `ticket`, or `key` fields in v3. Those retired fields are rejected.
-The internal resolved `issueRef` is planner output, not a producer input field.
-
-Dependencies and scopes use typed references:
-
-```json
-{
-  "snapshot": {
-    "v": 3,
-    "repo": "owner/repo",
-    "prs": [{ "number": 12, "linkedIssues": [{ "issueKey": "SKI-12" }] }],
-    "linear": {
-      "issues": [
-        {
-          "issueKey": "SKI-12",
-          "issueUuid": "11111111-2222-4333-8444-555555555555",
-          "blockedBy": [{ "issueKey": "SKI-11", "stateType": "completed" }]
-        }
-      ],
-      "candidateIssues": [{ "issueKey": "SKI-12" }]
-    }
-  },
-  "state": { "scopeIssues": [{ "issueKey": "SKI-12" }] }
-}
-```
-
-`candidateIssues` separates candidates from blocker records. `candidateScope`
-retains the route label and requested states; the planner rechecks these after
-combining evidence. `state.scopeIssues` further narrows explicitly requested
-tickets, startable tickets, PR actions, and review-evidence label actions.
-Other PRs retain collision reservations. An empty candidate or requested-scope
-array authorizes no starts. Omit requested scope only when the user requested a
-queue. Keep request state in transient input, never Repo Config.
-
-`blockedBy` is an array of typed references with optional provider `stateType`
-for satisfied blockers. A blocker outside candidate scope remains a dependency,
-not another dispatch candidate. Metadata retains issue keys, UUIDs, and labels
-for matching and risk without creating worker reservations. `unroutedIssueIds`
-reports missing route labels in requested states, or provider `unstarted` work
-when no states were requested. Default warnings exclude intake and parked work.
-
-The planner constructs one issue catalog before matching delivery, scope,
-dependencies, risk, and action targets. Tracker records and their dependency
-references establish aliases; worker or PR assertions do not manufacture them.
-Explicit conflicts fail at the source path before any plan is emitted. A known
-key and its tracker UUID resolve to the same issue. A UUID without a known alias
-stays an exact UUID identity rather than guessing a key.
-
-Branch/path tokens and leading ticket titles can reserve possible delivery and
-raise risk. They do not grant scoped PR-action authority. Use explicit issue
-fields or `linkedIssues` for that authority. `tick-snapshot.mjs` extracts exact
-Linear issue URLs from PR bodies into `linkedIssues` and omits full bodies from
-compact output. A coincidental number in text does not identify an issue.
+- `issueKey` is a tracker key; `issueUuid` is a UUID. Session, receipt, and preview IDs are opaque nonblank strings.
+- A UUID-shaped session ID remains a session. Do not infer issue identity from its spelling.
+- Retired v3 issue fields `id`, `identifier`, `issueId`, `ticket`, and `key` are rejected.
+- `issueRef` is resolved output, not producer input.
+- Use arrays of typed references such as `{ "issueKey": "SKI-12" }` for `linkedIssues`, `candidateIssues`, `blockedBy`, and `state.scopeIssues`.
+- `candidateIssues` selects candidates; `blockedBy` records dependencies, with optional provider `stateType` for satisfied blockers.
+- Blockers outside candidate scope never become extra candidates. Metadata supplies aliases, labels, and risk without reserving workers.
+- `candidateScope` retains route and requested states for rechecking combined evidence.
+- `state.scopeIssues` narrows starts, PR actions, and review-label actions. Other PRs retain collision reservations.
+- Empty candidate or requested-scope arrays authorize no starts. Omit requested scope only for queue requests; keep it out of Repo Config.
+- Tracker records and dependencies establish aliases; workers and PRs cannot manufacture them.
+- Use explicit issue fields or `linkedIssues` for PR authority; branch/path, title, and coincidental-number hints cannot grant it.
+- The collector extracts exact Linear issue URLs from PR bodies into `linkedIssues`.
+- PR `footprint` contains changed paths and previous filenames for renames; `changedFiles` is a count.
+- PR evidence/request maps use positive PR-number keys, never heads, branches, URLs, or issue keys.
+- `reviewEvidenceChecks` needs `prNumber` or a typed issue reference for its label target.
 
 ## Worker lifecycle and unresolved references
 
-Delivery protection and capacity are separate. Either session covering an issue
-prevents a new delivery; two distinct live sessions still occupy two slots.
-Deduplicate receipts for the same confirmed session, or the same receipt when
-no session is available. Issue, branch, path, shared commit, or associated PR
-cannot establish that two workers are one session.
+Use [dispatch-policy.md](dispatch-policy.md#worker-concurrency) for worker counting and lifecycle evidence.
 
-A live worker needs `sessionId` or `receiptId`. Its `prNumber` associates work
-with a PR and does not end the session. Record returned/stopped/failed lifecycle
-from the worker provider. In v3, `hasPr: true` is association evidence and does
-not free a slot. An actively repairing worker keeps its slot even when that PR
-is open. `returned` or `stopped` contradicting an explicit running state is an
-input error. Only the legacy adapter treats `hasPr` as return evidence, and
-only when the record has no explicit live status. PR `footprint`
-includes actual changed paths and previous filenames for renames;
-`changedFiles` remains a count. Started tracker work reserves files without
-inventing a session.
-
-A terminal provider receipt for the same explicit session retires a sticky
-tracker-only claim's slot while preserving its delivery and footprint
-reservation. A current live runtime observation keeps the session counted;
-historical terminal receipts cannot override it without freshness evidence.
-Receipt-only terminal history cannot retire a tracker claim because receipts
-may be reused.
-
-Inspect planner diagnostics before dispatching. `ISSUE_ALIAS_REQUIRED` asks for
-tracker alias evidence, `REQUESTED_ISSUE_UNKNOWN` asks for the requested tracker
-record, and `WORKER_ISSUE_UNRESOLVED` identifies an unassociated live worker.
-`snapshot.linear.identityDiagnostics` preserves a missing lookup as
-`REFERENCED_ISSUE_NOT_FOUND`, with its typed issue reference and referring state
-or PR path. These are incomplete evidence, not an empty or completed queue.
-
-Resolve missing references with one bounded read-only lookup and one replan
-for the current evidence. `loadLinearSnapshot({ issueRefs })` accepts typed
-references, looks up at most 50 unknown references, and adds their identity/risk
-metadata without expanding candidates. Supply the same transient `--state`
-file to snapshot collection and planning, using either `--state <file>` or
-`--state=<file>`. The collector automatically resolves
-references from live worker receipts, requested scope, dependencies, and PR links;
-terminal receipt history does not trigger lookups. Agents do not enumerate those
-IDs again. Repeatable `--linear-issue-key` and
-`--linear-issue-uuid` flags add optional references when needed. If a reference
-is missing or contradictory after that lookup, retain the diagnostic
-and request the concrete missing evidence. Do not spin on alternate ID fields
-or cache lookup outcomes in Repo Config. A confirmed missing record, returned as
-`issue: null`, preserves the snapshot with a blocking diagnostic. Transport,
-GraphQL, or malformed-response failures abort collection with the referring
-source path; they never masquerade as missing records. Provider error text is
-omitted because it may contain sensitive values.
+- `ISSUE_ALIAS_REQUIRED` needs tracker alias evidence; `REQUESTED_ISSUE_UNKNOWN` needs the requested record.
+- `WORKER_ISSUE_UNRESOLVED` means a live worker lacks an issue association.
+- `REFERENCED_ISSUE_NOT_FOUND` in `snapshot.linear.identityDiagnostics` preserves a missing record and its source path.
+- These diagnostics mean incomplete evidence, not an empty or completed queue.
+- Resolve them with one bounded read-only lookup and one replan for the current evidence.
+- Shared `--state` lets the collector resolve receipt, scope, dependency, and PR references automatically; do not enumerate those IDs again.
+- Add optional references with repeatable `--linear-issue-key` or `--linear-issue-uuid` flags.
+- After that lookup, retain missing or contradictory references as diagnostics and request the concrete evidence.
+- Do not cycle through ID fields or cache lookup outcomes in Repo Config.
+- Fix validation errors at their reported paths. Invalid input exits 1, reports to stderr, and emits no plan.
 
 ## Review evidence and legacy boundary
 
-V3 PR evidence/request maps use positive PR-number keys. Head SHA, branch, URL,
-and issue key are evidence or associations, not interchangeable map keys.
-`reviewEvidenceChecks` needs `prNumber` or a typed issue reference for an
-addressable label target. Keep verdicts, fingerprints, review counts, and
-conformance tied to current provider evidence. Valid JSON proves neither
-currency nor mutation authority.
-
-Version 2 and unversioned input remain supported through one boundary adapter.
-It translates documented legacy identity, scope, dependency, and receipt fields
-before any consumer runs. During migration, a separate legacy `--state` file
-can accompany a v3 snapshot: collector and planner validate/adapt that same file
-at the boundary. Inline v3 state must already be canonical; its retired fields
-remain errors. External canonical worker records keep v3 lifecycle rules even
-beside legacy records or maps. Legacy generic worker `id` is a receipt identity,
-never an issue alias. New producers and handoffs always use v3. Remove the
-adapter only after supported producers and downstream consumers use v3 and
-compatibility evaluation proves no supported input depends on legacy fields;
-remove the legacy schema and migration tests in that same change. Do not add
-legacy parsing to individual planner consumers.
-
-Reusing an equivalent fingerprint requires an explicit clean `reviewVerdict`
-and a positive `independentReviewCount` or completed `independentReviews` list.
-Callers filter the list to completed independent reviewers and record identity;
-the planner cannot independently verify a first-party numeric count or list.
-Fingerprint equality cannot create a verdict or a review. Record reviewed
-identity in `reviewedDiffFingerprint` or `reviewedReviewDiffFingerprint`;
-`reviewRelevantDiffFingerprint` identifies the current diff.
-
-Coverage compares fingerprints of the same format (`patch-id:` or `sha256:`).
-When formats differ or a fingerprint is missing, coverage falls back to the
-exact reviewed head (`reviewedHeadSha`, `hostedReviewHeadSha`, a request's
-`headSha`, or a review's commit). The same rule matches pending review requests
-and recorded hosted evidence. Recorded evidence with neither a comparable
-fingerprint nor a reviewed head keeps the caller's `reviewEvidenceCurrent` boolean.
-
-Live PR facts override copies saved in evidence or hosted records: head, state,
-draft flag, labels (including saved label-presence flags), checks, threads, review decision, truncation, and the current
-fingerprint. Saved records cannot vouch for a newer diff or newer checks.
-
-The collector emits `patch-id:<hex>` from GitHub's `<base>...<headSha>` compare
-diff through `git patch-id --verbatim`. The diff is pinned to the snapshot head,
-so a push during collection cannot lend a newer diff's fingerprint to older reviews. Base merges that leave the PR's hunks and their
-context lines unchanged preserve it. When the diff is unavailable, it falls back
-to a `sha256:` hash of the file records plus the head SHA, so that evidence
-never outlives its head. Review entries include `authorType` (`User` or `Bot`); other actor types omit it.
-Human comments do not replace verdicts; bots keep their latest review of any
-state. Repeatable `--hosted-review-bot <login>` flags enable historical
-bot-review fingerprints. Historical human approvals use the same
-base-to-reviewed-commit diff lookup; failed lookups omit the fingerprint.
-
-GitHub approvals count as independent evidence only with `authorType: "User"`
-and current diff coverage. Other bot approvals and unknown authorship never
-count. `hostedReviewBots` defaults to `["coderabbitai"]` when
-`hostedReviewProvider` normalizes to CodeRabbit; logins ignore case and a
-trailing `[bot]`. A `COMMENTED` or `APPROVED` review by a configured login with
-`authorType: "Bot"` covering the current diff completes hosted review; dismissed,
-pending, and other states do not. Explicit `state.hostedReviewByPr` fields
-override derived fields, including completion and `skipped`.
-
-Hosted review is required when any hosted or evidence record requires it, or
-when the risk tier is in `hostedReviewRiskTiers`. The tier comes from the same
-merged PR, hosted, and evidence state that merge readiness uses. Omitted tiers default to `["high"]`; an empty list
-disables the tier rule. A completed, unskipped hosted review of the current diff
-is independent review evidence and adds one to the review count. Local verdict
-fields block only while their review covers the current diff. A current-head
-conformance `FAIL` blocks whichever review supplied the evidence. Truncated
-review threads hold both merge and the human-merge label.
-
-Drafts pass thread, diff, conflict, branch, and check gates before independent
-review. Known scope drift yields `route-fix` before review or readiness. Missing
-review yields `request-review`, or `REVIEW_IN_FLIGHT` for a matching pending
-request. Exception: on a non-draft PR that passed local review earlier and has
-incomplete required hosted review, the hosted reviewer covers the follow-up delta.
-Clean current review yields `mark-ready` with reason `REVIEW_CLEAN`. Drafts never
-merge or receive the human-merge label. Hosted review and merge routing follow
-after readiness. Requests use the current fingerprint as their idempotency key,
-falling back to the head only without a fingerprint. When prior clean or
-blocking evidence covers a different diff, `request-review` includes `deltaFrom`
-with the previously reviewed head and the current `reviewDiffFingerprint`.
-
-## Local credential setup
-
-`linear-graphql.mjs setup` requires macOS and checks support before reading input
-or changing files. Interactive input suppresses terminal and readline echo;
-failure to hide input aborts before the prompt. EOF, interruption, or a suspension
-attempt cancels input and restores the terminal. Piped stdin is also accepted.
-Setup encrypts into a temporary file, stores its decrypt key under a unique
-Keychain account, and atomically replaces the credential file. Previous accounts
-remain valid for rollback and readers holding an older file snapshot. The file
-records its account; existing unversioned stores remain readable. Linux workers
-use `LINEAR_API_KEY` through project tooling or the configured tracker tools.
-
-## Maintaining the contract
-
-Schema source lives in this repository's `scripts/planner-schema/`. Regenerate
-the published schema and validator after changes:
-
-```bash
-pnpm generate:planner-contract
-pnpm check
-```
-
-`pnpm check` rejects stale generated artifacts. The published validator uses
-[Ajv standalone generation](https://ajv.js.org/standalone.html), so copied skills
-validate inputs without an Ajv install or runtime code generation. Tests exercise
-both malformed inputs and the copied skill's CLI.
+- Reusing equivalent-diff evidence requires an explicit clean `reviewVerdict` and positive `independentReviewCount` or completed `independentReviews` list.
+- Filter lists to completed independent reviewers and record their identity; fingerprints alone cannot create a verdict or review.
+- Record reviewed identity in `reviewedDiffFingerprint` or `reviewedReviewDiffFingerprint`, plus `reviewedHeadSha`.
+- `reviewRelevantDiffFingerprint` identifies the current diff.
+- Explicit `state.hostedReviewByPr` fields override derived fields, including completion and `skipped`.
+- Keep verdicts, fingerprints, counts, and conformance tied to current provider evidence; valid JSON grants no currency or mutation authority.
+- Apply output through [Review lifecycle and evidence](integrate-checklist.md#review-lifecycle).

@@ -32,8 +32,7 @@ Present only candidates supported by concrete examples. For each, give:
 - migration, compatibility, and ADR implications
 - recommendation strength and the evidence behind it
 
-If nothing warrants a change, say so. Do not manufacture a candidate to fill a
-report. An ADR conflict is worth surfacing only when current friction justifies
+If nothing warrants a change, say so. An ADR conflict is worth surfacing only when current friction justifies
 revisiting that decision.
 
 ## Select and clarify
@@ -42,7 +41,6 @@ Recommend the strongest candidate and let the user select what to explore.
 Finish the assessment after presenting recommendations unless the user asks
 to explore one. Hand a selected proposal's unresolved constraints and interface
 alternatives to Grill; it owns confirmed specs and readiness approval.
-Create no tracker tickets or implementation changes here.
 
 ## Sources
 

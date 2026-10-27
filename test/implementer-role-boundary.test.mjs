@@ -16,12 +16,20 @@ const surfaces = [
 for (const file of surfaces) {
   test(`${file} preserves the implementer review-ownership boundary`, () => {
     const content = readFileSync(path.join(root, file), "utf8");
-    assert.match(content, /Author\s+QA\s+is\s+not\s+independent\s+review\s+evidence/i);
+    const usesAuthorQaHome = ["agents/ziw-implementer.md", "skills/ziw-pr/SKILL.md"].includes(file);
+    if (usesAuthorQaHome) assert.match(content, /ziw-implement\/SKILL\.md/);
+    const authorQaHome = usesAuthorQaHome
+      ? readFileSync(path.join(root, "skills/ziw-implement/SKILL.md"), "utf8")
+      : content;
+    assert.match(authorQaHome, /Author\s+QA\s+is\s+not\s+independent\s+review\s+evidence/i);
     assert.match(content, /Do\s+not\s+apply\s+or\s+clear\s+review-evidence\s+labels/i);
     assert.match(content, /move\s+the\s+issue\s+to\s+`Ready\s+to\s+Merge`/i);
     assert.match(content, /apply\s+merge-ready\s+PR\s+labels/i);
-    assert.match(content, /best judgment|judgment-based|use judgment/i);
-    assert.match(content, /merely because a commit changed|new commit alone|new commit.*alone/i);
+    assert.match(authorQaHome, /best judgment|judgment-based|use judgment/i);
+    assert.match(
+      authorQaHome,
+      /merely because a commit changed|new commit alone|new commit.*alone/i,
+    );
     assert.doesNotMatch(content, /recommend\s+applying\s+the\s+configured\s+review\s+evidence/i);
     assert.doesNotMatch(content, /Review\s+evidence\s+label:\s+APPLY/i);
   });

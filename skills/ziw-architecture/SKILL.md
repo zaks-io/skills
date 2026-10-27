@@ -25,7 +25,6 @@ config when present; real callers, tests, relevant specs, glossary, and accepted
      directly. This workflow is not mandatory for them.
    - Read configured planning paths before discovering conventions. For unmapped
      glossary paths, use [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md).
-   - For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md).
 2. Recommend from concrete evidence.
    - Separate observed implementation from intended behavior. Support each
      change with real caller knowledge, repeated orchestration, change locality,
@@ -35,7 +34,8 @@ config when present; real callers, tests, relevant specs, glossary, and accepted
      A future adapter or line-count preference alone cannot justify an abstraction.
    - Show call examples or before/after dependency diagrams when useful. Explain
      which behavior becomes easier to verify and at what public interface.
-   - State recommendation strength and uncertainty.
+   - Establish defects through specs or reproduction; code alone is insufficient.
+   - State recommendation strength and uncertainty. Report no candidate when evidence warrants none.
 3. Return the report in conversation or at the requested location. Label written
    reports as proposals, distinct from accepted decisions and current-truth specs.
    - Assessment and design authorize investigation and proposals. Report ADR
@@ -46,13 +46,13 @@ config when present; real callers, tests, relevant specs, glossary, and accepted
      confirmed specs and explicit readiness approval.
    - Scoped implementation callers retain their original acceptance and proof boundaries.
 
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
+
 ## Never
 
-- Manufacture candidates or infer defects from code alone.
 - Implement code, change tracker state, create tickets or PRs, or mark specs
   ready under assessment or design authority.
 - Create or override an accepted ADR.
-- Launch implementation or ticket creation during handoff.
 
 ## Done
 

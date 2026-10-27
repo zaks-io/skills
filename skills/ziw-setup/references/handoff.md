@@ -1,11 +1,8 @@
 # Handoff Contract
 
-Use this shape when one workflow role leaves work for another role, the user,
-or a future run. Keep it short and factual.
-
-When the handoff escalates to the user, it must also carry a decision request.
-An escalation that hands the user a PR or ticket to go study is invalid; frame
-the decision or keep the work.
+Use for role-to-role, user, or future-run handoffs. Keep facts brief.
+User escalations need a decision request, not a PR or ticket to study.
+Frame the decision or keep the work.
 
 ```markdown
 ## Decision Request
@@ -52,47 +49,33 @@ the decision or keep the work.
 
 Rules:
 
-- Include links or IDs, not pasted private logs or secrets.
-- Implementation/repair handoffs preserve the runtime's actual `receiptId` and
-  `sessionId`, the tracker `issueKey`/`issueUuid`, worktree `path`, and PR number.
-  Say unknown for missing evidence; omit unknown typed fields from JSON. Never
-  repurpose a generic `id`, issue UUID, branch, or path as session identity.
-- State whether the worker is still running, returned, stopped, or failed, with
-  provider evidence. A PR association alone does not release its capacity slot.
-  Use the canonical v3 receipt shape in
-  [the planner input contract](../../ziw-orchestrate/references/planner-input.md)
-  for machine-readable returns. Persist project progress and blockers in Linear;
-  Repo Config contains stable mappings and policy only.
-- Say whether code review covers the current diff.
-- Carry every completed review round, including Author QA, through handoffs and
-  continuations. Preserve prior counts; never replace cumulative history with
-  only the latest verdict. Follow `ziw-code-review`'s Review limits.
-- Say whether the diff stayed inside the linked issue's in-scope and
-  out-of-scope boundary. If it did not, name the split, revert, or human
-  decision needed before handoff.
-- The code host is authoritative for PR head, base, merge base, draft state,
-  hosted checks, and hosted bot review state. The receiving role reads them
-  there. An implementation worker reports the head SHA it pushed and leaves the
-  other code-host fields out instead of polling for them.
-- List exact check commands and results, including hook runs. If conflicts were
-  resolved or the branch was updated after main moved, include the checks run
-  after that event.
-- Say whether the configured review evidence label is applied, removed, or
-  requested for the current review-diff fingerprint.
-- Say whether the configured code-host human-merge PR label, such as
-  `needs-human-merge`, is applied, removed, or requested, and list the
-  merge-ready evidence that justifies it.
-- Say whether the PR is draft/pre-review or non-draft/ready-for-review, and who
-  owns any required ready-for-review transition.
-- Agent Orchestrator and Agent Review report hosted bot review state: skipped,
-  complete, auto-review pending, or still required for the current diff, with
-  provider, trigger, and the command or PR-description marker used when known.
-  For Cursor Bugbot, name the verified trigger or say it is unresolved.
-- A role that waited on hosted checks says what it observed and whether they
-  used local, development, preview, or production resources. Implementation
-  workers do not wait for hosted checks.
-- Leave active tracker status changes to Agent Orchestrator unless the user
-  explicitly says otherwise. Issue Triage may reconcile verified stale states
-  such as merged work marked done, and may promote complete configured intake
-  issues during a normal triage run. Linear Backlog promotion still requires an
-  explicit Linear Backlog cleanup request.
+- Include links/IDs, never secrets or pasted private logs.
+- Preserve actual runtime `receiptId`/`sessionId`, tracker `issueKey`/`issueUuid`,
+  worktree `path`, and PR number. Report missing evidence as unknown;
+  omit unknown typed JSON fields. Never substitute a generic `id`, issue UUID,
+  branch, or path for session identity.
+- Report running, returned, stopped, or failed lifecycle with provider evidence.
+  A linked PR alone does not release capacity. Machine-readable returns use
+  [canonical v3 receipts](../../ziw-orchestrate/references/planner-input.md).
+- Persist progress/blockers in Linear; config holds stable mappings and policy.
+- State whether review covers the current diff.
+- Preserve cumulative completed rounds, including Author QA, across continuations.
+  Carry prior findings, fixes, limits, and stop conditions; follow
+  [Review limits](../../ziw-code-review/SKILL.md#review-limits).
+- Audit linked-issue scope and non-goals. Name any required split, revert, or human decision.
+- Receivers read head, base, merge base, draft state, hosted checks, and bot review
+  from the authoritative code host. Implementers report only their pushed head;
+  omit other code-host fields rather than polling.
+- List exact check commands/results, including hooks and checks after conflict
+  resolution or branch updates.
+- Report review-evidence and human-merge labels as applied, removed, or requested.
+  Include the current-diff fingerprint and merge-ready evidence.
+- State draft/pre-review or non-draft/ready-for-review and who owns the transition.
+- Orchestrator/Review report hosted review as skipped, complete, auto-review
+  pending, or required for the current diff. Include provider, trigger, and known
+  command/description marker. Name Bugbot's verified trigger or unresolved gap.
+- Hosted-check observers report results and local/development/preview/production
+  resources used. Implementers do not wait for hosted checks.
+- Orchestrator owns active tracker transitions unless the user explicitly authorizes
+  otherwise. Triage may reconcile proven stale states or promote complete configured
+  intake during normal runs. Linear Backlog promotion requires explicitly requested cleanup.

@@ -53,7 +53,8 @@ Load references only for the matching investigation:
 - Failure across layers or unclear value origin: [references/tracing.md](references/tracing.md).
 - Intermittent, timing, or concurrency failure: [references/intermittent-failures.md](references/intermittent-failures.md).
 - Performance regression: [references/performance.md](references/performance.md).
-- Encountered tool, environment, or workflow friction: [friction-log.md](../ziw-orchestrate/references/friction-log.md).
+
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Repair and verify
 
@@ -67,11 +68,12 @@ Load references only for the matching investigation:
   checks, unless behavior changes or the task explicitly requires other checks.
 - Exception: if automation cannot exercise the failure, preserve the reproducer
   and state the verification limit.
+- Apply only evidence-supported repairs, without stacking speculative fixes.
 - If the fix still fails, return to investigation within the limits above.
+- Report repair completion only after verification.
 
 ## Never
 
-- Do not stack speculative fixes.
 - Do not treat a direct fix request as authority for tracker writes, a PR,
   merge, deployment, production instrumentation, or live-data changes.
 - Do not experiment against shared, hosted, or paid systems, or perform
@@ -79,8 +81,6 @@ Load references only for the matching investigation:
 - Do not treat existing production read access as authority for new production
   probes or writes.
 - Do not record environment dumps or secret values.
-- Do not call a plausible theory a verified cause or an unverified repair a
-  completed fix.
 
 ## Done
 

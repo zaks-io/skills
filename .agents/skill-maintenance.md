@@ -41,6 +41,9 @@ exception, gets ignored or over-applied.
   something; stop when it does not, when the same failure survives two fixes,
   or at the cap.
 - Collect hard limits in one short `Never` list instead of scattering them.
+- Give each shared rule one home file. Elsewhere, state only what the role
+  needs to act. Link the home only when that role must load its detail:
+  agents treat a link as something to read.
 - Prefer plain words to workflow jargon; define a term once in `CONTEXT.md`.
 - Move detail needed by only one branch into a reference with a load
   condition.

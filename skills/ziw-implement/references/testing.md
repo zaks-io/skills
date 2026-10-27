@@ -20,9 +20,8 @@ could change the required proof. Debug owns cause investigation for failures.
   behavior unchanged. Call counts and private-method assertions usually test
   the wrong contract.
 
-Docs, copy, and mechanical changes do not need artificial tests. Follow the
-issue's required checks, and still exercise the actual endpoint or UI when
-that is the affected user flow. Hooks and CI still run the full gate.
+For endpoint/UI changes, exercise the affected user flow. Follow
+[Verify](../SKILL.md#verify) for required checks and when behavioral tests are needed.
 
 ## Sources
 
