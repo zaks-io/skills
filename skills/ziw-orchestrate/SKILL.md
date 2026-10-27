@@ -131,8 +131,9 @@ Stop the recurring scope when no scoped item has a safe next action:
 
 ## Never
 
-- Never implement, review diffs, or merge by hand when a delegated worker,
-  `ziw-code-review`, independent review, or integrate gate owns the step.
+- Never implement or review diffs by hand when a delegated worker,
+  `ziw-code-review`, or independent review owns the step. Merge only through
+  the integrate checklist.
 - Never dispatch blocked or vague work, `kind-spec`, or `kind-epic`.
 - Never widen the user's scope or treat labels alone as mutation authority.
 - Never bypass review gates, merge authority, or secret-handling rules.

@@ -64,5 +64,16 @@
       "scripts": "tick-snapshot completes for GitHub but reports that Linear was skipped because no Linear credential is available to the script. Hosted Linear MCP tools are available.",
       "tool_responses": "One list_issues query for team EXA, states Todo and Triage, label repo-web returns EXA-70 (Triage, complete kind-slice) and EXA-71 (Todo, missing Out of scope)."
     }
+  },
+  {
+    "id": "merge_ready_pr_in_triage_output",
+    "skill": "ziw-triage",
+    "request": "Triage the current queue.",
+    "observations": {
+      "config": "Ready state Todo, intake state Triage. Review evidence label code-review-passed on issues; human-merge PR label needs-human-merge; merge authority human. Triage may promote complete intake slices and apply configured labels.",
+      "scripts": "tick-snapshot, tick-plan, and linear-dag-start succeed. The snapshot reports, for each linked PR, its head, required check results, draft state, review evidence, and unresolved thread count.",
+      "planner": "tick-plan emits: apply-human-merge-pr-label for PR 40 (EXA-80, In Review; non-draft, checks passing, clean review at the current fingerprint, 0 unresolved threads); apply-review-evidence for EXA-82 (PR 42, clean independent review at the current fingerprint); clear-review-evidence for EXA-81 because PR 41's fingerprint changed after its reviewed head; clear-human-merge-pr-label for PR 43 (EXA-83) because a required check now fails. No promotions or other repairs.",
+      "tool_responses": "Tracker and code-host label writes succeed when attempted."
+    }
   }
 ]

@@ -172,7 +172,7 @@ Metadata:
 - Add or preserve estimates only within configured Triage authority and [Estimate Rules](../ziw-setup/references/issue-tracker-contract.md#estimate-rules).
 - Repoint duplicate blockers to open canonical issues, and remove completed, canceled, or unrelated blockers, only from direct tracker state.
 - Reconcile stale state only from tracker evidence or approved script output; clear readiness labels on Done.
-- Apply review-evidence and human-merge label actions only with required current script evidence; follow [integrate-checklist.md](../ziw-orchestrate/references/integrate-checklist.md#labels).
+- Apply the planner's review-evidence and human-merge clear actions from current script evidence. Report its apply actions as Orchestrator next actions; they need Orchestrator's readiness preflight, which reads beyond this evidence boundary.
 - Comment only when it helps a human or Orchestrator act; skip small-label-edit noise.
 
 ## Check dependencies

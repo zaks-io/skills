@@ -130,7 +130,7 @@ Report missing issue criteria. Without an issue, use the request/spec or state i
 
 ## Never
 
-- Never apply or clear review-evidence labels, move workflow states, or apply merge-ready PR labels; only Agent Orchestrator performs tracker and merge-ready mutations.
+- Never apply or clear review-evidence labels, move workflow states, or apply merge-ready PR labels; recommend them to the caller.
 - Never create tracker issues in Author QA mode.
 - Never trigger hosted bots, push, merge, revert, force-push, deploy, or mutate production.
 - Never broaden scope or decide product/security questions.

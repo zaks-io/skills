@@ -361,7 +361,7 @@ Issues and triage are front-loaded steps the user runs before
 orchestration, or bounded repair steps the orchestrator can delegate when current
 work is stale.
 
-Integrate prepares the local default-branch checkout before interpreting
+The integrate checklist prepares the local default-branch checkout before interpreting
 post-merge failures: refresh dependencies when the workspace graph changed,
 rebuild or regenerate configured artifacts, and run the configured post-merge
 check with the configured runner. When a GitHub PR is behind the default branch,

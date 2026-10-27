@@ -122,3 +122,18 @@ test("split reasons start from one slice per feature and agree across docs", () 
     assert.doesNotMatch(content, /tracer\s+bullet/i, file);
   }
 });
+
+test("Triage clears merge-ready labels but leaves applying them to Orchestrator", () => {
+  const triage = read("skills/ziw-triage/SKILL.md");
+  const contract = read("skills/ziw-setup/references/issue-tracker-contract.md");
+  const review = read("skills/ziw-code-review/SKILL.md");
+
+  assert.match(
+    triage,
+    /review-evidence and human-merge clear actions from current script evidence/i,
+  );
+  assert.match(triage, /apply actions as Orchestrator next actions/i);
+  assert.match(contract, /Orchestrator applies review-evidence and human-merge labels/i);
+  assert.match(contract, /Triage may only clear them/i);
+  assert.doesNotMatch(review, /only Agent Orchestrator performs tracker/i);
+});

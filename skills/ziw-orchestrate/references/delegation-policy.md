@@ -19,7 +19,8 @@ bounded prompt and a verified return path.
 - Reviewers return independent findings from clean context under
   [Review lifecycle](integrate-checklist.md#review-lifecycle) and [Review limits](../../ziw-code-review/SKILL.md#review-limits).
 - Triage repairs shape, dependencies, routing, readiness, and queue truth.
-- Integrate owns merge authority and default-branch writes.
+- Orchestrator merges and writes the default branch only through
+  [integrate-checklist.md](integrate-checklist.md), within configured merge authority.
 - Orchestrator performs routine branch updates; delegate only reported conflicts.
 
 ## Prompt Rules

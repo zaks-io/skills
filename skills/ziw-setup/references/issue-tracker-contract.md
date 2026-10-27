@@ -129,7 +129,7 @@ State and review:
 - Tracker state is authoritative; Triage owns configured intake promotion and evidenced stale-state repair. Orchestrator owns active workflow state unless the user says otherwise.
 - For connected Linear/GitHub with both linked records, trust synced state; refresh both before manual repair, using approved scripts in Triage.
 - Verify full issue scope before retaining integration-assigned Done. Reopen or narrow partial delivery per config.
-- Apply review-evidence and human-merge labels only under [integrate-checklist.md](../../ziw-orchestrate/references/integrate-checklist.md#labels); use exact configured slugs/IDs.
+- Orchestrator applies review-evidence and human-merge labels under [integrate-checklist.md](../../ziw-orchestrate/references/integrate-checklist.md#labels). Triage may only clear them from current script evidence. Use exact configured slugs/IDs.
 - Human setup, credentials, product judgment, provider approval, customer input, and ADR decisions need `ready-for-human` or `needs-info`.
 - Human-attention states mean only the named human action remains; fix agent-resolvable review findings before escalating.
 - Encode the smallest direct dependency graph using tracker relationships when supported. By default, A needing B is blocked by B; B blocks A.
