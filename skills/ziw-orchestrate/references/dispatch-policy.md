@@ -1,187 +1,114 @@
 # Dispatch Policy
 
-Use this reference when deciding scope boundaries, worker concurrency,
-file-footprint contention, draft PR handling, or PR closure.
+Select the largest safe worker set within scope, capacity, and budget. Done
+means every selected ticket has a confirmed claim and every hold has a reason.
+
+## Steps
+
+1. [Confirm scope](#scope-boundaries).
+2. [Reconcile worker concurrency](#worker-concurrency).
+3. [Compare file footprints](#file-footprint-dispatch).
+4. [Choose worker routes and budget](#worker-routing-and-budget).
+5. [Verify dispatch preconditions](#dispatch-preconditions).
+6. [Advance draft PRs](#draft-prs); apply the [closure guard](#pr-closure-guard) before closing any PR.
 
 ## Scope Boundaries
 
-Orchestrator owns delivery scope only for work the user explicitly named or for
-the configured current-work queue. Do not expand into adjacent tickets just
-because they are nearby or cheap.
-
-- Explicit ticket IDs or URLs are a fixed set.
-- A one-ticket request remains one ticket through implementation, review, and
-  integration.
-- A verified-ready ticket set can be repaired and advanced, but not widened.
-- Linear Backlog work is not dispatchable until triage promotes committed,
-  shaped work into the ready state.
-- Done tickets are terminal even when stale readiness labels remain.
-
-The v3 snapshot separates typed candidate issue references from dependency evidence. A blocker
-outside the route or requested set remains a blocker, never an extra candidate.
-Pass a requested ticket set as `state.scopeIssues`; it narrows snapshot scope
-and explicit startable tickets. Keep that transient request out of Repo Config.
-
-When a scoped ticket is not moving, verify the fact that would make it eligible
-for the next pipeline step. Repair routine status, label, route, environment,
-review-evidence, or handoff drift when refreshed evidence is clear. Escalate
-only missing intent, authority, credentials, provider/customer input, production
-approval, security posture, or ADR-level judgment.
+- Follow [Resolve scope](../SKILL.md#resolve-scope); do not widen the named or configured current-work queue.
+- Done tickets remain terminal despite stale readiness labels.
+- Use typed candidates, dependencies, and `state.scopeIssues` from [planner-input.md](planner-input.md#role-specific-identity).
+- Repair clear status, label, route, environment, review-evidence, or handoff drift from refreshed facts.
+- Escalate missing intent, authority, credentials, provider/customer input,
+  production approval, security posture, or ADR judgment.
 
 ## Worker Concurrency
 
-The worker cap controls active implementation or repair sessions. Default to 3
-workers when config names no cap. Use `Worker concurrency cap`.
+Use `Worker concurrency cap`; default to 3 active implementation or repair sessions.
 
-Count:
-
-- implementation dispatches whose provider has not confirmed return, stop, or failure
-- active worker continuations repairing checks, review findings, or conflicts
-- confirmed provider sessions represented by repo-scoped tracker claims
-
-Count distinct confirmed sessions, even when they cover one issue, branch, path,
-or PR. Deduplicate repeated receipts using session identity, or receipt identity
-when no session is available. A shared commit never identifies one worker.
-A human assignee, PR, preview, or abandoned worktree is not a worker. Started
-tracker work reserves files without inventing a session.
-
-Issue matching protects delivery separately from counting workers. Either
-live worker, PR, or claim covering an issue prevents another dispatch. Joining
-a worker's delivery to a PR preserves the worker slot until explicit provider
-lifecycle confirms return, stop, or failure. An associated `prNumber` is not
-return evidence. An active repair session still counts after PR creation.
-
-A terminal provider receipt for the same explicit session retires a tracker-only
-claim's worker slot while preserving its delivery and footprint reservation.
-A current live runtime observation keeps that session counted; historical
-terminal receipts cannot override it without freshness evidence. Receipt-only
-terminal history cannot retire a tracker claim because receipts may be reused.
-
-Use the role-specific fields and single tracker-backed catalog in
-[planner-input.md](planner-input.md). Conflicting identities fail clearly.
-Unresolved references require one bounded tracker lookup and replan; retain
-remaining diagnostics instead of trying alternate field interpretations.
-Branch/path and leading-title hints retain possible delivery reservations and
-may raise risk. Hint-only associations keep at least medium risk and cannot
-authorize a scoped PR action. Worktree path identity preserves
-unassociated file reservations without manufacturing an issue claim.
-
-Every tick advances actionable PR state and fills all remaining worker slots
-with safe ready work. A confirmed returned, failed, or stopped worker frees its slot immediately.
-PR creation frees it only when the provider confirms the worker has returned. Backfill it in the same tick. Merge may serialize, but PR
-inventory must never suppress unrelated implementation dispatch.
-
-If a slot remains idle while ready non-colliding work exists, record an
-orchestrator failure. Explicit collision, missing footprint, worker authority,
-provider capacity, or configured budget policy are valid hold reasons.
+- Count confirmed implementation and repair sessions, including repo-scoped tracker claims, until provider-confirmed return, stop, or failure.
+- Count distinct confirmed sessions even for one issue, branch, path, or PR.
+- Deduplicate by confirmed session, or receipt identity without a session.
+- Issue, branch, worktree, PR, and shared commit matches cannot deduplicate workers.
+- Human assignees, PRs, previews, and abandoned worktrees are not workers.
+- Started tracker work reserves delivery and files without inventing a session.
+- Either live worker, PR, or claim covering an issue prevents another dispatch.
+- Record provider lifecycle; opening/linking a PR, including `prNumber` or v3 `hasPr: true`, does not free a running worker's slot.
+- A terminal receipt for the same explicit session retires a tracker-only slot,
+  preserving delivery and footprint reservations.
+- Current live observations beat historical terminal receipts without freshness evidence.
+- Receipt-only terminal history cannot retire tracker claims; receipts may be reused.
+- Use [typed identity and diagnostic rules](planner-input.md#role-specific-identity); retain unresolved references as holds.
+- Branch/path and leading-title hints reserve possible delivery with at least
+  medium risk; they cannot authorize scoped PR actions.
+- Worktree paths preserve unassociated file reservations without inventing issue claims.
+- Reconcile missing ledger entries from repo-scoped active claims and dirty,
+  baseline-unmerged, or uncertain non-default worktrees.
+- A failed worktree inventory is a snapshot failure, not zero workers.
+- Drop stale ledger entries; re-dispatch or escalate stuck workers after duplicate checks.
+- Backfill returned, failed, or stopped slots in the same tick while advancing PR actions.
+- Merge may serialize; PR inventory must not suppress unrelated dispatch.
+- Record an orchestration failure for idle slots with safe ready work.
+- Valid holds include collisions, missing footprints, authority, provider capacity, and configured budgets.
 
 ## File Footprint Dispatch
 
-Before dispatching more than one
-startable issue, compare predicted footprints from To Issues against:
-
-- open PRs, including drafts
-- active worker branches and unreturned dispatches
-- selected candidates for the same tick
-- shared packages, schemas, migrations, generated artifacts, route files, config
-  files, and refactor-plus-test seams
-- dense document hotspots such as changelog lists, status ledgers, registries,
-  config tables, and caveat lists
-
-Dispatch the largest non-colliding set that fits worker headroom. Hold colliding
-items as `file-collision` with "held, not skipped" evidence.
-
-If the snapshot has no predicted footprint for a startable ticket, derive it in
-the same tick from the body's likely files, packages, or artifacts. Route the
-ticket to triage or To Issues only when the body itself lacks them. While that
-repair is pending, the first selected ticket may still start with an unknown
-footprint when there is no active work at all, as the main skill allows.
-
-Prefer the set that unlocks blocked dependents, then backlog priority. Fill every
-slot for which safe work exists.
-
-Collision checks are concrete. Compare predicted files, packages, generated
-artifacts, schemas, migrations, routes, and dense shared documents. Do not turn
-an area label such as `e2e`, `schema`, or `security` into a whole-category lock
-without evidence that the active and candidate footprints overlap.
+- Compare predicted To Issues footprints against open PRs including drafts,
+  active branches, unreturned dispatches, and selected candidates.
+- Include shared packages, schemas, migrations, generated artifacts, routes,
+  config, refactor/test seams, and dense document hotspots.
+- Dispatch the largest non-colliding set within headroom.
+- Hold collisions as `file-collision`, with "held, not skipped" evidence.
+- Derive missing footprints from likely files, packages, or artifacts in the body this tick.
+- Route to triage or To Issues only when the body lacks that information.
+- Exception: the first selected issue may start without a footprint when no active work can collide.
+- Prefer work unlocking blocked dependents, then backlog priority.
+- Compare concrete overlaps. Labels such as `e2e`, `schema`, or `security` cannot lock a whole category without overlap evidence.
 
 ## Worker Routing And Budget
 
-Startability answers whether the work may begin. Worker eligibility answers who
-may own it. Dispatch selection combines those facts with capacity and collision
-evidence. Keep all three visible in the tick result.
+Keep startability, worker eligibility, and capacity/collision selection visible separately.
 
-- Select work by leverage and backlog priority, not by worker provider.
-- Remote ineligibility does not make a startable ticket globally blocked. Check
-  the configured local worker path.
-- Below the configured local soft stop, start the highest-leverage local-only
-  ticket, subject to the configured per-tick local limit. Prefer work that
-  unlocks the dependency chain.
-- At the local soft stop, pause new local-heavy starts and keep remote workers
-  running.
-- At the local hard stop, stop new local starts and keep authorized remote work running.
-- Record an explicit authority or hold reason for every startable ticket that is
-  not selected.
-
-The deterministic planner accepts `eligibleWorkers` (aliases: `workerPaths`,
-`allowedWorkers`, or `workers`) on startable tickets. It accepts
-`localBudgetUsagePercent` in state and these config values:
-`remoteWorkerPaths`, `localWorkerPaths`, `localBudgetSoftStopPercent`,
-`localBudgetHardStopPercent`, and `localStartsBelowSoftLimit`. When budget state
-is absent, no usage or budget exhaustion is inferred. Resolve
-`defaultWorkerPath` through the configured local/remote paths before enforcing
-limits. Missing ticket routing is not an exemption; hold an unknown worker kind
-when limits are configured.
-An unknown default path remains usable without configured limits; configure its
-local/remote kind before applying budget or per-tick policy.
+- Select by leverage and priority, not provider preference.
+- Remote ineligibility is not global blockage; check the configured local path.
+- Below the local soft stop, start the highest-leverage local-only work within
+  the per-tick limit. Prefer dependency-chain unlocks.
+- At the soft stop, pause new local-heavy starts; keep remote workers running.
+- At the hard stop, stop new local starts; keep authorized remote work running.
+- Record an authority or hold reason for every unselected start.
+- Without budget state, infer neither usage nor exhaustion.
+- Resolve the default path's local/remote kind before applying limits.
+- With limits configured, hold unknown worker kinds, including missing ticket routing.
+- Exception: an unknown default path remains usable without configured limits.
+- Use [planner policy fields](planner-input.md#policy-and-evidence) for JSON names and routing aliases.
 
 ## Dispatch Preconditions
 
-Dispatch only when current tracker and code-host evidence show all of these:
-
-- ticket is `kind-slice`
-- readiness state and label satisfy config
-- issue body has concrete in-scope, out-of-scope, acceptance, and verification
-  content
-- dependencies and blocker relations are clear
-- repo route and worker environment metadata are present or safely repairable
-- ticket is not claimed, delegated, linked to an open PR, or represented by an
-  active worker session
-- predicted footprint does not collide with active or selected work
-
-A `kind-spec` or `kind-epic` at dispatch is a hard refuse. Treat it as a To
-Issues miss, repair only when unambiguous, and log `config-gap`.
-
-Body or comment evidence can override readiness. If the body says it waits on a
-human decision, contains a ready-for-human rationale, leaves required sections
-blank, or names unresolved setup, credential, provider, or security choices, do
-not dispatch. Heal the label or route to triage.
+- Require `kind-slice`, configured ready state, and readiness label, default `ready-for-agent`.
+- Verify the [agent-ready body and readiness checks](../../ziw-setup/references/issue-tracker-contract.md#agent-ready-issue-body).
+- Require clear dependencies and no incomplete blockers.
+- Require repo route/environment metadata present or safely repairable.
+- Exclude claimed, delegated, PR-linked, or active-session work.
+- Require a non-colliding footprint, subject to the [first-issue exception](#file-footprint-dispatch).
+- Return sibling-delivering tickets, missing non-goals, or unresolved human decisions to triage or `ready-for-human`.
+- Refuse `kind-spec` and `kind-epic`; repair unambiguous To Issues misses and log `config-gap`.
+- Body/comment evidence overrides labels; unresolved human, setup, credential,
+  provider, or security decisions prevent dispatch. Heal labels or route to triage.
+- Apply claims and verify in-progress state through [Dispatch workers](../SKILL.md#dispatch-workers).
 
 ## Draft PRs
 
-Draft PRs are active code-host work and consume file seams, not worker capacity
-by themselves. Do not start another worker for the same ticket because the
-returned PR is draft.
-
-A draft PR is the stage for local independent review. Checks, review, and
-fixes happen while it is draft. Orchestrator marks it ready after a clean
-review of the current diff; see
-[integrate-checklist.md](integrate-checklist.md#mark-ready). If authority to
-mark it ready is missing, stop with the exact code-host action needed.
+Draft PRs reserve files and delivery, not worker slots by themselves. Advance
+them through [Review lifecycle](integrate-checklist.md#review-lifecycle).
+If mark-ready authority is missing, report the exact code-host action needed.
 
 ## PR Closure Guard
 
-Capacity pressure is never a reason to close legitimate in-progress work. Before
-closing any PR, refresh code-host and tracker state and verify one closure
-reason:
+Refresh code-host and tracker state before closing any PR. Verify one reason:
 
-- duplicate PR for the same issue after current evidence selects a canonical PR
-- explicitly canceled, abandoned, or out-of-scope work, with owner or config
-  evidence that closure is allowed
-- already merged, superseded, or terminal according to code-host and tracker
-  evidence
-- security or policy reason requiring closure, with the reason recorded
+- Duplicate for the same issue, after current evidence selects a canonical PR.
+- Explicitly canceled, abandoned, or out-of-scope work, with owner/config authority to close.
+- Already merged, superseded, or terminal according to both systems.
+- Security or policy requires closure, with the reason recorded.
 
-PR age, draft status, and delivery-slot pressure are not abandonment evidence.
-An open PR occupies its concrete file seam, not a worker slot. Keep it open and
-route the next action: review, worker feedback, check repair, or merge.
+Age, draft status, and capacity pressure do not prove abandonment. Keep
+legitimate active PRs open and route review, feedback, checks, or merge.
