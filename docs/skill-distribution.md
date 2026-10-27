@@ -82,6 +82,9 @@ generated skill refresh on deterministic daily branches, pushes those branches,
 and opens or reuses GitHub PRs against the same base branch. PR bodies include `@coderabbitai ignore` so
 CodeRabbit does not spend review quota on the mechanical refresh. Git commit and
 push hooks always run; a failed install or requested check blocks publication.
+With `--check`, the coordinator first runs the frozen install that matches the
+target's lockfile (pnpm, bun, or npm), then the repo's Full local gate,
+read from either the list form or a `| Full gate |` table row.
 Incomplete targets make the batch exit nonzero, with all command output retained.
 
 The worktree branches from a freshly fetched `origin/main` by default, falling
