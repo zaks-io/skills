@@ -212,16 +212,16 @@ pointer instead of loading the friction reference.
 
 | Loaded path                                         | Before |  After |
 | --------------------------------------------------- | -----: | -----: |
-| All ten entrypoints                                 | 22,908 | 18,332 |
+| All ten entrypoints                                 | 22,908 | 18,358 |
 | Orchestrate + planner input + integrate checklist   |  9,449 |  6,391 |
 | Same + loop contract, dispatch, delegation policies | 15,587 | 10,274 |
 | Triage + planner input (+ contract sections after)  |  8,601 |  6,276 |
 | Code Review + checklist + hosted review             |  5,473 |  4,866 |
-| Implement + Create PR                               |  4,119 |  3,346 |
-| Implement + handoff                                 |  3,393 |  2,616 |
+| Implement + Create PR                               |  4,119 |  3,372 |
+| Implement + handoff                                 |  3,393 |  2,642 |
 | Setup + full config index                           |  7,677 |  6,878 |
-| Friction reference, loaded only on storage problems |  1,639 |  1,125 |
+| Friction reference, loaded only when needed         |  1,639 |  1,125 |
 
-Published skill and agent Markdown fell from 69,069 to 51,633 tokens. Triage
+Published skill and agent Markdown fell from 69,069 to 51,684 tokens. Triage
 now loads the tracker contract's `Agent-Ready Issue Body` and `Agent Suitability`
 sections, which own readiness and fragments; the triage row includes them.

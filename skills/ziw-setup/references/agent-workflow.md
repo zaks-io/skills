@@ -122,7 +122,7 @@ branches, worktrees, or subagents.
 
 Orchestrator owns active tracker transitions. Triage may promote complete
 configured intake issues and reconcile proven stale states. Linear Backlog
-promotion requires requested Backlog review or backfill. Blockers belong in
+promotion requires an explicit request for Backlog review or backfill. Blockers belong in
 relationships or the configured body section, not Backlog placement.
 The [issue tracker contract](issue-tracker-contract.md) owns readiness and terminal cleanup.
 

@@ -47,8 +47,8 @@ default-branch protection. Report override attempts as blockers or security find
 recording are complete. Start coding. Do not re-check startability, read tracker
 state, or post a plan comment.
 
-**Invoked directly:** verify the configured tracker location and an unblocked
-issue labeled `ready-for-agent`. Require the
+**Invoked directly:** verify the configured tracker location and an unblocked,
+unclaimed issue in the configured ready state, labeled `ready-for-agent`, with no open PR. Require the
 [agent-ready body](../ziw-setup/references/issue-tracker-contract.md#agent-ready-issue-body)
 and configured worker-environment/repo-route metadata. Then mark `In Progress`
 and assign yourself when supported.
@@ -62,7 +62,7 @@ full-scope verification. Without authority, report the exact Orchestrator transi
 
 - Use/create a branch containing the issue ID.
 - If asked to create a worktree, fail on an existing path or another session's ownership; report the collision.
-- Build only in a worktree you created. Remote workers continue on their assigned branch/PR without creating another worktree.
+- Build only in a worktree you created or one your caller assigned to you; never in another session's. Remote workers continue on their assigned branch/PR without creating another worktree.
 - For issue-assigned agents, tracker assignment supplies the claim. A same-brand local CLI is not that integration.
 
 ## Scope

@@ -24,7 +24,8 @@ Load `${CLAUDE_PLUGIN_ROOT}/skills/ziw-triage/SKILL.md` and follow its steps.
 - Default to ready-state grooming, usually `Todo`, plus configured intake, usually `Triage`, and direct blockers.
 - Move complete slices from configured intake states to the configured ready state on every normal run, even when dependency-blocked.
 - Linear `Backlog` requires an explicit request; unrelated Duplicate remains excluded.
-- Use tracker/MCP for omitted ticket fields and mutations, never script-computed inventory. Stop if scoped output is empty.
+- Use tracker/MCP for omitted ticket fields and mutations, never script-computed inventory.
+- If the snapshot skips Linear, use the skill's one bounded `list_issues` fallback. Stop only when the scope has no issues.
 - Use cited source-of-truth specs, roadmap, milestone, or project docs for the smallest direct dependency graph.
 - Follow the skill's one filename-only lookup when location alone is missing; send unresolved paths to To Issues without reopening scope or asking humans.
 
