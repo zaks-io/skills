@@ -28,6 +28,7 @@ Grill owns clarification, not tickets or implementation.
 - Invoke implicitly only after checking evidence for an unresolved product,
   domain, scope, or architecture decision affecting behavior, ticket boundaries,
   risk, dependencies, or required proof. Name the ambiguity causing the pause.
+  Routine details and harmless preferences do not trigger implicit invocation.
 - Read repo instructions and the planning-artifact mapping in
   `docs/agents/workflow/config.md`. Discover unmapped specs, glossaries, ADRs,
   roadmaps, and relevant implementation; preserve conventions and report the Setup gap.
@@ -46,8 +47,8 @@ Load additional references only for the matching work:
   [codebase-design.md](../ziw-architecture/references/codebase-design.md).
 - Planning across sessions:
   [references/resumable-planning.md](references/resumable-planning.md).
-- Encountered friction:
-  [../ziw-orchestrate/references/friction-log.md](../ziw-orchestrate/references/friction-log.md).
+
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
 
 ## Ask a question round
 
@@ -72,7 +73,7 @@ Load additional references only for the matching work:
 
 ## Update planning artifacts
 
-- After explicit confirmation, update the smallest authoritative artifact set.
+- Update the smallest authoritative artifact set.
   Update the owning spec, or create one focused spec when none exists. Keep it
   `Draft` until readiness approval. Both existing and new specs use the reference's readiness contract.
 - Update context docs only for domain language. In conversation-only planning,
@@ -98,10 +99,7 @@ For a ready spec, return the matching handoff without invoking it:
 - Do not create or edit tracker tickets.
 - Do not invoke To Issues, implement code, open PRs, merge, or deploy.
 - Do not edit planning artifacts before the user confirms the decision.
-- Do not invoke for routine details, harmless preferences, or discoverable facts.
-- Do not ask a question that available evidence can answer.
 - Do not answer a product or architecture decision on the user's behalf.
-- Do not substitute an ADR, transcript, scratch note, or ticket for current truth.
 - Do not expose secrets or private customer data in planning artifacts.
 
 ## Done

@@ -23,9 +23,8 @@ Recheck stale facts, then ask a round of independent ready questions. After the
 answers, update the index and surface questions that are now precise enough to
 ask. Partial answers leave their dependent questions waiting.
 
-The index is planning context, not a dispatch graph. Grill never creates or
-claims tracker tickets. To Issues owns implementation slicing after explicit
-readiness approval and passing documentation checks.
+The index is planning context, not a dispatch graph. To Issues owns slicing
+after explicit readiness approval and passing documentation checks.
 
 ## Sources
 

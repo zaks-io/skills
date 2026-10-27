@@ -1,8 +1,7 @@
 # Project Config Template
 
-Create `docs/agents/workflow/config.md` with this shape. Keep stable configuration
-only. Project state belongs in Linear or the configured issue tracker; current
-CI, PR, provider availability, and deployment status are read live.
+Create `docs/agents/workflow/config.md` with this shape. Store stable config;
+project state belongs in the tracker. Read CI/PR/provider/deploy status live.
 
 ```markdown
 # Agent Config
@@ -17,16 +16,15 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Package manager:
 - Install:
 - Full local gate:
-- Gate parity: shared verify entrypoint and required CI job that invokes it;
-  flag required checks outside the entrypoint as a config gap
-- Baseline check policy: required job names and which job post-merge checks judge;
-  store current failures and their repair work in the tracker, not this file
+- Gate parity: shared verify entrypoint and its required CI job; flag outside
+  required checks as config gaps
+- Baseline check policy: required jobs and post-merge target job; failures/repairs
+  belong in the tracker
 - Local gate cache policy: task caches are trusted evidence; list only specific
   tasks whose cache keys miss inputs, or `trusted`
 - CI env passthrough:
 - Separate threshold gates: coverage, smoke, secret scan, generated artifacts, or
-  none; include the exact local command for each hosted job not covered by the
-  full local gate
+  none; exact local command for each hosted job outside the full gate
 - Coverage and secret-scan scope:
 - Focused checks:
 - Build:
@@ -63,27 +61,26 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Label docs:
 - Tracker scope: configured team, project, board, or repo route
 - Routing label:
-- Repo-route label: the label that names the target repo (such as `<org>/<repo>`); required for repository-scoped dispatch; issue-assigned agents also use it to resolve which repo to clone
+- Repo-route label: target repo, such as `<org>/<repo>`; required for repo-scoped dispatch and issue-assigned clone routing
 - Triage scope: Todo, configured intake such as Triage, and active or PR-linked
   current issues by default; Linear Backlog only when explicitly requested
 - Linear Backlog state: Backlog
 - Linear Backlog policy: work the user does not want agents to work yet because
   it is uncommitted, intentionally parked, or not shaped correctly
-- Review-debt intake route: filter, label, project, parent, or status where
-  Agent Review files follow-up findings so triage and orchestration include them
-  by default
+- Review-debt intake route: filter/label/project/parent/status for Agent Review
+  findings; included by triage and orchestration by default
 - Review-debt intake policy: review-created findings are current-work intake.
   Concrete one-PR findings become `kind-slice` with `Bug` or `Tech Debt`, risk,
   route, body contract, and readiness when complete. Broader architecture or
   ambiguous findings become `kind-spec` or `kind-epic` for To Issues or
   `ready-for-human` with the exact decision needed.
-- Friction intake provider: prefer Exposure Ledger MCP when its complaint writer
-  is exposed; another complaint store or tracker only when explicitly configured
+- Friction intake provider: Exposure Ledger MCP when exposed; another store or
+  tracker only when explicitly configured
 - Friction intake writer: exact verified complaint tool and supported attribution fields
 - Friction intake reader: exact verified scoped listing tool, or unavailable
 - Friction intake fallback: explicit provider, writer, location, and mode, or none
-- Friction intake location: team, project, repo, query-safe ID, or dedicated
-  parked ticket where agents write retrospective workflow friction
+- Friction intake location: team/project/repo, query-safe ID, or dedicated parked
+  ticket for retrospective friction
 - Friction intake visibility: public, private, or internal
 - Friction intake mode: mcp-complaint; comments-on-dedicated-ticket or
   ticket-per-finding only for an explicitly configured tracker fallback
@@ -105,10 +102,9 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Ready-state promotion source states: Triage, Backlog
 - Active states: In Progress, Blocked, In Review, Changes Requested, Ready to Merge
 - Done state: Done
-- Status transition owner: Issue Triage may reconcile verified stale states and move complete configured intake tickets to ready state during a normal triage run; Linear Backlog promotion requires explicit Linear Backlog review or backfill; Agent Orchestrator owns active workflow transitions
-- Code-host issue sync policy: for Linear + GitHub, assume linked tickets and PRs
-  are synced when both exist; Linear may advance ticket states from PR status, so
-  refresh both before manual state repair
+- Status transition owner: Triage reconciles proven stale states and promotes complete configured intake during normal runs; Backlog promotion requires explicit review/backfill; Orchestrator owns active transitions
+- Code-host issue sync policy: assume linked Linear/GitHub records sync; refresh
+  both before manual repair because PR status can advance tickets
 - Readiness labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix
 - Readiness label policy:
   - ready-for-agent: no further human refinement is needed before agent handoff; requires one primary outcome plus concrete in-scope and out-of-scope boundaries; does not mean unblocked or startable; remove when the issue moves to Done
@@ -171,11 +167,9 @@ Project state: configured issue tracker. This file stores stable configuration o
   files/packages for review-created `kind-slice` tickets before Orchestrator can
   dispatch them
 - Agent-ready issue body: outcome, context docs, likely files/packages/artifacts,
-  in scope, out of scope, acceptance criteria, required checks, safety
-  invariants, dependencies, and estimate when body-backed estimates are
-  configured. In scope names what this PR may change; out of scope names
-  adjacent tickets, optional polish, broad refactors, production actions, and
-  follow-up behavior the worker must not deliver
+  in scope, out of scope, acceptance criteria, required checks, safety invariants, dependencies,
+  configured body-backed estimate. In scope permits changes; out of scope bars
+  sibling tickets, optional polish, broad refactors, production, and follow-up behavior
 - Hard config literal policy: where exact provider resource IDs, secret names,
   label slugs, environment values, and other worker-critical literals are
   recorded so worker prompts do not depend on old issue comments
@@ -191,10 +185,9 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Capacity policy:
 - Worker concurrency cap: max active implementation or repair sessions (default
   3 if unset)
-- Worker count policy: count distinct confirmed sessions until provider
-  lifecycle confirms return, stop, or failure. A linked or newly opened PR does
-  not release a live worker. Human assignees, open PRs, previews, and abandoned
-  worktrees do not occupy worker slots by themselves
+- Worker count policy: distinct confirmed sessions until provider-confirmed
+  return/stop/failure; PR creation does not release them. Humans, PRs, previews,
+  and abandoned worktrees alone consume no slots
 - Worker identity policy: canonical v3 handoffs preserve receipt/session IDs
   separately from tracker issue UUID/key, PR number, and worktree path.
   Deduplicate confirmed sessions, or receipts without a session, without merging
@@ -203,23 +196,20 @@ Project state: configured issue tracker. This file stores stable configuration o
   even without a confirmed session
 - Partitioned-scope cap semantics: record whether concurrent orchestrator runs
   share one repo-wide worker pool and how they reserve slots
-- Dispatch footprint policy: before fanning out startable work, compare predicted
-  file or package footprints against active PRs, active worker branches, and other
-  selected candidates, including shared document hotspots. Hold collisions or
-  concrete collisions. Start one unknown-footprint lane when nothing can collide;
-  otherwise derive the footprint in the same tick
+- Dispatch footprint policy: compare predicted files/packages with active PRs,
+  branches, selected candidates, and shared doc hotspots. Hold concrete collisions.
+  Start one unknown-footprint lane only when nothing can collide; otherwise derive
+  the footprint in the same tick
 - Worktree hygiene policy: configured disposable worktree root or prefixes,
   prune command, and orphan-removal guard. Only orchestrator-owned disposable
   worktrees may be removed automatically
 - Saturation policy: every tick advances actionable PR state and fills every safe
   worker slot. Record an explicit collision, authority, provider, or budget
   reason for each idle slot while ready work exists
-- PR closure guard: capacity pressure is not a closure reason. Orchestrator may
-  close PRs only with refreshed code-host and tracker evidence of duplicate,
-  explicitly canceled or abandoned, already-terminal, or security/policy-required
-  work. Draft, active, recently updated, or unclear-ownership PRs stay open and
-  remain file seams or active work to advance. PR age, draft status, and
-  worker pressure are not abandonment evidence
+- PR closure guard: refreshed code-host/tracker evidence must prove duplicate,
+  explicitly canceled/abandoned, terminal, or security/policy-required closure.
+  Keep draft, active, recently updated, or unclear-ownership work open as file
+  seams/work to advance. Age, draft status, and capacity pressure never prove abandonment
 - Stuck-worker timeout: ticks or wall-clock with no branch/PR/worker signal before nudge, re-dispatch, or escalation
 - Duplicate worker or PR policy: idempotency key, session-handle source, and how
   to choose a canonical PR when one dispatch creates more than one session
@@ -257,11 +247,9 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Merge authority:
 - Claim record:
 - Orchestrator local state:
-- Verified-ready ticket-set policy: when the user scopes a set of tickets that
-  has already been reviewed as implementation-ready, Orchestrator owns moving
-  every ticket through implementation, PR, review, and merge, and repairs routine
-  label, status, route, handoff, and review-evidence mismatches from current
-  evidence
+- Verified-ready ticket-set policy: Orchestrator advances every user-scoped ready
+  ticket through implementation/PR/review/merge and repairs clear label, status,
+  route, handoff, and review-evidence drift from current evidence
 - Completely-blocked stop policy: stop the recurring orchestrator run for the
   scoped queue when no startable tickets, PRs or previews to advance, stuck
   workers to nudge, checks to rerun or route, stale metadata repairs, or
@@ -298,7 +286,7 @@ Project state: configured issue tracker. This file stores stable configuration o
   local cache, absent, or repo-authored project-specific skills
 - Issue-assigned agents: none, or project-specific routing/continuation notes
 - Issue-assigned delegation: tool or field, verified agent names or IDs, and continuation path
-- Issue-assigned continuation replies: reply into the agent-session thread (its thread-root comment's parentId); top-level issue comments are not continuation unless verified here. For Linear + Cursor this is the "agent session" thread; record the session handle (such as the cursor.com/agents/bc-id URL)
+- Issue-assigned continuation replies: agent-session thread-root parentId; top-level comments only if verified here. Linear/Cursor uses its "agent session" thread; record the cursor.com/agents/bc-id session URL
 - Issue-assigned liveness signals: session reply, branch, PR, check activity, or provider-specific signal that proves the worker is alive
 - Issue-assigned stuck-worker policy: nudge the existing continuation target before re-delegating unless current evidence proves the session cannot continue
 - Issue-assigned duplicate-dispatch policy: check for multiple session handles,
@@ -360,12 +348,10 @@ Project state: configured issue tracker. This file stores stable configuration o
 - Cursor Bugbot command policy: use only the verified repo-configured trigger or
   automatic review policy; if trigger or actor is unknown, record the gap rather
   than guessing; keep that follow-up outside config
-- Draft PR policy: open draft by default; draft means not yet independently
-  reviewed. CI runs on the draft and hosted reviewers skip it, so local review
-  fixes land first. Agent Orchestrator marks it ready-for-review after a clean
-  review of the current diff and verifies it is non-draft. A PR kept draft for
-  human prep is pre-review. Draft PRs consume file-contention seams but not
-  worker slots unless a worker is actively repairing them
+- Draft PR policy: open draft for CI/local independent review and fixes before
+  hosted review. Orchestrator marks ready after clean current-diff review and
+  verifies non-draft. Human-prep drafts remain pre-review. Drafts reserve files,
+  not worker slots unless a worker is actively repairing them
 - Ready-for-review owner: Create PR opens draft; Agent Orchestrator marks it
   ready after a clean independent review
 - Issue update: PR URL in the PR body links the issue; evidence comments are
@@ -401,79 +387,50 @@ Project state: configured issue tracker. This file stores stable configuration o
   change merge authority, or push to the default branch
 ```
 
-Keep the generated config terse. Include fields only when they give agents
-values they will reference repeatedly. Prefer explicit commands, exact tracker
-names, and provider IDs where the tracker exposes them. Omit unverified values
-and record actionable verification work in the configured tracker within
-authorized scope. Missing required fields block their workflow. If the repo
-differs from the org-wide defaults, document the mapping in this file instead of
-changing the shared skills.
+Keep config terse. Include repeatedly used values, exact commands, query-safe
+tracker names, and provider IDs. Omit unverified values; record authorized
+verification follow-ups in the tracker. Required gaps block their workflow.
+Map repo differences here rather than changing shared skills.
 
-Initial setup and explicit full verification cover every applicable populated
-value. A scoped refresh verifies changed or suspect fields and dependencies,
-preserving unrelated stable mappings without claiming they were revalidated.
-Do not persist an
-`Unknowns` checklist, verification transcript, open-work inventory, active
-claims, current CI/PR health, provider budget, or session availability in config.
-Status IDs, label mappings, capacity limits, and approval rules are stable
-configuration; current status values, active counts, and blockers are state.
+Initial/full verification covers every applicable populated value. Scoped
+refresh covers changed/suspect fields and dependencies without claiming unrelated
+revalidation. Keep Unknowns, transcripts, open work, claims, CI/PR health,
+provider budgets, and session availability out of config. IDs, mappings,
+capacity limits, and approval rules are stable; counts and blockers are state.
 
-Provider locations must be query-safe. Store the exact ID, key, or display name
-accepted by the tracker tool, plus the read-only query that verified it. Do not
-store only a repo slug when the provider requires a different team, project, or
-board name.
+Store provider IDs/keys/names accepted by the tracker tool and the verifying
+read-only query. A repo slug alone may not resolve a team/project/board.
 
-Triage scope should describe current work, not the whole Linear Backlog state or
-Orchestrator delivery scope. By default, Issue Triage reviews Todo, configured
-intake such as Triage, and active or PR-linked issues, verifies their labels,
-body contracts, blockers, and external
-state, and marks proven merged work done. Linear Backlog, roadmap, someday, or
-out-of-work-queue states are reviewed only when the user explicitly asks for
-Linear Backlog review or first-run Linear Backlog backfill. Linear Backlog is
-where uncommitted, intentionally parked, or incorrectly shaped tickets stay until
-the user asks triage to promote or repair them.
+Triage scope is current work, separate from Orchestrator delivery scope.
+Default triage covers Todo, configured intake, and active/PR-linked work:
+labels, bodies, blockers, external evidence, and proven merged work. Linear
+Backlog, roadmap, someday, and other out-of-queue work require an explicit
+Backlog review/backfill request. Backlog holds uncommitted, parked, or unshaped work.
 
-If a repo keeps separate label docs such as `docs/agents/triage-labels.md`, make
-those docs mirror this config or point back here. Do not leave separate docs with
-only readiness labels while risk, type, area, or ownership labels live elsewhere.
+Separate label docs must mirror or link config, covering readiness, risk, type,
+area, and ownership consistently.
 
-State authority lives in external systems; these fields name authorities and
-never contain snapshots of their current contents:
+State-authority fields name systems, never current contents:
 
-- issue workflow state lives in the configured issue tracker
-- claim records live in the configured issue tracker as supported fields,
-  assignments, labels, and comments
-- branch and PR state lives in the code host
-- check and preview state lives in CI, preview, or hosted check providers
-- deployment state lives in the deployment provider
-- Orchestrator local state is non-authoritative scratch or checkpoints only
+- Workflow/claims: tracker fields, assignments, labels, comments.
+- Branches/PRs: code host.
+- Checks/previews: CI, preview, hosted check provider.
+- Deployments: deployment provider.
+- Local orchestration state: non-authoritative scratch/checkpoints.
 
-Every configured readiness or worker environment label needs a short treatment
-policy in this file. `ready-for-agent` should answer "does a human need to refine
-this ticket before I hand it to an implementation agent?" It must not be used as
-a dependency, status, or scheduling signal, and it must be removed when the
-ticket moves to Done. It also requires a concrete scope boundary: one primary
-outcome, explicit in-scope work, and explicit non-goals. Worker environment
-labels such as `remote-cursor` should answer "is this issue allowed to run in
-that configured environment?" They must not be used as dependency, status, or
-scheduling signals.
+Give each readiness/environment label a treatment policy.
+`ready-for-agent` means no human refinement remains, with one outcome and
+explicit scope/non-goals. Remove it at Done. Environment labels mean approval
+to run there. Neither label represents dependencies, status, or scheduling.
+See [issue-tracker-contract.md](issue-tracker-contract.md) for the readiness rules.
 
-Dependency blockers should be represented as tracker blocker relationships when
-the provider supports them. Otherwise record ticket IDs and direction in the
-configured dependencies or blockers body section. Do not leave ready
-implementation work in Linear Backlog because it depends on another ticket; keep
-it in the configured ready state and let Orchestrator compute the ready frontier
-from the dependency tree.
+Use tracker blocker relationships when supported; otherwise record ticket IDs
+and direction in the configured body section. Keep ready dependent slices in
+the ready state; blockers determine their dispatch frontier, not Backlog placement.
+Exclude Done from readiness-label queries by default. Remove stale labels when
+Done tickets are touched; do not load terminal tickets merely to rediscover drift.
 
-The tracker query contract should exclude the configured Done state from
-readiness-label queues such as `ready-for-agent` and `ready-for-human`. Done
-cleanup still removes stale readiness labels when a Done ticket is touched, but
-the normal queue should not load terminal tickets just to rediscover that label
-drift.
-
-Issue-assigned worker config should be stable enough for Orchestrator to act
-without probing real work. Record the configured worker path, environment labels
-or fields, environment approval labels, delegation tool or field, known agent
-names or IDs when verified, and the capacity policy. If the tool cannot
-expose assignable agents through a read-only query, report the evidence gap and
-omit the unverified value instead of discovering it by assignment.
+Record verified issue-assigned paths, labels/fields, environment approval,
+delegation tools/fields, agent names/IDs, and capacity policy. If read-only
+metadata cannot expose assignable agents, report the gap and omit unverified
+values. Never probe by assigning real work.
