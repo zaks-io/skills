@@ -17,12 +17,12 @@ states; other states, such as `Backlog`, only when the user names them.
 
 ## Steps
 
-1. Run the snapshot for the scope, then the dependency check:
+1. Run the snapshot for the scope:
 
    ```sh
    node <skill-dir>/../ziw-orchestrate/scripts/tick-snapshot.mjs --repo <owner/repo> \
-     --linear-team <team> --linear-states <intake>,<ready> > /tmp/triage-snapshot.json
-   node <skill-dir>/../ziw-orchestrate/scripts/linear-dag-start.mjs /tmp/triage-snapshot.json
+     --linear-team <team> --linear-route-label <route label> \
+     --linear-states <intake>,<ready> > /tmp/triage-snapshot.json
    ```
 
    If the snapshot skipped the tracker, list the scope once with tracker tools
@@ -34,8 +34,8 @@ states; other states, such as `Backlog`, only when the user names them.
    - **To Issues**: too big, vague, a container, or missing body sections. Add
      `needs-info` with the exact gap.
    - **Human**: needs a human decision. Add `ready-for-human` and the question.
-   - **Leave**: in progress, has a PR, duplicate, or parked. Orchestrate owns
-     active work; note anything stale for it.
+   - **Leave**: in progress, has a PR, a duplicate, or parked outside the
+     requested scope. Orchestrate owns active work; note anything stale for it.
 
    For To Issues and Human, also remove `ready-for-agent` and move the ticket
    to the intake state.
@@ -43,13 +43,20 @@ states; other states, such as `Backlog`, only when the user names them.
 3. Fix metadata the evidence makes obvious: a missing route, kind, or risk
    label, and blockers stated in a ticket or its spec. Make one combined update
    per ticket.
-4. Report cycles and blockers the dependency check found, with the fix or owner
-   for each.
+4. Rerun the snapshot, then the dependency check, and report its cycles and
+   blockers with the fix or owner for each:
+
+   ```sh
+   node <skill-dir>/../ziw-orchestrate/scripts/linear-dag-start.mjs /tmp/triage-snapshot.json
+   ```
+
+   If you listed tickets with tracker tools, pass them as a JSON array instead.
 
 ## Rules
 
 - Read only the tracker, config, cited specs, and script output. Never read
   code, PRs, or CI to decide scope or order.
+- Change only tickets in the requested scope.
 - Don't close, cancel, reprioritize, or rewrite scope unless asked.
 - If the tracker rate-limits you, stop all tracker calls and report the
   changes still pending.

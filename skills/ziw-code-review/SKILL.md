@@ -16,7 +16,8 @@ Review a diff and report what's wrong with it. Change nothing. Rules follow the
 
 A working tree, branch, PR, or commit range; its base; and the ticket or
 request that states what it should do. Orchestrate also passes the diff
-fingerprint and, for a follow-up review, the head to review changes since.
+fingerprint and, for a follow-up review, the head to review changes since and
+the earlier findings.
 
 ## Modes
 
@@ -30,7 +31,7 @@ fingerprint and, for a follow-up review, the head to review changes since.
 
 1. Fetch, then record the head SHA, base, and merge base. Review against the
    merge base. For a follow-up, compare `git diff <base>...<deltaFrom>` with
-   `git diff <base>...HEAD`.
+   `git diff <base>...<head>`, and confirm each earlier finding is fixed.
 2. Read the ticket's acceptance criteria and the docs it cites.
 3. Read the diff and the code around it. Look for bugs, missing criteria, and
    work outside the ticket's scope. For anything beyond a small, low-risk
@@ -65,9 +66,10 @@ Findings:
 Verdict: APPROVE | NEEDS REVISION
 ```
 
-A `FAIL` row, or any P0 or P1 finding, means `NEEDS REVISION`. For a tiny
-change, a three-line report is enough: verdict, head, and findings or
-"No findings."
+A `FAIL` row, an unfixed earlier finding, or any P0 or P1 finding means
+`NEEDS REVISION`. Independent reviews always include the criteria table. For a
+tiny change in author QA, a three-line report is enough: verdict, head, and
+findings or "No findings."
 
 ## Rules
 

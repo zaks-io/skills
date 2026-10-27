@@ -26,7 +26,8 @@ only diagnose.
    hypothesis.
 5. If fixing: write a failing test or reproducer, make the smallest fix, and
    rerun the reproducer and affected checks.
-6. Remove any temporary logging or services you added.
+6. Revert experiment changes, temporary logging, and services you added before
+   the next hypothesis and before reporting. Keep only an authorized fix.
 
 For harder cases, load the matching guide:
 [tracing across layers](references/tracing.md),

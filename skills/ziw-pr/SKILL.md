@@ -16,13 +16,12 @@ checks it ran.
 
 ## Steps
 
-1. Read `git status` and the diff. If you're on the default branch, create a
-   branch named `<prefix>/<ticket>-<slug>`.
-2. Stop if the diff contains a secret or work outside the ticket.
-3. Stage everything except secrets, `.env` files, and unintended lockfile
-   changes. If you changed a dependency manifest, run the install so the
-   lockfile matches.
-4. Commit with a Conventional Commits message, then push.
+1. Read `git status`, the diff, and any new files. If you're on the default
+   branch, create a branch named `<prefix>/<ticket>-<slug>`.
+2. Stop if the changes contain a secret or work outside the ticket.
+3. If you changed a dependency manifest, update the lockfile first. Then stage
+   everything except secrets, `.env` files, and unintended lockfile changes.
+4. Commit any staged changes with a Conventional Commits message, then push.
 5. If a hook fails or the push is rejected, fix the cause and try again. Stop
    after three rounds, or sooner if the same failure survives two fixes.
 6. Open a draft PR, or update the existing one, with this body, and put the

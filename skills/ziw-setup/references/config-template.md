@@ -60,7 +60,8 @@ stable values: no secrets, status, or progress.
   "readyState": "Todo",
   "inProgressState": "In Progress",
   "mergeAuthority": "human",
-  "hostedReviewRiskTiers": ["high"]
+  "hostedReviewRiskTiers": ["high"],
+  "hostedReviewBots": ["coderabbitai"]
 }
 ```
 

@@ -8,23 +8,23 @@ words from `wc -w`, including frontmatter and Markdown.
 | Skill              | Before | After |
 | ------------------ | -----: | ----: |
 | `ziw-architecture` |    456 |   184 |
-| `ziw-code-review`  |  1,618 |   422 |
-| `ziw-debug`        |    714 |   243 |
+| `ziw-code-review`  |  1,618 |   447 |
+| `ziw-debug`        |    714 |   256 |
 | `ziw-grill`        |    802 |   329 |
 | `ziw-implement`    |  1,200 |   346 |
-| `ziw-orchestrate`  |  1,145 |   910 |
-| `ziw-pr`           |    936 |   275 |
+| `ziw-orchestrate`  |  1,145 |   974 |
+| `ziw-pr`           |    936 |   279 |
 | `ziw-setup`        |    927 |   233 |
 | `ziw-to-issues`    |  1,783 |   368 |
-| `ziw-triage`       |  1,968 |   344 |
+| `ziw-triage`       |  1,968 |   378 |
 
 ## Common paths
 
 | Path                 | Before | After | Files after                     |
 | -------------------- | -----: | ----: | ------------------------------- |
-| One Orchestrate tick |  6,561 | 1,472 | `SKILL.md`, `workflow.md`       |
-| One Triage run       |  4,672 |   906 | `SKILL.md`, `workflow.md`       |
-| All published skills | 32,509 | 6,990 | 18 Markdown files, down from 36 |
+| One Orchestrate tick |  6,561 | 1,536 | `SKILL.md`, `workflow.md`       |
+| One Triage run       |  4,672 |   940 | `SKILL.md`, `workflow.md`       |
+| All published skills | 32,509 | 7,132 | 18 Markdown files, down from 36 |
 
 ## Budget
 

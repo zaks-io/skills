@@ -15,24 +15,27 @@ says how to carry out each action. Terms and rules follow the
 
 Repo config, `docs/agents/workflow/planner.json`, the planner state file, and a
 scope: ticket IDs, a filter or project, or by default all ready and active
-tickets. Optional limits on workers, ticks, or time.
+tickets. Optional limits on ticks or time. For a worker limit, plan with a copy
+of `planner.json` that lowers `workerConcurrencyCap`.
 
 ## Each tick
 
-1. Plan:
+1. Plan. On the first tick, create the state file as `{}`.
 
    ```sh
    S=<skill-dir>/scripts
    node $S/tick-snapshot.mjs --repo <owner/repo> --linear-team <team> \
-     --state <state-file> > /tmp/snapshot.json
+     --linear-route-label <route label> --state <state-file> > /tmp/snapshot.json
    node $S/tick-plan.mjs /tmp/snapshot.json \
      --config docs/agents/workflow/planner.json --state <state-file>
    ```
 
-   For named tickets, set `scopeIssues` in the state file to
-   `[{"issueKey": "EXA-1"}]` first. If the snapshot skipped the tracker, fetch
+   For named tickets, a project, or a filter, first set `scopeIssues` in the
+   state file to the scope's tickets, such as `[{"issueKey": "EXA-1"}]`. Leave
+   it unset for the default scope. If the snapshot skipped the tracker, fetch
    the scope with tracker tools, add the tickets to the state file as
-   `linearIssues`, and plan again.
+   `linearIssues`, each with a `footprint` listing its Likely files, and plan
+   again.
 
 2. Do every entry in `actions`, using the table below. Start workers first.
 3. Leave `waits` alone; they clear on their own. Report each `hold` with its
@@ -49,8 +52,8 @@ If a script fails, stop and report the error.
 
 - `dispatch`: move the ticket to `targetState`, then
   [start a worker](#start-a-worker). If the move fails, don't start.
-- `derive-footprint`: add the ticket's Likely files to `startableTickets` in
-  the state file and plan again. If it lists none, send it to Triage.
+- `derive-footprint`: the ticket has no Likely files the planner can read.
+  Send it to Triage.
 - `promote-ready`: move the ticket to `targetState`.
 - `request-review`: [get a review](#get-a-review).
 - `route-fix`, `route-review-fix`, `route-check-fix`, `route-conflict-fix`:
@@ -99,8 +102,9 @@ Add it to `dispatches` in the state file:
 ```
 
 Use `receiptId` instead of `sessionId` when the launcher returns only a
-receipt. Set `status` to `returned` when the worker reports back, and to
-`failed` if it dies. Send later instructions to the same worker.
+receipt. Set `status` to `returned` when the worker reports back, back to
+`running` when you send it more work, and to `failed` if it dies. Send later
+instructions to the same worker.
 
 ## Get a review
 
@@ -109,7 +113,8 @@ conversation, on a different model from the author when one is available:
 
 > Use `ziw-code-review` in independent mode on `<PR URL>`. Base `<base>`.
 > Fingerprint `<reviewDiffFingerprint>`. Review only changes since
-> `<deltaFrom>`, if given. Criteria: `<ticket URL>`.
+> `<deltaFrom>`, if given, and confirm these earlier findings are fixed:
+> `<findings>`. Criteria: `<ticket URL>`.
 
 While it runs, record
 `{"reviewDiffFingerprint": "<fingerprint>", "status": "running"}` under the PR
@@ -123,7 +128,8 @@ in `reviewRequestsByPr`, so the next tick doesn't start a second review. Set
   "reviewedDiffFingerprint": "fp1",
   "reviewVerdict": "APPROVE",
   "independentReviewCount": 1,
-  "conformance": "PASS"
+  "conformance": "PASS",
+  "conformanceHeadSha": "h1"
 }
 ```
 
@@ -135,8 +141,8 @@ stop reviewing it and ask a human.
 
 ## Before a merge
 
-Re-read the PR. If its head, checks, or open review threads changed since the
-snapshot, do nothing now and let the next tick replan.
+Re-read the PR. If its head, checks, review decision, or open review threads
+changed since the snapshot, do nothing now and let the next tick replan.
 
 ## Merge
 
