@@ -22,7 +22,7 @@ states; other states, such as `Backlog`, only when the user names them.
    ```sh
    node <skill-dir>/../ziw-orchestrate/scripts/tick-snapshot.mjs --repo <owner/repo> \
      --linear-team <team> --linear-route-label <route label> \
-     --linear-states <intake>,<ready> > /tmp/triage-snapshot.json
+     --linear-states <scope states> > /tmp/triage-snapshot.json
    ```
 
    If the snapshot skipped the tracker, list the scope once with tracker tools
@@ -50,7 +50,8 @@ states; other states, such as `Backlog`, only when the user names them.
    node <skill-dir>/../ziw-orchestrate/scripts/linear-dag-start.mjs /tmp/triage-snapshot.json
    ```
 
-   If you listed tickets with tracker tools, pass them as a JSON array instead.
+   If you listed tickets with tracker tools, list them again and pass them as a
+   JSON array instead.
 
 ## Rules
 

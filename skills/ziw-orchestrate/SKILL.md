@@ -31,8 +31,8 @@ of `planner.json` that lowers `workerConcurrencyCap`.
    ```
 
    For named tickets, a project, or a filter, first set `scopeIssues` in the
-   state file to the scope's tickets, such as `[{"issueKey": "EXA-1"}]`. Leave
-   it unset for the default scope. If the snapshot skipped the tracker, fetch
+   state file to the scope's tickets, such as `[{"issueKey": "EXA-1"}]`. Remove
+   it for the default scope. If the snapshot skipped the tracker, fetch
    the scope with tracker tools, add the tickets to the state file as
    `linearIssues`, each with a `footprint` listing its Likely files, and plan
    again.
