@@ -159,8 +159,8 @@ Collectors and handoffs emit snapshot `v: 3` with array queue collections.
 - The current diff is `reviewDiffFingerprint`, with alias
   `reviewRelevantDiffFingerprint`. Reviewed identity is `reviewedDiffFingerprint`,
   with alias `reviewedReviewDiffFingerprint`, plus `reviewedHeadSha`.
-- Startable records name eligible workers in `eligibleWorkers`, with aliases
-  `workerPaths`, `allowedWorkers`, or `workers`.
+- `eligibleWorkers` accepts aliases `workerPaths`, `allowedWorkers`, or `workers`.
+  `normalizeLinearIssue` does not derive it from environment labels.
 
 ## Worker counting and selection
 

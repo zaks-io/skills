@@ -50,10 +50,14 @@ The cap is `Worker concurrency cap`, default 3 implementation or repair sessions
 Follow the planner's capacity and holds.
 
 - Record every dispatch in the ledger as a [state record](planner-input.md#state-records).
-- One confirmed live session is one slot until the provider confirms return,
+- One confirmed live worker is one slot until the provider confirms return,
   stop, or failure. Opening a PR does not free it.
-- Count each confirmed session once, from the ledger or a repo-scoped tracker
-  claim, even when two share an issue or branch.
+- Count each worker once by confirmed session, or by receipt when no session
+  is known, from the ledger or a repo-scoped tracker claim. Two workers sharing
+  an issue or branch are two slots.
+- A terminal receipt frees a tracker-claim slot only when it names the same
+  session. Current live observations outrank older terminal receipts, since
+  receipts may be reused.
 - PRs, previews, worktrees, and human assignees are not workers. They still
   reserve files and delivery.
 - A live worker, open PR, or claim on an issue prevents another dispatch for it.

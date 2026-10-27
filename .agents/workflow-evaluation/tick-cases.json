@@ -6,8 +6,8 @@
     "observations": {
       "config": "Worker concurrency cap 2. Ready state Todo, readiness label ready-for-agent, merge authority human. Local worker path only.",
       "ledger": "Session S1 on EXA-20 is recorded running. Session S2 on EXA-21 is recorded running.",
-      "provider": "The worker runtime reports S1 still running; it opened draft PR 31 for EXA-20 ten minutes ago. The runtime reports S2 returned, with draft PR 32 for EXA-21 and required checks passing.",
-      "planner": "tick-plan reports headroom 1, selects EXA-22 for dispatch, defers EXA-23 because worker concurrency headroom is already allocated, and emits request-review for PR 32 with reviewDiffFingerprint patch-id:abc. PR 31 has no action because its worker is running.",
+      "provider": "The worker runtime reports S1 still running; it opened draft PR 31 for EXA-20 ten minutes ago and pushed to it two minutes ago. The runtime reports S2 returned, with draft PR 32 for EXA-21. Required checks pass on the current heads of both PRs.",
+      "planner": "tick-plan reports headroom 1, selects EXA-22 for dispatch, and defers EXA-23 because worker concurrency headroom is already allocated. It emits request-review for PR 31 with reviewDiffFingerprint patch-id:def and for PR 32 with patch-id:abc, and reports WORKER_RUNNING for S1.",
       "tool_responses": "Claiming EXA-22 returns In Progress. The worker runtime launch for EXA-22 returns receipt R-88 and no session ID."
     }
   },
@@ -18,8 +18,8 @@
     "observations": {
       "planner": "tick-snapshot succeeds. tick-plan cannot run in this environment: Node exits before loading the script. No planner output exists.",
       "config": "Worker concurrency cap 3. Remote worker path remote-cursor and local worker path local-codex. Local budget soft stop 80 percent and hard stop 95 percent; per-tick local start limit 2. No default worker path.",
-      "state": "Local budget usage reads 82 percent. Ledger: session S1 on EXA-30 running, footprint packages/api/**. A human is assigned to EXA-31 in In Progress with no session. A dirty worktree for an old branch has no linked issue and touches docs/guide.md.",
-      "candidates": "All are complete, unblocked ready-for-agent slices in Todo. EXA-32: eligible local-codex, footprint packages/web/**, unlocks 2 tickets. EXA-33: eligible remote-cursor, footprint packages/cli/**, unlocks 1. EXA-34: eligible remote-cursor, footprint packages/api/routes.ts, unlocks 3. EXA-35: no eligible worker listed, footprint packages/jobs/**, unlocks 0.",
+      "state": "Local budget usage reads 82 percent. Ledger: session S1 on EXA-30 running, footprint packages/api/**; receipt R-5 on EXA-36 running with no session ID, footprint packages/search/**, and the runtime confirms R-5 is still running. A human is assigned to EXA-31 in In Progress with no session. A dirty worktree for an old branch has no linked issue and touches docs/guide.md.",
+      "candidates": "All are complete, unblocked ready-for-agent slices in Todo. EXA-32: eligible local-codex, footprint packages/web/**, unlocks 2 tickets. EXA-33: eligible remote-cursor, footprint packages/cli/**, unlocks 1. EXA-34: eligible remote-cursor, footprint packages/api/routes.ts, unlocks 3. EXA-35: no eligible worker listed, footprint packages/jobs/**, unlocks 0. EXA-37: eligible remote-cursor, footprint packages/billing/**, unlocks 0.",
       "authority": "Tracker claims and both worker paths are authorized."
     }
   },

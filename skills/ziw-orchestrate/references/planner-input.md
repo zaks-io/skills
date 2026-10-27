@@ -62,6 +62,8 @@ Markdown file. Include only schema fields.
 The state file carries what only you know: the worker ledger, requested scope,
 budget usage, and review evidence.
 
+- Hand-built snapshots and state use `v: 3` with array collections. An
+  omitted version parses as legacy v2.
 - Identify issues by `issueKey`, `issueUuid`, or both. Arrays such as
   `linkedIssues`, `blockedBy`, and `state.scopeIssues` hold typed references,
   such as `{ "issueKey": "SKI-12" }`.
@@ -73,6 +75,9 @@ budget usage, and review evidence.
   empty list authorizes no starts. Omit it for queue-wide runs; never store it
   in Repo Config.
 - Set `localBudgetUsagePercent` only from a real budget reading.
+- List each startable ticket's approved worker paths in `eligibleWorkers`,
+  only after its environment approval criteria pass. Without them, the planner
+  routes the ticket to `defaultWorkerPath`.
 - Link PRs to issues only through explicit issue fields or `linkedIssues`.
   Branch names and titles never grant PR authority.
 - Clean review evidence needs an explicit `reviewVerdict`, a positive

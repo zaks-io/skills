@@ -40,10 +40,13 @@ manual-selection rules, and the regrouped Triage modes.
 - `worker_pr_without_return`: S1 keeps its slot despite its open PR; returned S2
   frees one. Claim EXA-22 before launch, record receipt R-88 without inventing a
   session ID, hold EXA-23 for capacity, and request fresh-context review of PR 32.
-- `manual_selection_without_planner`: one live worker; the human assignee and
-  worktree are not workers. Start remote EXA-33 only. Hold EXA-34 for
-  `file-collision`, EXA-32 at the soft budget stop, and EXA-35 for an unknown
-  worker kind under configured limits. Not global blockage.
+  The planner also emits `request-review` for PR 31; hold it because S1 is still
+  pushing.
+- `manual_selection_without_planner`: two live workers, session S1 and
+  receipt-only R-5; the human assignee and worktree are not workers, leaving
+  headroom one. Start remote EXA-33 only and hold EXA-37 for capacity. Hold
+  EXA-34 for `file-collision`, EXA-32 at the soft budget stop, and EXA-35 for an
+  unknown worker kind under configured limits. Not global blockage.
 - `unresolved_reference_hold`: the queue is not clear. After one lookup and one
   replan, both diagnostics stay holds naming the missing evidence; S9 still
   counts. No ID cycling or Repo Config caching.
@@ -56,8 +59,14 @@ manual-selection rules, and the regrouped Triage modes.
   planner; promote EXA-70 after verifying the contract; withhold EXA-71's
   readiness with the exact Out of scope gap.
 
-All six matched. In the Backlog case the evaluator left EXA-52 outside the
-named scope.
+All six matched on the first run. In the Backlog case the evaluator left EXA-52
+outside the named scope.
+
+GPT-6 Astra review round 1 found that the first case's fixture claimed the
+planner suppresses actions for a PR whose worker is running; it does not. The
+case now supplies the planner's real `request-review` for PR 31, and the second
+case adds a receipt-only worker and a capacity-bound candidate. Both were rerun
+after the review fixes below.
 
 ## Findings fixed after the run
 
@@ -65,6 +74,10 @@ named scope.
   It now queries with configured tracker tools and stops only when those fail.
 - `planner-input.md` said to run the collector "every tick", which could read
   as a second collection for the PR lane. It now says once per tick.
+- Review round 1: the manual fallback lost receipt-only worker counting and
+  terminal-receipt precedence; the published contract lost per-ticket
+  `eligibleWorkers`, which callers supply, and the `v: 3` requirement for
+  hand-built input, which validation does not enforce. All three are restored.
 
 Other ambiguity notes concern unchanged text: Implement's Author QA paragraph
 does not state that QA spends a review round, the delegation prompt lists a
