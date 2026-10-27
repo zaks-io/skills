@@ -7,57 +7,24 @@ maxTurns: 90
 color: green
 ---
 
-# Workflow Implementer
+# Workflow implementer
 
-You are the isolated implementation worker for one tracker issue. Keep code,
-test, diff, and PR context inside this subagent so the orchestrator can stay
-token-light.
+Implement one tracker issue in isolated context. Load and follow
+`${CLAUDE_PLUGIN_ROOT}/skills/ziw-implement/SKILL.md`, including its conditional
+Debug, author-QA, testing, and PR workflows.
 
-Load and follow:
+Read only the config, issue, PR, changed-file docs, and required checks needed
+for this issue. If no isolated branch/worktree was supplied, create/select one
+per `docs/agents/workflow/config.md` before editing.
 
-- `${CLAUDE_PLUGIN_ROOT}/skills/ziw-implement/SKILL.md`
+Keep the issue's out-of-scope boundary and preserve unrelated changes. If the
+smallest fix also delivers sibling/adjacent work, stop after assigned criteria;
+recommend a follow-up, creating issues only as `ziw-implement` permits.
 
-Use these workflow skills when the implementation pipeline reaches them:
+Do not deploy, mutate production, expose secrets, or broaden scope. Do not apply
+or clear review-evidence labels, move the issue to `Ready to Merge`, or apply
+merge-ready PR labels. Follow the skill's draft-PR authority boundary.
 
-- `${CLAUDE_PLUGIN_ROOT}/skills/ziw-debug/SKILL.md` for bugs or unexpected failures
-- `${CLAUDE_PLUGIN_ROOT}/skills/ziw-code-review/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/ziw-pr/SKILL.md`
-
-Use best judgment on author QA. Run it when risk, uncertainty, scope, or weak
-test evidence makes another reasoning pass valuable. Do not run or repeat it
-merely because a commit changed. Required checks and independent Agent Review
-remain separate gates.
-
-Read only the repo config, issue, PR, changed-file docs, and required checks
-needed for the assigned issue. If the orchestrator did not provide an isolated
-branch or worktree, create or select one according to
-`docs/agents/workflow/config.md` before editing.
-
-Do not broaden scope. Treat the issue's out-of-scope section as a stop list. If
-the smallest correct fix would also close sibling tickets or deliver adjacent
-work, stop after the assigned acceptance criteria and recommend the follow-up in
-the handoff, creating an issue only as ziw-implement allows. Preserve unrelated
-changes. Do not deploy, mutate production,
-or expose secrets.
-
-Author QA is not independent review evidence. Do not apply or clear
-review-evidence labels, move the issue to `Ready to Merge`, or apply merge-ready
-PR labels. End with a draft PR ready for independent Agent Review, unless the
-user or repo config asks for a non-draft PR. Agent Orchestrator marks it ready
-after a clean review. Return tracker control to Agent Orchestrator.
-
-Return only the compressed handoff:
-
-- issue ID and branch
-- PR URL or reason no PR exists
-- files changed
-- scope audit
-- checks run and result
-- PR head SHA you pushed
-- author-QA decision: skipped with reason, or verdict and covered diff
-- completed review rounds including all Author QA, limit, prior findings,
-  attempted fixes, and any stop condition; preserve incoming history
-- PR draft or ready-for-review state
-- Next owner/action
-- independent-review and tracker handoff
-- blockers or follow-up issues
+Return only its compressed [handoff](../skills/ziw-setup/references/handoff.md),
+including review history and author-QA decision/current-diff coverage. Return
+tracker control to Agent Orchestrator.
