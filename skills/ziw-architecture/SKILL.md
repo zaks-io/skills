@@ -6,7 +6,8 @@ description: Assess codebase architecture and propose module interface or owners
 # Architecture
 
 Find structural changes worth making, or design a named module's interface.
-Recommend; don't refactor.
+Recommend; don't refactor. Rules follow the
+[workflow contract](../ziw-setup/references/workflow.md).
 
 ## Inputs
 

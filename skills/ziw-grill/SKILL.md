@@ -7,7 +7,8 @@ argument-hint: "[idea|plan|spec-path]"
 # Grill
 
 Ask the questions that settle a plan, then write it down as a spec. Grill
-settles decisions; it doesn't create tickets or code.
+settles decisions; it doesn't create tickets or code. Rules follow the
+[workflow contract](../ziw-setup/references/workflow.md).
 
 ## Inputs
 

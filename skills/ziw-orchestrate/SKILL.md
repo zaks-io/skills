@@ -127,8 +127,9 @@ in `reviewRequestsByPr`, so the next tick doesn't start a second review. Set
 }
 ```
 
-Set `conformance` to `FAIL` if any criterion failed. For a blocking review, use
-its verdict and add `"blockingFindings": true`.
+Set `conformance` to `FAIL` if any criterion failed, `UNVERIFIABLE` if any
+could not be verified, and `PASS` otherwise. For a blocking review, use its
+verdict and add `"blockingFindings": true`.
 Comment the verdict on the ticket. After three blocked reviews of one ticket,
 stop reviewing it and ask a human.
 

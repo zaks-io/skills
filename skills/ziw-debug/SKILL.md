@@ -6,7 +6,8 @@ description: Diagnose bugs, failing tests, build failures, performance regressio
 # Debug
 
 Find the cause of a failure and prove it. Fix it only when the request
-includes fixing.
+includes fixing. Rules follow the
+[workflow contract](../ziw-setup/references/workflow.md).
 
 ## Inputs
 
