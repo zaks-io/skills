@@ -6,20 +6,9 @@ argument-hint: "[issue-id|branch|pr-url]"
 
 # Create PR
 
-Get the branch to an open draft PR linked to its issue, then hand off for
-independent review. That is the whole job. You have standing permission to skip everything else:
-no checks of your own, no code review, no issue search, no CI wait. Hooks run on
-commit and push, CI runs on the PR, and Agent Review owns independent review.
-
-For encountered friction, use [friction-log.md](../ziw-orchestrate/references/friction-log.md)
-with the configured complaint store and this role's mutation authority.
-
-## Inputs
-
-- The current branch and its changes.
-- Optional issue ID, branch, or PR URL from the invocation.
-- The caller's report, when Agent Implement calls you: author-QA decision,
-  checks that passed, issue title and URL, and scope confirmation.
+Open/update the current branch's PR, link its issue, and hand off for independent
+review. Finish with the PR or a concrete stop report. Hooks and CI own checks;
+skip issue search, code review, and CI waiting except as specified below.
 
 ## Steps
 
@@ -30,25 +19,27 @@ with the configured complaint store and this role's mutation authority.
 4. [Open or update the PR](#pr) as draft and link the issue.
 5. [Report](#done) without waiting for CI.
 
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+
+## Inputs
+
+Current branch/changes; optional issue ID, branch, or PR URL. From Agent Implement,
+take the author-QA decision, passed checks, issue title/URL, and scope confirmation.
+
 ## Gather
 
-Read `docs/agents/workflow/config.md` if present; otherwise use repo files and
-note that `ziw-setup` should run. In one parallel batch, gather
-`git status --short`, `git diff HEAD`, the current branch,
-`git log --oneline -10`, and the branch's existing PR.
+Read `docs/agents/workflow/config.md`; if absent, use repo files and request
+`ziw-setup`. Gather in parallel: `git status --short`, `git diff HEAD`, current
+branch, `git log --oneline -10`, and its existing PR.
 
-Take the issue from the invocation, the caller, the existing PR's issue links,
-the branch name, or the commits. Never search for one. Fetch it once for its
-title, URL, and out-of-scope list, unless the caller gave the title and URL and
-confirmed scope.
+Take the issue from the invocation, caller, PR links, branch, or commits;
+never search. Fetch title, URL, and non-goals once. Exception: the caller
+supplied title/URL and confirmed scope.
 
-## Branch And Scope
+## Branch and scope
 
-- Never push to the default branch. On the default branch or detached HEAD,
-  create a branch with the configured prefix, such as
-  `<branch-prefix>/<issue-id>-<short-slug>`. Keep any other branch name.
-- Update the branch's existing PR instead of opening a duplicate, and keep
-  every issue link it already has.
+- On the default branch or detached HEAD, create a branch with the configured prefix, such as `<branch-prefix>/<issue-id>-<short-slug>`. Keep other branch names.
+- Update the existing branch PR; preserve every issue link.
 - Include all repo changes except secrets, credential files, and unintended
   lockfiles.
 - Without a caller's scope confirmation, compare the diff once against the
@@ -57,16 +48,13 @@ confirmed scope.
 Stop when the diff holds a secret, unrelated work, or work the issue names out
 of scope.
 
-## Commit And Push
+## Commit and push
 
-**Checks: run none.** A caller's reported results, the hooks, and CI are the
-evidence; trust a caller's report as given. Two exceptions, both before the
-first commit and neither counted as a fix round:
+Run no checks; trust caller results, hooks, and CI. Exceptions before the
+first commit, neither counted as a fix round:
 
-- Package manifests changed without the lockfile: run the configured install
-  so the lockfile ships with them.
-- Neither a hook nor CI runs the full gate, and the caller did not report it
-  passing: run the configured full local gate once.
+- Manifests changed without the lockfile: run the configured install and include the lockfile.
+- No hook/CI full gate and no caller-reported pass: run the configured full local gate once.
 
 Then:
 
@@ -76,15 +64,16 @@ Then:
   exists, defaulting to `Issue: <ISSUE-ID>`.
 - Push.
 
-A cache hit is valid evidence, whatever config says about cache policy.
+Cache hits count regardless of config cache policy. Do not use cache-busting
+flags, including `--force`/`--no-cache`. Exception: bypass only a task config
+names as missing cache-key inputs.
 
-## Fix Rounds
+## Fix rounds
 
-A hook failure or rejected push starts a fix round: find the cause, fix it,
-commit, optionally run just the failing task to confirm, then push again.
+For a hook failure or rejected push: find the cause, fix it, commit, and push
+again. Optionally confirm with only the failing task.
 
-- A round must change something. One plain retry with no change is allowed
-  for a transient error such as a network failure; it is not a round.
+- Every round must change something. Exception: one unchanged transient-error retry costs no round.
 - A different failure after a fix is progress and does not reset the count.
 - "The same failure" means the same check failing with the same error.
 
@@ -92,19 +81,16 @@ Stop and report, instead of starting another round, when:
 
 - you cannot find a cause; do not try speculative changes;
 - the same failure survives two fixes;
-- three fix rounds have run, even if a fourth looks close; or
-- the fix needs a product, design, or scope decision, such as editing a
-  package outside the issue; or
+- three fix rounds have run;
+- a product, design, or scope decision is needed, including outside-issue packages;
 - the push or PR needs a permission you lack.
 
 ## PR
 
-Open a new PR as draft. Draft means it still needs independent review; hosted
-reviewers skip drafts, so local review fixes land first. Agent Orchestrator
-marks it ready after a clean review. Keep an existing PR's draft state.
-
-Exception: open it non-draft when the user asks or repo config says to; report
-that independent review is still pending. Do not wait for CI or hosted review.
+Open new PRs as draft and preserve existing draft state under the
+[review lifecycle](../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle).
+Exception: open new PRs non-draft when user/config requests; report independent review as pending.
+Do not wait for CI or hosted review.
 
 Title: the issue title, otherwise the commit subject; under 70 characters when
 practical.
@@ -146,30 +132,21 @@ Issue linking:
 
 ## Review
 
-Author QA is the implementer's judgment-based call, made before this skill
-runs. Run `ziw-code-review` here only when the user asks for it in this
-request; a new commit alone never calls for it. Hosted bot review belongs to
-Agent Orchestrator or the user.
-
-Create PR does not own approval state. Author QA is not independent review
-evidence.
+Use the implementer's [author-QA decision](../ziw-implement/SKILL.md#author-qa).
+Run `ziw-code-review` here only when the user asks in this request.
 
 ## Never
 
 - Do not apply or clear review-evidence labels, move the issue to
   `Ready to Merge` or `Done`, or apply merge-ready PR labels.
-- Do not use `--no-verify`, commit secrets, or deploy production.
-- Do not pass `--force`, `--no-cache`, or other cache-busting flags, except to
-  bypass the cache for one task config names as having a cache key that misses
-  inputs.
+- Do not push to the default branch, use `--no-verify`, commit secrets, or deploy production.
 - Do not amend published commits or force-push unless the user asks.
 - Do not request hosted bot review.
 
 ## Done
 
-The PR exists on the code host, or a stop rule fired. Fill the report from what
-you just did, without polling. A stop is a report, not a wait: name the
-decision needed and hand back. Agent Implement copies these fields into its
+Report observed results without polling. At a stop, name the decision needed
+and hand back. Agent Implement copies these fields into its
 [handoff](../ziw-setup/references/handoff.md).
 
 ```text

@@ -1,69 +1,54 @@
-# Remote Worker Review
+# Remote worker review
 
-Use this when the user asks for a remote worker agent to review a branch or PR.
-These launch instructions are for the caller. An active reviewer returns to
-the caller instead of launching another worker.
+Use when the user requests remote-worker branch/PR review. These instructions
+are for the caller; an active reviewer returns instead of launching a worker.
 
-## Start Options
+## Start options
 
-- Use the repo-configured remote worker provider from
-  `docs/agents/workflow/config.md`.
-- Launch a review-only run against the PR branch or head ref.
-- Start a fresh reviewer session with no implementation conversation context.
-  A separate worktree isolates files only; it does not make a reused session an
-  independent reviewer.
-- Set auto-PR creation off when the provider supports that option.
-- Supply the installed `ziw-code-review` skill path with the prompt below. If the
-  worker cannot access it, provide the skill and its applicable references.
-- Do not print, store, or commit provider API keys.
+- Use the remote provider in `docs/agents/workflow/config.md` for a review-only run on the PR branch/head.
+- Supply a fresh session without implementation context per the [review lifecycle](../../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle).
+- Disable auto-PR creation when supported.
+- Supply the installed review skill path; if inaccessible, provide the skill and applicable references.
+- Hosted secrets are opt-in per issue. Default to local checks unless the prompt explicitly authorizes preview/production credentials.
+- Never print, store, or commit provider API keys.
 
-For remote review, assume hosted secrets are opt-in per issue. Default to local
-checks only unless the prompt explicitly authorizes preview or production
-credentials.
-
-## Prompt Template
+## Prompt template
 
 ```text
-Code review only. Do not edit files, commit, push, or open a PR.
-Do the review yourself. Do not spawn subagents or delegate research, checks,
-or review through tasks, threads, or agent CLIs.
+Review only. Do not edit, commit, push, open a PR, trigger hosted bots,
+mutate tracker/code-host state, merge, or deploy. Do the work yourself under
+the supplied skill's Review limits; do not delegate.
 
 Repo/branch: <repo and branch or PR URL>
-Immutable target SHA: <full reviewed head or checkpoint SHA>
+Immutable target SHA: <full head or checkpoint SHA>
 Base SHA or merge base: <full SHA>
-Intent: <user request or issue outcome>
-Linked issue and acceptance criteria: <issue URL/key and exact criteria, or explicitly missing>
+Intent: <request or issue outcome>
+Linked issue and acceptance criteria: <URL/key and exact criteria, or missing>
 Cited spec sections: <exact sections, or none>
-Required checks: <configured commands and code-host checks>
-Review round/limit and history: <round, limit, prior findings and attempted fixes>
-Review-diff fingerprint: <orchestrator-supplied value, or explicitly missing>
+Required checks: <commands and code-host checks>
+Review round/limit and history: <round, limit, findings and attempted fixes>
+Review-diff fingerprint: <orchestrator value, or missing>
 Review skill: <installed ziw-code-review/SKILL.md path or supplied instructions>
 
-Read first:
-- The supplied review skill and its applicable references
-- AGENTS.md or CLAUDE.md
-- docs/agents/workflow/config.md if present
-- docs/agents/remote-worker-agent.md or provider adapter docs if present
-- The configured glossary; otherwise discover GLOSSARY.md or legacy CONTEXT.md
-  using the glossary-discovery reference supplied by the review skill
-- docs/specs/README.md and docs/adr/README.md if present
-- Any repo-local skills relevant to touched files
+Read the skill and applicable references, AGENTS.md or CLAUDE.md, workflow
+config, docs/agents/remote-worker-agent.md or provider docs when present,
+and touched-file repo skills.
+Read docs/specs/README.md and docs/adr/README.md when present. Use the
+configured glossary or the skill's glossary-discovery reference.
 
-Review the diff against the base branch for correctness, security, data loss, race conditions, API/schema contract drift, missing enum/status handling, missing tests, and scope drift. Scope drift includes delivering adjacent tickets, optional polish, broad refactors, or new surfaces outside the issue boundary. Run focused checks if cheap. Do not call hosted bot review providers such as CodeRabbit or Cursor Bugbot from this worker.
+Resolve only the immutable target SHA. Verify checkout and diff against
+that target/base; stop stale or missing-input on mismatch. Missing fingerprint
+means missing evidence; never derive it from the SHA.
 
-Resolve the target only from the immutable target SHA. Confirm the checkout and
-diff match the supplied target and base before reviewing. Stop with a stale or
-missing-input result if they do not. Treat a missing orchestrator fingerprint
-as missing evidence. Do not derive one from the head SHA.
+Review correctness, security, data loss, races, API/schema contracts,
+enum/status handling, tests, and scope. Scope drift includes adjacent tickets,
+optional polish, broad refactors, and new surfaces outside the issue.
+Run cheap focused checks. Verify findings with file:line evidence.
+Prioritize P0/P1 correctness, security/auth, data loss, migrations,
+concurrency, and API contracts. Treat config/numeric limits as high-risk
+until production bounds, rollback, and monitoring justify them.
+Suppress nits, speculation, broad refactors, and optional micro-optimizations.
 
-Use this review rubric:
-- Verify every finding with file:line evidence.
-- Prioritize P0/P1 correctness, security, auth, data-loss, migration, concurrency, and API-contract issues.
-- Treat config/numeric limit changes as high-risk until justified by production bounds, rollback, and monitoring.
-- Suppress style nits, low-confidence speculation, broad refactors, and optional micro-optimizations.
-
-Return the canonical `## REVIEW REPORT` defined by the supplied review skill,
-including conformance and the applicable workflow/PR handoff fields.
-Do not substitute a reduced report. Do not fix findings, trigger hosted review
-bots, mutate tracker or code-host state, or perform merge or deployment work.
+Return the skill's canonical ## REVIEW REPORT, including conformance and
+applicable workflow/PR fields. Do not substitute a reduced report.
 ```

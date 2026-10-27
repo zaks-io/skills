@@ -1,50 +1,29 @@
 # Hosted review
 
-Use for existing PRs or an explicit hosted-review request. Recommend actions;
-this skill does not trigger bots or change PR state.
+Use for existing PRs or explicit hosted-review requests. Return recommendations
+and report fields; the caller owns authorized triggers and description edits.
 
 ## Current evidence
 
-Read repo workflow config, provider config at the reviewed head, and current PR
-reviews, bodies, and every inline comment, including human reviews. A clean
-summary with unresolved blocking inline findings is not a clean review.
-
-Report auto-review as enabled, disabled, opt-in, provider-specific, or unknown.
-For CodeRabbit, check root `.coderabbit.yaml` and `reviews.auto_review`. For
-Cursor Bugbot or other providers, use verified repo policy. Include draft and
-incremental-review behavior only when it changes the recommendation.
+- Read workflow config, provider config at the reviewed head, and the PR body, review bodies, and every inline comment, including human reviews.
+- Unresolved blocking inline findings invalidate a clean summary.
+- Report auto-review mode. For CodeRabbit, inspect root `.coderabbit.yaml` and `reviews.auto_review`; use verified policy for other providers.
+- Include draft/incremental behavior only when it changes the recommendation.
 
 ## Recommendation
 
-- Default to `SKIP`. A clean local independent review is enough unless a rule
-  below applies.
-- Recommend `PR REVIEW` for an existing PR when the repo's hosted-review risk
-  tiers include this change, when it is explicitly requested, or when you name a
-  concrete unresolved uncertainty a second reviewer could settle. High-risk
-  examples include auth, secrets, payments, destructive data, migrations,
-  background jobs, public contracts, and cross-cutting refactors.
-- Hosted review runs after local fixes land and the PR leaves draft.
-- If a current review is pending, recommend `WAIT` with no command. If automatic
-  push review is enabled and the current diff is eligible, let it run without
-  another trigger. If auto-review mode, actor, or permissions are unknown,
-  report the gap and recommend no command. A completed current review needs no
-  duplicate trigger; evaluate its findings.
-- Recommend `CLI` only for an explicit local CodeRabbit request before a PR
-  exists. Never use it as fallback for a hosted PR review or infer a Bugbot CLI.
-- Missing auth, credits, or rate limits may policy-skip optional review. Report
-  required or explicitly requested provider failures as unresolved, not passed.
-
-When a manual CodeRabbit trigger is warranted and repo policy permits it,
-recommend `@coderabbitai review` for incremental review or
-`@coderabbitai full review` when a full pass is needed. Optional automatic review
-may be skipped with `@coderabbitai ignore` in the PR description only when repo
-policy permits it. For other providers, recommend only verified configured
-commands. The caller owns any authorized trigger or description edit.
-
-Evaluate bot findings against source evidence. Prioritize P0/P1, security, data
-loss, correctness regressions, production blockers, and user-requested findings.
-Do not recommend keeping a locally clean PR in draft solely to wait for hosted
-review; report whether review should run after Orchestrator marks it ready.
+- Default to `SKIP`. Use the [review lifecycle](../../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle) for local/hosted order and readiness.
+- Recommend `PR REVIEW` when configured risk tiers require it, explicitly requested, or concrete unresolved uncertainty warrants another reviewer. Name that uncertainty.
+- Risks include auth, secrets, payments, destructive data, migrations, background jobs, public contracts, and cross-cutting refactors.
+- Recommend `WAIT` without a command for pending current review.
+- Let eligible automatic push review run; evaluate completed current findings instead of requesting duplicates.
+- Unknown auto-review mode, actor, or permissions means report the gap without a command.
+- Recommend `CLI` only for explicit local CodeRabbit requests before a PR exists; never as hosted fallback or an inferred Bugbot CLI.
+- Auth, credits, or rate limits may policy-skip optional review. Required/explicit provider failures remain unresolved.
+- For permitted manual CodeRabbit review, recommend `@coderabbitai review` incrementally or `@coderabbitai full review` for a full pass.
+- Optional automatic CodeRabbit review may use `@coderabbitai ignore` in the PR description only when policy permits.
+- For other providers, recommend verified configured commands only.
+- Evaluate findings against source. Prioritize P0/P1, security, data loss, correctness regressions, production blockers, and user-requested findings.
 
 ## Report fields
 
@@ -55,6 +34,5 @@ Hosted bot review state: auto-review <enabled | disabled | opt-in | provider-spe
 Hosted bot review command: <none | verified command>
 ```
 
-Keep unknown, pending, and policy-skipped states explicit. None is evidence of a
-completed clean review. An unconfigured provider does not establish its automatic
-review settings; report unknown settings rather than inferring they are disabled.
+Report unknown, pending, and policy-skipped states explicitly; none proves clean completion.
+An unconfigured provider has unknown automatic settings, not disabled settings.
