@@ -6,7 +6,7 @@ argument-hint: "[issue-id-or-url]"
 
 # Implement
 
-Take one issue to one scoped, non-draft PR ready for independent review. You
+Take one issue to one scoped draft PR ready for independent review. You
 own the whole path; only missing credentials or permissions stop you short of
 a PR. A run ends with a PR or a clear reason no PR exists, never with code
 changes alone.
@@ -168,8 +168,8 @@ runs, fix blocking findings and rerun relevant checks; repeat it only when
 another pass would add evidence, never merely because a commit changed.
 
 Author QA is not independent review evidence. Only a separately dispatched
-Agent Review produces the reviewed-head verdict that Agent Orchestrator uses
-for review evidence and merge readiness.
+Agent Review, in a fresh thread and preferably on another model, produces the
+verdict that Agent Orchestrator uses for review evidence and merge readiness.
 
 ## Changes Requested
 
@@ -191,9 +191,9 @@ config verifies they reach the session.
 
 - Do not apply or clear review-evidence labels, move the issue to
   `Ready to Merge`, or apply merge-ready PR labels.
-- Do not leave the PR in draft once required checks pass and no blocker
-  remains, unless the user or config requires a draft; then report it as
-  pre-review and name the transition needed before review.
+- Do not mark the PR ready for review yourself. It stays draft until a clean
+  independent review; Agent Orchestrator then marks it ready. Exception: the
+  user or config asks for a non-draft PR.
 - Do not deploy production, rotate secrets, or mutate live customer data
   without explicit approval.
 - Do not expand to other tickets.

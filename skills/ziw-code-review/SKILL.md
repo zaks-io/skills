@@ -17,7 +17,8 @@ A clean review is not the full merge gate.
 
 Target, base branch or range start, intent/requirements, and configured checks.
 Workflow handoffs also supply the reviewed head, orchestrator fingerprint,
-review round/limit, and prior findings and fixes.
+review round/limit, prior findings and fixes, and the previously reviewed head
+for a delta review.
 `--submit` requires an explicit GitHub PR target.
 
 ## Steps
@@ -52,6 +53,9 @@ review round/limit, and prior findings and fixes.
      Report original and current heads, reason, and evidence reference without a new
      review claim. A new SHA alone does not warrant full review. Review follow-up
      deltas and affected interactions; expand only where prior evidence no longer applies.
+     For a supplied delta head, compare `git diff <base>...<delta>` with
+     `git diff <base>...HEAD`, including merge-conflict resolutions. `git range-diff`
+     skips merge commits; a plain head-to-head diff includes base merges.
      `--submit` retains its exact-head checks.
 3. Read `AGENTS.md`, `docs/agents/workflow/config.md`, and the configured glossary.
    - For unmapped glossary paths, use [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md).
@@ -77,7 +81,8 @@ review round/limit, and prior findings and fixes.
      checks, round history, and orchestrator fingerprint when available.
      The reviewer does the review itself. A worktree isolates files, not context.
      Without fresh context, return blocked to the caller; never launch a replacement
-     reviewer, substitute Author QA, or claim independent evidence.
+     reviewer, substitute Author QA, or claim independent evidence. Callers should
+     pick a different model from the author when one is available; report your model.
    - The caller gives parallel reviewers separate mutable checkouts. Remove only
      disposable worktrees created for this review, including on failure; preserve user files.
    - Use the narrowest sufficient target. Reserve broad repository review for explicit
@@ -100,8 +105,8 @@ review round/limit, and prior findings and fixes.
    - Recommend `APPLY` only with `READY FOR PR` or `APPROVE`, a verified committed
      target, and exhibited conformance with no blocking rows. Missing evidence cannot
      support `APPLY`.
-   - Record completed independent reviewer identity and count, verdict, applicable PR URL,
-     reviewed SHA, and the review-diff fingerprint supplied by the orchestrator snapshot.
+   - Record completed independent reviewer identity, model, and count, verdict, applicable
+     PR URL, reviewed SHA, and the review-diff fingerprint supplied by the orchestrator snapshot.
    - Recommend `CLEAR` when blocking findings, changed review-relevant diff, or
      missing/stale evidence invalidate an existing label; otherwise `LEAVE UNCHANGED`.
    - Orchestrator also checks required CI, non-draft state, hosted-review policy,
@@ -222,8 +227,9 @@ Add only applicable handoff fields:
 - Standard PR reviews and workflow handoffs: applicable hosted-review fields and
   `PR readiness: KEEP DRAFT | MARK READY FOR REVIEW | ALREADY READY | UNKNOWN, because <reason>`.
   Without observed draft state, use `UNKNOWN`, even with blockers; report them
-  separately. Lack of mutation authority does not keep a clean PR in draft.
-  Orchestrator owns the transition.
+  separately. A draft awaiting this review is the normal stage; recommend
+  `MARK READY FOR REVIEW` when clean. Lack of mutation authority does not keep a
+  clean PR in draft. Orchestrator owns the transition.
 - `--submit`: `GitHub submission: POSTED <URL> | ALREADY CURRENT <URL> | FAILED, because <reason>`.
 - Main drift/intake: reviewed range, checkpoint result, audited spec sections,
   issues created or recommended, and Orchestrator handoff. Report freshness per target

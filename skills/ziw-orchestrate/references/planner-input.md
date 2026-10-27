@@ -67,6 +67,8 @@ fields affect decisions.
 | Ready state                  | `readyState`                                               | Tracker state name                                          |
 | Merge authority              | `mergeAuthority`                                           | Configured authority, such as `human` or `agent`            |
 | Delivery mode                | `deliveryMode`                                             | `production` or `velocity`                                  |
+| Hosted review bots           | `hostedReviewBots`                                         | Array of bot logins                                         |
+| Hosted review risk tiers     | `hostedReviewRiskTiers`                                    | Tier or array of `low`, `medium`, `high`                    |
 | Auto-merge risk tiers        | `autoMergeRiskTiers`                                       | Tier or array of `low`, `medium`, `high`                    |
 | Required independent reviews | `requiredIndependentReviews`                               | Positive integer or object keyed by risk tier               |
 | Require conformance evidence | `requireConformanceEvidence`                               | Boolean                                                     |
@@ -230,8 +232,59 @@ Callers filter the list to completed independent reviewers and record identity;
 the planner cannot independently verify a first-party numeric count or list.
 Fingerprint equality cannot create a verdict or a review. Record reviewed
 identity in `reviewedDiffFingerprint` or `reviewedReviewDiffFingerprint`;
-`reviewRelevantDiffFingerprint` identifies the current diff. A freshly observed
-GitHub approval on the current head provides its own completed review evidence.
+`reviewRelevantDiffFingerprint` identifies the current diff.
+
+Coverage compares fingerprints of the same format (`patch-id:` or `sha256:`).
+When formats differ or a fingerprint is missing, coverage falls back to the
+exact reviewed head (`reviewedHeadSha`, `hostedReviewHeadSha`, a request's
+`headSha`, or a review's commit). The same rule matches pending review requests
+and recorded hosted evidence. Recorded evidence with neither a comparable
+fingerprint nor a reviewed head keeps the caller's `reviewEvidenceCurrent` boolean.
+
+Live PR facts override copies saved in evidence or hosted records: head, state,
+draft flag, labels (including saved label-presence flags), checks, threads, review decision, truncation, and the current
+fingerprint. Saved records cannot vouch for a newer diff or newer checks.
+
+The collector emits `patch-id:<hex>` from GitHub's `<base>...<headSha>` compare
+diff through `git patch-id --verbatim`. The diff is pinned to the snapshot head,
+so a push during collection cannot lend a newer diff's fingerprint to older reviews. Base merges that leave the PR's hunks and their
+context lines unchanged preserve it. When the diff is unavailable, it falls back
+to a `sha256:` hash of the file records plus the head SHA, so that evidence
+never outlives its head. Review entries include `authorType` (`User` or `Bot`); other actor types omit it.
+Human comments do not replace verdicts; bots keep their latest review of any
+state. Repeatable `--hosted-review-bot <login>` flags enable historical
+bot-review fingerprints. Historical human approvals use the same
+base-to-reviewed-commit diff lookup; failed lookups omit the fingerprint.
+
+GitHub approvals count as independent evidence only with `authorType: "User"`
+and current diff coverage. Other bot approvals and unknown authorship never
+count. `hostedReviewBots` defaults to `["coderabbitai"]` when
+`hostedReviewProvider` normalizes to CodeRabbit; logins ignore case and a
+trailing `[bot]`. A `COMMENTED` or `APPROVED` review by a configured login with
+`authorType: "Bot"` covering the current diff completes hosted review; dismissed,
+pending, and other states do not. Explicit `state.hostedReviewByPr` fields
+override derived fields, including completion and `skipped`.
+
+Hosted review is required when any hosted or evidence record requires it, or
+when the risk tier is in `hostedReviewRiskTiers`. The tier comes from the same
+merged PR, hosted, and evidence state that merge readiness uses. Omitted tiers default to `["high"]`; an empty list
+disables the tier rule. A completed, unskipped hosted review of the current diff
+is independent review evidence and adds one to the review count. Local verdict
+fields block only while their review covers the current diff. A current-head
+conformance `FAIL` blocks whichever review supplied the evidence. Truncated
+review threads hold both merge and the human-merge label.
+
+Drafts pass thread, diff, conflict, branch, and check gates before independent
+review. Known scope drift yields `route-fix` before review or readiness. Missing
+review yields `request-review`, or `REVIEW_IN_FLIGHT` for a matching pending
+request. Exception: on a non-draft PR that passed local review earlier and has
+incomplete required hosted review, the hosted reviewer covers the follow-up delta.
+Clean current review yields `mark-ready` with reason `REVIEW_CLEAN`. Drafts never
+merge or receive the human-merge label. Hosted review and merge routing follow
+after readiness. Requests use the current fingerprint as their idempotency key,
+falling back to the head only without a fingerprint. When prior clean or
+blocking evidence covers a different diff, `request-review` includes `deltaFrom`
+with the previously reviewed head and the current `reviewDiffFingerprint`.
 
 ## Local credential setup
 

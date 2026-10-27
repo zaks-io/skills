@@ -291,16 +291,18 @@ and Linear ticket are linked, assume the integration sync is active: Linear may
 advance ticket state from PR state. Repo config defines how labels and synced
 state transitions are treated.
 
-Draft PRs are pre-review. If a PR is ready-for-review, it must be non-draft in
-the code host. Draft state is not a request for another code review; the
-orchestrator should diagnose the draft blocker and unstick the PR when no blocker
-remains.
+Draft PRs are pre-review: workers open them so one local independent review,
+in a fresh thread and preferably on another model, lands its fixes before any
+hosted reviewer sees the PR. The orchestrator marks a draft ready-for-review
+after a clean review of the current diff; a ready-for-review PR is non-draft in
+the code host. Hosted review such as CodeRabbit then runs only when the risk
+tier or an explicit request requires it.
 
 The configured review evidence label, such as `code-review-passed`, is not a
 ticket state. It means the linked PR's review-relevant diff passed the configured
 code review gate. Agents resolve it by exact configured slug or ID and remove it when
 the review-relevant diff changes, blocking findings appear, the linked PR changes, or evidence
-is stale.
+is stale. Base updates and rebases that keep the PR's own changes keep the evidence.
 
 The configured code-host human-merge PR label, such as `needs-human-merge`,
 means the PR is ready to merge except for required human merge authority. Agents
@@ -402,10 +404,9 @@ action. The named actions are examples, not a complete menu; if a ticket is not
 moving, Orchestrator should identify and take any safe workflow action needed to
 move it forward. It can start local subagents in isolated branches or worktrees,
 assign a tracker-exposed coding agent to a ticket, request another code review,
-rerun checks, diagnose draft PRs that have stalled, move unblocked draft PRs to
-ready-for-review, apply or remove the configured review evidence label, request
-configured hosted bot review such as CodeRabbit or Cursor Bugbot for risky or
-complex diffs, reply directly to the original worker, mark tickets for human
+rerun checks, mark reviewed draft PRs ready-for-review, apply or remove the
+configured review evidence label, request configured hosted bot review such as
+CodeRabbit or Cursor Bugbot when the risk tier or a request requires it, reply directly to the original worker, mark tickets for human
 review or missing information, or stop on a real blocker. The repo config
 records supported worker delegation paths such as `local-worktree`,
 `issue-assigned`, or both, plus only the project-specific routing or

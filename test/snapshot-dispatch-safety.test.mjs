@@ -45,7 +45,7 @@ function plan(linear, state = {}, prs = []) {
       file,
       JSON.stringify({
         snapshot: { v: 3, repo: routeLabel, prs, linear },
-        config: { workerConcurrencyCap: 3, mergeAuthority: "agent" },
+        config: { workerConcurrencyCap: 3, mergeAuthority: "agent", hostedReviewRiskTiers: [] },
         state,
       }),
     );
@@ -131,7 +131,9 @@ test("route-excluded issue metadata still carries risk labels into PR merge rout
       headRefName: "spl-1-schema-update",
       headSha: "reviewed-head",
       checks: { state: "SUCCESS" },
-      latestReviews: { reviewer: { state: "APPROVED", headSha: "reviewed-head" } },
+      latestReviews: {
+        reviewer: { authorType: "User", state: "APPROVED", headSha: "reviewed-head" },
+      },
     },
   ]);
   assert.equal(

@@ -81,8 +81,9 @@ Collect one snapshot per tick, covering the relevant systems of record:
   whole inventory before each action. Refresh affected records before claims,
   workflow/PR mutations, or acting on observed changes. Use mutation responses
   for immediate follow-up actions instead of rereading unchanged records.
-- Merge preflight still verifies current head, base, checks, review, draft state,
-  unresolved threads, and authority immediately before merge.
+- The readiness preflight still verifies current head, base, checks, review,
+  draft state, every unresolved thread, and authority. It runs immediately before
+  `Ready to Merge`, the human-merge label, or a merge.
 - Treat draft PRs as visible active work that occupies file-footprint seams.
 - Count open PRs and previews against worker slots only while a worker actively repairs them.
 - Use systems of record as authority, not the ledger.
@@ -99,6 +100,8 @@ One wake-up is one tick. Clear the scope as fast as safety gates allow.
 node <skill-dir>/scripts/tick-snapshot.mjs --repo <org/repo> > /tmp/ziw-tick-snapshot.json
 ```
 
+- Add `--hosted-review-bot <login>` for each configured hosted reviewer so its
+  reviews of older commits keep their fingerprint.
 - For batch Linear reads, run `node <skill-dir>/scripts/linear-graphql.mjs setup`
   once on macOS, then include `--linear-team <KEY|UUID|NAME>`.
 - Candidates and active claims require the repo route label. Override it with
@@ -158,30 +161,27 @@ By default, run dispatch and PR lanes concurrently after one refreshed snapshot.
 
 ## Review and integrate
 
-- Advance every actionable PR, preview, draft stall, base-branch drift, check,
-  review, label, and merge item in parallel with dispatch.
-- For returned PRs, follow [integrate-checklist.md](references/integrate-checklist.md)
-  before acting, reusing the snapshot and refreshing only affected records.
-- Expire review evidence when the review-relevant diff changes.
-  Exception: a base-only update preserving the reviewed diff needs fresh checks, not repeated review.
-- Apply the configured policy to required hosted review evidence.
-- Treat draft state as an orchestration repair signal, not a review request.
-- Send fixes to the original worker continuation target on the same branch/PR
-  when it can continue; do not start a replacement worker by habit.
-- Reuse one substantive review for one review-relevant diff.
+Advance every actionable PR, preview, check, review, branch-drift, label, and
+merge item in parallel with dispatch. Carry out each planner PR action with
+[integrate-checklist.md](references/integrate-checklist.md).
+
+- A draft PR has not yet had an independent review. After its required checks
+  pass, run one local `ziw-code-review` in a fresh isolated thread. Prefer a
+  different model from the author's.
 - Launch reviewers directly, with no intermediate review coordinator. Reviewers
   do not delegate. Own the round count and enforce
   [Review limits](../ziw-code-review/SKILL.md#review-limits) before each dispatch.
-- Repair GitHub base-branch drift as orchestrator. Refresh PR state, run
-  `gh pr update-branch <pr>`, rerun checks, and reuse review when the review-relevant diff is equivalent.
-  Delegate only when the update reports a merge conflict or the diff materially changed.
-- `needs-human-merge` means merge-ready except for required human merge authority.
-- Apply `needs-human-merge` only to open non-draft PRs with current clean review
-  evidence, passing required checks, complete or policy-skipped hosted review,
-  matching issue scope, and no unresolved blocking review threads.
-- Clear `needs-human-merge` on any new commit, draft transition, failed or pending
-  required check, blocking finding, unresolved review thread, missing or stale
-  review evidence, close, or merge.
+- Fixes go to the original worker on the same branch while the PR stays draft.
+  Do not start a replacement worker by habit.
+- A clean review of the current diff marks the PR ready for review.
+- Run hosted review, such as CodeRabbit, only when the risk tier or policy
+  requires it, and only after local fixes land.
+- Review evidence follows the PR's own diff (`reviewDiffFingerprint`), not its
+  head commit. A head change that keeps the fingerprint reruns checks, not review.
+- Run `gh pr update-branch <pr>` for GitHub base drift yourself. Delegate only
+  when the update reports a merge conflict.
+- The planner decides merge readiness, auto-merge, and the `needs-human-merge`
+  label. Apply its actions; the checklist states what each label means.
 
 ## Persist and stop
 

@@ -140,13 +140,19 @@ Delivery modes:
 | MEDIUM    | normal feature / business logic                                                                             | one clean independent pass; add a focused second pass only for unresolved uncertainty                              |
 | HIGH      | auth, secrets, payments, destructive data, schema/migration, queues/jobs, public contracts, broad refactors | one strongest-model independent pass; extra review only when repo config or a concrete unresolved risk requires it |
 
-"Green" is the configured merge-ready set: clean independent
-`ziw-code-review` verdict for the current review-relevant diff, required
-conformance evidence when repo config enables it and no exhibited `FAIL` rows,
-required CI checks pass, no unresolved blocking review comments, PR non-draft and
-ready-for-review, the configured review evidence label current for the
-review-relevant diff,
-and the required hosted-bot review complete or recorded as skipped by policy.
+Independent review means a review of the current review-relevant diff by one
+of: a local `ziw-code-review` in a fresh isolated thread, preferably on a
+different model from the author; a human approval; or the configured hosted
+reviewer. Run local review on the draft PR first so fixes land before hosted
+review. Hosted review then runs only for the configured hosted-review risk
+tiers, an explicit request, or a concrete uncertainty the local reviewer names.
+
+"Green" is the configured merge-ready set: clean independent review of the
+current review-relevant diff, required conformance evidence when repo config
+enables it and no exhibited `FAIL` rows, required CI checks pass, no unresolved
+blocking review comments, PR non-draft and ready-for-review, the configured
+review evidence label current for the review-relevant diff, and the required
+hosted-bot review complete or recorded as skipped by policy.
 
 Rules that do not change with tier or delivery mode:
 
@@ -227,6 +233,8 @@ values, not this file:
   orchestrator may merge vs route to human merge
 - review depth per risk tier, including the concrete conditions that justify an
   additional review and which model tier reviews HIGH-risk work
+- hosted-review risk tiers (default `high`), hosted reviewer bot logins, and the
+  substitute when required hosted review is unavailable
 - merged-main conformance audit cadence and checkpoint location for
   independent review
 - code-host PR attention labels the orchestrator applies when a PR needs human

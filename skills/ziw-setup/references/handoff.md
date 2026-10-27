@@ -78,7 +78,7 @@ Rules:
   resolved or the branch was updated after main moved, include the checks run
   after that event.
 - Say whether the configured review evidence label is applied, removed, or
-  requested for the current PR head SHA.
+  requested for the current review-diff fingerprint.
 - Say whether the configured code-host human-merge PR label, such as
   `needs-human-merge`, is applied, removed, or requested, and list the
   merge-ready evidence that justifies it.

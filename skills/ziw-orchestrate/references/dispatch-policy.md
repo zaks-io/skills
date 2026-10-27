@@ -163,11 +163,11 @@ Draft PRs are active code-host work and consume file seams, not worker capacity
 by themselves. Do not start another worker for the same ticket because the
 returned PR is draft.
 
-Draft state is an orchestration repair signal. Find the blocker: running or
-failed checks, requested author fixes, missing metadata, human prep, or an
-explicit repo policy. When no blocker remains, move the PR to ready-for-review if
-authority allows. If authority is missing, stop with the exact code-host action
-needed.
+A draft PR is the stage for local independent review. Checks, review, and
+fixes happen while it is draft. Orchestrator marks it ready after a clean
+review of the current diff; see
+[integrate-checklist.md](integrate-checklist.md#mark-ready). If authority to
+mark it ready is missing, stop with the exact code-host action needed.
 
 ## PR Closure Guard
 

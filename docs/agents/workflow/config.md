@@ -97,7 +97,7 @@ cache them here.
 - Review evidence labels: `code-review-passed`
 - Review evidence label policy: linked PR review-relevant diff passed `ziw-code-review`; record PR URL, reviewed head SHA, and diff fingerprint; remove only when that diff changes, blocking findings appear, linked PR changes, or evidence is missing
 - Code-host human-merge PR label: `needs-human-merge`
-- Code-host human-merge PR label policy: GitHub PR label meaning merge-ready except for required human merge authority; apply only to open non-draft PRs after current clean code review evidence, passing required checks, complete or policy-skipped hosted review, matching issue scope, and zero unresolved blocking review threads; clear on new commits, draft transitions, failed or pending required checks, blocking findings, unresolved review threads, stale or missing review evidence, close, or merge
+- Code-host human-merge PR label policy: GitHub PR label meaning merge-ready except for required human merge authority; apply only to open non-draft PRs after current clean code review evidence, passing required checks, complete or policy-skipped hosted review, matching issue scope, and zero unresolved blocking review threads; clear on review-relevant diff changes, draft transitions, failed or pending required checks, blocking findings, unresolved review threads, stale or missing review evidence, close, or merge
 - Type labels: `Bug`, `Feature`, `Improvement`, `Tech Debt`, `Spike`, `Hotfix`
 - Area labels: none configured
 - Priority policy: default `No priority`; set High/Urgent only for broken install, security-sensitive workflow bugs, or release-blocking skill regressions
@@ -175,7 +175,7 @@ cache them here.
 - Claude Code verification: `claude plugin validate .` when Claude Code is available
 - Claude loop terminology: schedule, `/loop`, or wake-up timer
 - Codex automations terminology: cron automation or heartbeat automation
-- Review model policy: use strongest available reasoning for orchestration and review synthesis; cheaper paths only for mechanical inventory when configured
+- Review model policy: use strongest available reasoning for orchestration and review synthesis; cheaper paths only for mechanical inventory when configured; independent review runs in a fresh thread on a different model from the author when available, GPT-6.1 Sol by default and GPT-6 Astra for HIGH risk; record the reviewer model with review evidence
 - Agent Orchestrator: `$ziw-orchestrate`
 - Agent Review: `$ziw-code-review` (independent mode)
 - Agent Implement: `$ziw-implement`
@@ -185,17 +185,20 @@ cache them here.
 - PR title: Conventional Commits style when possible
 - PR body: Summary, Changes, Risk, Test plan, linked Linear issue when present
 - Required checks: GitHub CI jobs `Validate skills`, `Static security checks`, `Secret scan`; local equivalent `pnpm ci:check`, run by the implementer, not rerun by Create PR
-- Code review: author QA is the implementer's judgment call; independent `ziw-code-review` PR/head review runs after the PR opens
+- Code review: author QA is the implementer's judgment call; one independent `ziw-code-review` runs on the draft PR after required checks pass; review evidence follows the review-diff fingerprint, not the head commit
 - Local GitHub review submission actor policy: use `gh-useotto api` for explicit `--submit` review mode so reviews are attributed to `useotto-dev[bot]`; submit `COMMENT` reviews only
-- Hosted bot review provider policy: optional for high-risk/complex diffs or explicit user request; CodeRabbit or Cursor Bugbot only with a verified repo integration and applicable usage eligibility. Naming a provider here does not enable it; resolve availability live.
+- Hosted bot review provider policy: CodeRabbit or Cursor Bugbot only with a verified repo integration and applicable usage eligibility. Naming a provider here does not enable it; resolve availability live.
+- Hosted review risk tiers: `high`, after local review; other tiers rely on the local independent review unless the user asks or the reviewer names a concrete uncertainty
+- Hosted review substitute: without a verified hosted integration, a second fresh-thread local review on GPT-6 Astra covers required hosted review
+- Hosted review bot logins: `coderabbitai` when the CodeRabbit integration is verified
 - Hosted bot review trigger policy: resolve current provider auto-review state and trigger policy before posting commands; do not guess Cursor Bugbot commands when app policy is unknown
 - Hosted bot review actor policy: external review bot trigger comments may require a human-authenticated `gh` session when provider ignores GitHub App bot accounts
 - CodeRabbit bot handle: `@coderabbitai`
 - CodeRabbit command policy: local review first; verify provider configuration, trigger policy, and current review state live before an authorized request
 - Cursor Bugbot command policy: use only a verified integration and trigger that meets the configured usage policy
-- Draft PR policy: open non-draft by default; draft only for requested human prep or known required author fixes; pending CI is not a reason for draft; draft state alone is not a code review request; draft PRs consume file-contention seams but not worker slots unless a worker is repairing them
-- Ready-for-review owner: Create PR opens non-draft; Agent Orchestrator repairs stuck drafts
-- Issue update: PR URL in the PR body links the SKI issue; Agent Orchestrator records reviewed head SHA and check evidence after independent review
+- Draft PR policy: open draft by default; draft means not yet independently reviewed; CI runs on drafts and hosted reviewers skip them; draft PRs consume file-contention seams but not worker slots unless a worker is repairing them
+- Ready-for-review owner: Create PR opens draft; Agent Orchestrator marks it ready after a clean independent review of the current diff
+- Issue update: PR URL in the PR body links the SKI issue; Agent Orchestrator records reviewed head SHA, review-diff fingerprint, reviewer model, and check evidence after independent review
 - Merge authority: human
 
 ## Environments

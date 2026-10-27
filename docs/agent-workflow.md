@@ -278,17 +278,21 @@ Agent Review are the core workflow roles. Code Review, Create PR, and Secret
 Redaction are helper gates used by those roles.
 
 PR draft state is code-host state, not tracker state. Draft and
-ready-for-review are mutually exclusive. A draft PR is pre-review; a
-ready-for-review PR is non-draft.
+ready-for-review are mutually exclusive. A draft PR has not yet had an
+independent review; a ready-for-review PR is non-draft. Workers open drafts so
+local review fixes land before any hosted reviewer sees the PR.
 
 The configured review evidence label, such as `code-review-passed`, is not a
 workflow status. It means the linked PR's review-relevant diff passed the
 configured code review gate. Record the PR URL, reviewed head SHA, and diff
 fingerprint, explicit verdict, and completed independent reviewer identity/count.
 A new commit clears it only when that review-relevant diff changes.
-The bundled snapshot defines that fingerprint as SHA-256 over the sorted changed
-file records: status, current path, previous path, Git blob SHA, additions,
-deletions, and total changes. Snapshot adapters must emit an equivalent
+The bundled snapshot defines that fingerprint as `git patch-id --verbatim` of
+the PR's merge-base diff, so base updates, rebases, and empty commits keep it.
+Context lines count, so a base change next to a PR hunk earns a small delta
+review. When the code host refuses the diff, the snapshot falls back to SHA-256
+over sorted changed-file records plus the head SHA, which binds that evidence to
+its exact head. Snapshot adapters must emit an equivalent
 content-sensitive fingerprint or omit it and fail closed. A head SHA is only a
 backward-compatible request key, not proof that review evidence is current.
 Matching fingerprints preserve completed clean reviews; they never create a
@@ -297,7 +301,7 @@ verdict or a review count.
 The configured code-host human-merge PR label, such as `needs-human-merge`, is
 a merge-ready signal. Apply it only to open non-draft PRs that are ready to merge
 except for required human merge authority: current clean review evidence covers
-the PR head, required checks pass, required hosted review is complete or skipped
+the review-relevant diff, required checks pass, required hosted review is complete or skipped
 by policy, no unresolved blocking review thread remains, and the diff still
 matches the linked issue scope. Clear it when any of those facts changes.
 
@@ -334,7 +338,7 @@ security or policy. Age, draft status, and capacity pressure are not abandonment
 evidence. It never closes draft or in-progress PRs just to make room. Draft PRs
 are file-contention signals. If a remote
 worker opens a draft PR and the tracker has not linked it yet, the code host is
-still authoritative: count the draft, repair the sync or draft state, and do not
+still authoritative: count the draft, repair the sync, and do not
 spawn another worker for that ticket.
 
 Worker headroom is still gated by file footprint. Before fanning out startable
@@ -438,8 +442,8 @@ authority, never skip silently, record every fix.
 
 - Heal or repair when the model can identify a safe correction from evidence: a
   wrong or duplicate `kind-*`, a stale label that resolves to a verified ID, a
-  status contradicted by a merged PR, a stalled draft PR with no remaining draft
-  blocker, or a worker session that needs a direct nudge.
+  status contradicted by a merged PR, a reviewed draft PR still waiting to be
+  marked ready, or a worker session that needs a direct nudge.
 - Escalate intent-level gaps with `needs-info` or `ready-for-human`. Never
   fabricate scope or acceptance criteria.
 - To Issues and triage report heals in their run summaries. Orchestrator logs a
@@ -461,8 +465,8 @@ Orchestrator should identify and take any safe workflow action needed to move it
 forward. Examples include delegating a `kind-slice` to a worker, nudging an
 existing worker, calling the review step, calling the integrate step, rerunning
 checks, routing review feedback, requesting hosted bot review escalation when
-the review gate recommends it, diagnosing and repairing stuck draft PRs, marking
-unblocked draft PRs ready-for-review, healing or repairing tracker metadata, applying or
+the review gate recommends it, marking reviewed draft PRs ready-for-review,
+healing or repairing tracker metadata, applying or
 removing review-evidence labels, logging friction, marking tickets for human
 review when the next step genuinely needs human input, moving active workflow
 state, or stopping on a real blocker.
@@ -574,14 +578,16 @@ handles, branches, or PRs tied to the same issue. Duplicate sessions are resolve
 by choosing the canonical branch or PR from current code-host evidence and
 stopping the duplicate according to config.
 
-When a PR is stuck in draft, Agent Orchestrator diagnoses the draft blocker from
-repo policy, PR state, checks, comments, handoff notes, and the original worker
-session. Draft state alone is not a reason to request code review. If no explicit
-blocker remains, Agent Orchestrator marks the PR ready-for-review, then refreshes
-the code-host PR state and verifies it is non-draft. If it stays draft, it is not
-ready-for-review. Hosted bot review escalation follows the `ziw-code-review`
-recommendation and is required only for high-risk or genuinely complex diffs, or
-when the user asks for it. Supported configured providers include CodeRabbit and
+A draft PR is the local review stage. Once its required checks pass, Agent
+Orchestrator requests one independent review in a fresh isolated thread,
+preferably on a different model from the author. Fixes go to the original worker
+while the PR stays draft. After a clean review of the current diff, Agent
+Orchestrator marks the PR ready-for-review, then refreshes the code-host PR state
+and verifies it is non-draft. A PR kept draft for human prep is not
+ready-for-review. Hosted bot review runs after that, only for the configured
+hosted-review risk tiers, an explicit request, or a concrete uncertainty the
+local reviewer names; its review of the current diff counts as independent
+review. Supported configured providers include CodeRabbit and
 Cursor Bugbot. Agent Orchestrator records the provider, auto-review mode,
 trigger policy, current hosted review state, and exact command or unresolved
 gap. For CodeRabbit, read root `.coderabbit.yaml` when present and use
@@ -673,13 +679,13 @@ sequenceDiagram
   Q->>T: Claim issue and move to In Progress
   Q->>W: Delegate issue through supported worker path
   W->>W: Implement, run checks, use judgment on author QA
-  W->>G: Open PR via create-pr
+  W->>G: Open draft PR via create-pr
   W->>Q: Handoff PR state and request independent review
   Q->>T: Move to In Review
-  Q->>R: Call review step in clean context
+  Q->>R: After checks pass, call review step in clean context, preferably another model
   R->>Q: Freshness, findings, hosted bot review recommendation, PR readiness, refactor candidates, and reviewed head SHA
-  Q->>G: Repair stuck draft PR or mark ready for review
-  Q->>G: Request configured hosted bot review if required by risk or complexity
+  Q->>G: Mark the reviewed draft ready for review
+  Q->>G: Request configured hosted bot review if required by risk tier or request
   Q->>T: Apply or clear configured review evidence label
   Q->>T: Changes Requested or Ready to Merge
   Q->>G: On green, rebase if needed, merge, post-merge check
@@ -732,7 +738,7 @@ Default rule:
 - Agent Implement can post plan, branch, PR, check results, and handoff.
   When invoked directly for one ticket, it can run single-ticket orchestration for
   that ticket only if config or the user grants mutation authority.
-- Create PR ships the branch: it commits, pushes, opens or updates a non-draft
+- Create PR ships the branch: it commits, pushes, opens or updates a draft
   PR, links a named issue, and hands off without waiting for CI. It takes fix
   rounds only while each changes something, at most three, and stops when the
   same failure survives two fixes. It
@@ -751,13 +757,13 @@ Default rule:
   explicit request decides whether it runs; a new commit alone does not require
   another pass. They never apply or clear the configured review evidence label,
   move an issue to `Ready to Merge`, or apply merge-ready PR labels. They hand a
-  PR back to Orchestrator for Agent Review, normally non-draft; an explicit user
-  or repo-configured draft handoff remains pre-review until marked ready.
+  draft PR back to Orchestrator for Agent Review; Orchestrator marks it ready
+  after a clean review. An explicit user or repo request can open it non-draft.
 - Agent Orchestrator moves active work through `In Progress`, `In Review`,
   `Changes Requested`, `Ready to Merge`, and `Done` after it merges through the
-  integrate gate when config grants merge authority. It diagnoses stuck draft
-  PRs without treating draft state as a review request, repairs blockers, verifies
-  the code-host PR is non-draft, and applies or removes the configured review
+  integrate gate when config grants merge authority. It reviews draft PRs,
+  marks them ready after a clean review, verifies the code-host PR is
+  non-draft, and applies or removes the configured review
   evidence label based on current review-diff evidence. When it moves a ticket
   to `Done`, it verifies the full issue scope is complete, verifies sibling or
   out-of-scope work was not bundled in, and removes `ready-for-agent`. If a
