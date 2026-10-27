@@ -121,11 +121,21 @@ rule.
 Astra round 1 found the new case's planner fixture incomplete: for the same
 facts, `tick-plan` also emits `route-human-merge` for PR 40, `request-review`
 for PR 41, `route-check-fix` for PR 43, and a checks wait for PR 42. The
-fixture now lists the planner's actual output, taken from a CLI replay.
+fixture now lists the planner's actual output, taken from a CLI replay. A
+fresh Sol/high session reran the case at `bf6a153` and passed: two clears,
+every other planner action handed to Orchestrator, and PR 42 left waiting.
+Both evaluators noted that Triage's generic configured-label authority sits
+far from the clear-only rule, and that the planner tags label actions with
+owner `orchestrator`; both still followed the specific rule.
+
+Astra round 2 replayed the corrected fixture, confirmed the new Triage line
+grants only the clear, and approved `5ce6d37..bf6a153` with no findings.
 
 ## Artifacts
 
 Full evaluator outputs were kept outside skill discovery at
 `/tmp/ziw-simplify-eval-tick.md`, `/tmp/ziw-simplify-eval-review-limits.md`,
 `/tmp/ziw-simplify-eval-workflow.md`, and `/tmp/ziw-simplify-eval-slicing.md`.
-Temporary files may not survive cleanup.
+The ownership runs are at `/tmp/ziw-simplify-eval-triage-ownership.md` and
+`/tmp/ziw-simplify-eval-merge-ready-rerun.md`. Temporary files may not survive
+cleanup.
