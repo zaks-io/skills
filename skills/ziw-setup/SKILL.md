@@ -46,7 +46,7 @@ Load references only for matching work:
 - Handoffs: [handoff.md](references/handoff.md).
 - Unmapped glossaries: [glossary-discovery.md](../ziw-grill/references/glossary-discovery.md).
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Verify values
 

@@ -20,7 +20,7 @@ never code changes alone.
 6. [Create the PR](#create-the-pr) with `ziw-pr`.
 7. [Hand off](#done) to Agent Orchestrator.
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Inputs
 
@@ -117,8 +117,7 @@ requests. Skip low-risk, mechanical, well-covered changes. Fix blockers and reru
 relevant checks; repeat QA only for added evidence, never merely because a commit changed.
 
 Author QA is not independent review evidence. Leave independent review and
-merge readiness to Agent Orchestrator under the
-[review lifecycle](../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle).
+merge readiness to Agent Orchestrator.
 
 ## Create the PR
 

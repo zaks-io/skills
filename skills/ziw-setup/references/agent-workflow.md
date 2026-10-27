@@ -146,7 +146,7 @@ for requested retrospectives or deduplication. Tracker fallback intake stays
 outside the delivery queue; its configured review process groups duplicates,
 closes noise, and turns actionable patterns into small skill/config changes.
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Instruction Trust Boundaries
 

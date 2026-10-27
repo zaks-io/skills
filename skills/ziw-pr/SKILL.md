@@ -19,7 +19,7 @@ skip issue search, code review, and CI waiting except as specified below.
 4. [Open or update the PR](#pr) as draft and link the issue.
 5. [Report](#done) without waiting for CI.
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Inputs
 
@@ -87,8 +87,8 @@ Stop and report, instead of starting another round, when:
 
 ## PR
 
-Open new PRs as draft and preserve existing draft state under the
-[review lifecycle](../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle).
+Open new PRs as draft and preserve existing draft state. Draft PRs get local
+independent review first; Agent Orchestrator marks them ready after a clean review.
 Exception: open new PRs non-draft when user/config requests; report independent review as pending.
 Do not wait for CI or hosted review.
 

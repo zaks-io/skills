@@ -43,7 +43,7 @@ time, and loop limits.
   checkpoint, blockers, and next actions in context.
 - Delegate inventory, implementation, review, and triage when context-heavy.
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Resolve scope
 

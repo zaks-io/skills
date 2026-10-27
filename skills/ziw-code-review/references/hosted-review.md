@@ -12,7 +12,7 @@ and report fields; the caller owns authorized triggers and description edits.
 
 ## Recommendation
 
-- Default to `SKIP`. Use the [review lifecycle](../../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle) for local/hosted order and readiness.
+- Default to `SKIP`. Hosted review runs only after local fixes land and the PR leaves draft.
 - Recommend `PR REVIEW` when configured risk tiers require it, explicitly requested, or concrete unresolved uncertainty warrants another reviewer. Name that uncertainty.
 - Risks include auth, secrets, payments, destructive data, migrations, background jobs, public contracts, and cross-cutting refactors.
 - Recommend `WAIT` without a command for pending current review.

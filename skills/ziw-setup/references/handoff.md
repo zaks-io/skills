@@ -69,8 +69,7 @@ Rules:
 - List exact check commands/results, including hooks and checks after conflict
   resolution or branch updates.
 - Report review-evidence and human-merge labels as applied, removed, or requested.
-  Include current-diff fingerprint and merge-ready evidence under the
-  [integrate checklist](../../ziw-orchestrate/references/integrate-checklist.md).
+  Include the current-diff fingerprint and merge-ready evidence.
 - State draft/pre-review or non-draft/ready-for-review and who owns the transition.
 - Orchestrator/Review report hosted review as skipped, complete, auto-review
   pending, or required for the current diff. Include provider, trigger, and known

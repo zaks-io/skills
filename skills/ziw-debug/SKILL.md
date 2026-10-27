@@ -54,7 +54,7 @@ Load references only for the matching investigation:
 - Intermittent, timing, or concurrency failure: [references/intermittent-failures.md](references/intermittent-failures.md).
 - Performance regression: [references/performance.md](references/performance.md).
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
 
 ## Repair and verify
 

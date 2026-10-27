@@ -37,7 +37,7 @@ and delta head. `--submit` requires an explicit GitHub PR target.
 - Review is read-only. Exceptions: configured MCP complaints, explicit GitHub `--submit`, or authorized independent review-debt intake under [main-drift.md](references/main-drift.md).
 - Implement fixes only on explicit user request; fixes require new review evidence.
 
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) only for a tracker fallback, orchestrator event categories, or a run rollup. Author QA and read-only reviewers never create tracker fallback issues.
+**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup. Author QA and read-only reviewers never create tracker fallback issues.
 
 ## Context
 
@@ -50,8 +50,7 @@ and delta head. `--submit` requires an explicit GitHub PR target.
 
 ## Independent context
 
-Independent evidence requires a caller-supplied fresh session without the implementation conversation,
-per the [review lifecycle](../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle).
+Independent evidence requires a caller-supplied fresh session without the implementation conversation.
 Report your model. A worktree isolates files, not context.
 
 Without fresh context, return blocked to the caller. Never launch a replacement
@@ -75,7 +74,7 @@ reviewer, substitute Author QA, or claim independent evidence.
 - Optional Author QA may skip mechanical, well-covered changes when checks suffice. Report reason/evidence, leave evidence unchanged, and claim no approval.
 - Exception: an explicit review request still gets a focused check.
 - Use standard review for sensitive, uncertain, or broader changes. One-line auth, data-loss, or public-contract changes can be high risk.
-- Reuse independent evidence only when the current orchestrator snapshot verifies the same PR/fingerprint without new blockers or missing evidence; follow [Review evidence](../ziw-orchestrate/references/integrate-checklist.md#review-evidence).
+- Reuse independent evidence only when the current orchestrator snapshot verifies the same PR/fingerprint without new blockers or missing evidence. A new head with the same fingerprint needs no new review; without a fingerprint, evidence covers only its exact head.
 - On reuse, report original/current heads, reason, and evidence reference without claiming a new review. A skip never replaces required independent review.
 - For follow-ups, review deltas and affected interactions; expand only where prior evidence no longer applies.
 - Compare `git diff <base>...<delta>` with `git diff <base>...HEAD`, including merge-conflict resolutions.

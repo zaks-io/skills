@@ -6,7 +6,7 @@ are for the caller; an active reviewer returns instead of launching a worker.
 ## Start options
 
 - Use the remote provider in `docs/agents/workflow/config.md` for a review-only run on the PR branch/head.
-- Supply a fresh session without implementation context per the [review lifecycle](../../ziw-orchestrate/references/integrate-checklist.md#review-lifecycle).
+- Supply a fresh session without the implementation conversation.
 - Disable auto-PR creation when supported.
 - Supply the installed review skill path; if inaccessible, provide the skill and applicable references.
 - Hosted secrets are opt-in per issue. Default to local checks unless the prompt explicitly authorizes preview/production credentials.
