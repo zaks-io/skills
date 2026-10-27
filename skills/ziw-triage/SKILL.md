@@ -32,10 +32,14 @@ states; other states, such as `Backlog`, only when the user names them.
    - **Ready**: the body and labels are complete. Move it to the ready state
      with `ready-for-agent`, even when it is blocked.
    - **To Issues**: too big, vague, a container, or missing body sections. Add
-     `needs-info` with the exact gap and keep it out of the ready state.
+     `needs-info` with the exact gap.
    - **Human**: needs a human decision. Add `ready-for-human` and the question.
    - **Leave**: in progress, has a PR, duplicate, or parked. Orchestrate owns
      active work; note anything stale for it.
+
+   For To Issues and Human, also remove `ready-for-agent` and move the ticket
+   to the intake state.
+
 3. Fix metadata the evidence makes obvious: a missing route, kind, or risk
    label, and blockers stated in a ticket or its spec. Make one combined update
    per ticket.

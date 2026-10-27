@@ -12,19 +12,19 @@ words from `wc -w`, including frontmatter and Markdown.
 | `ziw-debug`        |    714 |   238 |
 | `ziw-grill`        |    802 |   324 |
 | `ziw-implement`    |  1,200 |   341 |
-| `ziw-orchestrate`  |  1,145 |   897 |
-| `ziw-pr`           |    936 |   280 |
+| `ziw-orchestrate`  |  1,145 |   900 |
+| `ziw-pr`           |    936 |   275 |
 | `ziw-setup`        |    927 |   233 |
 | `ziw-to-issues`    |  1,783 |   368 |
-| `ziw-triage`       |  1,968 |   336 |
+| `ziw-triage`       |  1,968 |   344 |
 
 ## Common paths
 
 | Path                 | Before | After | Files after                     |
 | -------------------- | -----: | ----: | ------------------------------- |
-| One Orchestrate tick |  6,561 | 1,459 | `SKILL.md`, `workflow.md`       |
-| One Triage run       |  4,672 |   898 | `SKILL.md`, `workflow.md`       |
-| All published skills | 32,509 | 6,954 | 18 Markdown files, down from 42 |
+| One Orchestrate tick |  6,561 | 1,462 | `SKILL.md`, `workflow.md`       |
+| One Triage run       |  4,672 |   906 | `SKILL.md`, `workflow.md`       |
+| All published skills | 32,509 | 6,960 | 18 Markdown files, down from 42 |
 
 ## Budget
 

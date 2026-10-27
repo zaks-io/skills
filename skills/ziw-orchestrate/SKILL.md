@@ -111,7 +111,11 @@ conversation, on a different model from the author when one is available:
 > Fingerprint `<reviewDiffFingerprint>`. Review only changes since
 > `<deltaFrom>`, if given. Criteria: `<ticket URL>`.
 
-Record the result under the PR number in `reviewEvidenceByPr`:
+While it runs, record
+`{"reviewDiffFingerprint": "<fingerprint>", "status": "running"}` under the PR
+in `reviewRequestsByPr`, so the next tick doesn't start a second review. Set
+`status` to `completed` when it finishes, and record the result under the PR in
+`reviewEvidenceByPr`:
 
 ```json
 {

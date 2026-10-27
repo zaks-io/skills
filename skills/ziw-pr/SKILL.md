@@ -22,8 +22,7 @@ checks it ran.
 3. Stage everything except secrets, `.env` files, and unintended lockfile
    changes. If you changed a dependency manifest, run the install so the
    lockfile matches.
-4. Commit with a Conventional Commits message and the configured issue trailer,
-   then push.
+4. Commit with a Conventional Commits message, then push.
 5. If a hook fails or the push is rejected, fix the cause and try again. Stop
    after three rounds, or sooner if the same failure survives two fixes.
 6. Open a draft PR, or update the existing one, with this body, and put the
