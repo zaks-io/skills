@@ -225,3 +225,33 @@ pointer instead of loading the friction reference.
 Published skill and agent Markdown fell from 69,069 to 51,684 tokens. Triage
 now loads the tracker contract's `Agent-Ready Issue Body` and `Agent Suitability`
 sections, which own readiness and fragments; the triage row includes them.
+
+## Normal path first
+
+Measured 2026-10-27 against `bdda46673e8e2c02ac73652a9679c812a4006347` with
+`tiktoken 0.14.0`, `o200k_base`. Orchestrate, Triage, To Issues, and Implement
+open with steps an agent can act from in the common case; request-level modes
+and fallbacks sit under one later heading. Worker counting, record identity,
+envelope precedence, and selection rules that the planner scripts apply moved
+from `planner-input.md` and `dispatch-policy.md` to `docs/planner-internals.md`.
+The rule count includes bullets, numbered steps, and table rows outside code
+blocks.
+
+| Loaded path                                         | Before |  After |
+| --------------------------------------------------- | -----: | -----: |
+| All ten entrypoints                                 | 18,358 | 18,410 |
+| Orchestrate + planner input + integrate checklist   |  6,391 |  5,613 |
+| Same + loop contract, dispatch, delegation policies | 10,274 |  9,122 |
+| Triage + planner input + contract sections          |  6,276 |  5,680 |
+| Implement + Create PR                               |  3,372 |  3,410 |
+
+| File                 | Rules before | Rules after |
+| -------------------- | -----------: | ----------: |
+| Orchestrate entry    |           63 |          49 |
+| `planner-input.md`   |           72 |          39 |
+| `dispatch-policy.md` |           66 |          40 |
+| Triage entry         |          115 |         106 |
+
+Published skill and agent Markdown fell from 51,684 to 50,701 tokens. Triage,
+To Issues, and Implement entrypoints grew slightly because their steps now
+carry the action instead of only a section name.

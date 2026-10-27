@@ -210,7 +210,8 @@ footprint derivation and collision-safe dispatch under [dispatch-policy.md](../z
   promotion authority.
 - **Done cleanup audit:** include Done issues only when explicitly requested.
 - **Missing credentials or inputs:** report the exact gap. If the snapshot skips
-  Linear, make one bounded `list_issues` query or stop and report the missing credential.
+  Linear, make one bounded `list_issues` query with configured tracker tools;
+  stop and report the missing credential only when those tools also fail.
 - **Rate limits:** on `rate_limited`, HTTP 429, or `upstream credential rejected
 for linear`, stop every tracker call and report exact pending changes.
 - **No user available or non-interactive run:** apply the configured

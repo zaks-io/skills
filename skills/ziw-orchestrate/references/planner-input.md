@@ -1,6 +1,6 @@
 # Planner input contract
 
-Run the collector and planner every tick with one shared state file. Done means
+Run the collector and planner once per tick with one shared state file. Done means
 `tick-plan` accepts the input and each diagnostic is resolved or kept as a hold.
 [planner-input.schema.json](planner-input.schema.json) defines every field;
 validation errors name the failing path.

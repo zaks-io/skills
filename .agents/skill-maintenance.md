@@ -74,7 +74,10 @@ Inspect what the agent actually asks or proposes. Check dependencies, partial
 answers, loading conditions, configured paths, complaint deduplication, and
 authority boundaries where they apply. A keyword match proves none of these.
 Use the bounded cases in [workflow-evaluation/cases.json](workflow-evaluation/cases.json)
-for the planning and complaint changes, and
+for the planning and complaint changes,
+[workflow-evaluation/tick-cases.json](workflow-evaluation/tick-cases.json) for
+Orchestrate and Triage tick decisions, scored in
+[simplify-evaluation.md](simplify-evaluation.md#tick-cases), and
 [slicing-evaluation/cases.json](slicing-evaluation/cases.json) for To Issues
 slice boundaries. The historical architecture case records
 the eight-role version; use [diagnostic-skill-evaluation/cases.json](diagnostic-skill-evaluation/cases.json)
