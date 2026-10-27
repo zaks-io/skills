@@ -59,8 +59,18 @@ manual-selection rules, and the regrouped Triage modes.
   planner; promote EXA-70 after verifying the contract; withhold EXA-71's
   readiness with the exact Out of scope gap.
 
-All six matched on the first run. In the Backlog case the evaluator left EXA-52
-outside the named scope.
+- `merge_ready_pr_in_triage_output`: clear EXA-81's review-evidence label and
+  PR 43's human-merge label. Leave PR 40's human-merge label and EXA-82's
+  review-evidence label unapplied; report both as Orchestrator next actions
+  that need its readiness preflight. Also hand Orchestrator the planner's
+  review request for PR 41, check fix for PR 43, and human-merge route for
+  PR 40; PR 42 waits on checks. No reviewer or fix launch, no code-host thread
+  reads, and no `Ready to Merge` move.
+
+The first six matched on the first run. In the Backlog case the evaluator left
+EXA-52 outside the named scope. The seventh case was added with the
+[ownership fixes](#ownership-fixes); its expectation was written from those
+rules before its evaluator ran.
 
 GPT-6 Astra review round 1 found that the first case's fixture claimed the
 planner suppresses actions for a PR whose worker is running; it does not. The
@@ -85,6 +95,33 @@ Other ambiguity notes concern unchanged text: Implement's Author QA paragraph
 does not state that QA spends a review round, the delegation prompt lists a
 receipt that exists only after launch, and the tracker contract's suitability
 threshold for authorization work is judgment-based.
+
+## Ownership fixes
+
+Commit `d72e4fc` settles two contradictions found after the simplification
+review. Code Review said only Orchestrator mutates merge-ready state, while
+Triage applied the planner's review-evidence and human-merge actions. Triage
+now applies only clear actions, which are fail-safe, and reports apply actions
+to Orchestrator, whose readiness preflight reads beyond Triage's evidence
+boundary. Delegation policy also named an Integrate role that never existed;
+Orchestrator now merges only through the integrate checklist.
+
+This narrows Triage's authority, so it was evaluated and reviewed as its own
+change: a fresh GPT-6.1 Sol/high session ran the four Triage tick cases and
+the proportionate `missing_ticket_location` case at `d72e4fc`, and GPT-6 Astra
+reviewed `5ce6d37..d72e4fc` from round 1.
+
+All five matched their expectations. In the merge-ready case the evaluator
+cleared only EXA-81 and PR 43, handed both apply actions to Orchestrator with
+the preflight reason, and made no code-host reads. It also noted that Triage's
+evidence boundary named only tracker tools for mutations, although clearing a
+human-merge label writes to the code host; that exception now sits under the
+rule.
+
+Astra round 1 found the new case's planner fixture incomplete: for the same
+facts, `tick-plan` also emits `route-human-merge` for PR 40, `request-review`
+for PR 41, `route-check-fix` for PR 43, and a checks wait for PR 42. The
+fixture now lists the planner's actual output, taken from a CLI replay.
 
 ## Artifacts
 

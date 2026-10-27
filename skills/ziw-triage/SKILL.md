@@ -73,6 +73,7 @@ Read only:
 - Filenames from [Missing locations](#missing-locations).
 
 Use tracker/MCP tools for mutations and specific fields scripts omit.
+Exception: clearing the planner's human-merge PR label is Triage's one code-host write.
 Route missing information outside this boundary to To Issues as an exact field gap.
 Ask humans only for intent, decisions, or access unavailable from permitted evidence.
 Leave omitted PR/status verification as an Orchestrator next action.
