@@ -77,7 +77,9 @@ after the review fixes below.
 - Review round 1: the manual fallback lost receipt-only worker counting and
   terminal-receipt precedence; the published contract lost per-ticket
   `eligibleWorkers`, which callers supply, and the `v: 3` requirement for
-  hand-built input, which validation does not enforce. All three are restored.
+  hand-built snapshots, which validation does not enforce. All three are restored.
+  Round 2 confirmed them and caught that state takes no version field; the
+  contract now requires `v: 3` on the snapshot only.
 
 Other ambiguity notes concern unchanged text: Implement's Author QA paragraph
 does not state that QA spends a review round, the delegation prompt lists a

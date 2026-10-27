@@ -62,8 +62,8 @@ Markdown file. Include only schema fields.
 The state file carries what only you know: the worker ledger, requested scope,
 budget usage, and review evidence.
 
-- Hand-built snapshots and state use `v: 3` with array collections. An
-  omitted version parses as legacy v2.
+- Hand-built snapshots set `v: 3` and use array collections. An omitted
+  snapshot version parses as legacy v2. State takes no version field.
 - Identify issues by `issueKey`, `issueUuid`, or both. Arrays such as
   `linkedIssues`, `blockedBy`, and `state.scopeIssues` hold typed references,
   such as `{ "issueKey": "SKI-12" }`.
