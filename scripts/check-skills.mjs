@@ -28,12 +28,6 @@ const readmeFile = path.join(root, "README.md");
 const agentWorkflowFile = path.join(docsDir, "agent-workflow.md");
 const researchFile = path.join(docsDir, "agent-delivery-research.md");
 const skillPortfolioFile = path.join(docsDir, "skill-portfolio.md");
-const projectConfigReferenceFile = path.join(
-  skillsDir,
-  "ziw-setup",
-  "references",
-  "project-config.md",
-);
 const workflowContractFile = path.join(
   root,
   "skills",
@@ -168,26 +162,6 @@ if (!workflowText.includes("skill-portfolio.md")) {
 for (const required of ["ziw-grill", "Status: Draft", "Status: Ready for slicing"]) {
   if (!workflowText.includes(required)) {
     fail(`${relative(agentWorkflowFile)} must include ${required}`);
-  }
-}
-
-const toIssuesText = readText(path.join(skillsDir, "ziw-to-issues", "SKILL.md"));
-for (const required of [
-  "Draft",
-  "Ready for slicing",
-  "### Split Reasons",
-  "### Merge Test",
-  "### Consolidate Before Writing",
-]) {
-  if (!toIssuesText.includes(required)) {
-    fail(`skills/ziw-to-issues/SKILL.md must include ${required}`);
-  }
-}
-
-const projectConfigReferenceText = readText(projectConfigReferenceFile);
-for (const required of ["## Planning Artifacts", "Spec status convention"]) {
-  if (!projectConfigReferenceText.includes(required)) {
-    fail(`${relative(projectConfigReferenceFile)} must include ${required}`);
   }
 }
 

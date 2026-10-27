@@ -33,10 +33,10 @@ reference rather than an eleventh skill. Measure real use before further splits.
 | `ziw-architecture` | Add, measure use      | Owns evidence-backed architecture assessment and module proposals. It can finish with recommendations before a Grill decision exists.                                                    |
 | `ziw-grill`        | Keep                  | Owns planning clarification in independent question rounds and the Draft-to-ready spec handoff. This prevents To Issues from inventing product decisions or slicing contradictory plans. |
 | `ziw-to-issues`    | Keep                  | Owns spec or epic conversion into dependency-ordered Slice Tickets. This is separate from tracker cleanup and implementation.                                                            |
-| `ziw-triage`       | Keep, watch size      | Owns script-driven Issue Tracker backlog cleanup, readiness, dependency, and review-debt intake before Orchestrator runs. Merging it into Orchestrator would make the work loop heavier. |
-| `ziw-orchestrate`  | Keep, script hot path | Owns the single active work loop. Keep the hot skill short; detailed gates live in lazy references, `workflow-contract`, and tick snapshot/planner scripts.                              |
-| `ziw-implement`    | Keep                  | Owns one Slice Ticket through code, checks, Code Review, Create PR, and handoff.                                                                                                         |
-| `ziw-code-review`  | Keep                  | Shared bug-focused review gate with an independent/checkpoint mode for latest-committed PR review, main-drift review, and review-debt issue filing from Clean Context.                   |
+| `ziw-triage`       | Keep, watch size      | Makes tickets ready or routes each to one next owner before Orchestrate runs. Merging it into Orchestrate would make the loop heavier.                                                   |
+| `ziw-orchestrate`  | Keep, script hot path | Owns the work loop. The planner scripts decide; the skill maps each planner action to what the agent does.                                                                               |
+| `ziw-implement`    | Keep                  | Delivers one ticket as a draft PR, using Create PR.                                                                                                                                      |
+| `ziw-code-review`  | Keep                  | Shared review gate: optional author QA, and the fresh-context independent review a merge needs.                                                                                          |
 | `ziw-pr`           | Keep, measure overlap | Shared shipping step for branch-to-PR work, with bounded fix rounds. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.        |
 
 ## Adapted Guidance
@@ -45,8 +45,7 @@ The 2026-10-05 update adds Debug and Architecture after the user selected
 standalone investigation and design workflows. Architecture owns conditional
 codebase-design and assessment references; Grill and Implement consult the same
 design reference when needed. Debug owns investigation and its conditional
-techniques; Implement keeps behavioral testing guidance and its delivery gates.
-Resumable planning stays in Grill. Instruction authoring and complaint
+techniques. Instruction authoring and complaint
 retrospectives remain internal. Architecture is not a mandatory review gate.
 
 ## Adoption ratings

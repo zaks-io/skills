@@ -216,7 +216,8 @@ Each orchestrator run should produce enough data to answer:
 ## Documentation Rules
 
 - README stays the usage guide.
-- `docs/agent-workflow.md` is the technical contract.
+- `skills/ziw-setup/references/workflow.md` is the contract agents follow;
+  `docs/agent-workflow.md` explains how the skills fit together.
 - `docs/agent-delivery-research.md` records why the contract looks this way.
 - `docs/skill-portfolio.md` records the public skill surface and trim
   rationale.

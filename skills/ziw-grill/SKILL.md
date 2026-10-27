@@ -1,109 +1,48 @@
 ---
 name: ziw-grill
-description: Grills plans or specs in rounds of independent questions and produces authoritative specs ready for ticket slicing. Use for requested grilling or material product, domain, scope, or architecture ambiguity that blocks safe progress after evidence is checked.
-argument-hint: "[idea|plan|spec-path|prd|adr]"
+description: Grills a plan or spec with rounds of focused questions until it is a spec ready for slicing into tickets. Use when asked to grill, or when an unresolved product, scope, or design question blocks safe progress.
+argument-hint: "[idea|plan|spec-path]"
 ---
 
 # Grill
 
-Resolve material ambiguity. Return a confirmed clarification to its caller, or
-prepare authoritative planning artifacts for an explicitly approved slicing handoff.
-Grill owns clarification, not tickets or implementation.
+Ask the questions that settle a plan, then write it down as a spec. Grill
+settles decisions; it doesn't create tickets or code.
 
 ## Inputs
 
-- An idea, plan, question, PRD, ADR set, or existing spec to challenge.
-- The current repo, caller context, and workflow config when available.
+An idea, plan, or existing spec, plus the repo and its workflow config.
 
 ## Steps
 
-1. [Choose scope](#choose-scope) and check available evidence.
-2. [Ask a question round](#ask-a-question-round) for material unresolved decisions.
-3. Return a resolved scoped clarification, or [update planning artifacts](#update-planning-artifacts).
-4. For slicing handoffs, [confirm readiness](#confirm-readiness) and report the result.
+1. Read the plan, related specs, the glossary, and enough code to know what
+   exists. Answer anything the evidence settles yourself.
+2. Ask one numbered round of the open questions that matter most. For each,
+   give the evidence, your recommendation, and what it changes. Wait for
+   answers.
+3. Repeat until no question would change scope, behavior, risk, or acceptance.
+   Stop asking about preferences that change nothing.
+4. Write or update the spec in the configured specs directory, with
+   `Status: Draft` and these sections: Outcome, Scope, Non-goals, Behavior,
+   Edge cases and failures, Acceptance, and Open questions (each one blocking or
+   deferred, with a reason).
+5. When nothing blocking remains, ask exactly
+   `Mark this spec ready for slicing?` Only on a yes, change the status line
+   to `Status: Ready for slicing` and run the configured doc checks.
 
-## Choose scope
+If the answer only clarifies existing work and changes no scope or acceptance,
+return it to whoever asked instead of writing a spec.
 
-- Explicit invocation always starts.
-- Invoke implicitly only after checking evidence for an unresolved product,
-  domain, scope, or architecture decision affecting behavior, ticket boundaries,
-  risk, dependencies, or required proof. Name the ambiguity causing the pause.
-  Routine details and harmless preferences do not trigger implicit invocation.
-- Read repo instructions and the planning-artifact mapping in
-  `docs/agents/workflow/config.md`. Discover unmapped specs, glossaries, ADRs,
-  roadmaps, and relevant implementation; preserve conventions and report the Setup gap.
-- **Scoped clarification:** when the confirmed answer leaves ticket scope, risk,
-  dependencies, acceptance, and proof boundaries unchanged, return it to the caller.
-  Update an existing owning doc only when needed, with applicable documentation
-  checks. No new spec, Draft transition, slicing approval, or To Issues handoff is required.
-- **Planning:** for new plans or changed boundaries, load
-  [references/planning-artifacts.md](references/planning-artifacts.md) for authority,
-  ADR rules, and readiness. A changed boundary stops implementation; continue
-  clarification without widening the PR or silently rewriting tracker work.
+Write an ADR only for a decision that is expensive to reverse, surprising
+without its rationale, and chosen among real alternatives.
 
-Load additional references only for the matching work:
+## Rules
 
-- Designing or changing a module interface:
-  [codebase-design.md](../ziw-architecture/references/codebase-design.md).
-- Planning across sessions:
-  [references/resumable-planning.md](references/resumable-planning.md).
-
-**Friction:** file encountered friction with the configured complaint tool, once per distinct issue and without secrets. Load [friction-log.md](../ziw-orchestrate/references/friction-log.md) when the writer is missing, fails, or replies ambiguously; for tracker-based intake; or for orchestrator event categories or a run rollup.
-
-## Ask a question round
-
-- Build a private decision tree ordered by dependency and impact. Check existing
-  artifacts for contradictions and requirement coverage; start new ideas from scratch.
-- Cover applicable outcome, actor, language, scope, behavior, data, security,
-  failure, concurrency, integration, operations, rollout, and acceptance branches.
-  Code and external systems are evidence, not automatically intended behavior.
-- Resolve discoverable facts independently from code, docs, config, or authoritative sources.
-- Ask ready questions in one numbered round, ordered by impact, with evidence,
-  a recommendation, and its consequence. Split large sets into coherent batches;
-  keep a single question single. Defer dependent questions whose options or
-  recommendations could change with another answer.
-- Accept authoritative facts without reconfirmation.
-- Wait for answers and record only what they confirm, without unstated constraints.
-  Retain unanswered ready questions unless explicitly deferred.
-- Ground recommendations in evidence, label assumptions, propose canonical terms,
-  and stress-test boundary, lifecycle, failure, concurrency, authorization, and recovery cases.
-- Recompute after answers. Continue only while material decisions remain; do not
-  repeat answered questions or add rounds for harmless preferences. If a round
-  yields no answer or new evidence, report the pending decision instead of looping.
-
-## Update planning artifacts
-
-- Update the smallest authoritative artifact set.
-  Update the owning spec, or create one focused spec when none exists. Keep it
-  `Draft` until readiness approval. Both existing and new specs use the reference's readiness contract.
-- Update context docs only for domain language. In conversation-only planning,
-  emit a self-contained Markdown spec.
-- Create an ADR only after a confirmed decision passes all three ADR tests in the reference.
-
-## Confirm readiness
-
-- After the reference's pre-approval gate and final contradiction pass, present
-  the recommendation, outcome, non-goals, deferred questions, artifacts, risks, and assumptions.
-- Ask exactly one final question: `Mark this spec ready for slicing?`
-- Change status to `Ready for slicing` only after explicit confirmation.
-- Run configured documentation checks.
-- Failed checks return the spec to `Draft`.
-
-For a ready spec, return the matching handoff without invoking it:
-
-- File: `$ziw-to-issues <spec-path>`
-- Conversation: `$ziw-to-issues use the Ready for slicing spec in this conversation`
-
-## Never
-
-- Do not create or edit tracker tickets.
-- Do not invoke To Issues, implement code, open PRs, merge, or deploy.
-- Do not edit planning artifacts before the user confirms the decision.
-- Do not answer a product or architecture decision on the user's behalf.
-- Do not expose secrets or private customer data in planning artifacts.
+- Never decide a product or design question for the user.
+- Don't edit specs until the user has confirmed the decision.
+- Don't create tickets, write code, or start To Issues yourself.
 
 ## Done
 
-Report the confirmed clarification or spec status/path, decisions and evidence,
-changed artifacts/checks, material questions, and Setup gaps. Return to the caller,
-ask the next ready question round, or give the exact To Issues handoff as applicable.
+Report the spec path and status, the decisions made, and the open questions.
+For a ready spec, give the handoff: `$ziw-to-issues <spec-path>`.

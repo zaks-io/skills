@@ -1,87 +1,31 @@
 # Skill maintenance
 
-Use when editing the published skills or their agent-facing references.
+Use when editing the published skills.
 
-## Author the smallest useful change
+## Keep it short
 
-Keep ordered actions in the entrypoint. Put substantial guidance needed only
-for one branch in a reference, with a pointer stating when to load it. Co-locate
-a rule with its conditions and exceptions. Preserve authority and safety
-boundaries even when reducing instruction length.
+- Each skill says its job, its steps, a few rules, and what Done reports.
+  Stay inside the [instruction budget](../docs/skill-instruction-budget.md).
+- Shared rules, terms, states, and labels live only in the
+  [workflow contract](../skills/ziw-setup/references/workflow.md). Link to it;
+  don't restate it.
+- Never restate what the planner scripts compute. Orchestrate maps each planner
+  action to what the agent does, nothing more.
+- Don't add a rule for a rare case. Uncovered cases already stop and report.
+  If a new rule is unavoidable, remove or merge one to make room.
+- One idea per sentence, plain words, numbered steps. No exceptions to
+  exceptions.
+- Keep `SKILL.md`, `agents/openai.yaml`, and any Claude sub-agent in sync.
 
-Each step needs an observable completion criterion. "Run the reproducer and
-observe the reported symptom" is checkable; "understand the bug" is not.
-Keep one authoritative definition of behavior. Runtime tools and provider
-locations belong in repo config, not repeated skill prose.
+## Validate
 
-Remove an instruction as a no-op only when actual behavior shows it adds no
-value. Word counts measure instruction size, not token usage or effectiveness.
-Use positive actions where possible and retain hard prohibitions for authority,
-secrets, destructive operations, and other real guardrails.
-
-Update the portable contract, Codex adapter, downstream template, and current
-workflow docs together. Preserve existing invocation policy. Add a published
-role only when a distinct caller and outcome justify it; record that rationale
-in the skill portfolio.
-
-## Write for scanning
-
-Agents and humans skim. A rule they cannot find, or cannot tell apart from its
-exception, gets ignored or over-applied.
-
-- Open with the outcome and the done condition in two or three sentences.
-- Put the ordered path in one numbered `Steps` list near the top; detail lives
-  in sections named after the steps.
-- One rule per bullet. One idea per sentence, ideally under 25 words.
-- State the default first, then label exceptions right below it
-  (`Exception:`, **Dispatched:** / **Invoked directly:**).
-- Grant permissions as plainly as prohibitions: "Start coding. Do not
-  re-check..." beats a conditional buried in a paragraph.
-- Bound every loop with a progress rule and a cap: each round must change
-  something; stop when it does not, when the same failure survives two fixes,
-  or at the cap.
-- Collect hard limits in one short `Never` list instead of scattering them.
-- Give each shared rule one home file. Elsewhere, state only what the role
-  needs to act. Link the home only when that role must load its detail:
-  agents treat a link as something to read.
-- Prefer plain words to workflow jargon; define a term once in `CONTEXT.md`.
-- Move detail needed by only one branch into a reference with a load
-  condition.
-- A readability rewrite keeps every rule. Compare old and new instruction by
-  instruction before committing, and keep test-pinned phrases intact.
-
-## Validate behavior
-
-Compare entrypoint token estimates and representative loaded-reference paths.
-Record the tokenizer and version; do not present estimates as billed tokens.
-Use [the instruction budget](../docs/skill-instruction-budget.md) as the dated
-baseline. Move material only when its loading condition or canonical ownership
-earns the change; a mandatory reference still counts toward the loaded path.
-
-Run the repository's structure, formatting, discovery, and relevant tests.
-For meaningful changes to decision-making, give a fresh agent the edited
-skill, its needed references, a realistic request, and raw fixtures. Keep
-expected answers and author conclusions out of its prompt. Fixture providers
-must stay offline: no real tracker, complaint, PR, or production writes.
-
-Inspect what the agent actually asks or proposes. Check dependencies, partial
-answers, loading conditions, configured paths, complaint deduplication, and
-authority boundaries where they apply. A keyword match proves none of these.
-Use the bounded cases in [workflow-evaluation/cases.json](workflow-evaluation/cases.json)
-for the planning and complaint changes, and
-[slicing-evaluation/cases.json](slicing-evaluation/cases.json) for To Issues
-slice boundaries. The historical architecture case records
-the eight-role version; use [diagnostic-skill-evaluation/cases.json](diagnostic-skill-evaluation/cases.json)
-for current Debug, Architecture, and state-free Setup behavior.
+Run `pnpm check`, `pnpm format:check`, and `pnpm test`. For a change to how a
+skill decides, give a fresh agent the skill, the workflow contract, and a
+realistic offline case with no expected answer, then read what it actually
+does. [slicing-evaluation/cases.json](slicing-evaluation/cases.json) covers To
+Issues.
 
 ## Done
 
-Report the changed behavior, executed checks, evaluator model and session,
-case outcomes, review findings, and material limits. Preserve review outputs
-outside published skill discovery. Fix observed failures and rerun only the
-affected cases. Do not claim a fixture run exercised a live integration.
-
-## Sources
-
-Adapted from Matt Pocock's [writing-for-agents](https://github.com/mattpocock/skills/blob/24fe0ef7737efae15c87225755e9f6f5965e4888/skills/productivity/writing-for-agents/SKILL.md)
-and [retro](https://github.com/mattpocock/skills/blob/24fe0ef7737efae15c87225755e9f6f5965e4888/skills/engineering/retro/SKILL.md).
+Report the behavior changed, the checks run, any evaluation results, and the
+new word counts.
