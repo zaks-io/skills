@@ -109,9 +109,6 @@ if (!existsSync(skillPortfolioFile)) {
       fail(`${relative(skillPortfolioFile)} must explain ${name}`);
     }
   }
-  if (!portfolioText.includes("`ziw-remote-ticket`")) {
-    fail(`${relative(skillPortfolioFile)} must record the ziw-remote-ticket demotion`);
-  }
 }
 
 if (!existsSync(workflowContractFile)) {

@@ -21,18 +21,16 @@ stable values: no secrets, status, or progress.
 ## Planning
 
 - Specs: <directory>
-- Spec status line: `Status: Draft` or `Status: Ready for slicing`
 - Glossary: <path, or none>
 
 ## Tracker
 
 - Provider and location: <for example, Linear team EXA, project Atlas>
 - Route label: <owner/repo>
-- States: intake `Triage`, ready `Todo`, in progress `In Progress`,
-  review `In Review`, changes `Changes Requested`, merge `Ready to Merge`,
-  done `Done`
+- States: workflow defaults, or each lifecycle step whose state differs
 - Labels: <only names that differ from the workflow defaults>
-- Estimates: <field and scale, or none>
+- Estimates: <field, scale, and the largest estimate one ticket may carry; or
+  none>
 - Dependencies: <tracker blocking relation, or a body section>
 
 ## Workers
@@ -40,13 +38,11 @@ stable values: no secrets, status, or progress.
 - Worker paths: <local worktree, remote agent, or both>
 - Launch: <tool or command that starts a worker on one ticket>
 - Follow-ups: <how to send a worker more instructions>
-- Concurrency cap: <number>
 
 ## Review and merge
 
-- Merge authority: human | agent
 - Merge method: squash | merge | rebase
-- Hosted reviewer: <name and trigger, the risk tiers that require it, or none>
+- Hosted reviewer: <name and trigger, or none>
 - Planner state file: <git-ignored path, such as .ziw/state.json>
 
 ## Friction
@@ -56,15 +52,15 @@ stable values: no secrets, status, or progress.
 
 ```json
 {
-  "workerConcurrencyCap": 2,
-  "readyState": "Todo",
-  "inProgressState": "In Progress",
   "mergeAuthority": "human",
-  "hostedReviewRiskTiers": ["high"],
-  "hostedReviewBots": ["coderabbitai"]
+  "hostedReviewBots": ["coderabbitai"],
+  "workerConcurrencyCap": 2
 }
 ```
 
-`planner.json` repeats the config values the planner reads. Valid fields are in
-[planner-input.schema.json](../../ziw-orchestrate/references/planner-input.schema.json);
-use exact JSON types and leave out what you don't need.
+`planner.json` holds the values the planner reads. Its defaults match the
+contract: cap 3, ready `Todo`, in progress `In Progress`, hosted review required
+at high risk. Set `mergeAuthority` and `hostedReviewBots` (or
+`"hostedReviewRiskTiers": []` with no hosted reviewer), plus any field that
+differs. Field names and types are in
+[planner-input.schema.json](../../ziw-orchestrate/references/planner-input.schema.json).

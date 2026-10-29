@@ -1,5 +1,5 @@
 interface:
-  display_name: "Issue Triage"
+  display_name: "Triage"
   short_description: "Shape tracker tickets"
   default_prompt: "Use $ziw-triage to triage this project tracker queue: make complete issue tickets ready and give every other ticket one next owner."
 policy:

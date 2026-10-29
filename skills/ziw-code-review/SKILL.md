@@ -66,12 +66,12 @@ Findings:
 Verdict: APPROVE | NEEDS REVISION
 ```
 
-A `FAIL` row, an unfixed earlier finding, or any P0 or P1 finding means
-`NEEDS REVISION`. Independent reviews always include the criteria table. For a
-tiny change in author QA, a three-line report is enough: verdict, head, and
-findings or "No findings."
+A `FAIL` or `UNVERIFIABLE` row, an unfixed earlier finding, or any P0 or P1
+finding means `NEEDS REVISION`. Independent reviews always include the
+criteria table. For a tiny change in author QA, a three-line report is enough:
+verdict, head, and findings or "No findings."
 
 ## Rules
 
-- Read-only: never push, merge, label, move tickets, or trigger bots.
+- Never push.
 - Don't delegate any part of the review.

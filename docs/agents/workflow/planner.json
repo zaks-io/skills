@@ -1,8 +1,4 @@
 {
-  "workerConcurrencyCap": 3,
-  "readyState": "Todo",
-  "inProgressState": "In Progress",
   "mergeAuthority": "human",
-  "hostedReviewRiskTiers": ["high"],
   "hostedReviewBots": ["coderabbitai"]
 }

@@ -17,14 +17,15 @@ config says nothing.
 | Create PR   | Commits, pushes, and opens or updates the PR.         |
 | Code Review | Reviews a diff and reports. Changes nothing.          |
 
-Once a ticket is claimed, only Orchestrate moves it, labels its PR, or merges.
+Once a ticket is claimed, only Orchestrate moves it, labels it or its PR, marks
+the PR ready, requests bot reviews, or merges.
 
 ## Lifecycle
 
 | Step           | Ticket state        | PR                  | Next owner  |
 | -------------- | ------------------- | ------------------- | ----------- |
 | Spec drafted   |                     |                     | Grill       |
-| Needs work     | `Triage`            |                     | Triage      |
+| Intake         | `Triage`            |                     | Triage      |
 | Ready          | `Todo`              |                     | Orchestrate |
 | Claimed        | `In Progress`       |                     | Implement   |
 | PR opened      | `In Review`         | draft               | Orchestrate |
@@ -38,8 +39,8 @@ Once a ticket is claimed, only Orchestrate moves it, labels its PR, or merges.
 - **Ready**: a `kind-slice` ticket in the ready state, labeled
   `ready-for-agent`, with a complete body. Blocked ready tickets stay ready; the
   planner starts them when their blockers are done.
-- **Merge-ready**: the PR is not a draft, required checks pass, an independent
-  review passed its current diff, and no blocking review thread is open.
+- **Ticket branch**: `<prefix>/<ticket>-<slug>`, using the configured branch
+  prefix.
 - **Human decision**: a product, security, credential, customer, production, or
   scope choice that the evidence does not settle. Ask; never guess.
 
@@ -59,13 +60,12 @@ estimate when config requires one.
 
 ## Labels
 
-| Purpose         | Defaults                                                                      |
-| --------------- | ----------------------------------------------------------------------------- |
-| Kind            | `kind-slice` (worked), `kind-epic` and `kind-spec` (containers, never worked) |
-| Readiness       | `ready-for-agent`, `ready-for-human`, `needs-info`                            |
-| Risk            | `risk-normal`, `risk-security-sensitive`, `risk-schema`, `risk-cross-cutting` |
-| Review evidence | `code-review-passed` on the ticket                                            |
-| Human merge     | `needs-human-merge` on the PR                                                 |
+| Purpose     | Defaults                                                                      |
+| ----------- | ----------------------------------------------------------------------------- |
+| Kind        | `kind-slice` (worked), `kind-epic` and `kind-spec` (containers, never worked) |
+| Readiness   | `ready-for-agent`, `ready-for-human`, `needs-info`                            |
+| Risk        | `risk-normal`, `risk-security-sensitive`, `risk-schema`, `risk-cross-cutting` |
+| Human merge | `needs-human-merge` on the PR                                                 |
 
 ## Rules for every skill
 

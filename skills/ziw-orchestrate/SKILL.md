@@ -53,39 +53,38 @@ If a script fails, stop and report the error.
 - `dispatch`: move the ticket to `targetState`, then
   [start a worker](#start-a-worker). If the move fails, don't start.
 - `derive-footprint`: the ticket has no Likely files the planner can read.
-  Send it to Triage.
+  Move it to the intake state.
 - `promote-ready`: move the ticket to `targetState`.
-- `request-review`: [get a review](#get-a-review).
+- `request-review`: move the ticket to `In Review`, then
+  [get a review](#get-a-review).
 - `route-fix`, `route-review-fix`, `route-check-fix`, `route-conflict-fix`:
-  send the findings, failing checks, or conflict to the PR's worker.
+  send the findings, failing checks, or conflict to the PR's worker. For
+  `route-fix` and `route-review-fix`, also move the ticket to
+  `Changes Requested`.
 - `update-branch`: run `gh pr update-branch <pr>`.
 - `verify-checks`: no checks reported on this head. Rerun CI once; if it still
   doesn't run, report it.
 - `mark-ready`: mark the draft PR ready for review.
 - `request-hosted-review`: trigger the configured hosted reviewer, then record
   `{"hostedReviewPending": true, "hostedReviewDiffFingerprint": "<fingerprint>"}`
-  under the PR in `hostedReviewByPr`. If the reviewer is unavailable, leave the
-  PR for a human.
+  under the PR in `hostedReviewByPr`. If the reviewer is unavailable, report it
+  as a hold.
 - `resolve-hosted-review-mode`: check whether the hosted reviewer runs on its
   own, and record `"autoReviewMode": "enabled"` or `"disabled"` under the PR in
   `hostedReviewByPr`.
-- `verify-conformance`: get a review that includes the acceptance-criteria
-  table.
-- `apply-…` and `clear-…`: add or remove the named label.
+- `apply-human-merge-pr-label`, `clear-human-merge-pr-label`: add or remove
+  `needs-human-merge` on the PR.
 - `route-human-merge`: [check the PR](#before-a-merge), move the ticket to
   `Ready to Merge`, and tell the user it's ready for them to merge.
 - `arm-auto-merge`: [merge](#merge).
 - `reconcile-empty-pr`: find out why the PR has no diff. Close it only if its
   work already merged; otherwise ask its worker.
 
-Keep each ticket's state matching the
-[lifecycle](../ziw-setup/references/workflow.md#lifecycle) as its PR moves.
-
 ## Start a worker
 
 Launch one worker per ticket on a configured worker path, with this brief:
 
-> Use `ziw-implement` on `<ticket URL>`. Branch `<prefix>/<ticket>-<slug>`.
+> Use `ziw-implement` on `<ticket URL>`. Branch `<ticket branch>`.
 > Scope: `<one sentence>`. Out of scope: `<sibling tickets>`. Report the PR
 > URL and head when done.
 
@@ -108,8 +107,8 @@ instructions to the same worker.
 
 ## Get a review
 
-Launch Code Review in a fresh session that has none of the implementation
-conversation, on a different model from the author when one is available:
+Launch Code Review in a new session, on a different model from the author when
+one is available:
 
 > Use `ziw-code-review` in independent mode on `<PR URL>`. Base `<base>`.
 > Fingerprint `<reviewDiffFingerprint>`. Review only changes since
@@ -127,22 +126,18 @@ in `reviewRequestsByPr`, so the next tick doesn't start a second review. Set
   "reviewedHeadSha": "h1",
   "reviewedDiffFingerprint": "fp1",
   "reviewVerdict": "APPROVE",
-  "independentReviewCount": 1,
-  "conformance": "PASS",
-  "conformanceHeadSha": "h1"
+  "independentReviewCount": 1
 }
 ```
 
-Set `conformance` to `FAIL` if any criterion failed, `UNVERIFIABLE` if any
-could not be verified, and `PASS` otherwise. For a blocking review, use its
-verdict and add `"blockingFindings": true`.
+For a blocking review, use its verdict and add `"blockingFindings": true`.
 Comment the verdict on the ticket. After three blocked reviews of one ticket,
 stop reviewing it and ask a human.
 
 ## Before a merge
 
-Re-read the PR. If its head, checks, review decision, or open review threads
-changed since the snapshot, do nothing now and let the next tick replan.
+Re-read the PR. If anything about it changed since the snapshot, do nothing now
+and let the next tick replan.
 
 ## Merge
 

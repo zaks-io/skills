@@ -48,60 +48,13 @@ Refresh project-installed skills:
 npx skills update -p -y
 ```
 
-From this source repo, discover downstream consumers before updating them:
+From this source repo, discover downstream consumers and open mechanical
+refresh PRs for them. [docs/skill-distribution.md](docs/skill-distribution.md)
+covers the updater's flags and behavior.
 
 ```sh
 pnpm skills:downstream
-```
-
-Open mechanical project-skill refresh PRs across downstream repos:
-
-```sh
 pnpm skills:downstream:update
-```
-
-The coordinator reconciles the complete published skill set using the pinned
-`skills@1.7.0` CLI. It installs new skills, refreshes existing skills, and removes
-retired skills from the selected source. Other sources remain unchanged. Agent
-targets come from tracked project skill paths, not the operator's global installs.
-It verifies lockfile hashes and installed files against the fetched GitHub source
-commit before committing or publishing. This requires authenticated `gh` access.
-
-`skills update -p -y` alone refreshes installed skills but does not add newly
-published skills. Version 1.7.0 also retains retired skills in non-interactive
-mode. Use this coordinator when refreshing the complete workflow skill set.
-
-The update command creates a temporary `git worktree` for each target, commits
-generated changes on a deterministic daily update branch, pushes the branch, and
-opens or reuses the GitHub PR. The PR body includes `@coderabbitai ignore` so
-CodeRabbit does not spend review quota on the mechanical refresh. Git commit and
-push hooks always run; a failed install or requested check blocks publication.
-Incomplete targets make the batch exit nonzero, with all command output retained.
-
-Worktrees branch from a freshly fetched `origin/main` by default, falling back
-to local `main` only when the repo has no remote, so a dirty or stale source
-checkout does not block the safe worktree flow and is never used as the update
-base. Changed apply-only worktrees are kept for inspection;
-committed, pushed, PR-created, and unchanged worktrees are removed unless
-`--keep-worktree` is passed. Use `--base-ref <ref>` to choose another base and
-`--worktree-root <path>` to choose the scratch location. Use `--in-place` only
-when you intentionally want to mutate the target checkout directly.
-
-Create local update commits after checks:
-
-```sh
-node scripts/update-downstream-skills.mjs --apply --check --trust-check-commands --commit
-```
-
-`--check` runs the target repo's configured full local gate from
-`docs/agents/workflow/config.md` with shell behavior. Use it only for downstream
-repos whose workflow config you trust, and pass `--trust-check-commands` to make
-that explicit.
-
-Push branches and open PRs when you want the full fanout:
-
-```sh
-pnpm skills:downstream:update --check --trust-check-commands
 ```
 
 Install globally for one local user:

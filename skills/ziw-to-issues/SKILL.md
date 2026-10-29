@@ -19,7 +19,7 @@ A spec, PRD, or epic; the repo config; and any tickets that already exist for it
    and send its open questions back to Grill.
 2. Start from one ticket per feature the spec asks for. Split a feature only
    when one of these holds, and write the reason down:
-   - **Size**: it exceeds the configured estimate limit, or is too large to
+   - **Size**: it exceeds the largest estimate config allows, or is too large to
      review in one sitting.
    - **Rollout order**: a deploy has to happen between the parts.
    - **Authority**: one part needs a human decision or approval the rest

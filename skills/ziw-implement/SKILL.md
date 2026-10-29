@@ -19,8 +19,8 @@ One ticket, the repo config, and the branch or worktree you were given.
    If Orchestrate started you, the ticket is already claimed. If you were
    invoked directly, check that the ticket is ready and has no open blockers,
    then move it to `In Progress`.
-2. Work on the branch you were given, or create one named
-   `<prefix>/<ticket>-<slug>`. Never work in another session's worktree.
+2. Work on the branch you were given, or create the ticket branch. Never work
+   in another session's worktree.
 3. Restate the outcome, scope, and acceptance criteria. Stop and ask if the
    ticket is unclear, contradicts itself, or needs a human decision.
 4. Make the change, following existing patterns. Add or update tests for the
@@ -39,12 +39,6 @@ One ticket, the repo config, and the branch or worktree you were given.
 
 When review findings or failing checks come back, fix only those, push to the
 same branch, and rerun the affected checks.
-
-## Rules
-
-- Only the ticket's scope. Recommend follow-ups in your report.
-- Don't mark the PR ready, add review or merge labels, or move the ticket past
-  `In Progress`. Orchestrate does that.
 
 ## Done
 

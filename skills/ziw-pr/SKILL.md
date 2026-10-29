@@ -17,13 +17,13 @@ checks it ran.
 ## Steps
 
 1. Read `git status`, the diff, and any new files. If you're on the default
-   branch, create a branch named `<prefix>/<ticket>-<slug>`.
+   branch, create the ticket branch.
 2. Stop if the changes contain a secret or work outside the ticket.
 3. If you changed a dependency manifest, update the lockfile first. Then stage
    everything except secrets, `.env` files, and unintended lockfile changes.
 4. Commit any staged changes with a Conventional Commits message, then push.
 5. If a hook fails or the push is rejected, fix the cause and try again. Stop
-   after three rounds, or sooner if the same failure survives two fixes.
+   after three rounds.
 6. Open a draft PR, or update the existing one, with this body, and put the
    ticket's URL in it:
 
@@ -45,7 +45,6 @@ Don't wait for CI or reviews.
 
 - Never push to the default branch, use `--no-verify`, or force-push unless
   the user asks.
-- Don't mark the PR ready, add labels, or request bot reviews.
 
 ## Done
 

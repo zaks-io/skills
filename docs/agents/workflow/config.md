@@ -21,7 +21,6 @@ read live. Planner values are in [planner.json](planner.json).
 ## Planning
 
 - Specs: `docs/*.md`
-- Spec status line: `Status: Draft` or `Status: Ready for slicing`
 - Glossary: `CONTEXT.md`
 
 ## Tracker
@@ -38,14 +37,12 @@ read live. Planner values are in [planner.json](planner.json).
 - Worker paths: local worktree
 - Launch: a delegated session in its own T3 worktree
 - Follow-ups: message the same session
-- Concurrency cap: 3
 
 ## Review and merge
 
-- Merge authority: human
 - Merge method: the repository-allowed GitHub method
 - Hosted reviewer: CodeRabbit (`coderabbitai`), triggered with
-  `@coderabbitai review`, required for `high` risk after local review
+  `@coderabbitai review` after local review
 - Planner state file: `.ziw/state.json`
 
 ## Friction

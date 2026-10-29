@@ -29,7 +29,7 @@ An idea, plan, or existing spec, plus the repo and its workflow config.
    deferred, with a reason).
 5. When nothing blocking remains, ask exactly
    `Mark this spec ready for slicing?` Only on a yes, change the status line
-   to `Status: Ready for slicing` and run the configured doc checks.
+   to `Status: Ready for slicing` and run the focused checks.
 
 If the answer only clarifies existing work and changes no scope or acceptance,
 return it to whoever asked instead of writing a spec.
