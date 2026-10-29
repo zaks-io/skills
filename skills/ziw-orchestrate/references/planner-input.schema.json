@@ -167,6 +167,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -354,6 +368,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -720,7 +748,7 @@
         "path": { "type": ["string", "null"] },
         "worktree": { "type": ["string", "null"] },
         "session": { "type": ["string", "null"] },
-        "sessionId": { "type": ["string", "null"] },
+        "sessionId": { "type": "string", "pattern": "\\S" },
         "state": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
         "workflowState": { "type": ["string", "null"] },
@@ -762,6 +790,19 @@
             { "type": "array", "items": { "type": "string" } },
             { "type": "null" }
           ]
+        },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
         },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
@@ -1721,6 +1762,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -2063,6 +2118,20 @@
         "prId": false,
         "session": false,
         "issueRef": false,
+        "sessionId": false,
+        "receiptId": false,
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -2330,9 +2399,7 @@
           "items": { "$ref": "#/definitions/canonical_issueReference" }
         },
         "legacyPrAliases": false,
-        "prNumber": false,
-        "receiptId": false,
-        "sessionId": false
+        "prNumber": false
       }
     },
     "canonical_worker": {
@@ -2388,6 +2455,12 @@
         },
         "receiptId": { "type": "string", "pattern": "\\S" },
         "sessionId": { "type": "string", "pattern": "\\S" },
+        "runId": { "type": "string", "pattern": "\\S" },
+        "previousRunIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\S" },
+          "uniqueItems": true
+        },
         "prNumber": { "type": "integer", "minimum": 1 },
         "title": { "type": ["string", "null"] },
         "url": { "type": ["string", "null"] },
@@ -2680,6 +2753,12 @@
         },
         "receiptId": false,
         "sessionId": false,
+        "runId": { "type": "string", "pattern": "\\S" },
+        "previousRunIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\S" },
+          "uniqueItems": true
+        },
         "prNumber": { "type": "integer", "minimum": 1 },
         "title": { "type": ["string", "null"] },
         "url": { "type": ["string", "null"] },
@@ -2782,6 +2861,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },

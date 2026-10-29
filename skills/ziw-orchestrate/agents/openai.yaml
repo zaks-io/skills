@@ -1,6 +1,6 @@
 interface:
   display_name: "Orchestrate"
   short_description: "Orchestrate tracked work"
-  default_prompt: "Use $ziw-orchestrate to orchestrate this tracker scope: run the planner, carry out each issue and PR action it emits, save state, and stop when nothing safe is left."
+  default_prompt: "Use $ziw-orchestrate to orchestrate this tracker scope: recover saved workers, record confirmed observations, and carry out the planner's issue and PR actions."
 policy:
   allow_implicit_invocation: true

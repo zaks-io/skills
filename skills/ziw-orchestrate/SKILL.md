@@ -6,8 +6,8 @@ argument-hint: "[ticket-ids|filter|project|until-clear]"
 
 # Orchestrate
 
-Run the delivery loop. Each run is one tick: plan, do everything the plan
-allows, save state, exit. The planner scripts decide what happens; this skill
+Run the delivery loop. Each run is one tick: plan, perform and record allowed
+actions, exit. The planner scripts decide what happens; this skill
 says how to carry out each action. Terms and rules follow the
 [workflow contract](../ziw-setup/references/workflow.md).
 
@@ -20,33 +20,44 @@ of `planner.json` that lowers `workerConcurrencyCap`.
 
 ## Each tick
 
-1. Plan. On the first tick, create the state file as `{}`.
+1. Initialize or reopen the saved state; never reset it on resume. Recover
+   workers and pending reviews through config's observation and recovery methods.
+   Record confirmed results before planning. Follow runtime completion instructions;
+   don't infer completion from silence. Unavailable evidence preserves the saved
+   reservation: report the affected hold without relaunching that work.
 
    ```sh
    S=<skill-dir>/scripts
+   node $S/planner-state.mjs --repo <owner/repo> --state <state-file>
    node $S/tick-snapshot.mjs --repo <owner/repo> --linear-team <team> \
      --linear-route-label <route label> --state <state-file> > /tmp/snapshot.json
    node $S/tick-plan.mjs /tmp/snapshot.json \
      --config docs/agents/workflow/planner.json --state <state-file>
    ```
 
-   For named tickets, a project, or a filter, first set `scopeIssues` in the
-   state file to the scope's tickets, such as `[{"issueKey": "EXA-1"}]`. Remove
-   it for the default scope. If the snapshot skipped the tracker, fetch
-   the scope with tracker tools, add the tickets to the state file as
-   `linearIssues`, each with a `footprint` listing its Likely files, and plan
-   again.
+   Record `scopeIssues`, such as `[{"issueKey": "EXA-1"}]`, for a named scope;
+   record `null` for the default scope. If the snapshot skipped the tracker,
+   record the scope from tracker tools as `linearIssues`, with each ticket's
+   `footprint` listing its Likely files, and plan again.
 
 2. Do every entry in `actions`, using the table below. Start workers first.
 3. Leave `waits` alone; they clear on their own. Report each `hold` with its
    reason. If a hold names missing evidence, make one lookup, plan once more,
    and report what is still missing.
-4. Save the state file and exit. For a recurring run, schedule the next tick
+4. Exit. For a recurring run, schedule the next tick
    with the runtime's scheduler. If there isn't one, tell the user what to
    schedule.
 
 Stop the run when the scope is done, or when everything left waits on a human.
 If a script fails, stop and report the error.
+
+## Record observations
+
+Save each confirmed launch or result immediately with
+`node $S/planner-state.mjs --repo <owner/repo> --state <state-file> --record <file>`.
+It validates updates and preserves unrelated records. Read the
+[state example](references/state-observations.md) when first recording or
+recovering work. An invalid update leaves state unchanged.
 
 ## Actions
 
@@ -68,7 +79,7 @@ If a script fails, stop and report the error.
 - `mark-ready`: mark the draft PR ready for review.
 - `request-hosted-review`: trigger the configured hosted reviewer, then record
   `{"hostedReviewPending": true, "hostedReviewDiffFingerprint": "<fingerprint>"}`
-  under the PR in `hostedReviewByPr`. If the reviewer is unavailable, report it
+  in `hostedReviewByPr`. If the reviewer is unavailable, report it
   as a hold.
 - `resolve-hosted-review-mode`: check whether the hosted reviewer runs on its
   own, and record `"autoReviewMode": "enabled"` or `"disabled"` under the PR in
@@ -92,22 +103,11 @@ Launch one worker per ticket on a configured worker path, with this brief:
 > Scope: `<one sentence>`. Out of scope: `<sibling tickets>`. Report the PR
 > URL and head when done.
 
-Add it to `dispatches` in the state file:
-
-```json
-{
-  "issueKey": "EXA-2",
-  "sessionId": "S1",
-  "branch": "agent/exa-2-x",
-  "footprint": ["src/b.ts"],
-  "status": "running"
-}
-```
-
-Use `receiptId` instead of `sessionId` when the launcher returns only a
-receipt. Set `status` to `returned` when the worker reports back, back to
-`running` when you send it more work, and to `failed` if it dies. Send later
-instructions to the same worker.
+Record `dispatches` with the ticket, branch, footprint, `status: running`, and
+the returned `sessionId` or `receiptId`; retain `runId` when supplied. Later
+observations use the same identity and confirmed status. For fixes, reuse the
+worker only with a distinct `runId`; otherwise launch a fresh worker on the
+ticket's branch. Recover existing work before retrying an interrupted launch.
 
 ## Get a review
 
@@ -119,24 +119,11 @@ one is available:
 > `<deltaFrom>`, if given, and confirm these earlier findings are fixed:
 > `<findings>`. Criteria: `<ticket URL>`.
 
-While it runs, record
-`{"reviewDiffFingerprint": "<fingerprint>", "status": "running"}` under the PR
-in `reviewRequestsByPr`, so the next tick doesn't start a second review. Set
-`status` to `completed` when it finishes, and record the result under the PR in
-`reviewEvidenceByPr`:
-
-```json
-{
-  "reviewedHeadSha": "h1",
-  "reviewedDiffFingerprint": "fp1",
-  "reviewVerdict": "APPROVE",
-  "independentReviewCount": 1
-}
-```
-
-For a blocking review, use its verdict and add `"blockingFindings": true`.
-Comment the verdict on the ticket. After three blocked reviews of one ticket,
-stop reviewing it and ask a human.
+Record `reviewRequestsByPr` with the session or receipt, head, fingerprint, and
+`status: running`. Record the returned report in `reviewEvidenceByPr`, identifying
+the same session, reviewed head and fingerprint, verdict, and independent review
+count. The helper completes the matching request and sets its blocking flag.
+Comment the verdict on the ticket. After three blocked reviews, ask a human.
 
 ## Before a merge
 

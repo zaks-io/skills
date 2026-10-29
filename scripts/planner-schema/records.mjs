@@ -33,6 +33,16 @@ const labels = {
 const evidenceCount = { anyOf: [count, boolean, { type: "array" }] };
 
 export const evidenceProperties = {
+  ...fields("sessionId receiptId", { type: "string", pattern: "\\S" }),
+  previousRequests: {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      properties: fields("sessionId receiptId", { type: "string", pattern: "\\S" }),
+      anyOf: [{ required: ["sessionId"] }, { required: ["receiptId"] }],
+    },
+  },
   ...fields(
     `hasReviewEvidence reviewEvidenceCurrent blockingFindings changesRequested
     linkedPrChanged evidenceMissing requiredChecksPassed requiredChecksGreen checksPassing
@@ -194,6 +204,8 @@ const workerProperties = {
   ...footprintFields,
   receiptId: opaqueId,
   sessionId: opaqueId,
+  runId: opaqueId,
+  previousRunIds: { type: "array", items: opaqueId, uniqueItems: true },
   prNumber: { type: "integer", minimum: 1 },
   ...fields("title url branch headSha path worktree state status source prUrl", nullableText),
   ...fields(

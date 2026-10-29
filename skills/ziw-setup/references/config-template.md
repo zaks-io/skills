@@ -38,6 +38,9 @@ stable values: no secrets, status, or progress.
 - Worker paths: <local worktree, remote agent, or both>
 - Launch: <tool or command that starts a worker on one ticket>
 - Follow-ups: <how to send a worker more instructions>
+- Observe: <authoritative status source and the session, receipt, and run IDs it returns>
+- Completion: <how results arrive; follow the runtime's wait or notification instructions>
+- Recover: <how to retrieve status and results by saved ID after interruption>
 
 ## Review and merge
 
