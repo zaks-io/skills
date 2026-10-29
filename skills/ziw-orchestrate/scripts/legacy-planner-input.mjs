@@ -227,7 +227,11 @@ export function adaptExternalPlannerState(state) {
   const canonical = {};
   const legacy = {};
   const legacyWorkerPaths = [];
-  for (const [name, value] of Object.entries(state)) {
+  for (const [name, original] of Object.entries(state)) {
+    const value =
+      name === "pullRequests"
+        ? original.map(({ sessionId, ...pr }) => (text(sessionId) ? { ...pr, sessionId } : pr))
+        : original;
     if (validateCanonicalState({ [name]: value })) {
       canonical[name] = value;
     } else if (["dispatches", "ledgerDispatches", "activeWork", "workers"].includes(name)) {

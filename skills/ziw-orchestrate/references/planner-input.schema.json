@@ -748,7 +748,7 @@
         "path": { "type": ["string", "null"] },
         "worktree": { "type": ["string", "null"] },
         "session": { "type": ["string", "null"] },
-        "sessionId": { "type": "string", "pattern": "\\S" },
+        "sessionId": { "type": ["string", "null"] },
         "state": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
         "workflowState": { "type": ["string", "null"] },

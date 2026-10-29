@@ -74,6 +74,30 @@ test("initialization and repeated receipts preserve unrelated workers and review
   assert.deepEqual(read().reviewEvidenceByPr[99], { reviewVerdict: "APPROVE" });
 });
 
+for (const sessionId of [null, ""]) {
+  test(`CLI records observations beside a legacy PR with sessionId ${JSON.stringify(sessionId)}`, (t) => {
+    const { file, read } = fixture(t);
+    writeFileSync(
+      file,
+      JSON.stringify({
+        repo,
+        pullRequests: [{ number: 42, title: "Existing PR", sessionId }],
+      }),
+    );
+    const result = spawnSync(
+      process.execPath,
+      [script, "--repo", repo, "--state", file, "--record", "-"],
+      { input: JSON.stringify({ dispatches: [worker] }), encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(read(), {
+      repo,
+      pullRequests: [{ number: 42, title: "Existing PR" }],
+      dispatches: [worker],
+    });
+  });
+}
+
 test("receipts gain session IDs and observations retain issue and footprint", (t) => {
   const { save, read } = fixture(t);
   const { sessionId, ...receipt } = worker;
@@ -171,6 +195,8 @@ test("confirmed review failure releases its request without creating approval", 
 
 for (const [name, observation] of [
   ["duplicate reviewer", { reviewRequestsByPr: { 42: { ...request, sessionId: "R2" } } }],
+  ["null review session", { reviewRequestsByPr: { 42: { ...request, sessionId: null } } }],
+  ["empty review session", { reviewRequestsByPr: { 42: { ...request, sessionId: "" } } }],
   ["wrong review session", { reviewEvidenceByPr: { 42: { ...evidence, sessionId: "R2" } } }],
   ["wrong review head", { reviewEvidenceByPr: { 42: { ...evidence, reviewedHeadSha: "h2" } } }],
   [

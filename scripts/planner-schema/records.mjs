@@ -117,6 +117,7 @@ export const legacyDefinitions = {
     properties: {
       ...identityProperties,
       ...evidenceProperties,
+      sessionId: identityProperties.sessionId,
       ...fields(
         `open closed merged isDraft draft isBot isDependencyBot dependencyBot
         autoMergeArmed reviewThreadsTruncated reviewsTruncated`,
