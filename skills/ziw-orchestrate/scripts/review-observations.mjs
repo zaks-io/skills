@@ -47,12 +47,14 @@ export function normalizePrMaps(state, prs, legacy, legacyFields) {
     if (state[name] == null) continue;
     const mapped = {};
     for (const [alias, evidence] of Object.entries(state[name])) {
-      const number = /^\d+$/.test(alias)
-        ? Number(alias)
-        : legacy || legacyFields.has(name)
-          ? aliases.get(alias)
-          : null;
-      if (!Number.isInteger(number) || number < 1)
+      const numeric = /^\d+$/.test(alias) ? Number(alias) : null;
+      const legacyNumber = legacy || legacyFields.has(name) ? aliases.get(alias) : null;
+      const number = numeric ?? legacyNumber;
+      if (
+        !Number.isSafeInteger(number) ||
+        number < 1 ||
+        (numeric != null && legacyNumber != null && legacyNumber !== numeric)
+      )
         throw new Error(`state/${name}: PR reference is unknown or ambiguous; supply PR number`);
       if (mapped[number] && JSON.stringify(mapped[number]) !== JSON.stringify(evidence))
         throw new Error(`state/${name}: contradictory evidence for one PR`);

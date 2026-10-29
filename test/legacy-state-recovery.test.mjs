@@ -132,6 +132,27 @@ for (const alias of [pr.id, pr.url, pr.headSha, pr.headRefName]) {
 
 for (const [name, state, error] of [
   [
+    "numeric alias pointing to another PR",
+    {
+      pullRequests: [{ ...pr, id: "123", prNumber: 42 }],
+      reviewEvidenceByPr: { 123: evidence },
+    },
+    /unknown or ambiguous/,
+  ],
+  [
+    "numeric alias colliding with a PR number",
+    {
+      pullRequests: [{ ...pr, id: "123", prNumber: 42 }, { number: 123 }],
+      reviewEvidenceByPr: { 123: evidence },
+    },
+    /unknown or ambiguous/,
+  ],
+  ...["9007199254740993", "100000000000000000000000"].map((key) => [
+    `unsafe numeric key ${key}`,
+    { pullRequests: [pr], reviewEvidenceByPr: { [key]: evidence } },
+    /unknown or ambiguous/,
+  ]),
+  [
     "unknown",
     { pullRequests: [pr], reviewEvidenceByPr: { missing: evidence } },
     /unknown or ambiguous/,
@@ -163,5 +184,21 @@ for (const [name, state, error] of [
     assert.equal(result.status, 1);
     assert.match(result.stderr, error);
     assert.equal(readFileSync(file, "utf8"), before);
+  });
+}
+
+for (const [id, key] of [
+  ["42", "42"],
+  ["PR-42", "42"],
+  ["PR-42", "99"],
+]) {
+  test(`legacy PR ${id} preserves unambiguous numeric evidence key ${key}`, (t) => {
+    const { record, read } = fixture(t, {
+      pullRequests: [{ ...pr, id, prNumber: 42 }],
+      reviewEvidenceByPr: { [key]: evidence },
+    });
+    const result = record();
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(read().reviewEvidenceByPr, { [key]: evidence });
   });
 }
