@@ -37,6 +37,13 @@ read live. Planner values are in [planner.json](planner.json).
 - Worker paths: local worktree
 - Launch: a delegated session in its own T3 worktree
 - Follow-ups: message the same session
+- Observe: T3 delegation results identify the task, child thread, and run. Save
+  the task ID as `receiptId`, child thread ID as `sessionId`, and run ID as `runId`.
+- Completion: follow `delegate_task`'s returned wait or completion instructions;
+  do not poll a running delegate.
+- Recover: read the saved child thread with `t3_thread_read` to retrieve its
+  current run and result. Missing or inaccessible evidence leaves its saved
+  reservation intact. Start every independent review in a fresh delegated session.
 
 ## Review and merge
 

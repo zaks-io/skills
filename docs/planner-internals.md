@@ -5,6 +5,30 @@ Maintainer notes for the published planner scripts. Agents follow
 the full input schema is `skills/ziw-orchestrate/references/planner-input.schema.json`.
 These implementation details add no caller obligations or authority.
 
+## Saved observations
+
+`planner-state.mjs` initializes or updates local state through `state-observations.mjs`.
+It validates canonical records, uses the existing legacy adapter when needed,
+and binds the file to one repository. Worker observations match explicit session
+or receipt IDs, retain known footprints, and reject conflicting identities or runs.
+Review results must match the saved request's session, head, and fingerprint;
+recording the result completes that request in the same write.
+The recorder retains superseded worker runs and review identities to reject
+old launch receipts as well as old results. It merges supported review-map
+aliases before updating entries and stops on conflicts. Older pending reviews
+can acquire a recovered session and head without launching a second review.
+Before persisting legacy PR records, the adapter resolves evidence-map aliases
+to PR numbers and removes temporary PR identity fields. Unknown, ambiguous, or
+conflicting references stop the write.
+
+Updates use an exclusive sibling lock and a flushed temporary file followed by
+rename. Failed validation does not replace the previous file. Concurrent writers
+fail rather than overwrite each other's records. A crash may leave a lock;
+the operator must establish that its writer has ended before removing it.
+Observations must come from current runtime evidence. The helper validates their
+consistency, not their provenance. The worked caller contract is
+[state-observations.md](../skills/ziw-orchestrate/references/state-observations.md).
+
 ## Coverage and review evidence
 
 `diffCoverage` in `skills/ziw-orchestrate/scripts/workflow-contract.mjs` compares

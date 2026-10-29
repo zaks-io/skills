@@ -23,8 +23,9 @@ Repo path, any existing config, and what to set up or refresh.
 2. Fill each field from evidence:
    - Commands and checks from package scripts, task runners, hooks, and CI.
    - Tracker location, states, and labels from a read-only tracker query.
-   - Workers, merge authority, deploys, and the complaint tool from repo docs
-     or the user.
+   - Worker launch, observation, completion, and recovery from runtime tools or
+     repo docs. Verify how saved session or receipt IDs retrieve current results.
+   - Merge authority, deploys, and the complaint tool from repo docs or the user.
 3. Leave a field out when you can't verify it, and list it as a gap.
 4. Write both files. Keep `planner.json` consistent with the config.
 5. Make sure `AGENTS.md`, or the repo's agent instructions file, points to
