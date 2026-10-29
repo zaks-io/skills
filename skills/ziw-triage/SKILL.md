@@ -25,8 +25,8 @@ states; other states, such as `Backlog`, only when the user names them.
      --linear-states <scope states> > /tmp/triage-snapshot.json
    ```
 
-   If the snapshot skipped the tracker, list the scope once with tracker tools
-   instead.
+   If the snapshot fails or skips the tracker, list the scope once with tracker
+   tools instead.
 
 2. Give each ticket one outcome:
    - **Ready**: the body and labels are complete. Move it to the ready state
