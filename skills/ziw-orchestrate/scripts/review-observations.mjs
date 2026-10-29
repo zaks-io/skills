@@ -15,6 +15,54 @@ const fail = (message) => {
   throw new Error(message);
 };
 
+export function normalizePrMaps(state, prs, legacy, legacyFields) {
+  const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
+  const aliases = new Map();
+  const register = (value, number) => {
+    if (value == null) return;
+    const alias = String(value);
+    const prior = aliases.get(alias);
+    aliases.set(alias, prior === false || (prior != null && prior !== number) ? false : number);
+  };
+  for (const pr of prs) {
+    for (const value of [
+      pr.number,
+      pr.url,
+      ...(legacy || legacyFields.size
+        ? [pr.headSha, pr.headRefName, ...array(pr.legacyPrAliases)]
+        : []),
+    ])
+      register(value, pr.number);
+  }
+  const result = { ...state };
+  for (const name of [
+    "reviewEvidenceByPr",
+    "reviewEvidence",
+    "hostedReviewByPr",
+    "reviewRequestsByPr",
+    "reviewRequestByPr",
+    "reviewDiffByPr",
+    "continuationByPr",
+  ]) {
+    if (state[name] == null) continue;
+    const mapped = {};
+    for (const [alias, evidence] of Object.entries(state[name])) {
+      const number = /^\d+$/.test(alias)
+        ? Number(alias)
+        : legacy || legacyFields.has(name)
+          ? aliases.get(alias)
+          : null;
+      if (!Number.isInteger(number) || number < 1)
+        throw new Error(`state/${name}: PR reference is unknown or ambiguous; supply PR number`);
+      if (mapped[number] && JSON.stringify(mapped[number]) !== JSON.stringify(evidence))
+        throw new Error(`state/${name}: contradictory evidence for one PR`);
+      mapped[number] = evidence;
+    }
+    result[name] = mapped;
+  }
+  return result;
+}
+
 export function normalizeReviewMaps(state) {
   for (const [alias, canonical] of [
     ["reviewRequestByPr", "reviewRequestsByPr"],

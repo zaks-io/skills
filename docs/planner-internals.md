@@ -17,6 +17,9 @@ The recorder retains superseded worker runs and review identities to reject
 old launch receipts as well as old results. It merges supported review-map
 aliases before updating entries and stops on conflicts. Older pending reviews
 can acquire a recovered session and head without launching a second review.
+Before persisting legacy PR records, the adapter resolves evidence-map aliases
+to PR numbers and removes temporary PR identity fields. Unknown, ambiguous, or
+conflicting references stop the write.
 
 Updates use an exclusive sibling lock and a flushed temporary file followed by
 rename. Failed validation does not replace the previous file. Concurrent writers

@@ -1,4 +1,5 @@
 import { validateCanonicalState } from "./planner-input-validator.mjs";
+import { normalizePrMaps } from "./review-observations.mjs";
 
 const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
 const text = (value) => String(value ?? "").trim();
@@ -223,7 +224,7 @@ export function adaptLegacyPlannerInput(snapshot = {}, state = {}) {
   };
 }
 
-export function adaptExternalPlannerState(state) {
+export function adaptExternalPlannerState(state, { forPersistence = false } = {}) {
   const canonical = {};
   const legacy = {};
   const legacyWorkerPaths = [];
@@ -245,8 +246,13 @@ export function adaptExternalPlannerState(state) {
       legacy[name] = value;
     }
   }
-  return {
-    state: { ...adaptLegacyPlannerInput({}, legacy).state, ...canonical },
-    legacyWorkerPaths,
-  };
+  let adapted = { ...adaptLegacyPlannerInput({}, legacy).state, ...canonical };
+  if (forPersistence) {
+    adapted = normalizePrMaps(adapted, array(adapted.pullRequests), true, new Set());
+    if (adapted.pullRequests)
+      adapted.pullRequests = adapted.pullRequests.map(
+        ({ legacyPrAliases, sessionId, receiptId, prNumber, ...pr }) => pr,
+      );
+  }
+  return { state: adapted, legacyWorkerPaths };
 }

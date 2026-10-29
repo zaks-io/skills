@@ -63,7 +63,7 @@ export function recordPlannerState({ file, repo, observation = {} }) {
       validatePlannerState(state);
     } catch {
       if (!validateState(state)) throw new Error("invalid saved state; no changes written");
-      state = adaptExternalPlannerState(state).state;
+      state = adaptExternalPlannerState(state, { forPersistence: true }).state;
       validatePlannerState(state);
     }
     if (state.repo != null && state.repo !== repo) throw new Error("state belongs to another repo");
