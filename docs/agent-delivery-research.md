@@ -55,17 +55,14 @@ a coding agent.
 
 Agent Orchestrator is the only active loop. It should keep a small context,
 refresh Linear, GitHub, checks, and PR state, then delegate implementation or
-review. Grill resolves material planning ambiguity; To Issues and Issue Triage
+review. Grill resolves material planning ambiguity; To Issues and Triage
 prepare current work. Agent Review and integrate are called steps.
 
-There is no separate coverage-audit loop in this repo. Coverage and conformance
-checking live inside the existing roles instead: To Issues emits a coverage
-matrix at slicing time so dropped spec requirements surface before
-implementation, the review gate exhibits a per-criterion conformance table
-before merge, and the main-drift checkpoint review inside `ziw-code-review`
-independent mode audits merged work against the spec sections its tickets
-cited. This keeps the one-loop model: the audit is a called step on the
-existing checkpoint, not a second loop. The decision trail is user-directed
+There is no separate coverage-audit loop in this repo. Coverage checking lives
+inside the existing roles instead: To Issues reports which spec requirements
+each ticket covers at slicing time, so dropped requirements surface before
+implementation, and the review gate fills a per-criterion table before merge.
+This keeps the one-loop model. The decision trail is user-directed
 (2026-07-17): move the human from per-PR gate to sampled auditor so merge
 authority can follow delivery mode while trust is verified on merged reality.
 
@@ -216,7 +213,8 @@ Each orchestrator run should produce enough data to answer:
 ## Documentation Rules
 
 - README stays the usage guide.
-- `docs/agent-workflow.md` is the technical contract.
+- `skills/ziw-setup/references/workflow.md` is the contract agents follow;
+  `docs/agent-workflow.md` explains how the skills fit together.
 - `docs/agent-delivery-research.md` records why the contract looks this way.
 - `docs/skill-portfolio.md` records the public skill surface and trim
   rationale.

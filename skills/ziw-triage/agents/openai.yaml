@@ -1,6 +1,6 @@
 interface:
-  display_name: "Issue Triage"
+  display_name: "Triage"
   short_description: "Shape tracker tickets"
-  default_prompt: "Use $ziw-triage to shape the project's configured current-work queue for Orchestrator. Run the snapshot, planner, and DAG scripts with configured scope and compact JSON inputs, then freeze the issue set. A normal run processes configured intake states: promote complete kind-slice tickets to the configured ready state even when dependency-blocked; Linear Backlog requires an explicit request. Use cited source-of-truth docs for the smallest direct dependency graph. Repair metadata within authority. For a clear ticket missing only its location, use the skill's bounded filename lookup; route an unresolved lookup to To Issues without restarting planning. No ad hoc GitHub, CI, deploy, log, or implementation exploration."
+  default_prompt: "Use $ziw-triage to triage this project tracker queue: make complete issue tickets ready and give every other ticket one next owner."
 policy:
   allow_implicit_invocation: true

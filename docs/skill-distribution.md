@@ -101,6 +101,10 @@ node scripts/update-downstream-skills.mjs --apply --check --trust-check-commands
 node scripts/update-downstream-skills.mjs --apply --repo ~/src/agent-paste --commit
 ```
 
+`--check` runs the target repo's configured full local gate with shell behavior.
+Use it only for downstream repos whose workflow config you trust, and pass
+`--trust-check-commands` to make that explicit.
+
 For downstream repos with `skills-lock.json`:
 
 ```sh

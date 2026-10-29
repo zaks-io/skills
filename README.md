@@ -20,12 +20,9 @@ Use them to:
 
 You can run one skill for a specific task or use the full delivery workflow.
 Each repo gets a small config at `docs/agents/workflow/config.md` that records
-its issue tracker, verification commands, worker setup, and approval rules.
-Config holds stable mappings and policies. Project progress, blockers, and
-follow-up work stay in Linear or the configured tracker; CI and PR status are
-read live rather than copied into config.
-The skills read it before acting, so you can reuse the workflow across repos
-without re-explaining how each project works.
+its issue tracker, verification commands, worker setup, and approval rules. It
+holds stable values only; progress stays in the tracker, and CI and PR status
+are read live.
 
 ## Install
 
@@ -51,60 +48,13 @@ Refresh project-installed skills:
 npx skills update -p -y
 ```
 
-From this source repo, discover downstream consumers before updating them:
+From this source repo, discover downstream consumers and open mechanical
+refresh PRs for them. [docs/skill-distribution.md](docs/skill-distribution.md)
+covers the updater's flags and behavior.
 
 ```sh
 pnpm skills:downstream
-```
-
-Open mechanical project-skill refresh PRs across downstream repos:
-
-```sh
 pnpm skills:downstream:update
-```
-
-The coordinator reconciles the complete published skill set using the pinned
-`skills@1.7.0` CLI. It installs new skills, refreshes existing skills, and removes
-retired skills from the selected source. Other sources remain unchanged. Agent
-targets come from tracked project skill paths, not the operator's global installs.
-It verifies lockfile hashes and installed files against the fetched GitHub source
-commit before committing or publishing. This requires authenticated `gh` access.
-
-`skills update -p -y` alone refreshes installed skills but does not add newly
-published skills. Version 1.7.0 also retains retired skills in non-interactive
-mode. Use this coordinator when refreshing the complete workflow skill set.
-
-The update command creates a temporary `git worktree` for each target, commits
-generated changes on a deterministic daily update branch, pushes the branch, and
-opens or reuses the GitHub PR. The PR body includes `@coderabbitai ignore` so
-CodeRabbit does not spend review quota on the mechanical refresh. Git commit and
-push hooks always run; a failed install or requested check blocks publication.
-Incomplete targets make the batch exit nonzero, with all command output retained.
-
-Worktrees branch from a freshly fetched `origin/main` by default, falling back
-to local `main` only when the repo has no remote, so a dirty or stale source
-checkout does not block the safe worktree flow and is never used as the update
-base. Changed apply-only worktrees are kept for inspection;
-committed, pushed, PR-created, and unchanged worktrees are removed unless
-`--keep-worktree` is passed. Use `--base-ref <ref>` to choose another base and
-`--worktree-root <path>` to choose the scratch location. Use `--in-place` only
-when you intentionally want to mutate the target checkout directly.
-
-Create local update commits after checks:
-
-```sh
-node scripts/update-downstream-skills.mjs --apply --check --trust-check-commands --commit
-```
-
-`--check` runs the target repo's configured full local gate from
-`docs/agents/workflow/config.md` with shell behavior. Use it only for downstream
-repos whose workflow config you trust, and pass `--trust-check-commands` to make
-that explicit.
-
-Push branches and open PRs when you want the full fanout:
-
-```sh
-pnpm skills:downstream:update --check --trust-check-commands
 ```
 
 Install globally for one local user:
@@ -127,9 +77,8 @@ npx skills add zaks-io/skills --skill '*'
 
 ## Distribution
 
-Install `ziw-*` skills together. Their sibling references share canonical
-planning, design, debugging, and complaint guidance; partial installs can leave
-those links unresolved. The managed downstream updater and Claude plugin ship
+Install `ziw-*` skills together. They all link to the workflow contract in
+`ziw-setup`, so a partial install leaves those links unresolved. The managed downstream updater and Claude plugin ship
 the complete set. Running one workflow still loads only its relevant instructions.
 
 Use the narrowest distribution mode that still reaches the agents that work the
@@ -152,15 +101,9 @@ mechanical.
 
 ## Claude Code Plugin
 
-This repo also defines a Claude Code plugin manifest and root subagents:
-
-```text
-.claude-plugin/plugin.json
-agents/*.md
-```
-
-When loaded as a Claude Code plugin, the workflow agents are available as
-namespaced subagents:
+This repo also ships a Claude Code plugin manifest, `.claude-plugin/plugin.json`,
+and three sub-agents that keep context-heavy work out of the orchestrator's
+thread:
 
 ```text
 zaks-io-skills:ziw-triager
@@ -168,420 +111,57 @@ zaks-io-skills:ziw-implementer
 zaks-io-skills:ziw-reviewer
 ```
 
-Claude Code should keep the orchestrator in the main thread and delegate the
-context-heavy pieces to these isolated subagents:
-
-- `ziw-triager`: issue tracker inventory and metadata cleanup.
-- `ziw-implementer`: one issue's implementation, checks, judgment-based author
-  QA, and PR handoff.
-- `ziw-reviewer`: clean-context review of latest committed PRs, branches,
-  ranges, main-drift findings, and orchestrator refactor candidates. An explicit
-  PR `--submit` mode publishes the local verdict and inline findings to GitHub.
-
-Setup, PR creation, and code review details remain workflow skills that these
-subagents load only when needed.
-
-Codex and other Agent Skills runtimes should use the same orchestration model
-with native skill names:
-
-```text
-$ziw-orchestrate ZAK-123 ZAK-456
-$ziw-orchestrate project "Payments" until clear
-$ziw-orchestrate Linear Backlog until clear
-```
-
-`Linear Backlog until clear` first triages the Linear `Backlog` state. It only
-implements tickets promoted into the ready queue; uncommitted, parked, or badly
-shaped Linear Backlog tickets stay out of the delivery scope with a clear next
-owner.
-
-When the runtime supports subagents, sessions, branches, or worktrees,
-Orchestrator should keep the parent thread small and delegate context-heavy work
-to `$ziw-triage`, `$ziw-implement`,
-and `$ziw-code-review`.
-
-For local development, validate the plugin shape when Claude Code is available:
+Validate the plugin shape when Claude Code is available:
 
 ```sh
 claude plugin validate .
 ```
 
-For private cloud environments, grant the agent system access to this repository
-through the provider's GitHub integration, or inject a read-only deploy key or
-fine-grained token before running `skills add`.
-
 ## Quick Start
 
-Set up a repo once, or rerun setup when you want to confirm the workflow config
-is still current:
+Set up a repo once, and rerun setup when its workflow changes:
 
 ```text
 $ziw-setup
 ```
 
-That creates or refreshes:
-
-```text
-docs/agents/workflow/config.md
-```
-
-On refresh, setup reads the existing config first, checks what changed in the
-repo, issue tracker, CI, worker delegation paths, and environment rules, then
-patches stale or missing values.
-
 Then run the normal flow:
 
 ```text
 $ziw-grill <idea|plan|spec>
-$ziw-to-issues <spec|prd|epic>
+$ziw-to-issues <spec>
 $ziw-triage
-$ziw-orchestrate
+$ziw-orchestrate [tickets|project|until clear]
 ```
 
-For focused investigation or design work, use:
+Grill marks a spec `Ready for slicing` only after you approve it. To Issues
+slices it into one ticket per feature, splitting only for size, rollout order,
+authority, or readiness. Triage makes tickets ready. Orchestrate runs the loop
+until the scope is done or waiting on you.
 
-```text
-$ziw-debug <symptom|reproducer|issue>
-$ziw-architecture <area|module|design-problem>
-```
-
-Debug respects diagnosis-only or fix scope. Architecture returns proposals;
-selected proposals with unresolved decisions go to Grill. Neither starts
-ticket creation or PR shipping merely because it was invoked.
-
-Orchestrate a bounded scope:
-
-```text
-$ziw-orchestrate ZAK-123 ZAK-456
-$ziw-orchestrate label:ready-for-agent one pass
-$ziw-orchestrate project "Payments" until clear
-$ziw-orchestrate Linear Backlog until clear
-```
-
-Linear `Backlog` is not the agent work queue. The Linear Backlog form means
-"triage this parked tracker state, promote only correct ready work, and leave the
-rest with a truthful parked, human, To Issues, duplicate, or out-of-scope
-outcome." The set Orchestrator is trying to implement is the delivery scope.
-
-Readiness-label scopes such as `ready-for-agent` and `ready-for-human`
-automatically exclude the configured `Done` state unless you explicitly ask to
-audit Done cleanup.
-
-Grill resolves material ambiguity in rounds of independent questions and marks the
-authoritative spec `Ready for slicing` only after explicit user approval. To
-Issues turns that spec, a complete PRD, or an epic ticket into
-dependency-ordered one-PR tickets. Triage gets the current set consistent.
-Orchestrator runs the loop: dispatch, review, integrate, repeat.
-
-Use direct skills when you want one specific action:
+Run one step directly when that's all you need:
 
 ```text
 $ziw-implement <issue>
-$ziw-code-review <branch|pr|range>
+$ziw-code-review <branch|pr|range> [--submit]
 $ziw-pr
+$ziw-debug <symptom>
+$ziw-architecture <area|module>
 ```
 
-## The Operating Model
+## How It Works
 
-The issue tracker is the source of truth for issue state. In most repos that is
-Linear. The tracker is dumb storage: it holds status, labels, and relationships
-and verifies nothing. Labels are signals. Status is state. Skills define and
-check what "ready" means; the tracker just stores the label. When a GitHub PR
-and Linear ticket are linked, assume the integration sync is active: Linear may
-advance ticket state from PR state. Repo config defines how labels and synced
-state transitions are treated.
+The roles, ticket lifecycle, states, labels, and shared rules are in one file:
+[workflow.md](skills/ziw-setup/references/workflow.md). Orchestrate follows the
+planner scripts in `skills/ziw-orchestrate/scripts`, which decide what to start,
+review, and merge.
 
-Draft PRs are pre-review: workers open them so one local independent review,
-in a fresh thread and preferably on another model, lands its fixes before any
-hosted reviewer sees the PR. The orchestrator marks a draft ready-for-review
-after a clean review of the current diff; a ready-for-review PR is non-draft in
-the code host. Hosted review such as CodeRabbit then runs only when the risk
-tier or an explicit request requires it.
-
-The configured review evidence label, such as `code-review-passed`, is not a
-ticket state. It means the linked PR's review-relevant diff passed the configured
-code review gate. Agents resolve it by exact configured slug or ID and remove it when
-the review-relevant diff changes, blocking findings appear, the linked PR changes, or evidence
-is stale. Base updates and rebases that keep the PR's own changes keep the evidence.
-
-The configured code-host human-merge PR label, such as `needs-human-merge`,
-means the PR is ready to merge except for required human merge authority. Agents
-apply it only after current clean code review evidence, passing required checks,
-a non-draft PR, complete or policy-skipped hosted review, matching issue scope,
-and no unresolved blocking review thread; they clear it when any of those facts
-changes.
-
-By default, `ready-for-agent` means the ticket needs no further human refinement
-before handoff to an implementation agent. Worker environment labels such as
-`remote-cursor` mean the issue is approved for that configured environment. Those
-labels are not dependency or scheduling gates. When a ticket moves to `Done`,
-Orchestrator or verified stale-state triage removes `ready-for-agent`.
-Readiness-label queries exclude `Done` by default so stale labels on terminal
-tickets do not keep growing the active queue.
-
-Friction intake is separate from delivery work. Prefer the configured MCP
-complaint store, with Exposure Ledger as the setup default when available.
-Record an event in one store only. Use tracker storage as an explicitly
-configured fallback or preserve a legacy tracker-primary config until refreshed.
-Report unavailable storage instead of creating another
-log. Agent-created friction tickets
-start outside the work queue, usually in `Inbox` or `Triage`, and a configured
-review loop such as a daily automation dedupes them, closes noise, and opens PRs
-for concrete skill or config improvements.
-
-Kind is a separate, single-select axis: `kind-spec` and `kind-epic` are
-containers that To Issues reads as input and are never dispatched; `kind-slice`
-is a one-PR ticket and the only kind a worker runs. Multi-PR work should stay
-under a container and be split into separate slices so a first linked PR cannot
-falsely close the whole scope.
-
-Slices are sized to be worth a PR. Each one costs a worker session, a check
-run, a review, and a merge, so To Issues cuts the fewest slices that ship
-safely, starting from one slice per feature: a slice is a whole outcome with
-its code, tests, docs, and migration. Work is separated only for size, rollout
-order, authority, readiness, or separate features. Size means over the
-configured estimate maximum, or too large to review in one sitting when no scale
-is configured. To Issues asks before creating more than three new slices in one
-run. A layer, a scaffold, a verification step, or the tests for an unmerged
-sibling's behavior is merged into the slice it serves unless a split reason
-keeps it apart, and work the plan does not ask for is never ticketed.
-
-Every ready `kind-slice` needs a hard boundary: one primary outcome, concrete
-`in scope`, and concrete `out of scope`. The out-of-scope field should name
-adjacent tickets, optional polish, broad refactors, production actions, and
-follow-up behavior the worker must not deliver. If that boundary is unclear,
-the ticket is not ready for agent handoff.
-
-Agent suitability is based on work type and risk, not agent brand. Docs, tests,
-build or CI updates, small refactors, scoped bugs, and isolated UI changes are
-good default agent work. Auth, PII, secrets, payments, production, destructive
-data, broad refactors, cross-repo changes, unclear domain behavior, and
-performance work without benchmarks require human planning first.
-
-Issue Triage grooms the configured ready state, usually `Todo`, plus configured
-intake, usually `Triage`, into a clean handoff queue for Orchestrator. The
-snapshot also includes direct blockers of those tickets so the dependency graph
-stays correct without reading unrelated parked work. It runs the configured
-workflow scripts, inspects their output, and fixes tickets: labels, kind,
-readiness, body shape, estimates when configured, dependency relationships,
-stale readiness, and exact next owners. It does not review unrelated Linear
-`Backlog` or Duplicate tickets unless asked. Linear `Backlog` means work you do
-not want agents working yet: uncommitted ideas, intentionally parked scope, or
-tickets that are not shaped correctly. Dependency blockers should be encoded
-separately, not used to remove readiness or park ready work in Linear Backlog.
-
-A normal `$ziw-triage` run processes `Triage` without another opt-in phrase:
-complete `ready-for-agent` `kind-slice` tickets move to `Todo`, even when blocked
-by another ticket. It reads cited source-of-truth project docs to repair the
-smallest direct dependency graph. Use `$ziw-triage` or the namespaced
-`ziw-triager` worker for this workflow, not a generic triage skill with a
-different state model.
-
-Triage is not exploration. It should not manually inspect code, GitHub, CI,
-deploys, logs, alerts, or repo health outside the approved workflow scripts.
-Tracker/MCP tools are for specific ticket reads and mutations, not for
-rediscovering queue state. Agent Orchestrator owns active delivery, PR/check
-state, worker starts, reviews, integration, and completion.
-
-A one-off user request for a single ticket is still orchestration, just scoped to
-that ticket. The agent should claim, implement, review, integrate when allowed,
-refresh synced GitHub/Linear state, and mark that ticket complete when the normal
-Done evidence exists. It should not fan out into the broader queue.
-
-Review-created follow-up tickets are current-work intake when config defines a
-review-debt route. Agent Review files real findings there; Triage normalizes
-them into `kind-slice` work, To Issues input, or human-decision items; and
-Orchestrator includes concrete ready slices in the normal queue. This keeps code
-review debt visible without pretending every review finding is immediately
-dispatchable.
-
-Agent Orchestrator does whatever needs to happen to get tickets handled safely.
-Its job is to find where tickets are stuck in the tracker-to-PR-to-merge
-pipeline, determine why they are not advancing, and take the next safe action to
-unblock them. It uses model judgment to synthesize tracker state, PR state,
-checks, review evidence, worker signals, repo config, and risk into the next safe
-action. The named actions are examples, not a complete menu; if a ticket is not
-moving, Orchestrator should identify and take any safe workflow action needed to
-move it forward. It can start local subagents in isolated branches or worktrees,
-assign a tracker-exposed coding agent to a ticket, request another code review,
-rerun checks, mark reviewed draft PRs ready-for-review, apply or remove the
-configured review evidence label, request configured hosted bot review such as
-CodeRabbit or Cursor Bugbot when the risk tier or a request requires it, reply directly to the original worker, mark tickets for human
-review or missing information, or stop on a real blocker. The repo config
-records supported worker delegation paths such as `local-worktree`,
-`issue-assigned`, or both, plus only the project-specific routing or
-direct-agent continuation details that are annoying to rediscover. For hosted
-bot review, the repo config records the provider, auto-review state, trigger
-policy, and exact command policy. CodeRabbit can use root `.coderabbit.yaml` and
-`@coderabbitai ignore`; Cursor Bugbot is an alternative provider and must use
-the repo-configured trigger or automatic review policy.
-
-When you hand Orchestrator a large ticket set that has already been triaged or
-verified as ready to implement, that set is the delivery scope. Routine
-misunderstandings about when to apply a label, move a status, attach review
-evidence, set repo-route metadata, or mark a PR ready-for-review are
-orchestration repairs. It should fix those from tracker, PR, check, and config
-evidence and keep going instead of escalating them.
-
-Grill is the planning front door when intent is fuzzy or contradictory. It
-checks code and docs before asking, asks one recommended question at a time,
-updates confirmed current-truth specs, and keeps them `Draft` until you approve
-`Ready for slicing`. It never creates tracker tickets.
-
-To Issues is the ticketing front door. It turns a ready spec, complete PRD, or
-epic ticket into the fewest dependency-ordered `kind-slice` tickets that ship
-safely, adopts any tickets you made by hand instead of duplicating them, merges
-fragments into the outcome they belong to, applies the body contract, labels, and
-configured estimates, and emits a dependency graph and predicted file
-footprint. Run it whenever you want the tickets to match the plan; re-running
-converges. Draft specs return to Grill instead of producing ready slices.
-
-Agent Orchestrator is the work loop. It is self-scheduling: it runs on the
-runtime's own recurring mechanism (a schedule, `/loop`, or wake-up timer in
-Claude Code; Codex automations, either cron automations or heartbeat
-automations) and never needs a human to re-trigger a pass. Each tick it wakes
-light, refreshes external state, reconciles its dispatch ledger, advances open
-PRs and previews while immediately filling every safe worker slot up to the
-worker concurrency cap (default 3), calls review and integrate as steps,
-reasons over the available evidence, and logs where it struggled to a friction
-intake sink with compact event entries and run rollups. It can also nudge a worker,
-repair workflow state, route feedback, mark tickets for human review when the
-next action genuinely needs human input, or stop on a real blocker. It keeps only
-a compact queue, ledger, capacity snapshot, and checkpoint between ticks and
-delegates heavy reads to isolated workers, so a long-running loop stays as light
-as a first run. Config records supported worker delegation paths such as
-`local-worktree`, `issue-assigned`, or both.
-
-The capacity snapshot does not trust the ledger alone. It also counts active
-tracker claims in the repo route-label domain and dirty or baseline-unmerged
-local worktrees, reconciles squash-merged heads, then deduplicates those signals
-against open PRs.
-
-If every scoped item is blocked and no orchestration action remains, the
-orchestrator stops the recurring loop for that scope instead of waking forever.
-The blocked report names each blocker, next owner, and what would make the scope
-runnable again.
-
-For issue-assigned remote workers such as Cursor, the orchestrator delegates by
-setting the issue's agent delegate, requires the repo-route label (such as
-`<org>/<repo>`) so the agent knows which repo to clone, and continues a session
-by replying into its agent-session thread rather than a top-level comment.
-Before re-delegating, it checks for duplicate sessions, branches, or PRs tied to
-the same issue and resolves the duplicate from code-host evidence.
-
-A delegated worker, local or remote Cursor, owns implementation: it writes code,
-runs required checks, decides whether `ziw-code-review` author QA would add
-value, and opens its own PR with `ziw-pr`. A changed commit alone does not force
-another author-QA pass. The worker cannot apply review evidence or declare its
-own work merge-ready. The orchestrator coordinates; it does not write code or
-open PRs.
-
-Agent Review and integrate are steps the orchestrator calls, not loops. Agent
-Review fetches latest state, runs `ziw-code-review` from clean context against
-current committed code, and returns freshness, refactor candidates, and a
-verdict; integrate is the auto-merge gate that defines green, updates moved
-GitHub PR branches with `gh pr update-branch <pr>`, delegates only merge
-conflicts, merges with the configured method, and runs a post-merge check.
-Local gates use task caches; a cache hit is valid evidence. Hooks and CI run
-the full gate. Create PR runs no checks of its own and does not wait for CI.
-
-The research behind this operating model is captured in
-[docs/agent-delivery-research.md](docs/agent-delivery-research.md). The short
-version: keep one work loop, keep issues focused and verifiable, measure outcomes,
-and add agent or skill complexity only when it improves delivery.
-
-## The Skills
-
-The public skill surface and trim rationale are tracked in
-[docs/skill-portfolio.md](docs/skill-portfolio.md). Provider-specific workflow
-glue should stay under `.agents/` unless it proves portable.
-
-- `ziw-setup`: create repo workflow config or refresh it against current
-  repo and tracker state.
-- `ziw-debug`: reproduce failures, test hypotheses, and return a supported cause
-  or named evidence gap; verify a narrow fix when authorized.
-- `ziw-architecture`: assess concrete structural friction or design a named
-  module interface, comparing alternatives and migration costs without refactoring.
-- `ziw-grill`: resolve material product, domain, scope, and architecture
-  ambiguity in rounds of independent questions; update authoritative planning artifacts;
-  and require explicit approval before a spec becomes ready for slicing.
-- `ziw-to-issues`: turn a spec, PRD, or epic ticket into the fewest
-  dependency-ordered one-PR `kind-slice` tickets that ship safely, adopt
-  hand-created tickets, merge fragments, apply the body
-  contract with explicit non-goals, labels, and configured estimates, and emit a
-  dependency graph and file footprint.
-- `ziw-triage`: update current tracker labels, kinds, readiness, stale
-  verified states, orphans, body shape, estimates when configured, and
-  dependencies so Todo tickets are clean and agent-ready. It follows the
-  repo-configured label treatment policy, processes configured intake on every
-  normal run, skips Linear Backlog unless asked, and
-  asks or lists exact human next actions when something is unclear.
-- `ziw-orchestrate`: run the script-backed work loop, dispatching startable
-  `kind-slice` tickets and calling review and integrate as steps, without
-  becoming the coder or reviewer.
-- `ziw-implement`: take one startable issue through implementation,
-  checks, review, and PR creation.
-- `ziw-code-review`: shared review gate for branches, PRs, and explicit
-  working trees, plus independent latest-committed PR review, checkpointed
-  main-drift review, review-debt issue filing, and explicit current-head GitHub
-  review submission from clean context.
-- `ziw-pr`: shipping step that commits, pushes, creates or updates the PR,
-  and links the named issue in bounded fix rounds; hooks and CI are its check
-  gate.
-
-## Recommended Flow
-
-Review a PR entirely locally and publish the result as a GitHub review:
-
-```text
-$ziw-code-review https://github.com/owner/repo/pull/123 --submit
-```
-
-Without `--submit`, PR review remains read-only.
-
-1. Run `ziw-setup` once per repo, and rerun it when the workflow config may
-   be stale.
-2. Run `ziw-grill` when an idea or existing spec has material ambiguity. Stop
-   when the user approves `Ready for slicing`.
-3. Run `ziw-to-issues` on the ready spec, complete PRD, or epic ticket to create the
-   `kind-slice` tickets and dependency graph. Re-run it any time to reconcile the
-   tickets with the plan.
-4. Run `ziw-triage` before the first orchestration run and whenever Todo,
-   Triage, or active tracker state needs repair. Ask explicitly only when you
-   want Linear Backlog review or backfill.
-5. Run `ziw-orchestrate` to run the loop: dispatch, review,
-   integrate, repeat until the delivery scope is delivered or completely
-   blocked. A completely blocked loop stops instead of rescheduling itself.
-6. Use `ziw-pr` directly only when you are already on a branch and
-   want to ship it.
-
-For the deeper agent contract, state model, handoff shape, and diagrams, see
-[docs/agent-workflow.md](docs/agent-workflow.md).
-
-## Done Means
-
-A repo is ready when:
-
-- `docs/agents/workflow/config.md` exists with the required verified mappings
-- every populated behavior-affecting config value has verified evidence;
-  unresolved setup work is tracked outside config
-- issue tracker state, PR state, checks, previews, and deploy state all have
-  named systems of record
-- issue tracker location has verified IDs or query-safe names, not stale slugs
-- Orchestrator mutation authority is explicit
-- issue-assigned worker environment labels and no-mutation delegation probe
-  policy are explicit
-- local, development, preview, and production rules are explicit
-- verification commands are recorded
-- planning artifact authority, status convention, and documentation checks are
-  recorded
-- kind labels, CI-equivalent local gate policy, merge method, duplicate-dispatch
-  policy, worker concurrency cap, saturation policy, PR closure guard,
-  stuck-worker timeout, required-checks-for-merge, auto-merge risk tiers,
-  friction intake, and delivery metrics are set when running the autonomous loop
-- `ziw-grill`, `ziw-to-issues`, `ziw-orchestrate`, `ziw-implement`,
-  `ziw-code-review`, and `ziw-pr` can run without guessing repo
-  conventions
+- [docs/agent-workflow.md](docs/agent-workflow.md): how the skills fit together
+  and the design rules for changing them.
+- [docs/skill-portfolio.md](docs/skill-portfolio.md): the published skills and
+  why each exists.
+- [docs/agent-delivery-research.md](docs/agent-delivery-research.md): the
+  research behind the workflow.
 
 ## Validate This Repo
 

@@ -1,8 +1,9 @@
 # Planner internals
 
-Maintainer notes for the published planner scripts. Runtime callers use
-`skills/ziw-orchestrate/references/planner-input.md`; these implementation details
-do not add caller obligations or authority.
+Maintainer notes for the published planner scripts. Agents follow
+`skills/ziw-orchestrate/SKILL.md`, which shows the few input fields they write;
+the full input schema is `skills/ziw-orchestrate/references/planner-input.schema.json`.
+These implementation details add no caller obligations or authority.
 
 ## Coverage and review evidence
 
@@ -107,7 +108,6 @@ session can retire a sticky tracker-only slot without removing its reservation.
 Current live observations still count; receipt-only history cannot retire a
 tracker claim. `isLiveWorker` in `worker-lifecycle.mjs` recognizes explicit
 terminal states; canonical running records cannot also assert return or stop.
-Caller counting and dispatch rules live in `dispatch-policy.md`.
 
 ## Legacy v2 adapter
 
