@@ -53,7 +53,8 @@ If a script fails, stop and report the error.
 - `dispatch`: move the ticket to `targetState`, then
   [start a worker](#start-a-worker). If the move fails, don't start.
 - `derive-footprint`: the ticket has no Likely files the planner can read.
-  Move it to the intake state.
+  Move it to the intake state, swap `ready-for-agent` for `needs-info`, and
+  name the gap.
 - `promote-ready`: move the ticket to `targetState`.
 - `request-review`: move the ticket to `In Review`, then
   [get a review](#get-a-review).
@@ -72,6 +73,9 @@ If a script fails, stop and report the error.
 - `resolve-hosted-review-mode`: check whether the hosted reviewer runs on its
   own, and record `"autoReviewMode": "enabled"` or `"disabled"` under the PR in
   `hostedReviewByPr`.
+- `verify-conformance`: a stale record from an older skill version. Remove
+  `conformance` and `conformanceHeadSha` from the PR's `reviewEvidenceByPr`
+  entry and plan again.
 - `apply-human-merge-pr-label`, `clear-human-merge-pr-label`: add or remove
   `needs-human-merge` on the PR.
 - `route-human-merge`: [check the PR](#before-a-merge), move the ticket to

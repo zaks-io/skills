@@ -52,15 +52,16 @@ stable values: no secrets, status, or progress.
 
 ```json
 {
+  "readyState": "Todo",
   "mergeAuthority": "human",
   "hostedReviewBots": ["coderabbitai"],
   "workerConcurrencyCap": 2
 }
 ```
 
-`planner.json` holds the values the planner reads. Its defaults match the
-contract: cap 3, ready `Todo`, in progress `In Progress`, hosted review required
-at high risk. Set `mergeAuthority` and `hostedReviewBots` (or
-`"hostedReviewRiskTiers": []` with no hosted reviewer), plus any field that
+`planner.json` holds the values the planner reads. Always set `readyState`,
+`mergeAuthority`, and `hostedReviewBots` (or `"hostedReviewRiskTiers": []` with
+no hosted reviewer). The other defaults match the contract: cap 3, in progress
+`In Progress`, hosted review required at high risk; set a field only when it
 differs. Field names and types are in
 [planner-input.schema.json](../../ziw-orchestrate/references/planner-input.schema.json).
