@@ -21,6 +21,13 @@ export function commandObservation(command, values, positionals, state) {
       "observation",
     );
   }
+  // Planner actions render record commands with <sessionId>-style placeholders;
+  // saving one verbatim would bind state to an identity no runtime can recover.
+  for (const [name, value] of Object.entries(values))
+    if ([value].flat().some((entry) => typeof entry === "string" && /^<.*>$/.test(entry)))
+      throw new Error(
+        `--${name} still holds the placeholder ${value}; use the runtime's ID or drop the flag`,
+      );
   const identity = {
     ...(values.session ? { sessionId: values.session } : {}),
     ...(values.receipt ? { receiptId: values.receipt } : {}),

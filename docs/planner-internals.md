@@ -191,7 +191,7 @@ Only refused classes are exempt from decision parity. The baseline oracle is
 23 captured outputs from the real `beb146d` scripts, with original fixture inputs
 committed in `test/fixtures/planner-parity`. To recapture, create a detached
 `beb146d` review worktree, run `node scripts/capture-planner-parity.mjs <worktree>`,
-then remove it. The ordinary suite needs no old checkout or network. New planner actions, waits, and holds must match after
+then remove it. The ordinary suite needs no old checkout or network. `node scripts/verify-planner-live.mjs` checks, against this repo's live GitHub and Linear data, that `tick.mjs` matches the separate snapshot and plan commands. New planner actions, waits, and holds must match after
 migration, apart from the deliberate conformance policy and action enrichment.
 
 ## macOS credential storage

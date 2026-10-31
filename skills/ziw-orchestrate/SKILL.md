@@ -50,13 +50,13 @@ Relative config and state paths resolve from the current Git top-level.
 
 ## Record observations
 
-Save each confirmed launch or result immediately with
-the action's structured `record.argv` or shell-quoted `record.command`, replacing runtime
-placeholders with confirmed IDs. For other observations, use
-`node "$S/planner-state.mjs" record <file|-> --repo <owner/repo> --state <state-file>`.
-It validates updates and preserves unrelated records. Read the
+Save each confirmed launch or result immediately. Run the action's `record`
+(`argv`, or the shell-quoted `command`), replacing each `<...>` placeholder with
+the confirmed ID and dropping flags the runtime didn't supply. Results and other
+observations use the `planner-state.mjs` subcommands; read the
 [state example](references/state-observations.md) when first recording or
-recovering work. An invalid update leaves state unchanged.
+recovering work. The recorder validates each update, preserves unrelated
+records, and leaves state unchanged when an update is invalid.
 
 ## Actions
 
@@ -96,9 +96,8 @@ recovering work. An invalid update leaves state unchanged.
 Launch one worker per ticket on a configured worker path, using the action's
 `brief`, `branch`, `footprint`, and `outOfScope`.
 
-Record `dispatches` with the ticket, branch, footprint, `status: running`, and
-the returned `sessionId` or `receiptId`; retain `runId` when supplied. Later
-observations use the same identity and confirmed status. For fixes, reuse the
+Run the action's `record` with the returned IDs. Later `worker` observations
+use the same identity and the confirmed status. For fixes, reuse the
 worker only with a distinct `runId`; otherwise launch a fresh worker on the
 ticket's branch. Recover existing work before retrying an interrupted launch.
 
@@ -108,11 +107,10 @@ Launch Code Review in a new session, on a different model from the author when
 one is available. Use the action's `brief`; for a delta review, recover the
 previous session or receipt it names and paste that report's findings.
 
-Record `reviewRequestsByPr` with the session or receipt, head, fingerprint, and
-`status: running`. Record the returned report in `reviewEvidenceByPr`, identifying
-the same session, reviewed head and fingerprint, verdict, and independent review
-count. The helper completes the matching request and sets its blocking flag.
-Comment the verdict on the ticket. After three blocked reviews, ask a human.
+Run the action's `record` with the returned IDs. When the report arrives, save it
+with `planner-state.mjs review-result` using the same identity, the verdict, and
+`--count 1`; it fills the reviewed head and fingerprint from the request. Comment
+the verdict on the ticket. After three blocked reviews, ask a human.
 
 ## Before a merge
 

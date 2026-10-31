@@ -154,6 +154,21 @@ test("typed worker command rendered by dispatch records runtime IDs, then planni
   assert.ok(!next.actions.some((action) => action.kind === "dispatch"));
 });
 
+test("typed commands reject an unreplaced record placeholder and leave state untouched", (t) => {
+  const { file } = fixture(t);
+  assert.equal(run("planner-state.mjs", ["init", "--repo", repo, "--state", file]).status, 0);
+  const before = readFileSync(file, "utf8");
+  const result = run("planner-state.mjs", [
+    "worker",
+    ...["--repo", repo, "--state", file, "--issue", "EXA-1", "--branch", "codex/exa-1"],
+    ...["--footprint", "src/a.mjs", "--session", "session-1", "--receipt", "<receiptId>"],
+    ...["--status", "running"],
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /--receipt still holds the placeholder <receiptId>/);
+  assert.equal(readFileSync(file, "utf8"), before);
+});
+
 test("dispatch recovers a known UUID-associated branch after an older branchless receipt", () => {
   const uuid = "00000000-0000-4000-8000-000000000001";
   const issue = {
