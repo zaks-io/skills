@@ -15,8 +15,7 @@ says how to carry out each action. Terms and rules follow the
 
 Repo config, `docs/agents/workflow/planner.json`, the planner state file, and a
 scope: ticket IDs, a filter or project, or by default all ready and active
-tickets. Optional limits on ticks or time. For a worker limit, plan with a copy
-of `planner.json` that lowers `workerConcurrencyCap`.
+tickets. Optional limits on ticks or time. For a worker limit, pass `--worker-cap N` to lower the configured cap.
 
 ## Each tick
 
@@ -28,17 +27,13 @@ of `planner.json` that lowers `workerConcurrencyCap`.
 
    ```sh
    S=<skill-dir>/scripts
-   node $S/planner-state.mjs --repo <owner/repo> --state <state-file>
-   node $S/tick-snapshot.mjs --repo <owner/repo> --linear-team <team> \
-     --linear-route-label <route label> --state <state-file> > /tmp/snapshot.json
-   node $S/tick-plan.mjs /tmp/snapshot.json \
-     --config docs/agents/workflow/planner.json --state <state-file>
+   node "$S/tick.mjs" --config docs/agents/workflow/planner.json
    ```
 
    Record `scopeIssues`, such as `[{"issueKey": "EXA-1"}]`, for a named scope;
-   record `null` for the default scope. If the snapshot skipped the tracker,
+   record `null` for the default scope. If the tick skipped the tracker,
    record the scope from tracker tools as `linearIssues`, with each ticket's
-   `footprint` listing its Likely files, and plan again.
+   `footprint` listing its Likely files, and tick again.
 
 2. Do every entry in `actions`, using the table below. Start workers first.
 3. Leave `waits` alone; they clear on their own. Report each `hold` with its
@@ -50,11 +45,15 @@ of `planner.json` that lowers `workerConcurrencyCap`.
 
 Stop the run when the scope is done, or when everything left waits on a human.
 If a script fails, stop and report the error.
+If a script reports a retired state format, run the migrate command it prints, once.
+Relative config and state paths resolve from the current Git top-level.
 
 ## Record observations
 
 Save each confirmed launch or result immediately with
-`node $S/planner-state.mjs --repo <owner/repo> --state <state-file> --record <file>`.
+the action's structured `record.argv` or shell-quoted `record.command`, replacing runtime
+placeholders with confirmed IDs. For other observations, use
+`node "$S/planner-state.mjs" record <file|-> --repo <owner/repo> --state <state-file>`.
 It validates updates and preserves unrelated records. Read the
 [state example](references/state-observations.md) when first recording or
 recovering work. An invalid update leaves state unchanged.
@@ -84,9 +83,6 @@ recovering work. An invalid update leaves state unchanged.
 - `resolve-hosted-review-mode`: check whether the hosted reviewer runs on its
   own, and record `"autoReviewMode": "enabled"` or `"disabled"` under the PR in
   `hostedReviewByPr`.
-- `verify-conformance`: a stale record from an older skill version. Remove
-  `conformance` and `conformanceHeadSha` from the PR's `reviewEvidenceByPr`
-  entry and plan again.
 - `apply-human-merge-pr-label`, `clear-human-merge-pr-label`: add or remove
   `needs-human-merge` on the PR.
 - `route-human-merge`: [check the PR](#before-a-merge), move the ticket to
@@ -97,11 +93,8 @@ recovering work. An invalid update leaves state unchanged.
 
 ## Start a worker
 
-Launch one worker per ticket on a configured worker path, with this brief:
-
-> Use `ziw-implement` on `<ticket URL>`. Branch `<ticket branch>`.
-> Scope: `<one sentence>`. Out of scope: `<sibling tickets>`. Report the PR
-> URL and head when done.
+Launch one worker per ticket on a configured worker path, using the action's
+`brief`, `branch`, `footprint`, and `outOfScope`.
 
 Record `dispatches` with the ticket, branch, footprint, `status: running`, and
 the returned `sessionId` or `receiptId`; retain `runId` when supplied. Later
@@ -112,12 +105,8 @@ ticket's branch. Recover existing work before retrying an interrupted launch.
 ## Get a review
 
 Launch Code Review in a new session, on a different model from the author when
-one is available:
-
-> Use `ziw-code-review` in independent mode on `<PR URL>`. Base `<base>`.
-> Fingerprint `<reviewDiffFingerprint>`. Review only changes since
-> `<deltaFrom>`, if given, and confirm these earlier findings are fixed:
-> `<findings>`. Criteria: `<ticket URL>`.
+one is available. Use the action's `brief`; for a delta review, recover the
+previous session or receipt it names and paste that report's findings.
 
 Record `reviewRequestsByPr` with the session or receipt, head, fingerprint, and
 `status: running`. Record the returned report in `reviewEvidenceByPr`, identifying

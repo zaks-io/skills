@@ -20,8 +20,8 @@ states; other states, such as `Backlog`, only when the user names them.
 1. Run the snapshot for the scope:
 
    ```sh
-   node <skill-dir>/../ziw-orchestrate/scripts/tick-snapshot.mjs --repo <owner/repo> \
-     --linear-team <team> --linear-route-label <route label> \
+   node <skill-dir>/../ziw-orchestrate/scripts/tick-snapshot.mjs \
+     --config docs/agents/workflow/planner.json \
      --linear-states <scope states> > /tmp/triage-snapshot.json
    ```
 

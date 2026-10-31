@@ -55,6 +55,11 @@ stable values: no secrets, status, or progress.
 
 ```json
 {
+  "repo": "owner/repo",
+  "linearTeam": "EXA",
+  "linearRouteLabel": "owner/repo",
+  "stateFile": ".ziw/state.json",
+  "branchPrefix": "codex/",
   "readyState": "Todo",
   "mergeAuthority": "human",
   "hostedReviewBots": ["coderabbitai"],
@@ -62,9 +67,14 @@ stable values: no secrets, status, or progress.
 }
 ```
 
-`planner.json` holds the values the planner reads. Always set `readyState`,
+`planner.json` holds the values the planner reads. Set `repo`, `linearTeam`, `linearRouteLabel`,
+`stateFile`, and `branchPrefix` for the single tick command. Relative config and
+state paths resolve against the current Git top-level. Always set `readyState`,
 `mergeAuthority`, and `hostedReviewBots` (or `"hostedReviewRiskTiers": []` with
 no hosted reviewer). The other defaults match the contract: cap 3, in progress
 `In Progress`, hosted review required at high risk; set a field only when it
 differs. Field names and types are in
 [planner-input.schema.json](../../ziw-orchestrate/references/planner-input.schema.json).
+
+`requireConformanceEvidence` is retired. The independent review verdict carries
+conformance; do not add a separate planner gate.

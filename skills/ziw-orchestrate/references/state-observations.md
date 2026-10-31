@@ -7,8 +7,10 @@ The planner still decides what may run.
 
 ## Recording contract
 
-Pass `--repo`, `--state`, and optionally `--record <JSON file or ->`. Without
-`--record`, it creates missing state and preserves existing state. `--help` is offline.
+Pass `--repo` and `--state` to every subcommand. `init` creates missing v3 state;
+`record <file|->` applies a JSON observation. `worker`, `review-request`, and
+`review-result` build typed observations. `migrate [--dry-run]` converts an older
+file once with a byte-preserving backup. `--help` is offline.
 Only one writer may hold the state lock. A lock error means inspect the writer;
 never delete a lock while its owner may still be writing.
 
@@ -45,49 +47,51 @@ If that cannot be established, report the hold.
 
 ## Worked example
 
-These fictional receipts illustrate one ticket. Replace them with confirmed
-runtime evidence. The shell examples use stdin so each update needs no extra file.
-
-After a worker launches, save its receipt:
+These fictional IDs stand for confirmed runtime receipts. Use both session and
+receipt IDs when supplied, and retain the run ID on later worker observations.
 
 ```sh
 S=<skill-dir>/scripts
 ZIW_STATE=.ziw/state.json
-node "$S/planner-state.mjs" --state "$ZIW_STATE" --repo example/app --record - <<'JSON'
-{"dispatches":[{"issueKey":"EXA-1","sessionId":"S1","runId":"W1","branch":"agent/exa-1","footprint":["src/a.ts"],"status":"running"}]}
-JSON
+node "$S/planner-state.mjs" init --repo example/app --state "$ZIW_STATE"
+node "$S/planner-state.mjs" worker --repo example/app --state "$ZIW_STATE" \
+  --issue EXA-1 --branch agent/exa-1 --footprint src/a.ts \
+  --session S1 --receipt T1 --run W1 --status running
 ```
 
-On resume, initialize with the same command without `--record`. The saved worker
-survives. Recover `S1` through config; if it is still running, follow the runtime's
-completion instructions. Replaying the receipt updates that worker rather than
-adding another. Once the runtime confirms `W1` returned PR 42:
+On resume, recover `S1` through config. Replaying its receipt preserves the saved
+worker's terminal state. Once the runtime confirms `W1` returned PR 42:
 
 ```sh
-node "$S/planner-state.mjs" --state "$ZIW_STATE" --repo example/app --record - <<'JSON'
-{"dispatches":[{"sessionId":"S1","runId":"W1","status":"returned","prNumber":42}]}
-JSON
+node "$S/planner-state.mjs" worker --repo example/app --state "$ZIW_STATE" \
+  --session S1 --receipt T1 --run W1 --status returned --pr 42
 ```
 
-Take a fresh snapshot and plan. When the plan requests review, launch a fresh
-review session and save its receipt before ending the tick:
+Tick again. When review is requested, launch a fresh session and save its receipt:
 
 ```sh
-node "$S/planner-state.mjs" --state "$ZIW_STATE" --repo example/app --record - <<'JSON'
-{"reviewRequestsByPr":{"42":{"sessionId":"R1","headSha":"h1","reviewDiffFingerprint":"patch-id:fp1","status":"running"}}}
-JSON
+node "$S/planner-state.mjs" review-request --repo example/app --state "$ZIW_STATE" \
+  --pr 42 --session R1 --receipt RT1 --head h1 --fingerprint patch-id:fp1
 ```
 
-The next tick sees a pending review. Recover `R1`; once its report arrives:
+A confirmed failed or stopped review uses the same identity with
+`review-request --status failed` or `--status stopped`. The saved request supplies
+its head and fingerprint when omitted. The next tick can request a fresh review.
+
+Once the report arrives, record its verdict and the number of independent reviews
+it represents. `--count` is required; use 1 for one fresh review session.
 
 ```sh
-node "$S/planner-state.mjs" --state "$ZIW_STATE" --repo example/app --record - <<'JSON'
-{"reviewEvidenceByPr":{"42":{"sessionId":"R1","reviewedHeadSha":"h1","reviewedDiffFingerprint":"patch-id:fp1","reviewVerdict":"APPROVE","independentReviewCount":1}}}
-JSON
+node "$S/planner-state.mjs" review-result --repo example/app --state "$ZIW_STATE" \
+  --pr 42 --session R1 --receipt RT1 --verdict APPROVE --count 1
 ```
 
-The helper saves that verdict, sets `blockingFindings: false`, and marks request
-42 completed in one write. Other workers and PR records remain unchanged.
-For `NEEDS REVISION`, it sets the blocking flag instead. Replaying the same result
-is harmless; a result for another session, head, or fingerprint is rejected.
-Collect fresh provider facts and replan before marking ready or merging.
+The helper fills the reviewed head and fingerprint from the matching saved
+request inside the same locked transaction, sets `blockingFindings: false`, and
+completes that request. `NEEDS REVISION` sets the blocking flag. A mismatched
+identity fails. Replaying the same result is harmless.
+
+Use `record` for `scopeIssues`, `linearIssues`, and `hostedReviewByPr`, and for any
+other supported observation needing the full JSON form. Observation patches
+have no `v` or `repo`; the file envelope does. Collect fresh provider facts and
+tick again before marking ready or merging.

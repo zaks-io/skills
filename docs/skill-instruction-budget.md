@@ -53,3 +53,22 @@ original rewrite measurements.
 The entrypoint replaces manual receipt and review JSON instructions with a
 validated state recorder. The additional reference supplies the recording
 contract and one complete example; routine ticks do not reload it.
+
+## Single-command orchestration, 2026-10-31
+
+Measured against `beb146d`, including frontmatter and Markdown with `wc -w`.
+
+| Instructions                                 | Before | After |
+| -------------------------------------------- | -----: | ----: |
+| Orchestrate entrypoint                       |    988 |   949 |
+| State recording and recovery example         |    653 |   741 |
+| Setup entrypoint                             |    255 |   269 |
+| Config template                              |    312 |   361 |
+| Orchestrate plus workflow contract           |  1,533 | 1,494 |
+| First use or recovery, including the example |  2,186 | 2,235 |
+| All published Markdown                       |  7,781 | 7,888 |
+
+One tick command replaces the collection and planning pipeline. Actions carry
+worker and review briefs plus typed recording commands. The reference retains
+runtime identity and replay semantics; the entrypoint drops conformance handling
+because the independent review verdict now carries it.
