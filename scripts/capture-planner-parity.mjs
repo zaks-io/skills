@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 // Capture from an isolated baseline checkout before changing consumer semantics.
 const baseline = path.resolve(process.argv[2]);
+const git = (args) => execFileSync("git", args, { cwd: baseline, encoding: "utf8" });
+assert.equal(git(["rev-parse", "HEAD"]).trim(), "beb146d2c69ad501e21d281a3dd99aba7a5a59b1");
+// A pinned HEAD proves nothing if the working tree differs from it.
 assert.equal(
-  execFileSync("git", ["rev-parse", "HEAD"], { cwd: baseline, encoding: "utf8" }).trim(),
-  "beb146d2c69ad501e21d281a3dd99aba7a5a59b1",
+  git(["status", "--porcelain", "--untracked-files=all"]),
+  "",
+  "baseline checkout has local changes; capture only from a clean beb146d checkout",
 );
 const repo = "example/app";
 const issue = (key, extra = {}) => ({
@@ -278,38 +283,42 @@ const cases = [
 ];
 const directory = path.resolve("test/fixtures/planner-parity");
 mkdirSync(directory, { recursive: true });
-for (const [name, state, withPr = false, prExtra = {}] of cases) {
-  const snapshot = {
-    v: 3,
-    repo,
-    baseline: { branch: "main", headSha: "base-1" },
-    worktrees: [],
-    prs: withPr ? [{ ...pr, ...prExtra }] : [],
-    linear: { issues: [issue("EXA-1"), issue("EXA-2"), issue("EXA-3")] },
-  };
-  const config = { mergeAuthority: "human", hostedReviewRiskTiers: [], branchPrefix: "codex/" };
-  const { branchPrefix, ...oldConfig } = config;
-  const input = path.join(directory, `${name}.input.json`);
-  const stateFile = path.join(directory, `${name}.state.json`);
-  writeFileSync(input, JSON.stringify({ snapshot, config: oldConfig }));
-  writeFileSync(stateFile, JSON.stringify({ repo, ...state }));
-  const output = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        path.join(baseline, "skills/ziw-orchestrate/scripts/tick-plan.mjs"),
-        input,
-        "--state",
-        stateFile,
-      ],
-      { encoding: "utf8" },
-    ),
-  );
-  rmSync(input);
-  rmSync(stateFile);
-  writeFileSync(
-    path.join(directory, `${name}.json`),
-    `${JSON.stringify({ baseline: "beb146d2c69ad501e21d281a3dd99aba7a5a59b1", snapshot, config, state: { repo, ...state }, expected: { actions: output.actions, waits: output.waits, holds: output.holds } }, null, 2)}\n`,
-  );
+// Scratch inputs live outside the fixture directory, which the parity test reads in full.
+const scratch = mkdtempSync(path.join(tmpdir(), "ziw-parity-capture-"));
+try {
+  for (const [name, state, withPr = false, prExtra = {}] of cases) {
+    const snapshot = {
+      v: 3,
+      repo,
+      baseline: { branch: "main", headSha: "base-1" },
+      worktrees: [],
+      prs: withPr ? [{ ...pr, ...prExtra }] : [],
+      linear: { issues: [issue("EXA-1"), issue("EXA-2"), issue("EXA-3")] },
+    };
+    const config = { mergeAuthority: "human", hostedReviewRiskTiers: [], branchPrefix: "codex/" };
+    const { branchPrefix, ...oldConfig } = config;
+    const input = path.join(scratch, `${name}.input.json`);
+    const stateFile = path.join(scratch, `${name}.state.json`);
+    writeFileSync(input, JSON.stringify({ snapshot, config: oldConfig }));
+    writeFileSync(stateFile, JSON.stringify({ repo, ...state }));
+    const output = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          path.join(baseline, "skills/ziw-orchestrate/scripts/tick-plan.mjs"),
+          input,
+          "--state",
+          stateFile,
+        ],
+        { encoding: "utf8" },
+      ),
+    );
+    writeFileSync(
+      path.join(directory, `${name}.json`),
+      `${JSON.stringify({ baseline: "beb146d2c69ad501e21d281a3dd99aba7a5a59b1", snapshot, config, state: { repo, ...state }, expected: { actions: output.actions, waits: output.waits, holds: output.holds } }, null, 2)}\n`,
+    );
+  }
+} finally {
+  rmSync(scratch, { recursive: true, force: true });
 }
 console.log(`Captured ${cases.length} baseline planner cases.`);

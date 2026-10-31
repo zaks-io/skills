@@ -83,6 +83,19 @@ for (const name of [
     assert.match(linkedBad.stderr, /unknown-option/);
   });
 
+test("linear-graphql still accepts -q as the --query alias", (t) => {
+  const { directory } = fixture(t);
+  const result = run("linear-graphql.mjs", ["query", "-q", "query { viewer { id } }"], {
+    env: {
+      ...process.env,
+      PATH: directory,
+      LINEAR_API_URL: "http://127.0.0.1:1",
+      LINEAR_API_KEY: "",
+    },
+  });
+  assert.doesNotMatch(result.stderr, /Unknown option/);
+});
+
 test("all state consumers reject retired files before provider calls and print migration command", (t) => {
   const { directory, file } = fixture(t);
   writeFileSync(file, JSON.stringify({ repo }));

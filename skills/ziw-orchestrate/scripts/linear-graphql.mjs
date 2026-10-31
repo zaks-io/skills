@@ -370,11 +370,15 @@ async function main() {
   const parsed = parseCli(cliArgs, {
     usage,
     allowPositionals: true,
-    options: Object.fromEntries(
-      ["store", "service", "account", "query", "query-file", "variables", "variables-file"].map(
-        (name) => [name, { type: "string" }],
+    options: {
+      ...Object.fromEntries(
+        ["store", "service", "account", "query-file", "variables", "variables-file"].map((name) => [
+          name,
+          { type: "string" },
+        ]),
       ),
-    ),
+      query: { type: "string", short: "q" },
+    },
   });
   if (!parsed) return;
   const command = cliArgs[0] && !cliArgs[0].startsWith("-") ? cliArgs.shift() : "query";
