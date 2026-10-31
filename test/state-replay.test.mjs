@@ -1,3 +1,4 @@
+import { migratePlannerState } from "../skills/ziw-orchestrate/scripts/planner-state.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -27,6 +28,7 @@ function fixture(t, initial = {}) {
   const file = path.join(directory, "state.json");
   const input = path.join(directory, "input.json");
   writeFileSync(file, JSON.stringify({ repo, ...initial }));
+  migratePlannerState({ file, repo });
   const save = (observation) => recordPlannerState({ file, repo, observation });
   const read = () => JSON.parse(readFileSync(file));
   const plan = (headSha = "h1", fingerprint = "patch-id:fp1") => {
@@ -123,16 +125,6 @@ test("legacy review aliases retain unrelated pending reviews and approvals", (t)
   assert.equal(read().reviewEvidence, undefined);
   assert.equal(read().reviewRequestsByPr[99].sessionId, "R99");
   assert.equal(read().reviewEvidenceByPr[98].sessionId, "R98");
-});
-
-test("conflicting alias and canonical records are never silently overwritten", (t) => {
-  const { file, save } = fixture(t, {
-    reviewRequestByPr: { 42: request },
-    reviewRequestsByPr: { 42: { ...request, sessionId: "different" } },
-  });
-  const before = readFileSync(file, "utf8");
-  assert.throws(() => save(), /conflicting entries/);
-  assert.equal(readFileSync(file, "utf8"), before);
 });
 
 test("an older identity-less pending review accepts verified enrichment and its result", (t) => {

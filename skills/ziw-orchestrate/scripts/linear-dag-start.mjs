@@ -8,7 +8,7 @@
 // { issues: [...] } object, or a raw issue array.
 
 import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { isMain, parseCli, runCli } from "./cli.mjs";
 import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
 
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
@@ -66,14 +66,7 @@ const issueId = (issue) => {
 };
 const blockerRefs = (issue) => compact(toArray(issue?.blockedByRefs));
 
-const footprintRefs = (issue) =>
-  compact([
-    ...toArray(issue?.footprint),
-    ...toArray(issue?.fileFootprint),
-    ...toArray(issue?.files),
-    ...toArray(issue?.paths),
-    ...toArray(issue?.packages),
-  ]);
+const footprintRefs = (issue) => compact([...toArray(issue?.footprint)]);
 
 const requiredEstimateConfigValue = (config = {}) =>
   config.estimateRequired ??
@@ -384,27 +377,21 @@ const readJson = (source, label) => {
 };
 
 const main = async () => {
-  const args = process.argv.slice(2);
-  const argValue = (flag) => {
-    const index = args.indexOf(flag);
-    return index >= 0 ? args[index + 1] : undefined;
-  };
-  const positional = args.filter(
-    (arg, index) => !arg.startsWith("--") && args[index - 1] !== "--config",
-  );
-
-  if (positional.length !== 1) {
-    console.error(`linear-dag-start: expected exactly one input\n${usage}`);
-    process.exit(1);
-  }
-
+  const parsed = parseCli(process.argv.slice(2), {
+    usage,
+    allowPositionals: true,
+    options: { config: { type: "string" } },
+  });
+  if (!parsed) return;
+  const { values, positionals: positional } = parsed;
+  if (positional.length !== 1) throw new Error(`expected exactly one input\n${usage}`);
   const input = readJson(positional[0], "input");
-  const config = { ...(input.config ?? {}), ...readJson(argValue("--config"), "--config") };
+  const config = { ...(input.config ?? {}), ...readJson(values.config, "--config") };
   const { normalizePlannerModel } = await import("./planner-model.mjs");
   const rawSnapshot =
     input.snapshot ??
     (Array.isArray(input) || input.issues || input.nodes
-      ? { v: input.v ?? 2, linear: { issues: extractLinearIssues(input) } }
+      ? { v: input.v ?? 3, linear: { issues: extractLinearIssues(input) } }
       : input);
   const model = normalizePlannerModel({
     snapshot: rawSnapshot,
@@ -431,9 +418,4 @@ const main = async () => {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
-    console.error(`linear-dag-start: ${error.message}`);
-    process.exitCode = 1;
-  });
-}
+if (isMain(import.meta.url)) runCli("linear-dag-start", main);

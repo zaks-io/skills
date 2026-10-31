@@ -22,7 +22,7 @@ import {
 import { homedir } from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
-import { pathToFileURL } from "node:url";
+import { isMain, parseCli, runCli } from "./cli.mjs";
 
 export const LINEAR_GRAPHQL_ENDPOINT = "https://api.linear.app/graphql";
 export const DEFAULT_KEYCHAIN_SERVICE = "zaks-io-skills.linear";
@@ -367,10 +367,16 @@ async function query(args) {
 
 async function main() {
   const cliArgs = process.argv.slice(2);
-  if (cliArgs[0] === "--help" || cliArgs[0] === "-h") {
-    process.stdout.write(usage);
-    return;
-  }
+  const parsed = parseCli(cliArgs, {
+    usage,
+    allowPositionals: true,
+    options: Object.fromEntries(
+      ["store", "service", "account", "query", "query-file", "variables", "variables-file"].map(
+        (name) => [name, { type: "string" }],
+      ),
+    ),
+  });
+  if (!parsed) return;
   const command = cliArgs[0] && !cliArgs[0].startsWith("-") ? cliArgs.shift() : "query";
   const args = cliArgs;
   if (command === "setup") {
@@ -384,6 +390,4 @@ async function main() {
   fail(`unknown command: ${command}\n${usage}`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => fail(error.message));
-}
+if (isMain(import.meta.url)) await runCli("linear-graphql", main);

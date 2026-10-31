@@ -1,3 +1,4 @@
+import { migrateFixtureState } from "./helpers/planner-fixtures.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -20,7 +21,8 @@ import {
 } from "../scripts/workflow-contract.mjs";
 
 import { normalizePlannerModel } from "../skills/ziw-orchestrate/scripts/planner-model.mjs";
-const normalizedState = (state) => normalizePlannerModel({ snapshot: {}, state }).state;
+const normalizedState = (state) =>
+  normalizePlannerModel({ snapshot: { v: 3 }, state: migrateFixtureState(state) }).state;
 const capacityDecision = (state, config) =>
   normalizedCapacityDecision(normalizedState(state), config);
 const dispatchSelectionDecision = (state, config) =>
@@ -192,7 +194,7 @@ test("ready-state promotion ignores non-agent readiness labels from broad config
 test("review evidence is preserved across a new head when the reviewed diff is equivalent", () => {
   assert.deepEqual(
     reviewEvidenceDecision({
-      evidenceLabel: "Code review passed",
+      hasReviewEvidence: true,
       reviewDiffFingerprint: "same-diff",
       reviewedDiffFingerprint: "SAME-DIFF",
     }),
@@ -206,7 +208,7 @@ test("review evidence is preserved across a new head when the reviewed diff is e
 test("review evidence is cleared when the review-relevant diff changes", () => {
   assert.deepEqual(
     reviewEvidenceDecision({
-      evidenceLabel: "Code review passed",
+      hasReviewEvidence: true,
       reviewDiffFingerprint: "new-diff",
       reviewedDiffFingerprint: "old-diff",
     }),
@@ -283,7 +285,7 @@ test("human merge PR label is applied only when the PR is merge-ready with curre
       {
         reviewDiffFingerprint: "same-diff",
         reviewedDiffFingerprint: "SAME-DIFF",
-        reviewVerdict: "Ready to Merge",
+        reviewVerdict: "APPROVE",
         independentReviewCount: 1,
         hasReviewEvidence: true,
         requiredChecksPassed: true,
@@ -979,42 +981,6 @@ test("production mode routes high-risk merges to human authority", () => {
   assert.match(decision.reason, /human authority/);
 });
 
-test("high-risk work requires exhibited PASS conformance", () => {
-  const decision = mergeEligibilityDecision(
-    {
-      ...greenPr,
-      conformance: "unverifiable",
-      labels: ["risk-security-sensitive"],
-      hostedReviewComplete: true,
-      hostedReviewHeadSha: "abc123",
-    },
-    { deliveryMode: "velocity", requireConformanceEvidence: true },
-  );
-
-  assert.equal(decision.action, workflowDecisionActions.holdMerge);
-  assert.match(decision.reason, /intake gap/);
-});
-
-test("conformance FAIL rows hold the merge at every tier", () => {
-  const decision = mergeEligibilityDecision(
-    { ...greenPr, conformance: "fail", labels: ["risk-normal"] },
-    { deliveryMode: "velocity", requireConformanceEvidence: true },
-  );
-
-  assert.equal(decision.action, workflowDecisionActions.holdMerge);
-  assert.match(decision.reason, /FAIL rows/);
-});
-
-test("medium-risk unverifiable conformance merges with a recorded intake gap", () => {
-  const decision = mergeEligibilityDecision(
-    { ...greenPr, conformance: "unverifiable", labels: ["risk-normal"] },
-    { deliveryMode: "velocity", mergeAuthority: "agent" },
-  );
-
-  assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
-  assert.match(decision.reason, /intake gap/);
-});
-
 test("merge gates hold on drafts, failed checks, and stale review evidence", () => {
   assert.equal(
     mergeEligibilityDecision({ ...greenPr, draft: true }).action,
@@ -1113,33 +1079,13 @@ test("configured human merge authority routes to human even in velocity mode", (
   assert.match(decision.reason, /configured merge authority/);
 });
 
-test("a missing required conformance table holds the merge", () => {
+test("the independent review verdict carries conformance", () => {
   const decision = mergeEligibilityDecision(
     { ...greenPr, conformance: undefined, labels: ["risk-normal"] },
-    { deliveryMode: "velocity", requireConformanceEvidence: true },
-  );
-
-  assert.equal(decision.action, workflowDecisionActions.holdMerge);
-  assert.match(decision.reason, /not exhibited/);
-});
-
-test("requireConformanceEvidence false lets repos without the table keep merging", () => {
-  const decision = mergeEligibilityDecision(
-    { ...greenPr, conformance: undefined, labels: ["risk-normal"] },
-    { deliveryMode: "velocity", mergeAuthority: "agent", requireConformanceEvidence: false },
+    { deliveryMode: "velocity", mergeAuthority: "agent" },
   );
 
   assert.equal(decision.action, workflowDecisionActions.armAutoMerge);
-});
-
-test("conformance evidence for a different head does not cover the merge", () => {
-  const decision = mergeEligibilityDecision(
-    { ...greenPr, conformanceHeadSha: "old999", labels: ["risk-normal"] },
-    { deliveryMode: "velocity", requireConformanceEvidence: true },
-  );
-
-  assert.equal(decision.action, workflowDecisionActions.holdMerge);
-  assert.match(decision.reason, /does not cover the current PR head/);
 });
 
 test("delivery mode is config-owned; state cannot switch a repo into velocity", () => {
@@ -1160,7 +1106,7 @@ test("delivery mode is config-owned; state cannot switch a repo into velocity", 
 
 test("mergeEligibilityDecision blocks on hosted-review fields humanMergePrLabelDecision knows", () => {
   const pending = mergeEligibilityDecision(
-    { ...greenPr, codeRabbitPending: true, codeRabbitRequired: true },
+    { ...greenPr, codeRabbitPending: true, hostedReviewRequired: true },
     { deliveryMode: "velocity" },
   );
   assert.equal(pending.action, workflowDecisionActions.holdMerge);
@@ -1238,11 +1184,8 @@ test("findings from a review of the current diff route to a fix before re-review
   assert.equal(blocking.action, workflowDecisionActions.holdMerge);
   assert.match(blocking.reason, /blocking findings/);
 
-  const failed = mergeEligibilityDecision(
-    { ...needsRevision, reviewVerdict: "Ready to Merge", conformance: "FAIL" },
-    config,
-  );
-  assert.match(failed.reason, /route findings back to the worker/);
+  const failed = mergeEligibilityDecision({ ...needsRevision, blockingFindings: true }, config);
+  assert.match(failed.reason, /blocking findings/);
 
   const stale = mergeEligibilityDecision(
     { ...needsRevision, reviewDiffFingerprint: "fp2", blockingFindings: true },
@@ -1378,8 +1321,12 @@ test("a hosted review of the current diff is independent evidence that stale loc
   );
   assert.equal(currentReviewStatus({ ...hostedOnly, hostedReviewSkipped: true }).status, "missing");
   assert.equal(
-    currentReviewStatus({ ...hostedOnly, conformance: "FAIL", conformanceHeadSha: "abc123" })
-      .status,
+    currentReviewStatus({
+      ...hostedOnly,
+      reviewedDiffFingerprint: "new",
+      reviewVerdict: "NEEDS REVISION",
+      blockingFindings: true,
+    }).status,
     "blocking",
   );
   assert.equal(

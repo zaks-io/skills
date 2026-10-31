@@ -16,14 +16,8 @@ const NON_IMPLEMENTATION_READY_LABELS = new Set([
   "ready-for-human",
   "wontfix",
 ]);
-const REVISION_REVIEW_VERDICTS = new Set(["needs revision", "do not merge"]);
-const CLEAN_REVIEW_VERDICTS = [
-  "approve",
-  "approved",
-  "ready for pr",
-  "ready to merge",
-  "ready_to_merge",
-];
+const REVISION_REVIEW_VERDICTS = new Set(["needs revision"]);
+const CLEAN_REVIEW_VERDICTS = ["approve"];
 
 const TRUSTED_POLICY_SOURCES = new Set([
   "agent_adapter",
@@ -59,15 +53,8 @@ const shaEquals = (left, right) => Boolean(left && right && normalize(left) === 
 const fingerprintEquals = (left, right) =>
   Boolean(left && right && normalize(left) === normalize(right));
 
-const currentReviewDiffFingerprint = (state = {}) =>
-  firstDefined(
-    state.currentReviewDiffFingerprint,
-    state.reviewDiffFingerprint,
-    state.reviewRelevantDiffFingerprint,
-  );
-
-const reviewedDiffFingerprint = (state = {}) =>
-  firstDefined(state.reviewedDiffFingerprint, state.reviewedReviewDiffFingerprint);
+const currentReviewDiffFingerprint = (state = {}) => state.reviewDiffFingerprint;
+const reviewedDiffFingerprint = (state = {}) => state.reviewedDiffFingerprint;
 
 const reviewCoversCurrentDiff = (state = {}) =>
   fingerprintEquals(reviewedDiffFingerprint(state), currentReviewDiffFingerprint(state));
@@ -90,7 +77,7 @@ export function diffCoverage(reviewedFingerprint, reviewedHead, currentFingerpri
 
 const hostedReviewCoversCurrentDiff = (state = {}) =>
   diffCoverage(
-    state.hostedReviewDiffFingerprint ?? state.hostedReviewedDiffFingerprint,
+    state.hostedReviewDiffFingerprint,
     state.hostedReviewHeadSha,
     currentReviewDiffFingerprint(state),
     state.currentPrHeadSha ?? state.headSha,
@@ -273,7 +260,7 @@ function hasBlockingReview(state) {
 }
 
 export function reviewEvidenceDecision(evidence = {}) {
-  const hasEvidence = Boolean(evidence.hasReviewEvidence ?? evidence.evidenceLabel);
+  const hasEvidence = Boolean(evidence.hasReviewEvidence);
   const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(evidence.reviewVerdict));
 
   if (!hasEvidence) {
@@ -336,17 +323,8 @@ function currentReviewEvidence(state = {}) {
   ) {
     return false;
   }
-  const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(
-    normalize(state.reviewVerdict ?? state.codeReviewVerdict),
-  );
-  const hasEvidence = Boolean(
-    firstDefined(
-      state.reviewEvidenceCurrent,
-      state.hasReviewEvidence,
-      state.reviewEvidenceLabel,
-      state.evidenceLabel,
-    ),
-  );
+  const cleanVerdict = valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(state.reviewVerdict));
+  const hasEvidence = Boolean(firstDefined(state.reviewEvidenceCurrent, state.hasReviewEvidence));
 
   return (
     state.reviewEvidenceCurrent === true ||
@@ -362,10 +340,8 @@ function countEvidence(value) {
 
 export function hasCompletedIndependentReview(evidence = {}) {
   return (
-    valueSet(CLEAN_REVIEW_VERDICTS).has(
-      normalize(evidence.reviewVerdict ?? evidence.codeReviewVerdict),
-    ) &&
-    countEvidence(evidence.independentReviewCount ?? evidence.independentReviews) > 0 &&
+    valueSet(CLEAN_REVIEW_VERDICTS).has(normalize(evidence.reviewVerdict)) &&
+    countEvidence(evidence.independentReviewCount) > 0 &&
     evidence.hasReviewEvidence !== false &&
     evidence.reviewEvidenceCurrent !== false &&
     !evidence.evidenceMissing &&
@@ -375,15 +351,7 @@ export function hasCompletedIndependentReview(evidence = {}) {
 }
 
 function requiredChecksPassed(state = {}) {
-  return Boolean(
-    firstDefined(
-      state.requiredChecksPassed,
-      state.requiredChecksGreen,
-      state.checksPassing,
-      state.checksGreen,
-      state.ciGreen,
-    ),
-  );
+  return Boolean(firstDefined(state.requiredChecksPassed));
 }
 
 const AGENT_MERGE_AUTHORITIES = ["agent", "auto", "automated", "orchestrator"];
@@ -406,9 +374,9 @@ export function mergeReadinessFacts(state = {}) {
   const prState = normalize(state.prState ?? state.state ?? state.status);
   const terminal =
     state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
-  const hostedReviewRequired = state.hostedReviewRequired || state.codeRabbitRequired;
-  const hostedReviewComplete = state.hostedReviewComplete || state.codeRabbitComplete;
-  const hostedReviewSkipped = state.hostedReviewSkipped || state.codeRabbitSkipped;
+  const hostedReviewRequired = state.hostedReviewRequired;
+  const hostedReviewComplete = state.hostedReviewComplete;
+  const hostedReviewSkipped = state.hostedReviewSkipped;
   return {
     blockingFindings: hasBlockingReview(state),
     checksPassed: requiredChecksPassed(state),
@@ -424,7 +392,7 @@ export function mergeReadinessFacts(state = {}) {
     ),
     open: Boolean((state.open ?? !terminal) && !terminal),
     reviewEvidenceCurrent: currentReviewEvidence(state),
-    scopeMismatch: state.scopeMatches === false || state.diffMatchesScope === false,
+    scopeMismatch: state.scopeMatches === false,
     unresolvedReviewThreads: countEvidence(
       state.unresolvedReviewThreads ?? state.unresolvedThreads,
     ),
@@ -434,7 +402,6 @@ export function mergeReadinessFacts(state = {}) {
 export function humanMergePrLabelDecision(state = {}, config = {}) {
   const label =
     state.humanMergePrLabel ??
-    state.humanReviewPrLabel ??
     config.humanMergePrLabel ??
     config.humanReviewPrLabel ??
     config.codeHostHumanMergePrLabel ??
@@ -443,19 +410,9 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     config.codeHostHumanReviewLabel ??
     config.codeHostPrAttentionLabel ??
     DEFAULT_HUMAN_MERGE_PR_LABEL;
-  const prLabels = [
-    ...toArray(state.prLabels),
-    ...toArray(state.pullRequestLabels),
-    ...toArray(state.labels),
-  ];
+  const prLabels = [...toArray(state.prLabels), ...toArray(state.labels)];
   const labelApplied = Boolean(
-    firstDefined(
-      state.humanMergePrLabelApplied,
-      state.humanReviewPrLabelApplied,
-      state.hasHumanMergePrLabel,
-      state.hasHumanReviewPrLabel,
-      hasNamedLabel(prLabels, label),
-    ),
+    firstDefined(state.humanMergePrLabelApplied, hasNamedLabel(prLabels, label)),
   );
   const facts = mergeReadinessFacts(state);
   const mergeDecision = mergeEligibilityDecision(state, config);
@@ -499,8 +456,6 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
 
 const DEFAULT_HIGH_RISK_LABELS = ["risk-security-sensitive", "risk-schema", "risk-cross-cutting"];
 const RISK_TIERS = ["low", "medium", "high"];
-const CONFORMANCE_PASS = "pass";
-const CONFORMANCE_FAIL = new Set(["fail", "failed"]);
 
 export function riskTier(state = {}, config = {}) {
   const labels = [
@@ -518,7 +473,7 @@ export function riskTier(state = {}, config = {}) {
       ? "low"
       : "medium";
 
-  const explicit = normalize(state.riskTier ?? state.tier);
+  const explicit = normalize(state.riskTier);
   if (!RISK_TIERS.includes(explicit)) return labelTier;
   // High-risk labels are a floor: state-sourced tier fields cannot downgrade them.
   if (hasHighLabel) return "high";
@@ -543,7 +498,7 @@ export function reviewDepthRequirement(tier, config = {}) {
 }
 
 export function reviewVerdictKind(evidence = {}) {
-  const verdict = normalize(evidence.reviewVerdict ?? evidence.codeReviewVerdict);
+  const verdict = normalize(evidence.reviewVerdict);
   if (valueSet(CLEAN_REVIEW_VERDICTS).has(verdict)) return "clean";
   if (REVISION_REVIEW_VERDICTS.has(verdict)) return "revision";
   return null;
@@ -553,16 +508,14 @@ export function reviewVerdictKind(evidence = {}) {
 // the current diff is review evidence without a second local pass.
 function hostedReviewCountsAsEvidence(state = {}) {
   return Boolean(
-    (state.hostedReviewComplete || state.codeRabbitComplete) &&
-    !(state.hostedReviewSkipped || state.codeRabbitSkipped) &&
+    state.hostedReviewComplete &&
+    !state.hostedReviewSkipped &&
     hostedReviewCoversCurrentDiff(state),
   );
 }
 
 function independentReviewCount(state = {}) {
-  const local = currentReviewEvidence(state)
-    ? countEvidence(state.independentReviewCount ?? state.independentReviews)
-    : 0;
+  const local = currentReviewEvidence(state) ? countEvidence(state.independentReviewCount) : 0;
   return local + (hostedReviewCountsAsEvidence(state) ? 1 : 0);
 }
 
@@ -584,17 +537,6 @@ export function currentReviewStatus(state = {}, config = {}) {
   }
   if (!localCovers && hostedCurrent && normalize(state.reviewDecision) === "changes_requested") {
     return { status: "blocking", reason: "blocking findings or changes requested remain" };
-  }
-  const currentHead = state.currentPrHeadSha ?? state.headSha;
-  if (
-    (localCovers || hostedCurrent) &&
-    CONFORMANCE_FAIL.has(normalize(state.conformance ?? state.conformanceVerdict)) &&
-    (state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead))
-  ) {
-    return {
-      status: "blocking",
-      reason: "conformance table has FAIL rows; route findings back to the worker",
-    };
   }
   if (!localCurrent && !hostedCurrent) {
     return {
@@ -629,10 +571,6 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   });
 
   const facts = mergeReadinessFacts(state);
-  const conformance = normalize(state.conformance ?? state.conformanceVerdict);
-  const currentHead = state.currentPrHeadSha ?? state.headSha;
-  const conformanceCoversHead =
-    state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead);
   if (!facts.open) return hold("PR is not open");
   if (facts.draft) return hold("draft PRs cannot merge");
   if (state.reviewThreadsTruncated === true) {
@@ -644,25 +582,6 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   if (facts.unresolvedReviewThreads > 0) return hold("unresolved review threads remain");
   if (facts.hostedReviewBlocked) return hold("required hosted review is pending or incomplete");
   if (facts.scopeMismatch) return hold("diff does not match the linked issue scope");
-
-  // Trust boundary: state is orchestrator-assembled from freshly refreshed
-  // systems of record, so first-party boolean evidence (reviewEvidenceCurrent,
-  // a conformance verdict without conformanceHeadSha) is trusted as-is.
-  // Third-party reviews require a matching review-diff fingerprint.
-  const requireConformance = config.requireConformanceEvidence === true;
-  if (conformance && !conformanceCoversHead) {
-    return hold("conformance evidence does not cover the current PR head");
-  }
-  if (requireConformance) {
-    if (!conformance) {
-      return hold("conformance table is not exhibited for the current PR head");
-    }
-    if (conformance !== CONFORMANCE_PASS && tier === "high") {
-      return hold(
-        "high-risk work requires exhibited PASS conformance; unverifiable rows are an intake gap",
-      );
-    }
-  }
 
   // The PR is merge-ready; from here only authority decides the route.
   if (state.productionAction === true || state.humanDecisionPending === true) {
@@ -680,14 +599,10 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
     return routeHuman(`${mode} mode routes ${tier}-risk merges to human authority`);
   }
 
-  const conformanceNote =
-    conformance && conformance !== CONFORMANCE_PASS
-      ? "; conformance not fully verifiable, recorded as intake gap"
-      : "";
   return {
     ...base,
     action: workflowDecisionActions.armAutoMerge,
-    reason: `merge-ready at ${tier} risk in ${mode} mode${conformanceNote}`,
+    reason: `merge-ready at ${tier} risk in ${mode} mode`,
   };
 }
 
@@ -794,10 +709,6 @@ function normalizeFootprintPath(value) {
 function footprintEntries(item = {}) {
   return [
     ...toArray(item.footprint),
-    ...toArray(item.fileFootprint),
-    ...toArray(item.files),
-    ...toArray(item.paths),
-    ...toArray(item.packages),
     ...toArray(item.changedFiles).filter((entry) => typeof entry === "string"),
   ]
     .filter((entry) => typeof entry === "string")
@@ -862,13 +773,13 @@ function eligibleWorkerKinds(ticket = {}, config = {}) {
 }
 
 function ticketLeverage(ticket = {}) {
-  const explicit = Number(ticket.unlockCount ?? ticket.downstreamCount);
+  const explicit = Number(ticket.unlockCount);
   if (Number.isFinite(explicit)) return explicit;
   return toArray(ticket.blocks ?? ticket.dependents).length;
 }
 
 function ticketPriority(ticket = {}) {
-  const priority = Number(ticket.priority ?? ticket.objectiveRank);
+  const priority = Number(ticket.priority);
   return Number.isFinite(priority) && priority > 0 ? priority : Number.POSITIVE_INFINITY;
 }
 
@@ -1053,13 +964,7 @@ export function dispatchSelectionDecision(state = {}, config = {}) {
 }
 
 function hostedReviewProviderName(state = {}, config = {}) {
-  return String(
-    state.hostedReviewProvider ??
-      state.reviewProvider ??
-      state.provider ??
-      config.hostedReviewProvider ??
-      "CodeRabbit",
-  );
+  return String(state.hostedReviewProvider ?? config.hostedReviewProvider ?? "CodeRabbit");
 }
 
 export function hostedReviewEscalationDecision(state = {}, config = {}) {
@@ -1068,7 +973,7 @@ export function hostedReviewEscalationDecision(state = {}, config = {}) {
   const recommended = Boolean(state.recommended || state.required || state.highRisk);
   const hasPr = Boolean(state.prExists || state.prUrl);
   const hostedCoversDiff = hostedReviewCoversCurrentDiff(state);
-  const autoReviewMode = normalize(state.autoReviewMode ?? state.autoReview);
+  const autoReviewMode = normalize(state.autoReviewMode);
   const requiresAutoReviewResolution =
     state.requiresAutoReviewResolution ??
     config.requiresAutoReviewResolution ??

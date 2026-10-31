@@ -4,6 +4,7 @@ import Ajv from "ajv";
 import standaloneCode from "ajv/dist/standalone/index.js";
 import { format } from "prettier";
 import schema from "./planner-schema/input.mjs";
+import { legacyStateSchema, oldCanonicalStateSchema } from "./planner-schema/migration.mjs";
 import prettierConfig from "../prettier.config.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -16,11 +17,9 @@ const ajv = new Ajv({
 });
 ajv.addSchema(schema);
 const exports = Object.fromEntries(
-  ["Input", "Config", "State", "CanonicalState"].map((name) => [
+  ["Input", "Config", "State", "Observation"].map((name) => [
     `validate${name}`,
-    name === "Input"
-      ? schema.$id
-      : `${schema.$id}#/definitions/${name === "CanonicalState" ? "canonical_state" : name.toLowerCase()}`,
+    name === "Input" ? schema.$id : `${schema.$id}#/definitions/${name.toLowerCase()}`,
   ]),
 );
 const code = standaloneCode(ajv, exports);
@@ -40,6 +39,17 @@ const outputs = {
     },
   ),
 };
+const migrationAjv = new Ajv({
+  code: { source: true, esm: true },
+  allErrors: true,
+  inlineRefs: false,
+  strictRequired: false,
+});
+migrationAjv.addSchema(legacyStateSchema).addSchema(oldCanonicalStateSchema);
+outputs["skills/ziw-orchestrate/scripts/state-migration-validator.mjs"] = await format(
+  `// Generated frozen migration classifiers. Do not edit.\n${standaloneCode(migrationAjv, { validateLegacyState: "migration-legacy", validateOldCanonicalState: "migration-canonical" })}`,
+  { ...prettierConfig, parser: "babel" },
+);
 for (const [relative, content] of Object.entries(outputs)) {
   const file = path.join(root, relative);
   if (check) {

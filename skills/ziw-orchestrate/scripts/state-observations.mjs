@@ -1,13 +1,9 @@
-import { validateCanonicalState } from "./planner-input-validator.mjs";
+import { validateState, validateObservation } from "./planner-input-validator.mjs";
 import { assertIdentityFieldNames, normalizePlannerModel } from "./planner-model.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
-import {
-  normalizeReviewMaps,
-  recordReviewRequest,
-  recordReviewResult,
-} from "./review-observations.mjs";
+import { recordReviewRequest, recordReviewResult } from "./review-observations.mjs";
 
-const workerCollections = ["dispatches", "ledgerDispatches", "activeWork", "workers"];
+const workerCollections = ["dispatches"];
 const observationFields = new Set([
   "dispatches",
   "reviewRequestsByPr",
@@ -23,7 +19,7 @@ const fail = (message) => {
 };
 
 export function validatePlannerState(state) {
-  if (!validateCanonicalState(state)) fail("state does not match the canonical planner schema");
+  if (!validateState(state)) fail("state does not match the canonical planner schema");
   assertIdentityFieldNames(state, "state");
   normalizePlannerModel({ snapshot: { v: 3 }, state });
 }
@@ -120,9 +116,8 @@ export function applyObservations(state, observation) {
     fail("unsupported observation field");
   const checked = { ...observation };
   if (checked.scopeIssues === null) delete checked.scopeIssues;
-  if (!validateCanonicalState(checked)) fail("observation does not match the planner schema");
+  if (!validateObservation(checked)) fail("observation does not match the planner schema");
   const next = structuredClone(state);
-  normalizeReviewMaps(next);
   for (const record of observation.dispatches ?? []) recordWorker(next, record);
   for (const [pr, request] of Object.entries(observation.reviewRequestsByPr ?? {}))
     recordReviewRequest(next, pr, request);
@@ -137,9 +132,7 @@ export function applyObservations(state, observation) {
       ...(evidence.hostedReviewPending === true
         ? {
             hostedReviewComplete: false,
-            codeRabbitComplete: false,
             hostedReviewSkipped: false,
-            codeRabbitSkipped: false,
             skipped: false,
           }
         : {}),

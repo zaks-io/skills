@@ -71,6 +71,16 @@ const markdownFiles = (dir) => {
     .sort();
 };
 
+const plannerScripts = path.join(skillsDir, "ziw-orchestrate", "scripts");
+for (const name of readdirSync(plannerScripts).filter((name) => name.endsWith(".mjs"))) {
+  const source = readText(path.join(plannerScripts, name));
+  if (
+    name !== "planner-state.mjs" &&
+    /(?:from\s*|import\s*\()(["'])\.\/state-migration\.mjs\1/.test(source)
+  )
+    fail(`${name}: only planner-state.mjs may import state-migration.mjs`);
+  if (source.includes("legacy-planner-input.mjs")) fail(`${name}: retired legacy consumer import`);
+}
 const skillNames = readdirSync(skillsDir)
   .filter((name) => {
     const fullPath = path.join(skillsDir, name);

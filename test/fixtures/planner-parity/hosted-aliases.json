@@ -1,0 +1,124 @@
+{
+  "baseline": "beb146d2c69ad501e21d281a3dd99aba7a5a59b1",
+  "snapshot": {
+    "v": 3,
+    "repo": "example/app",
+    "baseline": {
+      "branch": "main",
+      "headSha": "base-1"
+    },
+    "worktrees": [],
+    "prs": [
+      {
+        "number": 12,
+        "title": "Implement EXA-1",
+        "url": "https://github.com/example/app/pull/12",
+        "headSha": "head-1",
+        "headRefName": "codex/exa-1-implement",
+        "baseRefName": "main",
+        "state": "open",
+        "isDraft": true,
+        "changedFiles": 1,
+        "checks": {
+          "state": "SUCCESS"
+        },
+        "reviewDiffFingerprint": "patch-id:one",
+        "linkedIssues": [
+          {
+            "issueKey": "EXA-1"
+          }
+        ]
+      }
+    ],
+    "linear": {
+      "issues": [
+        {
+          "issueKey": "EXA-1",
+          "title": "Implement EXA-1",
+          "url": "https://linear.app/example/issue/EXA-1/implement",
+          "labels": ["kind-slice", "ready-for-agent"],
+          "state": "Todo",
+          "stateType": "unstarted",
+          "footprint": ["src/EXA-1.mjs"]
+        },
+        {
+          "issueKey": "EXA-2",
+          "title": "Implement EXA-2",
+          "url": "https://linear.app/example/issue/EXA-2/implement",
+          "labels": ["kind-slice", "ready-for-agent"],
+          "state": "Todo",
+          "stateType": "unstarted",
+          "footprint": ["src/EXA-2.mjs"]
+        },
+        {
+          "issueKey": "EXA-3",
+          "title": "Implement EXA-3",
+          "url": "https://linear.app/example/issue/EXA-3/implement",
+          "labels": ["kind-slice", "ready-for-agent"],
+          "state": "Todo",
+          "stateType": "unstarted",
+          "footprint": ["src/EXA-3.mjs"]
+        }
+      ]
+    }
+  },
+  "config": {
+    "mergeAuthority": "human",
+    "hostedReviewRiskTiers": [],
+    "branchPrefix": "codex/"
+  },
+  "state": {
+    "repo": "example/app",
+    "reviewEvidenceByPr": {
+      "12": {
+        "sessionId": "review-1",
+        "reviewedHeadSha": "head-1",
+        "reviewedDiffFingerprint": "patch-id:one",
+        "reviewVerdict": "APPROVE",
+        "independentReviewCount": 1
+      }
+    },
+    "hostedReviewByPr": {
+      "12": {
+        "codeRabbitRequired": true,
+        "codeRabbitComplete": true,
+        "hostedReviewHeadSha": "head-1",
+        "hostedReviewedDiffFingerprint": "patch-id:one",
+        "autoReview": "enabled",
+        "provider": "CodeRabbit"
+      }
+    }
+  },
+  "expected": {
+    "actions": [
+      {
+        "target": "ticket:EXA-2",
+        "kind": "dispatch",
+        "owner": "implementation-worker",
+        "reason": "STARTABLE",
+        "targetState": "In Progress"
+      },
+      {
+        "target": "ticket:EXA-3",
+        "kind": "dispatch",
+        "owner": "implementation-worker",
+        "reason": "STARTABLE",
+        "targetState": "In Progress"
+      },
+      {
+        "target": "pr:12",
+        "kind": "mark-ready",
+        "owner": "orchestrator",
+        "reason": "REVIEW_CLEAN"
+      }
+    ],
+    "waits": [],
+    "holds": [
+      {
+        "target": "ticket:EXA-1",
+        "reason": "DELIVERY_ALREADY_ACTIVE",
+        "source": "open-pr-or-claim"
+      }
+    ]
+  }
+}

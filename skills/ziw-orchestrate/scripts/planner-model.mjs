@@ -1,21 +1,10 @@
-import { adaptLegacyPlannerInput } from "./legacy-planner-input.mjs";
 import { buildIssueCatalog } from "./issue-catalog.mjs";
 import { possibleIssueLinks } from "./delivery-identity.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
-import { normalizePrMaps } from "./review-observations.mjs";
 
 const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
 const terminal = (record) => !isLiveWorker(record);
-const footprint = (record) =>
-  [
-    ...new Set([
-      ...array(record.footprint),
-      ...array(record.fileFootprint),
-      ...array(record.files),
-      ...array(record.paths),
-      ...array(record.packages),
-    ]),
-  ].sort();
+const footprint = (record) => [...new Set(array(record.footprint))].sort();
 
 const identityNames = new Map(
   [
@@ -40,19 +29,13 @@ export function assertIdentityFieldNames(value, path = "input") {
   }
 }
 
-export function normalizePlannerModel({
-  snapshot = {},
-  state = {},
-  legacyWorkerPaths = [],
-  legacyPrMapFields = [],
-} = {}) {
+export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
   assertIdentityFieldNames(snapshot, "snapshot");
   assertIdentityFieldNames(state, "state");
-  const version = snapshot.v ?? 2;
-  if (![1, 2, 3].includes(version))
-    throw new Error("snapshot/v: unsupported identity contract version");
-  const legacy = version !== 3;
-  if (legacy) ({ snapshot, state } = adaptLegacyPlannerInput(snapshot, state));
+  if (snapshot.v !== 3)
+    throw new Error(
+      "snapshot/v: retired format; regenerate the snapshot with the current collector",
+    );
   const records = [];
   const collect = (values, path) =>
     array(values).forEach((record, index) => {
@@ -83,7 +66,7 @@ export function normalizePlannerModel({
       footprint: footprint(record),
       ...(kind === "issue"
         ? {
-            activeClaim: Boolean(record.activeClaim || record.claimed || record.delegated),
+            activeClaim: Boolean(record.activeClaim),
             blockedByRefs: [
               ...new Set(
                 array(record.blockedBy)
@@ -104,13 +87,11 @@ export function normalizePlannerModel({
     normalized.issueRefs = [...new Set(linked.map((reference) => reference.issueRef))];
     normalized.possibleIssueRefs = possibleIssueLinks(normalized, catalog);
     if (kind === "worker") {
-      const legacyWorker = legacy || legacyWorkerPaths.includes(path);
       const statuses = [record.state, record.status].filter((value) => value != null);
       const explicitlyLive = statuses.some((value) =>
         ["running", "active", "started"].includes(String(value).trim().toLowerCase()),
       );
       if (
-        !legacyWorker &&
         explicitlyLive &&
         (record.returned === true ||
           record.stopped === true ||
@@ -118,7 +99,7 @@ export function normalizePlannerModel({
       )
         throw new Error(`${path}: contradictory worker lifecycle; refresh provider status`);
       const live = !terminal(record) && record.occupiesWorkerSlot !== false;
-      if (!legacyWorker && live && !record.sessionId && !record.receiptId)
+      if (live && !record.sessionId && !record.receiptId)
         throw new Error(`${path}: live worker needs explicit sessionId or receiptId`);
       normalized.workerRef = record.sessionId
         ? `session:${record.sessionId}`
@@ -176,7 +157,7 @@ export function normalizePlannerModel({
   const normalizedState = { ...state };
   for (const name of ["tickets", "linearIssues", "activeLinearIssues", "startableTickets"])
     if (state[name] != null) normalizedState[name] = map(state[name], "issue", `state/${name}`);
-  for (const name of ["dispatches", "ledgerDispatches", "activeWork", "workers"])
+  for (const name of ["dispatches"])
     if (state[name] != null) normalizedState[name] = map(state[name], "worker", `state/${name}`);
   for (const [name, kind] of [
     ["pullRequests", "pr"],
@@ -208,7 +189,7 @@ export function normalizePlannerModel({
     worktrees: map(snapshot.worktrees, "worktree", "snapshot/worktrees"),
   };
   const prs = [...normalizedSnapshot.prs, ...array(normalizedState.pullRequests)];
-  const workerNames = ["dispatches", "ledgerDispatches", "activeWork", "workers"];
+  const workerNames = ["dispatches"];
   for (const name of workerNames) {
     for (const [index, worker] of array(normalizedState[name]).entries()) {
       if (!worker.issueRef && worker.issueRefs.length === 0 && worker.prNumber != null) {
@@ -276,7 +257,7 @@ export function normalizePlannerModel({
   }
   return {
     snapshot: normalizedSnapshot,
-    state: normalizePrMaps(normalizedState, prs, legacy, new Set(legacyPrMapFields)),
+    state: normalizedState,
     diagnostics,
   };
 }

@@ -1,3 +1,4 @@
+import { currentFixture, migrateFixtureState } from "./helpers/planner-fixtures.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -39,15 +40,18 @@ const pr = (reference = { issueUuid: uuid }, extra = {}) => ({
   ...extra,
 });
 
-function invoke(value, debug = false, overrideState) {
+function invoke(value, debug = false, overrideState, current = false) {
   const directory = mkdtempSync(path.join(tmpdir(), "ziw-delivery-contract-"));
   try {
     const file = path.join(directory, "input.json");
-    writeFileSync(file, JSON.stringify(value));
+    writeFileSync(file, JSON.stringify(current ? value : currentFixture(value)));
     const flags = [];
     if (overrideState !== undefined) {
       const stateFile = path.join(directory, "state.json");
-      writeFileSync(stateFile, JSON.stringify(overrideState));
+      writeFileSync(
+        stateFile,
+        JSON.stringify(current ? overrideState : migrateFixtureState(overrideState)),
+      );
       flags.push("--state", stateFile);
     }
     return spawnSync(process.execPath, [script, file, ...flags, ...(debug ? ["--debug"] : [])], {
@@ -355,43 +359,6 @@ test("one session cannot cover a multi-issue PR and a disjoint direct issue", ()
   }
 });
 
-test("legacy anonymous state receipts keep observation and lifecycle semantics beside a v3 snapshot", () => {
-  const canonical = input();
-  const legacy = structuredClone(canonical);
-  legacy.snapshot.v = 2;
-  legacy.snapshot.linear.issues = [
-    {
-      identifier: "ZAK-12",
-      id: uuid,
-      state: "Todo",
-      stateType: "unstarted",
-      labels: ["kind-slice", "ready-for-agent", "example/repo"],
-      footprint: ["src/candidate.ts"],
-    },
-  ];
-  for (const [lifecycle, live] of [
-    [{ state: "running" }, true],
-    [{ hasPr: true }, false],
-    [{ hasPr: true, state: "running" }, true],
-    [{ hasPr: true, state: "returned", returned: true }, false],
-  ]) {
-    const state = { dispatches: [{ issueId: uuid, footprint: ["src/active.ts"], ...lifecycle }] };
-    const canonicalPlan = plans(canonical, state);
-    const legacyPlan = plans(legacy, state);
-    assert.deepEqual(decisions(canonicalPlan), decisions(legacyPlan));
-    assert.equal(canonicalPlan.capacity.used, live ? 1 : 0);
-    if (live) {
-      held(canonicalPlan);
-      assert.ok(canonicalPlan.decisions.activeDispatches[0].workerRef.startsWith("observation:"));
-    } else {
-      assert.deepEqual(
-        starts(canonicalPlan).map((action) => action.target),
-        ["ticket:ZAK-12"],
-      );
-    }
-  }
-});
-
 test("legacy PR evidence aliases cannot turn an external canonical PR-associated worker into a returned worker", () => {
   const value = input(
     [
@@ -408,6 +375,7 @@ test("legacy PR evidence aliases cannot turn an external canonical PR-associated
         { sessionId: "canonical-live", state: undefined, hasPr: true, prNumber: 22 },
       ),
     ],
+    pullRequests: [{ number: 22, headSha: "pr-head-22" }],
     reviewDiffByPr: { "pr-head-22": "same-diff" },
   };
   const plan = plans(value, state);
@@ -451,10 +419,22 @@ test("a legacy worker in a mixed external array cannot change another record's c
   contradictory.dispatches[0].state = "running";
   contradictory.dispatches[0].returned = true;
   for (const debug of [false, true]) {
-    const result = invoke(value, debug, contradictory);
+    const result = invoke(
+      { ...currentFixture(value), state: { v: 3, repo: value.snapshot.repo } },
+      debug,
+      {
+        ...migrateFixtureState(state),
+        v: 3,
+        repo: value.snapshot.repo,
+        dispatches: migrateFixtureState(state).dispatches.map((worker, index) =>
+          index === 0 ? { ...worker, state: "running", returned: true } : worker,
+        ),
+      },
+      true,
+    );
     assert.equal(result.status, 1);
     assert.equal(result.stdout, "");
-    assert.match(result.stderr, /dispatches\/0.*contradictory worker lifecycle/);
+    assert.match(result.stderr, /dispatches\/0.*lifecycle/);
   }
 });
 
@@ -526,28 +506,6 @@ test("in-scope issue evidence cannot authorize a label action on an out-of-scope
     plan.decisions.reviewEvidence.some((record) => record.actionTarget === "pr:23"),
     false,
   );
-});
-
-test("a sessionless observation cannot collapse into a session merely by covering its issue", () => {
-  const value = input();
-  value.snapshot.v = 2;
-  value.snapshot.linear.issues = [
-    {
-      identifier: "ZAK-12",
-      id: uuid,
-      footprint: ["src/candidate.ts"],
-      labels: ["kind-slice", "ready-for-agent"],
-      state: "Todo",
-      stateType: "unstarted",
-    },
-  ];
-  value.state.dispatches = [
-    { issueId: "ZAK-12", state: "running" },
-    { issueId: uuid, sessionId: "known-session", state: "running" },
-  ];
-  const plan = plans(value);
-  assert.equal(plan.capacity.used, 2);
-  held(plan);
 });
 
 test("a linked PR preserves the running worker slot until lifecycle evidence returns it", () => {
@@ -792,7 +750,16 @@ for (const [name, value, diagnostic] of [
 ]) {
   test(`${name} is rejected before producing unsafe actions`, () => {
     for (const debug of [false, true]) {
-      const result = invoke(value, debug);
+      const result = invoke(
+        {
+          ...value,
+          state: { v: 3, repo: value.snapshot.repo, ...value.state },
+          config: { workerConcurrencyCap: 4, mergeAuthority: "agent" },
+        },
+        debug,
+        undefined,
+        true,
+      );
       assert.notEqual(result.status, 0);
       assert.equal(result.stdout.trim(), "");
       assert.match(result.stderr, diagnostic);
@@ -825,6 +792,10 @@ const historical = {
 for (const [name, reference] of Object.entries(historical)) {
   test(`historical CLI reproducer ${name}`, () => {
     const value = JSON.parse(readFileSync(path.join(fixtures, `${name}.json`), "utf8"));
+    if (["unresolved-uuid-worker", "uuid-ledger-claim", "mixed-worker"].includes(name)) {
+      assert.throws(() => currentFixture(value), /anonymous live worker/);
+      return;
+    }
     const plan = plans(value);
     if (reference) held(plan, reference);
     if (["unresolved-uuid-pr", "mixed-pr", "mixed-generic-pr"].includes(name))

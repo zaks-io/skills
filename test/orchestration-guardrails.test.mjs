@@ -1,3 +1,4 @@
+import { currentFixture, migrateFixtureState } from "./helpers/planner-fixtures.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -13,7 +14,9 @@ function plan({ linear = { issues: [] }, prs = [], state = {}, config = {} } = {
     const file = path.join(dir, "input.json");
     writeFileSync(
       file,
-      JSON.stringify({ snapshot: { repo: "example/repo", prs, linear }, state, config }),
+      JSON.stringify(
+        currentFixture({ snapshot: { repo: "example/repo", prs, linear }, state, config }),
+      ),
     );
     return JSON.parse(
       execFileSync(process.execPath, [planner, file, "--debug"], { encoding: "utf8" }),
@@ -529,9 +532,11 @@ test("ambiguous branch evidence cannot auto-merge through a low-only policy", ()
   assert.ok(!output.actions.some(({ kind }) => kind === "arm-auto-merge"));
 });
 
-test("branch-only worktree holds have a single worktree prefix", () => {
-  const output = plan({ state: { worktrees: [{ branch: "chore/setup", dirty: true }] } });
-  assert.equal(output.holds[0].target, "worktree:chore/setup");
+test("migration refuses a branch-only worktree rather than inventing a path", () => {
+  assert.throws(
+    () => migrateFixtureState({ worktrees: [{ branch: "feature/branch-only" }] }),
+    /state\/worktrees\/0\/path/,
+  );
 });
 
 const trackerUuid = "11111111-2222-4333-8444-555555555555";
@@ -539,6 +544,7 @@ for (const keyField of ["identifier", "ticket", "key"]) {
   for (const source of ["worker", "pr"]) {
     test(`unresolved UUID with explicit ${keyField} on ${source} retains delivery and scope`, () => {
       const receipt = {
+        sessionId: "confirmed-worker",
         issueId: trackerUuid,
         [keyField]: "ZAK-12",
         footprint: ["src/keys.ts"],
@@ -610,7 +616,12 @@ for (const source of ["worker", "pr"]) {
 for (const field of ["issueId", "identifier", "ticket", "key"]) {
   for (const source of ["worker", "pr"]) {
     test(`explicit UUID ${field} on ${source} prevents duplicate delivery through the planner`, () => {
-      const receipt = { [field]: trackerUuid, state: "running", footprint: ["src/keys.ts"] };
+      const receipt = {
+        sessionId: "confirmed-worker",
+        [field]: trackerUuid,
+        state: "running",
+        footprint: ["src/keys.ts"],
+      };
       const output = plan({
         linear: {
           candidateScope: { routeLabel: "example/repo", states: [] },
@@ -734,6 +745,7 @@ test("a different explicit UUID never claims the candidate through a misleading 
     state: {
       dispatches: [
         {
+          sessionId: "other-worker",
           issueId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
           branch: "feat/zak-12",
           footprint: ["src/other.ts"],

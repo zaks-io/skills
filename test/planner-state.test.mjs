@@ -11,7 +11,10 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { recordPlannerState } from "../skills/ziw-orchestrate/scripts/planner-state.mjs";
+import {
+  recordPlannerState,
+  migratePlannerState,
+} from "../skills/ziw-orchestrate/scripts/planner-state.mjs";
 
 const script = path.resolve("skills/ziw-orchestrate/scripts/planner-state.mjs");
 const repo = "example/app";
@@ -59,6 +62,7 @@ test("initialization and repeated receipts preserve unrelated workers and review
   writeFileSync(
     file,
     JSON.stringify({
+      v: 3,
       repo,
       dispatches: [other],
       reviewEvidenceByPr: { 99: { reviewVerdict: "APPROVE" } },
@@ -84,13 +88,15 @@ for (const sessionId of [null, ""]) {
         pullRequests: [{ number: 42, title: "Existing PR", sessionId }],
       }),
     );
+    migratePlannerState({ file, repo });
     const result = spawnSync(
       process.execPath,
-      [script, "--repo", repo, "--state", file, "--record", "-"],
+      [script, "record", "-", "--repo", repo, "--state", file],
       { input: JSON.stringify({ dispatches: [worker] }), encoding: "utf8" },
     );
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(read(), {
+      v: 3,
       repo,
       pullRequests: [{ number: 42, title: "Existing PR" }],
       dispatches: [worker],
@@ -123,13 +129,13 @@ test("confirmed follow-up runs clear lifecycle flags and reject older results", 
   const { file, save, read } = fixture(t);
   writeFileSync(
     file,
-    JSON.stringify({ repo, workers: [{ ...worker, status: "returned", returned: true }] }),
+    JSON.stringify({ v: 3, repo, dispatches: [{ ...worker, status: "returned", returned: true }] }),
   );
   save({
     dispatches: [{ sessionId: "S1", runId: "W2", status: "running", footprint: ["src/b.ts"] }],
   });
-  assert.equal(read().workers[0].returned, undefined);
-  assert.deepEqual(read().workers[0].footprint, ["src/a.ts", "src/b.ts"]);
+  assert.equal(read().dispatches[0].returned, undefined);
+  assert.deepEqual(read().dispatches[0].footprint, ["src/a.ts", "src/b.ts"]);
   const before = readFileSync(file, "utf8");
   assert.throws(
     () => save({ dispatches: [{ sessionId: "S1", runId: "W1", status: "returned" }] }),
@@ -223,6 +229,7 @@ test("hosted requests clear stale completion and preserve unrelated PRs", (t) =>
   writeFileSync(
     file,
     JSON.stringify({
+      v: 3,
       repo,
       hostedReviewByPr: { 42: { hostedReviewComplete: true }, 99: { autoReviewMode: "enabled" } },
     }),
@@ -262,7 +269,7 @@ test("CLI accepts stdin, works through a symlink, and does not print invalid inp
   const link = path.join(directory, "planner-state.mjs");
   symlinkSync(script, link);
   const run = (input) =>
-    spawnSync(process.execPath, [link, "--repo", repo, "--state", file, "--record", "-"], {
+    spawnSync(process.execPath, [link, "record", "-", "--repo", repo, "--state", file], {
       input,
       encoding: "utf8",
     });

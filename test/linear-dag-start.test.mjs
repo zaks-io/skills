@@ -1,3 +1,4 @@
+import { migrateFixtureState, currentFixture } from "./helpers/planner-fixtures.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -15,7 +16,22 @@ import {
 import { normalizePlannerModel } from "../skills/ziw-orchestrate/scripts/planner-model.mjs";
 const linearDagStart = (issues, config) =>
   normalizedLinearDagStart(
-    normalizePlannerModel({ snapshot: { linear: { issues } }, state: {} }).snapshot.linear.issues,
+    normalizePlannerModel({
+      snapshot: {
+        v: 3,
+        linear: {
+          issues: migrateFixtureState({
+            linearIssues: issues.map((issue) => ({
+              ...issue,
+              ...(typeof issue.openPr === "object"
+                ? { openPr: issue.openPr?.state?.toLowerCase() === "open" }
+                : {}),
+            })),
+          }).linearIssues,
+        },
+      },
+      state: {},
+    }).snapshot.linear.issues,
     config,
   );
 
@@ -31,7 +47,33 @@ const tickPlanScript = path.join(root, "skills", "ziw-orchestrate", "scripts", "
 function writeJson(input) {
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-dag-"));
   const file = path.join(dir, "input.json");
-  writeFileSync(file, JSON.stringify(input), "utf8");
+  const source = Array.isArray(input) ? { issues: input } : input;
+  const fixture = source.snapshot
+    ? source
+    : source.prs || source.state
+      ? {
+          ...source,
+          snapshot: {
+            v: 3,
+            repo: "example/repo",
+            prs: source.prs,
+            linear: {
+              issues: source.issues ?? source.linear?.issues ?? [],
+              activeIssues: source.activeIssues,
+            },
+          },
+        }
+      : {
+          snapshot: {
+            v: 3,
+            repo: "example/repo",
+            linear: {
+              ...source,
+              issues: source.issues ?? source.nodes ?? source.linear?.issues ?? [],
+            },
+          },
+        };
+  writeFileSync(file, JSON.stringify(currentFixture(fixture)), "utf8");
   return file;
 }
 
@@ -335,7 +377,7 @@ test("live PR collections block starts despite absent, false, or closed scalar P
     },
     {
       identifier: "LIN-3",
-      openPr: { state: "closed" },
+      openPr: false,
       openPullRequests: [{ state: "open" }],
       ...ready,
     },
@@ -347,7 +389,7 @@ test("live PR collections block starts despite absent, false, or closed scalar P
     },
     {
       identifier: "LIN-5",
-      openPr: { state: "closed" },
+      openPr: false,
       prs: [{ state: "closed" }, { mergedAt: "2026-10-05" }, null, false],
       ...ready,
     },
@@ -378,7 +420,7 @@ test("an explicitly false active-claim alias does not hide an assigned live work
 
 test("exported delivery predicates use the same scalar and collection rules as the DAG", () => {
   assert.equal(hasOpenPr({ openPr: false, prs: [{ state: "open" }] }), true);
-  assert.equal(hasOpenPr({ openPr: { state: "closed" } }), false);
+  assert.equal(hasOpenPr({ openPr: false }), false);
   assert.equal(hasOpenPr({ openPr: { state: "open" } }), true);
   assert.equal(hasActiveClaim({ activeClaim: false, workerSession: "worker-1" }), false);
   assert.equal(hasActiveClaim({ activeClaim: true }), true);

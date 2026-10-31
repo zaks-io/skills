@@ -50,11 +50,11 @@ function fixture(t) {
       process.execPath,
       [
         path.join(scripts, "planner-state.mjs"),
+        ...(observation ? ["record", "-"] : ["init"]),
         "--repo",
         repo,
         "--state",
         state,
-        ...(observation ? ["--record", "-"] : []),
       ],
       { encoding: "utf8", input: observation ? JSON.stringify(observation) : undefined },
     );
@@ -167,7 +167,7 @@ test("missing runtime evidence leaves saved capacity and file reservations occup
   const before = readFileSync(state, "utf8");
   const unknown = spawnSync(
     process.execPath,
-    [path.join(scripts, "planner-state.mjs"), "--repo", repo, "--state", state, "--record", "-"],
+    [path.join(scripts, "planner-state.mjs"), "record", "-", "--repo", repo, "--state", state],
     {
       encoding: "utf8",
       input: JSON.stringify({ dispatches: [{ sessionId: "S1", runId: "W1", status: "unknown" }] }),
