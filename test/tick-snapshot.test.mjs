@@ -885,7 +885,7 @@ syncBuiltinESMExports();`,
       ({ issueKey, ticketUrl, title, footprint, outOfScope, branch, brief, record, ...decision }) =>
         decision,
     );
-  assert.deepEqual(strip(plan.actions), expected.actions);
+  assert.deepEqual(strip(plan.actions), strip(expected.actions));
   assert.deepEqual(plan.waits, expected.waits);
   assert.deepEqual(plan.holds, expected.holds);
   assert.ok(plan.actions.some((action) => action.record?.argv));

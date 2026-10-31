@@ -26,7 +26,14 @@ function fixture(t, state = { repo }) {
     migrate: (options = {}) => migratePlannerState({ file, repo, ...options }),
   };
 }
-const decisions = ({ actions, waits, holds }) => ({ actions, waits, holds });
+// beb146d dispatch actions predate the selected footprint; every other field must match.
+const decisions = ({ actions, waits, holds }) => ({
+  actions: actions.map(({ footprint, ...action }) =>
+    action.kind === "dispatch" ? action : { ...action, ...(footprint ? { footprint } : {}) },
+  ),
+  waits,
+  holds,
+});
 for (const name of fs
   .readdirSync("test/fixtures/planner-parity")
   .filter((name) => name.endsWith(".json"))) {
@@ -171,6 +178,28 @@ test("anonymous live records aggregate all paths and operator recovery choices",
       /confirm the worker or review has ended/,
     ])
       assert.match(error.message, pattern);
+    return true;
+  });
+  assert.equal(fs.readFileSync(file, "utf8"), bytes);
+  assert.equal(fs.existsSync(backup), false);
+});
+
+test("a legacy worktree that reserves a ticket by issue reference is refused, not freed", (t) => {
+  const { file, bytes, backup, migrate } = fixture(t, {
+    repo,
+    worktrees: [
+      {
+        worktree: "/tmp/existing",
+        issueId: "EXA-1",
+        branch: "work-in-progress",
+        footprint: ["src/other.mjs"],
+      },
+      { worktree: "/tmp/unlinked", branch: "codex/unlinked", footprint: ["src/free.mjs"] },
+    ],
+  });
+  assert.throws(migrate, (error) => {
+    assert.match(error.message, /state\/worktrees\/0: worktree reserves EXA-1 by issue reference/);
+    assert.doesNotMatch(error.message, /state\/worktrees\/1/);
     return true;
   });
   assert.equal(fs.readFileSync(file, "utf8"), bytes);

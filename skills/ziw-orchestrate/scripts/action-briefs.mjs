@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { mergePrLists } from "./tick-plan.mjs";
 
 const array = (value) => (value == null ? [] : [value].flat());
 const quote = (value) =>
@@ -29,7 +30,8 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
     ...array(state.tickets ?? state.linearIssues),
     ...array(state.startableTickets),
   ];
-  const prs = [...array(snapshot.prs), ...array(state.pullRequests)];
+  // Planning overlays saved PR fields on live ones; briefs must describe that same record.
+  const prs = mergePrLists(snapshot.prs, state.pullRequests);
   const issueFor = (ref) =>
     issues.find((issue) => issue.issueKey === ref || issue.issueUuid === ref);
   const issueRef = (record) => record.issueKey ?? record.issueUuid;
@@ -82,7 +84,10 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
               .filter((other) => other && other !== key),
           ),
         ];
-        const footprint = [...new Set(array(issue.footprint))];
+        // The planner selected this ticket for this footprint; the recorder rejects new workers without one.
+        const footprint = [...new Set(array(action.footprint))];
+        if (footprint.length === 0)
+          throw new Error(`${action.target} has no footprint to record the worker with`);
         const brief = `Use ziw-implement on ${ticketUrl}. Branch ${branch}.\nScope: ${title}. Out of scope: ${outOfScope.join(", ") || "none"}. Report the PR URL and head when done.`;
         return {
           ...action,
@@ -116,7 +121,7 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
       }
       if (action.kind === "request-review") {
         const number = Number(action.target.slice(3));
-        const pr = [...prs].reverse().find((candidate) => candidate.number === number);
+        const pr = prs.find((candidate) => candidate.number === number);
         const prUrl = required(pr?.url, `${action.target} URL`);
         const base = required(pr.baseRefName ?? snapshot.baseline?.branch, `${action.target} base`);
         const headSha = required(pr.headSha, `${action.target} headSha`);

@@ -26,10 +26,11 @@ try {
       " ",
     ),
   );
-  const stripped = actual.actions.map((action) =>
-    Object.fromEntries(Object.entries(action).filter(([name]) => !enrichment.has(name))),
-  );
-  assert.deepEqual(stripped, expected.actions);
+  const strip = (actions) =>
+    actions.map((action) =>
+      Object.fromEntries(Object.entries(action).filter(([name]) => !enrichment.has(name))),
+    );
+  assert.deepEqual(strip(actual.actions), strip(expected.actions));
   assert.deepEqual(actual.waits, expected.waits);
   assert.deepEqual(actual.holds, expected.holds);
   console.log(

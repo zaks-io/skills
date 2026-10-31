@@ -95,7 +95,14 @@ export function convertState(state) {
         for (const name of ["sessionId", "receiptId", "prNumber"]) delete next[name];
       }
       if (kind === "worktree") {
-        for (const name of ["issueKey", "issueUuid", "receiptId", "sessionId"]) delete next[name];
+        // beb146d reserved the named ticket through this reference; v3 worktrees
+        // link tickets only by branch name, so dropping it would free the ticket.
+        if (next.issueKey || next.issueUuid)
+          throw new Error(
+            `${location}: worktree reserves ${next.issueKey ?? next.issueUuid} by issue reference, which v3 worktrees cannot express; delete the entry (ticks collect live worktrees) and record any running worker with planner-state worker`,
+          );
+        // beb146d reset session and receipt IDs on worktree reservations, so they carry no meaning.
+        for (const name of ["receiptId", "sessionId"]) delete next[name];
       }
       return next;
     });

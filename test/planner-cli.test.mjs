@@ -188,7 +188,10 @@ test("dispatch recovers a known UUID-associated branch after an older branchless
     ],
   };
   const config = { branchPrefix: "codex/", stateFile: ".ziw/state.json" };
-  const plan = { repo, actions: [{ kind: "dispatch", target: "ticket:EXA-1" }] };
+  const plan = {
+    repo,
+    actions: [{ kind: "dispatch", target: "ticket:EXA-1", footprint: ["src/a"] }],
+  };
   assert.equal(
     enrichActions(plan, { snapshot, state, config }).actions[0].branch,
     "codex/existing-work",
@@ -350,6 +353,65 @@ test("derived evidence uses the v3 contract; delta review brief points to previo
   assert.equal(action.previousReviewReceiptId, "previous-task");
   assert.equal(action.ticketUrl, undefined);
   assert.match(action.brief, /Paste the previous report's findings/);
+});
+
+test("review brief uses the planner's merged PR when saved state holds a partial record", () => {
+  const pr = {
+    number: 12,
+    url: "https://github.com/example/app/pull/12",
+    baseRefName: "main",
+    headSha: "head-1",
+    reviewDiffFingerprint: "patch-id:one",
+    changedFiles: 1,
+    checks: { state: "SUCCESS" },
+  };
+  const snapshot = { v: 3, repo, prs: [pr], linear: { issues: [] } };
+  const state = { v: 3, repo, pullRequests: [{ number: 12, headSha: "head-1" }] };
+  const config = { stateFile: ".ziw/state.json" };
+  const action = enrichActions(planTick({ snapshot, state, config }), {
+    snapshot,
+    state,
+    config,
+  }).actions.find((action) => action.kind === "request-review");
+  assert.equal(action.prUrl, pr.url);
+  assert.equal(action.base, "main");
+  assert.equal(action.headSha, "head-1");
+});
+
+test("dispatch records the footprint the planner selected, not an empty tracker footprint", () => {
+  const snapshot = {
+    v: 3,
+    repo,
+    baseline: { branch: "main" },
+    prs: [],
+    linear: {
+      issues: [
+        {
+          issueKey: "EXA-1",
+          title: "Recovered work",
+          url: "https://linear.app/example/issue/EXA-1/recovered",
+          state: "Todo",
+          labels: ["kind-slice", "ready-for-agent"],
+          footprint: [],
+        },
+      ],
+    },
+  };
+  const state = {
+    v: 3,
+    repo,
+    startableTickets: [{ issueKey: "EXA-1", footprint: ["src/recovered.mjs"] }],
+  };
+  const config = { branchPrefix: "codex/", stateFile: ".ziw/state.json" };
+  const action = enrichActions(planTick({ snapshot, state, config }), {
+    snapshot,
+    state,
+    config,
+  }).actions.find((action) => action.kind === "dispatch");
+  assert.ok(action, "planner should dispatch EXA-1 using the saved footprint");
+  assert.deepEqual(action.footprint, ["src/recovered.mjs"]);
+  const { argv } = action.record;
+  assert.equal(argv[argv.indexOf("--footprint") + 1], "src/recovered.mjs");
 });
 
 test("retired conformance config explains the replacement", (t) => {

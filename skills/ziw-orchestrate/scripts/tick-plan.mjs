@@ -59,7 +59,7 @@ const checkState = (pr) => {
   return "unknown";
 };
 
-const mergePrLists = (snapshotPrs, statePrs) => {
+export const mergePrLists = (snapshotPrs, statePrs) => {
   const byNumber = new Map();
   for (const pr of [...toArray(snapshotPrs), ...toArray(statePrs)]) {
     const prior = byNumber.get(pr.number);
@@ -730,6 +730,7 @@ export function planTick({
             : (config.defaultWorkerPath ?? "implementation-worker")),
       reason: "STARTABLE",
       targetState: config.inProgressState ?? "In Progress",
+      footprint: toArray(ticket.footprint),
     });
   }
   for (const ticket of dispatch.deferred ?? []) {
