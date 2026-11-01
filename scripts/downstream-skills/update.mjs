@@ -1,6 +1,5 @@
-import path from "node:path";
-
-import { buildTargets, extractFullLocalGate } from "./discovery.mjs";
+import { runConfiguredCheck } from "./check.mjs";
+import { buildTargets } from "./discovery.mjs";
 import { DEFAULT_SOURCE } from "./options.mjs";
 import { refreshInstallation } from "./installation.mjs";
 import { gitStatus, outputTail, run } from "./process.mjs";
@@ -105,24 +104,6 @@ function runProjectUpdate(target, checkoutRoot, before, source) {
       update.status === 0 && after !== null ? (changed ? "updated" : "unchanged") : "update-failed",
     updateExitCode: update.status,
     updateOutput: outputTail(update),
-  };
-}
-
-function runConfiguredCheck(result, repoRoot) {
-  const gate = extractFullLocalGate(path.join(repoRoot, "docs/agents/workflow/config.md"));
-  if (!gate) {
-    return { ...result, checkStatus: "missing-full-local-gate" };
-  }
-
-  // Repo-configured gates are trusted repo commands; only use --check on repos
-  // whose workflow config you are willing to execute with full shell behavior.
-  const check = run(gate, [], repoRoot, { shell: true });
-  return {
-    ...result,
-    checkCommand: gate,
-    checkExitCode: check.status,
-    checkOutput: outputTail(check),
-    checkStatus: check.status === 0 ? "passed" : "failed",
   };
 }
 

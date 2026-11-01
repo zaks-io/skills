@@ -5,6 +5,7 @@ export function run(command, args, cwd, options = {}) {
     cwd,
     encoding: "utf8",
     maxBuffer: 10 * 1024 * 1024,
+    env: options.env ?? process.env,
     shell: options.shell ?? false,
     stdio: ["ignore", "pipe", "pipe"],
   });
