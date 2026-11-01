@@ -155,10 +155,10 @@ test("hosted policy aliases preserve gates, counts and provider output", (t) => 
       },
     },
   });
+  // beb146d ORed codeRabbitSkipped into hostedReviewSkipped, so false changed nothing.
   assert.deepEqual(state.hostedReviewByPr[12], {
     hostedReviewRequired: true,
     hostedReviewComplete: true,
-    hostedReviewSkipped: false,
     hostedReviewDiffFingerprint: "patch-id:x",
     autoReviewMode: "enabled",
     hostedReviewProvider: "CodeRabbit",
@@ -214,4 +214,57 @@ test("provider review states survive local normalization and PASS conformance di
   assert.equal(state.previews[0].prNumber, 12);
   assert.equal(state.startableTickets[0].unlockCount, 2);
   assert.equal(state.startableTickets[0].priority, 1);
+});
+
+test("a false hosted alias cannot mask a hosted review completed live", (t) => {
+  const state = migrate(t, { hostedReviewByPr: { 12: { codeRabbitComplete: false } } });
+  assert.deepEqual(state.hostedReviewByPr[12], {});
+});
+
+function refusal(t, patch) {
+  const directory = mkdtempSync(path.join(tmpdir(), "ziw-conversion-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "state.json");
+  writeFileSync(file, JSON.stringify({ v: 2, repo: "example/app", ...patch }));
+  let message;
+  assert.throws(
+    () => migratePlannerState({ file, repo: "example/app", dryRun: true }),
+    (error) => {
+      message = error.message;
+      return true;
+    },
+  );
+  return message;
+}
+
+for (const [field, alias, canonicalValue, aliasValue] of [
+  ["riskTier", "tier", "high", "low"],
+  ["scopeMatches", "diffMatchesScope", false, true],
+])
+  test(`an evidence ${alias} that disagrees with a saved PR ${field} is refused`, (t) => {
+    const message = refusal(t, {
+      pullRequests: [{ number: 12, [field]: canonicalValue }],
+      reviewEvidenceByPr: { 12: { [alias]: aliasValue } },
+    });
+    assert.match(message, new RegExp(`PR 12: .*disagree on ${field}`));
+  });
+
+test("layers that agree through an alias migrate", (t) => {
+  const state = migrate(t, {
+    pullRequests: [{ number: 12, riskTier: "high" }],
+    reviewEvidenceByPr: { 12: { tier: "high" } },
+  });
+  assert.equal(state.reviewEvidenceByPr[12].riskTier, "high");
+});
+
+test("a later duplicate PR record clears an earlier fingerprint fallback", (t) => {
+  const state = migrate(t, {
+    pullRequests: [
+      { number: 12, reviewRelevantDiffFingerprint: "patch-id:one" },
+      { number: 12, reviewRelevantDiffFingerprint: null },
+    ],
+    reviewDiffByPr: { 12: "patch-id:two" },
+  });
+  assert.equal(state.reviewDiffByPr[12], "patch-id:two");
+  assert.ok(state.pullRequests.every((pr) => !("reviewRelevantDiffFingerprint" in pr)));
 });
