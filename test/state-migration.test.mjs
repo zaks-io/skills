@@ -288,6 +288,73 @@ test("a conformance failure on a PR survives a clean review map overlay", (t) =>
   assert.ok(plan.actions.some((action) => action.kind === "route-fix"));
 });
 
+const conformancePlan = (state) =>
+  planTick({
+    snapshot: {
+      v: 3,
+      repo,
+      linear: { issues: [] },
+      prs: [{ number: 12, headSha: "head-1", changedFiles: 1, checks: { state: "SUCCESS" } }],
+    },
+    config: { hostedReviewRiskTiers: [] },
+    state,
+  });
+const cleanReview = {
+  sessionId: "R",
+  reviewedHeadSha: "head-1",
+  reviewVerdict: "APPROVE",
+  independentReviewCount: 1,
+};
+
+for (const [name, pullRequests] of [
+  [
+    "a later duplicate FAIL replaces an earlier PASS",
+    [
+      { number: 12, headSha: "head-1", conformance: "PASS" },
+      { number: 12, headSha: "head-1", conformance: "FAIL", conformanceHeadSha: "head-1" },
+    ],
+  ],
+  [
+    "duplicate FAIL records use the later reviewed head",
+    [
+      { number: 12, headSha: "head-1", conformance: "FAIL", reviewedHeadSha: "head-0" },
+      { number: 12, headSha: "head-1", conformance: "FAIL", reviewedHeadSha: "head-1" },
+    ],
+  ],
+])
+  test(`${name}, as beb146d merged them`, (t) => {
+    const state = fixture(t, {
+      repo,
+      pullRequests,
+      reviewEvidenceByPr: { 12: cleanReview },
+    }).migrate().state;
+    assert.equal(state.reviewEvidenceByPr[12].reviewedHeadSha, "head-1");
+    assert.equal(state.reviewEvidenceByPr[12].blockingFindings, true);
+    assert.ok(conformancePlan(state).actions.some((action) => action.kind === "route-fix"));
+  });
+
+test("identical FAIL evidence on a PR record and its evidence map migrates", (t) => {
+  const failure = { ...cleanReview, conformance: "FAIL", conformanceHeadSha: "head-1" };
+  const state = fixture(t, {
+    repo,
+    pullRequests: [{ number: 12, headSha: "head-1", ...failure }],
+    reviewEvidenceByPr: { 12: failure },
+  }).migrate().state;
+  assert.equal(state.reviewEvidenceByPr[12].reviewVerdict, "NEEDS REVISION");
+  assert.ok(conformancePlan(state).actions.some((action) => action.kind === "route-fix"));
+});
+
+test("a FAIL that a later duplicate replaced is refused", (t) => {
+  const { migrate } = fixture(t, {
+    repo,
+    pullRequests: [
+      { number: 12, conformance: "FAIL", conformanceHeadSha: "head-1" },
+      { number: 12, conformance: "PASS" },
+    ],
+  });
+  assert.throws(migrate, /state\/pullRequests\/0\/conformance.*a later record replaced this FAIL/);
+});
+
 for (const backupKind of ["identical", "conflicting", "symlink", "directory"])
   test(`existing backup: ${backupKind}`, (t) => {
     const { file, bytes, backup, migrate } = fixture(t);
