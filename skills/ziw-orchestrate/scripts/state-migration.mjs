@@ -227,7 +227,22 @@ export function convertState(state) {
     if (result[alias]) result[canonical] ??= result[alias];
     delete result[alias];
   }
-  for (const pr of prs) delete pr.legacyPrAliases;
+  // beb146d ranked a saved PR's reviewRelevantDiffFingerprint after the live and
+  // saved reviewDiffFingerprint but before reviewDiffByPr, the slot v3 still reads.
+  const fallbacks = {};
+  for (const pr of prs) {
+    delete pr.legacyPrAliases;
+    const fallback = pr.reviewRelevantDiffFingerprint;
+    delete pr.reviewRelevantDiffFingerprint;
+    if (fallback == null || pr.reviewDiffFingerprint != null) continue;
+    if (fallbacks[pr.number] != null && fallbacks[pr.number] !== fallback)
+      errors.push(
+        `state/pullRequests: conflicting reviewRelevantDiffFingerprint for PR ${pr.number}`,
+      );
+    fallbacks[pr.number] = fallback;
+  }
+  if (Object.keys(fallbacks).length)
+    result.reviewDiffByPr = { ...result.reviewDiffByPr, ...fallbacks };
   preserveConformanceFailures(result, conformanceFailures, errors);
   const dispatches = workers.flatMap((name) => result[name] ?? []);
   for (const name of workers) delete result[name];

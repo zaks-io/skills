@@ -54,6 +54,14 @@ function writeFlushed(file, bytes) {
     closeSync(fd);
   }
 }
+function flush(file) {
+  const fd = openSync(file, "r");
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
 export function updateStateFile({
   file,
   repo,
@@ -103,10 +111,15 @@ export function updateStateFile({
       }
       if (existing && !existing.equals(bytes))
         throw new Error("existing pre-v3 backup has different bytes; no changes written");
-      if (!existing) writeFlushed(backupFile, bytes);
+      // A matching backup may be left by an attempt whose flush failed.
+      if (existing) flush(backupFile);
+      else writeFlushed(backupFile, bytes);
     }
     writeFlushed(temporary, `${JSON.stringify(next, null, 2)}\n`);
+    // Directory syncs make the backup entry durable before replacement and the replacement after it.
+    flush(path.dirname(target));
     renameSync(temporary, target);
+    flush(path.dirname(target));
     return { state: next, alreadyV3: false };
   } finally {
     if (!dryRun) {
