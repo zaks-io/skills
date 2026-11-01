@@ -29,11 +29,17 @@ export function extractFullLocalGate(configPath) {
     return null;
   }
 
-  const text = readFileSync(configPath, "utf8");
-  const match = text.match(
-    /^\s*(?:- Full local(?:\/CI| pre-push)? gate:[ \t]*|\|\s*Full(?: local)? gate\s*\|\s*)`([^`]+)`/m,
-  );
-  return match?.[1] ?? null;
+  let fenced = false;
+  for (const line of readFileSync(configPath, "utf8").split("\n")) {
+    // Fenced examples document config formats; they are not this repo's gate.
+    if (/^[ \t]*(?:```|~~~)/.test(line)) fenced = !fenced;
+    if (fenced) continue;
+    const match = line.match(
+      /^[ \t]*(?:- Full local(?:\/CI| pre-push)? gate:[ \t]*|\|[ \t]*Full(?: local)? gate[ \t]*\|[ \t]*)`([^`]+)`/,
+    );
+    if (match) return match[1];
+  }
+  return null;
 }
 
 export function discoverLockfiles(root, maxDepth) {

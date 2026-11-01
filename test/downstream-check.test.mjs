@@ -1,35 +1,47 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { frozenInstallCommand, runConfiguredCheck } from "../scripts/downstream-skills/check.mjs";
+import { frozenInstall, runConfiguredCheck } from "../scripts/downstream-skills/check.mjs";
 import { extractFullLocalGate } from "../scripts/downstream-skills/discovery.mjs";
 
-const tempDir = () => mkdtempSync(path.join(os.tmpdir(), "ziw-check-test-"));
+function tempRepo(t) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "ziw-check-test-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  return root;
+}
 
 function writeConfig(root, gateLine) {
   mkdirSync(path.join(root, "docs/agents/workflow"), { recursive: true });
   writeFileSync(path.join(root, "docs/agents/workflow/config.md"), `# Config\n\n${gateLine}\n`);
 }
 
-test("extractFullLocalGate reads table-form gates", () => {
-  const root = tempDir();
-  try {
-    const config = path.join(root, "config.md");
-    writeFileSync(config, "| Full gate | `bun run verify`: lint, tests |\n");
-    assert.equal(extractFullLocalGate(config), "bun run verify");
-    writeFileSync(config, "|  Full local gate   |   `pnpm verify` |\n");
-    assert.equal(extractFullLocalGate(config), "pnpm verify");
-    writeFileSync(config, "| Focused checks | `bun run verify:changed` |\n");
-    assert.equal(extractFullLocalGate(config), null);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+test("extractFullLocalGate reads table-form gates", (t) => {
+  const config = path.join(tempRepo(t), "config.md");
+  writeFileSync(config, "| Full gate | `bun run verify`: lint, tests |\n");
+  assert.equal(extractFullLocalGate(config), "bun run verify");
+  writeFileSync(config, "|  Full local gate   |   `pnpm verify` |\n");
+  assert.equal(extractFullLocalGate(config), "pnpm verify");
+  writeFileSync(config, "| Focused checks | `bun run verify:changed` |\n");
+  assert.equal(extractFullLocalGate(config), null);
 });
 
-test("frozenInstallCommand follows the repo lockfile", () => {
+test("extractFullLocalGate ignores fenced examples and rows split across lines", (t) => {
+  const config = path.join(tempRepo(t), "config.md");
+  writeFileSync(
+    config,
+    "```md\n| Full gate | `true` |\n```\n\n- Full local gate: `pnpm ci:check`\n",
+  );
+  assert.equal(extractFullLocalGate(config), "pnpm ci:check");
+  writeFileSync(config, "|\nFull gate |\n`true` |\n");
+  assert.equal(extractFullLocalGate(config), null);
+});
+
+test("frozenInstall follows the repo lockfile", (t) => {
   const cases = [
     ["pnpm-lock.yaml", "pnpm install --frozen-lockfile"],
     ["bun.lock", "bun install --frozen-lockfile"],
@@ -37,57 +49,72 @@ test("frozenInstallCommand follows the repo lockfile", () => {
     ["package-lock.json", "npm ci"],
   ];
   for (const [lockfile, command] of cases) {
-    const root = tempDir();
-    try {
-      writeFileSync(path.join(root, lockfile), "");
-      assert.equal(frozenInstallCommand(root), command);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const root = tempRepo(t);
+    writeFileSync(path.join(root, lockfile), "");
+    assert.deepEqual(frozenInstall(root), { command });
   }
-  const empty = tempDir();
-  try {
-    assert.equal(frozenInstallCommand(empty), null);
-  } finally {
-    rmSync(empty, { recursive: true, force: true });
-  }
+  assert.deepEqual(frozenInstall(tempRepo(t)), { command: null });
 });
 
-test("runConfiguredCheck runs the gate when no lockfile exists", () => {
-  const root = tempDir();
-  try {
-    writeConfig(root, "- Full local gate: `echo ran > gate.txt`");
-    const checked = runConfiguredCheck({ status: "updated" }, root);
-    assert.equal(checked.checkStatus, "passed");
-    assert.equal(checked.checkCommand, "echo ran > gate.txt");
-    assert.equal(readFileSync(path.join(root, "gate.txt"), "utf8").trim(), "ran");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+test("frozenInstall prefers the declared package manager and refuses ambiguity", (t) => {
+  const declared = tempRepo(t);
+  writeFileSync(path.join(declared, "pnpm-lock.yaml"), "");
+  writeFileSync(path.join(declared, "bun.lock"), "");
+  writeFileSync(path.join(declared, "package.json"), '{"packageManager":"bun@1.3.0"}');
+  assert.deepEqual(frozenInstall(declared), { command: "bun install --frozen-lockfile" });
+
+  const ambiguous = tempRepo(t);
+  writeFileSync(path.join(ambiguous, "pnpm-lock.yaml"), "");
+  writeFileSync(path.join(ambiguous, "package-lock.json"), "");
+  assert.match(frozenInstall(ambiguous).error, /pnpm, npm without a packageManager/);
+
+  const yarn = tempRepo(t);
+  writeFileSync(path.join(yarn, "package.json"), '{"packageManager":"yarn@4.0.0"}');
+  assert.match(frozenInstall(yarn).error, /yarn has no supported frozen install/);
 });
 
-test("runConfiguredCheck stops before the gate when the install fails", () => {
-  const root = tempDir();
-  try {
-    writeConfig(root, "- Full local gate: `echo ran > gate.txt`");
-    writeFileSync(path.join(root, "package-lock.json"), "not json");
-    const checked = runConfiguredCheck({ status: "updated" }, root);
-    assert.equal(checked.checkStatus, "failed");
-    assert.equal(checked.checkCommand, "npm ci");
-    assert.throws(() => readFileSync(path.join(root, "gate.txt")));
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+test("runConfiguredCheck runs the gate when no lockfile exists", (t) => {
+  const root = tempRepo(t);
+  writeFileSync(path.join(root, ".gitignore"), "gate.txt\n");
+  writeConfig(root, "- Full local gate: `echo ran > gate.txt`");
+  const checked = runConfiguredCheck({ status: "updated" }, root);
+  assert.equal(checked.checkStatus, "passed");
+  assert.equal(checked.checkCommand, "echo ran > gate.txt");
+  assert.equal(readFileSync(path.join(root, "gate.txt"), "utf8").trim(), "ran");
 });
 
-test("runConfiguredCheck reports a missing gate without installing", () => {
-  const root = tempDir();
-  try {
-    writeConfig(root, "- Smoke: none");
-    const checked = runConfiguredCheck({ status: "updated" }, root);
-    assert.equal(checked.checkStatus, "missing-full-local-gate");
-    assert.equal(checked.checkCommand, undefined);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+test("runConfiguredCheck refuses files the install or gate adds to the refresh commit", (t) => {
+  const root = tempRepo(t);
+  writeConfig(root, "- Full local gate: `echo leaked > generated.txt`");
+  const checked = runConfiguredCheck({ status: "updated" }, root);
+  assert.equal(checked.checkStatus, "changed-files");
+  assert.match(checked.checkOutput, /generated\.txt/);
+});
+
+test("runConfiguredCheck stops before the gate when the install fails", (t) => {
+  const root = tempRepo(t);
+  writeConfig(root, "- Full local gate: `echo ran > gate.txt`");
+  writeFileSync(path.join(root, "package-lock.json"), "not json");
+  const checked = runConfiguredCheck({ status: "updated" }, root);
+  assert.equal(checked.checkStatus, "failed");
+  assert.equal(checked.checkCommand, "npm ci");
+  assert.throws(() => readFileSync(path.join(root, "gate.txt")));
+});
+
+test("runConfiguredCheck stops before installing when the package manager is unresolved", (t) => {
+  const root = tempRepo(t);
+  writeConfig(root, "- Full local gate: `echo ran > gate.txt`");
+  writeFileSync(path.join(root, "pnpm-lock.yaml"), "");
+  writeFileSync(path.join(root, "bun.lock"), "");
+  const checked = runConfiguredCheck({ status: "updated" }, root);
+  assert.equal(checked.checkStatus, "install-unresolved");
+  assert.throws(() => readFileSync(path.join(root, "gate.txt")));
+});
+
+test("runConfiguredCheck reports a missing gate without installing", (t) => {
+  const root = tempRepo(t);
+  writeConfig(root, "- Smoke: none");
+  const checked = runConfiguredCheck({ status: "updated" }, root);
+  assert.equal(checked.checkStatus, "missing-full-local-gate");
+  assert.equal(checked.checkCommand, undefined);
 });
