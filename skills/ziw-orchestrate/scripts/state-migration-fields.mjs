@@ -80,11 +80,9 @@ export function translateFields(original, kind, path) {
   const evidence = ["pr", "evidence", "request", "hosted", "check"].includes(kind);
   if (evidence) {
     if (kind === "request") {
-      rename("reviewDiffFingerprint", [
-        "reviewRelevantDiffFingerprint",
-        "reviewedDiffFingerprint",
-        "reviewedReviewDiffFingerprint",
-      ]);
+      // beb146d's request coverage never read reviewedReviewDiffFingerprint.
+      delete result.reviewedReviewDiffFingerprint;
+      rename("reviewDiffFingerprint", ["reviewRelevantDiffFingerprint", "reviewedDiffFingerprint"]);
       rename("headSha", ["reviewHeadSha"]);
       delete result.currentReviewDiffFingerprint;
     } else if (kind === "check") {

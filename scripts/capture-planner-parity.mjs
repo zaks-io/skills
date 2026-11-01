@@ -161,6 +161,20 @@ const cases = [
     true,
   ],
   [
+    "request-unused-fingerprint",
+    {
+      reviewRequestByPr: {
+        12: {
+          receiptId: "review-task",
+          headSha: "head-old",
+          reviewedReviewDiffFingerprint: "patch-id:one",
+          status: "running",
+        },
+      },
+    },
+    true,
+  ],
+  [
     "review-delta",
     {
       reviewEvidenceByPr: {
