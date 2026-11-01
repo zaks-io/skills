@@ -698,7 +698,12 @@ test("tick-plan includes Linear DAG starts from snapshot issues", () => {
       repo: "zaks-io/example",
       linear: {
         issues: [
-          { identifier: "LIN-1", labels: ["kind-slice", "ready-for-agent"], state: "Todo" },
+          {
+            identifier: "LIN-1",
+            labels: ["kind-slice", "ready-for-agent"],
+            state: "Todo",
+            footprint: ["src/one.ts"],
+          },
           {
             identifier: "LIN-2",
             labels: ["kind-slice", "ready-for-agent"],
@@ -727,6 +732,7 @@ test("tick-plan keeps missing-estimate issues out of Linear DAG starts", () => {
           {
             identifier: "LIN-2",
             estimate: 2,
+            footprint: ["src/two.ts"],
             labels: ["kind-slice", "ready-for-agent"],
             state: "Todo",
           },
@@ -741,7 +747,7 @@ test("tick-plan keeps missing-estimate issues out of Linear DAG starts", () => {
   assert.equal(output.counts.startableTickets, 1);
 });
 
-test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
+test("tick-plan prepares DAG starts without a footprint before dispatch selection", () => {
   const output = runPlan({
     snapshot: {
       repo: "zaks-io/example",
@@ -769,10 +775,8 @@ test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
       ({ target, kind }) => target === "ticket:LIN-1" && kind === "prepare-ticket",
     ),
   );
-  assert.equal(output.counts.startableTickets, 1);
-  assert.deepEqual(output.decisions.dispatch.deferred, [
-    { id: "LIN-1", issueRef: "LIN-1", reason: "missing predicted file footprint" },
-  ]);
+  assert.equal(output.counts.startableTickets, 0);
+  assert.deepEqual(output.decisions.dispatch.deferred, []);
 });
 
 test("tick-plan dispatches Linear DAG starts with snapshot-derived footprints", () => {

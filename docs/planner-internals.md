@@ -47,8 +47,16 @@ Terminal PRs exclude linked tickets from dispatch and ready-state promotion.
 Successful reconciliation requires the ticket identity and confirmed tracker
 update time. A new nonterminal tracker revision after completed reconciliation
 requires a human decision; it does not restart the merged work. Settled PRs outside explicit selection no longer trigger history
-lookups or reappear from saved PRs. Failed checks and incomplete receipts remain
-unsettled; open PR collection still includes every live PR.
+lookups or reappear from saved PRs. Named selection also excludes historical PRs
+whose known ticket identities are outside that selection. Unknown aliases and
+live workers still require collection. Failed checks and incomplete receipts in
+the selection remain unsettled.
+
+A closed, unmerged PR with terminal linked tickets emits `record-closed-pr`.
+Its ordinary `record` command saves the confirmed head and ticket revisions in
+`pullRequests[].closedResult`. Later default ticks retire that history. Explicitly
+selecting its ticket recollects it. Open PR collection always includes every live
+PR and restores saved ticket links, including when a settled PR is reopened.
 
 ## Saved observations
 

@@ -243,6 +243,100 @@ test("collector normalizes a legacy review map against its saved PR before looku
   assert.equal(lookupCalls().length, 1);
 });
 
+test("explicit selection skips returned and saved PR history outside its issues", (t) => {
+  const { result, lookupCalls } = collect(t, {
+    scopeIssues: [{ issueKey: "SKI-9" }],
+    dispatches: [
+      {
+        sessionId: "worker",
+        issueKey: "SKI-7",
+        prUrl: "https://github.com/example/repo/pull/7",
+        status: "returned",
+      },
+    ],
+    pullRequests: [{ number: 8, linkedIssues: [{ issueKey: "SKI-8" }] }],
+    reviewDiffByPr: { 7: "old", 8: "old" },
+  });
+  assert.deepEqual(snapshot(result).prs, []);
+  assert.deepEqual(lookupCalls(), []);
+});
+
+test("history selection remains conservative for unknown aliases and live workers", (t) => {
+  for (const worker of [
+    { sessionId: "worker", prNumber: 7, issueUuid, status: "returned" },
+    { sessionId: "worker", prNumber: 7, issueKey: "SKI-7", status: "running" },
+  ]) {
+    const { result, lookupCalls } = collect(t, {
+      scopeIssues: [{ issueKey: "SKI-9" }],
+      dispatches: [worker],
+    });
+    assert.equal(snapshot(result).prs.length, 1);
+    assert.equal(lookupCalls().length, 1);
+  }
+});
+
+test("recorded closed settlement stops default lookups and explicit selection recollects it", (t) => {
+  for (const selected of [false, true]) {
+    const { result, lookupCalls } = collect(
+      t,
+      {
+        ...(selected ? { scopeIssues: [{ issueKey: "SKI-7" }] } : {}),
+        pullRequests: [
+          {
+            number: 7,
+            issueKey: "SKI-7",
+            state: "closed",
+            merged: false,
+            headSha,
+            closedResult: {
+              headSha,
+              issues: [{ issueKey: "SKI-7", updatedAt: "2026-11-01T12:00:00Z" }],
+            },
+          },
+        ],
+      },
+      { response: terminal({ merged: false, merged_at: null }) },
+    );
+    assert.equal(snapshot(result).prs.length, selected ? 1 : 0);
+    assert.equal(lookupCalls().length, selected ? 1 : 0);
+  }
+});
+
+test("reopened retired PRs keep their saved ticket association without a body link", (t) => {
+  const { result, lookupCalls } = collect(
+    t,
+    {
+      pullRequests: [
+        {
+          number: 7,
+          linkedIssues: [{ issueKey: "SKI-7" }],
+          state: "closed",
+          merged: false,
+          headSha,
+          closedResult: {
+            headSha,
+            issues: [{ issueKey: "SKI-7", updatedAt: "2026-11-01T12:00:00Z" }],
+          },
+        },
+      ],
+    },
+    {
+      openPrs: [
+        {
+          number: 7,
+          headRefOid: headSha,
+          headRefName: "fix",
+          baseRefName: "main",
+          changedFiles: 0,
+          isDraft: true,
+        },
+      ],
+    },
+  );
+  assert.deepEqual(snapshot(result).prs[0].linkedIssues, [{ issueKey: "SKI-7" }]);
+  assert.deepEqual(lookupCalls(), []);
+});
+
 test("collector recovers a terminal worker PR URL without a saved number", (t) => {
   const { result } = collect(t, {
     dispatches: [

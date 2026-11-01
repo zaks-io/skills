@@ -87,6 +87,73 @@ test("incomplete bodies cannot dispatch even with readiness labels", () => {
   );
 });
 
+test("a lone ticket without a footprint goes to preparation through either candidate path", () => {
+  const issue = ticket("EXA-1", { footprint: [] });
+  for (const explicit of [false, true]) {
+    const result = plan([issue], {
+      state: {
+        scopeIssues: [{ issueKey: "EXA-1" }],
+        ...(explicit ? { startableTickets: [issue] } : {}),
+      },
+    });
+    assert.deepEqual(
+      result.actions.map((action) => action.kind),
+      ["prepare-ticket"],
+    );
+    assert.ok(result.actions[0].startableBlockers.includes("missing predicted file footprint"));
+  }
+});
+
+test("an explicit candidate without tracker facts or footprint holds instead of disappearing", () => {
+  const result = plan([], { state: { startableTickets: [{ issueKey: "EXA-1", footprint: [] }] } });
+  assert.deepEqual(result.actions, []);
+  assert.ok(result.holds.some((hold) => hold.reason === "TICKET_STATE_MISSING"));
+});
+
+test("unsettled PR history outside explicit selection cannot reserve or block selected work", () => {
+  const result = plan([ticket("EXA-2")], {
+    state: {
+      scopeIssues: [{ issueKey: "EXA-2" }],
+      pullRequests: [{ number: 42, issueKey: "EXA-1", state: "open", footprint: ["src/EXA-2.ts"] }],
+    },
+  });
+  assert.deepEqual(
+    result.actions.map((action) => action.target),
+    ["ticket:EXA-2"],
+  );
+  assert.deepEqual(result.holds, []);
+});
+
+test("specific PR failures keep their owner and resolution in the selected ticket summary", () => {
+  const issue = ticket("EXA-1", { state: "In Review", stateType: "started" });
+  for (const [prState, reason] of [
+    ["closed", "PR_CLOSED_UNMERGED"],
+    ["merged", "POST_MERGE_CHECK_FAILED"],
+  ]) {
+    const result = plan([issue], {
+      prs: [
+        {
+          ...approvedPr,
+          state: prState,
+          open: false,
+          merged: prState === "merged",
+          mergeCommitSha: "m1",
+        },
+      ],
+      state: {
+        scopeIssues: [{ issueKey: "EXA-1" }],
+        mergeResultsByPr: {
+          42: { issueKey: "EXA-1", headSha: "h1", mergeCommitSha: "m1", postMergeCheck: "failed" },
+        },
+      },
+    });
+    assert.ok(result.holds.some((hold) => hold.reason === "DELIVERY_ALREADY_ACTIVE"));
+    assert.equal(result.tickets[0].reason, reason);
+    assert.equal(result.tickets[0].owner, "human");
+    assert.ok(result.tickets[0].resolution);
+  }
+});
+
 test("missing kind metadata goes to preparation while explicit containers go to slicing", () => {
   const unknown = plan([ticket("EXA-1", { labels: ["ready-for-agent"] })]);
   assert.equal(unknown.actions[0].kind, "prepare-ticket");
@@ -398,11 +465,14 @@ test("configured readiness label aliases keep merged tickets from reporting deli
   for (const config of [
     { readinessLabel: "custom-ready" },
     { readinessLabels: ["custom-ready"] },
+    { implementationReadyLabels: ["custom-ready"] },
+    { agentReadinessLabel: "custom-ready" },
+    { agentReadinessLabels: ["custom-ready"] },
   ]) {
     const issue = ticket("EXA-1", {
       state: "Done",
       stateType: "completed",
-      labels: ["kind-slice", "custom-ready"],
+      labels: ["kind-slice", "Custom-Ready"],
     });
     const result = plan([issue], {
       prs: [merged],
@@ -422,5 +492,9 @@ test("configured readiness label aliases keep merged tickets from reporting deli
     });
     assert.notEqual(result.wake.state, "delivered");
     assert.ok(result.actions.some((action) => action.kind === "reconcile-merged-pr"));
+    assert.deepEqual(
+      result.actions.find((action) => action.kind === "reconcile-merged-pr").removeLabels,
+      ["Custom-Ready"],
+    );
   }
 });

@@ -50,7 +50,15 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
     actions: plan.actions.map((action) => {
       const instruction = actionInstructions[action.kind];
       if (!instruction) throw new Error(`No execution instruction for ${action.kind}`);
-      action = { ...action, instruction };
+      const targetState =
+        action.targetState ??
+        {
+          "request-review": config.inReviewState ?? "In Review",
+          "route-fix": config.changesRequestedState ?? "Changes Requested",
+          "route-review-fix": config.changesRequestedState ?? "Changes Requested",
+          "route-human-merge": config.readyToMergeState ?? "Ready to Merge",
+        }[action.kind];
+      action = { ...action, instruction, ...(targetState ? { targetState } : {}) };
       if (["request-hosted-review", "resolve-hosted-review-mode"].includes(action.kind)) {
         const pr = prs.find((entry) => `pr:${entry.number}` === action.target);
         const evidence =
@@ -122,7 +130,7 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
           ),
         };
       }
-      if (action.kind === "route-human-merge" || action.kind === "arm-auto-merge") {
+      if (["route-human-merge", "arm-auto-merge", "record-closed-pr"].includes(action.kind)) {
         const pr = prs.find((entry) => `pr:${entry.number}` === action.target);
         const linkedIssues = issues
           .filter((issue) => linked(pr, issue))
@@ -132,7 +140,23 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
           }));
         return {
           ...action,
-          record: observationRecord({ pullRequests: [{ number: pr.number, linkedIssues }] }),
+          record: observationRecord({
+            pullRequests: [
+              {
+                number: pr.number,
+                linkedIssues,
+                ...(action.kind === "record-closed-pr"
+                  ? {
+                      state: "closed",
+                      open: false,
+                      merged: false,
+                      headSha: pr.headSha,
+                      closedResult: action.closedResult,
+                    }
+                  : {}),
+              },
+            ],
+          }),
         };
       }
       if (action.kind === "dispatch") {

@@ -85,3 +85,51 @@ freshness, formatting, and the secrets scan. Claude plugin validation passed
 with existing advisory warnings. New history coverage verifies that 51 settled
 merges do not consume tracker lookups for a new selection; incomplete or failed
 reconciliation receipts remain recoverable.
+
+## PR 31 follow-up evaluation, 2026-11-01
+
+The follow-up now builds on PR 31 at `9d88871`, reusing its single tick command,
+typed recorder, and explicit v3 migration. The overlapping action-ID recorder
+was removed. Preparation, complete scope accounting, persistent selection and
+capacity, and merge reconciliation remain.
+
+The first Opus review requested five fixes: unchanged ready preparations that
+looped, reopened tickets being marked Done, missing previous review findings,
+terminal holds without recovery instructions, and inconsistent label aliases.
+The follow-up addresses all five and validates returned worker PR URLs against
+the repository and number. Historical merges without verification receipts still
+require post-merge checks; already-Done tracker state alone is not verification.
+
+A fresh GPT-6.1 Sol session used only the published instructions and three
+offline cases. It preserved the preparation and reopened-ticket holds, recorded
+the supplied worker launch and return through typed commands, and selected
+independent review after receiving a fresh PR snapshot. It did not invent review
+launch identities. Replanning before that fresh snapshot exposed missing provider
+evidence, which the evaluator reported without relaunching the worker.
+
+The walkthrough found that review instructions referred to a missing targetState.
+Enrichment now supplies the configured review, changes-requested, and human-merge
+states, with regression coverage. Captured `beb146d` parity fixtures remain
+unchanged. One test documents a deliberate correction: live draft status wins
+over stale saved status, so the PR is marked ready before human handoff.
+
+The integrated full gate passed 781 tests, formatting, structure, generated
+contract freshness, skill discovery, and the secrets scan. A read-only live
+`tick.mjs` invocation used isolated temporary state, collected GitHub and Linear
+facts, and returned a valid plan with no missing-evidence warnings. It performed
+no planned actions or tracker writes.
+
+Opus rechecked `9d88871..1255348` and confirmed the five original fixes. It
+found that historical PR collection continued outside named selection and after
+closed-ticket settlement, missing footprints could crash action enrichment,
+and generic reservations could hide specific PR failures in ticket summaries.
+
+The follow-up skips history provably outside named selection while retaining
+unknown aliases and live-worker checks. Closed PRs with terminal tickets now
+record their confirmed head and ticket revisions through the existing `record`
+command. Open PRs retain saved ticket links even after settlement. Missing
+footprints route to preparation before dispatch, and ticket summaries preserve
+specific PR failure owners and recovery instructions. CLI regressions cover
+recording, resume, collection, and preparation alongside unrelated PR actions.
+The read-only live single tick still matches the separate collection and
+planning pipeline.

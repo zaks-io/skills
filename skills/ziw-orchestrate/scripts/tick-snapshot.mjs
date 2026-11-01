@@ -11,7 +11,7 @@ import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs"
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
 import { localWorktrees } from "./worktree-snapshot.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
-import { retiredPr } from "./delivery-progress.mjs";
+import { retiredPr, savedPrNumber } from "./pr-history.mjs";
 
 const usage =
   "Usage: node tick-snapshot.mjs [--config planner.json] [--repo owner/name] [--linear-team KEY] [--linear-route-label LABEL] [--state file] [--hosted-review-bot login] [--limit N] [--no-local-worktrees] [--pretty] [--help]";
@@ -54,7 +54,7 @@ export function stateIssueReferences(state = {}) {
     "reviewEvidenceChecks",
   ]) {
     for (const [index, record] of (state[name] ?? []).entries()) {
-      if (retiredPr(state, record.prNumber ?? record.number)) continue;
+      if (retiredPr(state, savedPrNumber(record, state.repo))) continue;
       if (name === "dispatches" && !isLiveWorker(record)) continue;
       const sourcePath = `--state/${name}/${index}`;
       if (record.issueKey || record.issueUuid) append(record, sourcePath);
@@ -338,7 +338,7 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
       if (number == null) return;
       number = Number(number);
       if (!Number.isSafeInteger(number) || number < 1) fail("--state: invalid saved PR number");
-      if (retiredPr(state, number)) return;
+      if (!prsByNumber.has(number) && retiredPr(state, number)) return;
       if (!known.has(number)) known.set(number, []);
       const references = known.get(number);
       if (record.issueKey || record.issueUuid) {
@@ -407,6 +407,7 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
     };
   };
 
+  const knownPrs = knownPullRequests();
   const openPrs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
     const files = pullRequestFiles(pr.number, pr.changedFiles);
     // Pin the diff to the snapshot head; the PR diff endpoint follows later pushes.
@@ -416,7 +417,14 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
     return {
       number: pr.number,
       title: pr.title,
-      linkedIssues: linkedLinearIssues(pr.body),
+      linkedIssues: [
+        ...new Map(
+          [...(knownPrs.get(pr.number) ?? []), ...linkedLinearIssues(pr.body)].map((reference) => [
+            JSON.stringify(reference),
+            reference,
+          ]),
+        ).values(),
+      ],
       url: pr.url,
       state: "open",
       open: true,
@@ -451,7 +459,7 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
 
   const prs = [
     ...openPrs,
-    ...[...knownPullRequests()]
+    ...[...knownPrs]
       .filter(([number]) => !prsByNumber.has(number))
       .map(([number, references]) => terminalPullRequest(number, references)),
   ];

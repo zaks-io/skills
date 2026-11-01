@@ -1,7 +1,7 @@
 import { buildIssueCatalog } from "./issue-catalog.mjs";
 import { possibleIssueLinks } from "./delivery-identity.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
-import { retiredPr } from "./delivery-progress.mjs";
+import { retiredPr } from "./pr-history.mjs";
 
 const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
 const terminal = (record) => !isLiveWorker(record);
@@ -115,7 +115,10 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
         ? `session:${record.sessionId}`
         : `receipt:${record.receiptId}`;
     const relevantPr =
-      kind === "pr" && (!path.startsWith("state/") || !retiredPr(state, record.number));
+      kind === "pr" &&
+      (!path.startsWith("state/") ||
+        array(snapshot.prs).some((pr) => pr.number === record.number) ||
+        !retiredPr(state, record.number));
     if (
       ((kind === "worker" && !terminal(record)) || relevantPr) &&
       resolved.unresolvedUuid &&

@@ -1,5 +1,4 @@
 import { coversIssue } from "./delivery-identity.mjs";
-import { isLiveWorker } from "./worker-lifecycle.mjs";
 import { humanMergePrLabel, implementationReadyLabels } from "./workflow-contract.mjs";
 
 const normalized = (value) =>
@@ -22,37 +21,6 @@ export const terminalIssue = (issue, config = {}) =>
 export const terminalPr = (pr) =>
   ["closed", "merged"].includes(normalized(pr.state)) || pr.merged === true;
 
-// Retain the audit receipt, but recollect settled history only when explicitly selected.
-export function retiredPr(state, number) {
-  const result = state.mergeResultsByPr?.[number];
-  if (
-    result?.postMergeCheck !== "passed" ||
-    !result.trackerUpdatedAt ||
-    (!result.issueKey && !result.issueUuid)
-  )
-    return false;
-  const selected =
-    (state.scopeIssues ?? []).some((issue) => {
-      const comparable = ["issueKey", "issueUuid"].filter((key) => issue[key] && result[key]);
-      return (
-        !comparable.length ||
-        comparable.some((key) => normalized(issue[key]) === normalized(result[key]))
-      );
-    }) ||
-    (state.scopeIssueRefs ?? []).some((ref) =>
-      [result.issueKey, result.issueUuid].some(
-        (value) => value && normalized(value) === normalized(ref),
-      ),
-    );
-  const live = (state.dispatches ?? []).some(
-    (worker) =>
-      isLiveWorker(worker) &&
-      (worker.prNumber === Number(number) ||
-        worker.prUrl === `https://github.com/${state.repo}/pull/${number}`),
-  );
-  return !selected && !live;
-}
-
 export function mergedPrDisposition(pr, issues, state, config) {
   if (!terminalPr(pr)) return undefined;
   const target = `pr:${pr.number}`;
@@ -63,13 +31,45 @@ export function mergedPrDisposition(pr, issues, state, config) {
     bucket: "holds",
     value: { target, owner: "human", reason, ...(resolution ? { resolution } : {}) },
   });
-  if (normalized(pr.state) !== "merged" && pr.merged !== true)
-    return linked.length && linked.every((issue) => terminalIssue(issue, config))
-      ? null
-      : hold(
-          "PR_CLOSED_UNMERGED",
-          "Confirm why it was closed. For the same work, reopen the original PR. For a different attempt, create and explicitly select a new ticket. Complete or cancel the old ticket only when warranted; preserve its evidence.",
-        );
+  if (normalized(pr.state) !== "merged" && pr.merged !== true) {
+    const refs = [pr.issueRef, ...list(pr.issueRefs)].filter(Boolean);
+    if (
+      !linked.length ||
+      !linked.every((issue) => terminalIssue(issue, config)) ||
+      refs.some((ref) => !linked.some((issue) => issue.issueRef === ref))
+    )
+      return hold(
+        "PR_CLOSED_UNMERGED",
+        "Confirm why it was closed. For the same work, reopen the original PR. For a different attempt, create and explicitly select a new ticket. Complete or cancel the old ticket only when warranted; preserve its evidence.",
+      );
+    if (!pr.headSha || linked.some((issue) => !issue.updatedAt))
+      return hold(
+        "CLOSED_PR_EVIDENCE_MISSING",
+        "Recollect the closed PR head and terminal ticket revisions before recording settlement.",
+      );
+    const closedResult = {
+      headSha: pr.headSha,
+      issues: [...linked]
+        .sort((left, right) => left.issueRef.localeCompare(right.issueRef))
+        .map((issue) => ({
+          ...(issue.issueKey ? { issueKey: issue.issueKey } : {}),
+          ...(issue.issueUuid ? { issueUuid: issue.issueUuid } : {}),
+          updatedAt: issue.updatedAt,
+        })),
+    };
+    const prior = state.pullRequests?.find((record) => record.number === pr.number)?.closedResult;
+    if (JSON.stringify(prior) === JSON.stringify(closedResult)) return null;
+    return {
+      bucket: "actions",
+      value: {
+        target,
+        kind: "record-closed-pr",
+        owner: "orchestrator",
+        reason: "CLOSED_PR_SETTLED",
+        closedResult,
+      },
+    };
+  }
   if (!pr.headSha || !pr.mergeCommitSha) return hold("MERGE_EVIDENCE_MISSING");
   if (linked.length !== 1) return hold("MERGED_PR_ISSUE_UNRESOLVED");
   const result = state.mergeResultsByPr?.[pr.number];
@@ -81,7 +81,9 @@ export function mergedPrDisposition(pr, issues, state, config) {
     );
   const issue = linked[0];
   const readiness = implementationReadyLabels(config);
-  const removeLabels = labels(issue).filter((label) => readiness.has(label));
+  const removeLabels = list(issue.labels)
+    .map((label) => label?.name ?? label)
+    .filter((label) => readiness.has(normalized(label)));
   if (
     current &&
     result.trackerUpdatedAt &&
@@ -190,7 +192,10 @@ export function accountForScope({
     ) {
       item = { reason: "WORKER_RUNNING", owner: "implementation-worker" };
       status = "running";
-    } else if (relevant(holds).length) item = relevant(holds)[0];
+    } else if (relevant(holds).length)
+      item =
+        relevant(holds).find((hold) => hold.reason !== "DELIVERY_ALREADY_ACTIVE") ??
+        relevant(holds)[0];
     else if (terminalIssue(issue, config)) {
       status = "finished";
       item = { reason: "TRACKER_TERMINAL" };
@@ -257,6 +262,7 @@ export function accountForScope({
       reason: item.reason,
       ...(item.owner ? { owner: item.owner } : {}),
       ...(item.blockedBy ? { blockedBy: item.blockedBy } : {}),
+      ...(item.resolution ? { resolution: item.resolution } : {}),
     });
   }
   return progress;

@@ -199,6 +199,25 @@ export const definitions = {
       ...issueFields,
       number: { type: "integer", minimum: 1 },
       linkedIssues: { type: "array", items: { $ref: "#/definitions/issueReference" } },
+      closedResult: {
+        type: "object",
+        additionalProperties: false,
+        required: ["headSha", "issues"],
+        properties: {
+          headSha: opaqueId,
+          issues: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["updatedAt"],
+              properties: { ...issueFields, updatedAt: opaqueId },
+              anyOf: issueRequired,
+            },
+          },
+        },
+      },
       legacyPrAliases: false,
       prNumber: false,
       receiptId: false,

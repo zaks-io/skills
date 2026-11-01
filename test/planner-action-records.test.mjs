@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { enrichActions } from "../skills/ziw-orchestrate/scripts/action-briefs.mjs";
 import { planTick } from "../skills/ziw-orchestrate/scripts/tick-plan.mjs";
+import { retiredPr } from "../skills/ziw-orchestrate/scripts/pr-history.mjs";
 
 const repo = "example/app";
 const issue = {
@@ -112,3 +113,118 @@ test("a human handoff records its PR and linked ticket for the next collector", 
   const saved = f.record(action);
   assert.deepEqual(saved.pullRequests, [{ number: 42, linkedIssues: [{ issueKey: "EXA-1" }] }]);
 });
+
+test("a closed PR with terminal tickets records settlement and resumes without another action", (t) => {
+  const done = { ...issue, state: "Done", stateType: "completed", labels: ["kind-slice"] };
+  const prs = [
+    { number: 42, issueKey: "EXA-1", state: "closed", open: false, merged: false, headSha: "h1" },
+  ];
+  const f = fixture(t, done, prs);
+  const action = f.plan.actions.find((entry) => entry.kind === "record-closed-pr");
+  assert.ok(action);
+  const saved = f.record(action);
+  assert.equal(saved.mergeResultsByPr, undefined);
+  assert.deepEqual(saved.pullRequests[0].closedResult, {
+    headSha: "h1",
+    issues: [{ issueKey: "EXA-1", updatedAt: issue.updatedAt }],
+  });
+  assert.equal(retiredPr(saved, 42), true);
+  saved.scopeIssues = [{ issueKey: "EXA-1" }];
+  assert.equal(retiredPr(saved, 42), false);
+  const snapshot = { v: 3, repo, prs, linear: { issues: [done] } };
+  const resumed = planTick({ snapshot, state: saved });
+  assert.deepEqual(resumed.actions, []);
+  assert.equal(resumed.wake.state, "delivered");
+  const reopened = planTick({
+    snapshot: { ...snapshot, linear: { issues: [issue] } },
+    state: saved,
+  });
+  assert.equal(reopened.tickets[0].reason, "PR_CLOSED_UNMERGED");
+});
+
+test("missing footprint preparation enriches successfully alongside unrelated PR actions", () => {
+  const snapshot = {
+    v: 3,
+    repo,
+    linear: {
+      issues: [
+        { ...issue, state: "Todo", stateType: "unstarted", footprint: [] },
+        { ...issue, issueKey: "EXA-2" },
+      ],
+    },
+    prs: [
+      {
+        number: 42,
+        issueKey: "EXA-2",
+        state: "merged",
+        merged: true,
+        open: false,
+        headSha: "h1",
+        mergeCommitSha: "m1",
+      },
+    ],
+  };
+  const state = { v: 3, repo };
+  const config = { stateFile: ".ziw/state.json" };
+  const plan = enrichActions(planTick({ snapshot, state, config }), { snapshot, state, config });
+  assert.deepEqual(plan.actions.map((action) => action.kind).sort(), [
+    "prepare-ticket",
+    "reconcile-merged-pr",
+  ]);
+  assert.match(plan.actions.find((action) => action.kind === "prepare-ticket").brief, /footprint/);
+});
+
+for (const configured of [false, true]) {
+  test(`enriched workflow actions name their ${configured ? "configured" : "default"} tracker destination`, () => {
+    const config = {
+      stateFile: ".ziw/state.json",
+      ...(configured
+        ? {
+            inReviewState: "Review queue",
+            changesRequestedState: "Needs changes",
+            readyToMergeState: "Awaiting owner",
+          }
+        : {}),
+    };
+    const snapshot = {
+      v: 3,
+      repo,
+      baseline: { branch: "main" },
+      linear: { issues: [issue] },
+      prs: [
+        {
+          number: 42,
+          issueKey: "EXA-1",
+          url: "https://github.com/example/app/pull/42",
+          headSha: "h1",
+          baseRefName: "main",
+        },
+      ],
+    };
+    const state = { v: 3, repo };
+    const actions = ["request-review", "route-fix", "route-review-fix", "route-human-merge"].map(
+      (kind) => ({
+        kind,
+        target: "pr:42",
+        ...(kind === "request-review" ? { reviewDiffFingerprint: "patch-id:fp1" } : {}),
+      }),
+    );
+    const expected = configured
+      ? ["Review queue", "Needs changes", "Needs changes", "Awaiting owner"]
+      : ["In Review", "Changes Requested", "Changes Requested", "Ready to Merge"];
+    const enriched = enrichActions({ repo, actions }, { snapshot, state, config });
+    assert.deepEqual(
+      enriched.actions.map((action) => action.targetState),
+      expected,
+    );
+    assert.ok(enriched.actions.every((action) => /targetState/.test(action.instruction)));
+    const explicit = enrichActions(
+      {
+        repo,
+        actions: actions.map((action) => ({ ...action, targetState: "Explicit destination" })),
+      },
+      { snapshot, state, config },
+    );
+    assert.ok(explicit.actions.every((action) => action.targetState === "Explicit destination"));
+  });
+}

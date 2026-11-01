@@ -36,4 +36,6 @@ export const actionInstructions = {
     "Confirm this merge and ticket association. If verifyPostMerge is true, check the configured default branch including mergeCommitSha in your worktree and run the post-merge check. On success move the ticket to targetState, remove removeLabels, and record its confirmed updatedAt as trackerUpdatedAt. Use the supplied merge-result command to record the observed check result. On failure omit --tracker-updated-at and leave the ticket unchanged; a human owns recovery.",
   "reconcile-empty-pr":
     "Determine why the PR has no diff. Close it only if its work already merged; otherwise ask its worker.",
+  "record-closed-pr":
+    "Record the confirmed closed PR and terminal ticket revisions using record.stdin. This settles local history without changing the tracker or claiming a merge.",
 };

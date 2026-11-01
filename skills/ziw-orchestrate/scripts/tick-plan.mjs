@@ -10,9 +10,9 @@ import {
   humanMergeAlreadyRouted,
   mergedPrDisposition,
   needsPreparation,
-  retiredPr,
   terminalPr,
 } from "./delivery-progress.mjs";
+import { retiredPr } from "./pr-history.mjs";
 import { issuesWithDeliveryEvidence, reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
 import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
@@ -549,7 +549,10 @@ export function planTick({
     };
   const initialPullRequests = mergePrLists(
     snapshot.prs,
-    toArray(state.pullRequests).filter((pr) => !retiredPr(state, pr.number)),
+    toArray(state.pullRequests).filter(
+      (pr) =>
+        snapshot.prs.some((live) => live.number === pr.number) || !retiredPr(state, pr.number),
+    ),
   );
   const scope = linearDispatchScope(snapshot, state);
   const delivery = reconcileActiveDelivery({
@@ -637,6 +640,7 @@ export function planTick({
       .filter(
         (node) =>
           node.startable &&
+          !needsPreparation(node) &&
           !hasUnresolvedPreparation(node.issueRef) &&
           !hasTerminalPr(node.issueRef),
       )
@@ -673,6 +677,15 @@ export function planTick({
         target: `ticket:${id}`,
         reason: scope.matchesCandidate(ticket) ? "DELIVERY_ALREADY_ACTIVE" : "OUT_OF_SCOPE",
       });
+      continue;
+    }
+    if (!ticket.footprint.length) {
+      if (!issueById.has(id))
+        excludedCandidates.push({
+          target: `ticket:${id}`,
+          reason: "TICKET_STATE_MISSING",
+          owner: "orchestrator",
+        });
       continue;
     }
     startableTicketsById.set(id, {
