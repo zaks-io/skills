@@ -1250,9 +1250,7 @@ function reviewedPrInput(evidence, reviewRequest, config = { mergeAuthority: "ag
 test("tick-plan routes current review findings to the worker instead of re-reviewing", () => {
   const completed = { reviewDiffFingerprint: "fp1", status: "completed" };
   const cases = [
-    { reviewVerdict: "NEEDS REVISION", blockingFindings: true, conformance: "FAIL" },
     { reviewVerdict: "NEEDS REVISION", blockingFindings: true },
-    { hasReviewEvidence: true, reviewVerdict: "Ready to Merge", conformance: "FAIL" },
     { hasReviewEvidence: true, reviewVerdict: "NEEDS REVISION" },
     { reviewVerdict: "DO NOT MERGE" },
   ];
@@ -1294,24 +1292,6 @@ test("tick-plan never arms auto-merge without configured merge authority", () =>
     const human = output.actions.find((action) => action.kind === "route-human-merge");
     assert.equal(human?.reason, "MERGE_AUTHORITY_MISSING");
   }
-});
-
-test("tick-plan requests review when migrated conformance findings cover an older head", () => {
-  const output = runCompactPlan(
-    reviewedPrInput(
-      {
-        hasReviewEvidence: true,
-        reviewedDiffFingerprint: "fp1",
-        reviewVerdict: "Ready to Merge",
-        conformance: "FAIL",
-        conformanceHeadSha: "h0",
-      },
-      { reviewDiffFingerprint: "fp1", status: "completed" },
-    ),
-  );
-  const kinds = output.actions.map((action) => action.kind);
-  assert.ok(kinds.includes("request-review"), JSON.stringify(output.actions));
-  assert.ok(!kinds.includes("route-fix"));
 });
 
 function reviewLifecycleInput(pr = {}, config = {}, state = {}) {

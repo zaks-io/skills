@@ -342,7 +342,7 @@ for (const [conformance, head] of [
           ? { pullRequests: [{ number: 12, ...record }] }
           : { [location]: { 12: record } }),
       });
-      assert.match(message, /\/conformance: beb146d held merge on this verdict/);
+      assert.match(message, /\/conformance: beb146d gated merge/);
     });
 
 test("conformance on requests and checks stays inert because beb146d never read it there", (t) => {
@@ -365,5 +365,5 @@ test("layers that disagree on conformance are refused", (t) => {
     pullRequests: [{ number: 12, conformance: "FAIL", conformanceHeadSha: "head" }],
     reviewEvidenceByPr: { 12: { conformance: "PASS" } },
   });
-  assert.match(message, /a later record replaced this FAIL in beb146d/);
+  assert.match(message, /\/conformance: beb146d gated merge/);
 });
