@@ -145,3 +145,16 @@ links are also deduplicated when tracker metadata repeats an issue.
 
 After those fixes, the full gate passed all 784 tests and the read-only live
 single-tick comparison passed again.
+
+Opus approved `10d8cea2a8b91c798f2ea4b51d1e062b580f43ff`, confirming the fixes
+with actual record commands and 35 focused tests. One subsequent low-severity
+fix prevents metadata without `updatedAt` from reviving settled PRs.
+The final full gate passed 785 tests, formatting, structure, generated-contract
+freshness, skill discovery, and the secrets scan.
+
+Two nonblocking review suggestions are deferred deliberately. A retired PR that
+reopens and merges entirely between ticks requires explicit ticket selection
+to refresh it; default collection avoids repeatedly auditing settled history.
+Reopened PR observations remain global local bookkeeping, even under a named
+selection, so a later return to that ticket can collect its terminal result.
+Neither choice authorizes tracker or code-host mutations outside selection.

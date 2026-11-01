@@ -40,7 +40,7 @@ export function mergedPrDisposition(pr, issues, state, config) {
     )
       return hold(
         "PR_CLOSED_UNMERGED",
-        "Confirm why it was closed. For the same work, reopen the original PR. For a different attempt, create and explicitly select a new ticket. Complete or cancel the old ticket only when warranted; preserve its evidence.",
+        "Explicitly select this ticket to recollect current PR status. If still closed, confirm why. For the same work, reopen the original PR. For a different attempt, create and explicitly select a new ticket. Complete or cancel the old ticket only when warranted; preserve its evidence.",
       );
     if (!pr.headSha || linked.some((issue) => !issue.updatedAt))
       return hold(

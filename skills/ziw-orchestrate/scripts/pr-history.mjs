@@ -54,13 +54,16 @@ export function retiredPr(state, number, observedIssues = []) {
     ...(result?.trackerUpdatedAt ? [{ ...result, updatedAt: result.trackerUpdatedAt }] : []),
   ];
   if (
-    observedIssues.some((issue) =>
-      revisions.some(
-        (prior) =>
-          ["issueKey", "issueUuid"].some(
-            (key) => issue[key] && prior[key] && normalized(issue[key]) === normalized(prior[key]),
-          ) && issue.updatedAt !== prior.updatedAt,
-      ),
+    observedIssues.some(
+      (issue) =>
+        issue.updatedAt &&
+        revisions.some(
+          (prior) =>
+            ["issueKey", "issueUuid"].some(
+              (key) =>
+                issue[key] && prior[key] && normalized(issue[key]) === normalized(prior[key]),
+            ) && issue.updatedAt !== prior.updatedAt,
+        ),
     )
   )
     return false;

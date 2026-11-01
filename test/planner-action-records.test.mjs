@@ -256,6 +256,45 @@ test("a merge receipt protects reopened default-scope tickets even without a sav
   assert.equal(plan.tickets[0].reason, "MERGED_TICKET_CHANGED");
 });
 
+test("metadata without a tracker revision does not revive settled historical PRs", () => {
+  const state = {
+    v: 3,
+    repo,
+    pullRequests: [
+      {
+        number: 42,
+        issueKey: "EXA-1",
+        state: "closed",
+        merged: false,
+        headSha: "h1",
+        closedResult: {
+          headSha: "h1",
+          issues: [{ issueKey: "EXA-1", updatedAt: issue.updatedAt }],
+        },
+      },
+    ],
+    mergeResultsByPr: {
+      43: {
+        issueKey: "EXA-1",
+        headSha: "h2",
+        mergeCommitSha: "m2",
+        postMergeCheck: "passed",
+        trackerUpdatedAt: issue.updatedAt,
+      },
+    },
+  };
+  const snapshot = {
+    v: 3,
+    repo,
+    prs: [],
+    linear: { issues: [], issueMetadata: [{ issueKey: "EXA-1", labels: [] }] },
+  };
+  const plan = planTick({ snapshot, state });
+  assert.deepEqual(plan.actions, []);
+  assert.deepEqual(plan.holds, []);
+  assert.equal(plan.wake.state, "delivered");
+});
+
 test("missing footprint preparation enriches successfully alongside unrelated PR actions", () => {
   const snapshot = {
     v: 3,

@@ -63,6 +63,11 @@ evidence: changed tracker revisions restore saved terminal facts for planning.
 A reopened ticket therefore keeps its human hold even on a default tick with
 no terminal PR in the fresh snapshot. Successful merge receipts supply those
 facts even when there is no separate saved PR record.
+If a retired PR reopens and merges entirely between ticks, explicitly select
+its ticket to force a fresh lookup. Default collection does not audit all settled
+PRs for changes that occurred while they were outside observation.
+Reopened PR observations are recorded even outside named selection. This only
+updates local history and preserves collection for a later return to that scope.
 
 ## Saved observations
 
