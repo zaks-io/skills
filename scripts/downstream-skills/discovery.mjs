@@ -29,9 +29,32 @@ export function extractFullLocalGate(configPath) {
     return null;
   }
 
-  const text = readFileSync(configPath, "utf8");
-  const match = text.match(/^\s*- Full local(?:\/CI| pre-push)? gate:[ \t]*`([^`]+)`/m);
-  return match?.[1] ?? null;
+  let fence = null;
+  for (const line of readFileSync(configPath, "utf8").split("\n")) {
+    // Fenced examples document config formats; they are not this repo's gate. As in
+    // CommonMark, a fence marker is indented at most three spaces, and a fence closes
+    // only on its own character, at least as long, with nothing after.
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      if (
+        marker &&
+        marker[1][0] === fence[0] &&
+        marker[1].length >= fence.length &&
+        !marker[2].trim()
+      )
+        fence = null;
+      continue;
+    }
+    if (marker) {
+      fence = marker[1];
+      continue;
+    }
+    const match = line.match(
+      /^[ \t]*(?:- Full local(?:\/CI| pre-push)? gate:[ \t]*|\|[ \t]*Full(?: local)? gate[ \t]*\|[ \t]*)`([^`]+)`/,
+    );
+    if (match) return match[1];
+  }
+  return null;
 }
 
 export function discoverLockfiles(root, maxDepth) {
