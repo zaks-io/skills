@@ -103,6 +103,16 @@ Publish the SDK.
   );
 });
 
+test("inline footprint labels retain plain paths alongside code spans and prose", () => {
+  assert.deepEqual(extractLinearFootprint("**Likely files:** src/api.ts"), ["src/api.ts"]);
+  assert.deepEqual(
+    extractLinearFootprint(
+      "**File footprint:** src/api.ts (new), `src/api.test.ts` and [docs/api.md](https://example.com/docs). Verify with `pnpm test`; N/A for deployment.",
+    ),
+    ["src/api.test.ts", "src/api.ts", "docs/api.md"],
+  );
+});
+
 test("extractLinearFootprint accepts heading variants writers actually use", () => {
   for (const heading of [
     "## Likely files/packages/artifacts",

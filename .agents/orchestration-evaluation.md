@@ -167,3 +167,11 @@ resolution for canceled blockers. The Codex prompt now names each action's
 record command instead of the removed action-ID interface. All three findings
 were accepted. After fixes, the full gate passed 788 tests and the read-only
 live single-tick comparison passed again.
+
+CodeRabbit's incremental review at `cd0663aa70f26825c9b0dd9708df8725b9f4cf10`
+confirmed the three fixes and found one minor omission: inline bold footprint
+labels only extracted backtick spans. Plain path tokens now use the existing
+footprint parser too, with regression coverage. No further hosted review is
+requested for this one-line correction. The full local gate passed 789 tests
+after the correction, along with formatting, structure, generated-contract
+freshness, skill discovery, and the secrets scan.

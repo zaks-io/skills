@@ -110,6 +110,7 @@ export function extractLinearFootprint(description = "") {
           ...[...heading.content.matchAll(/`([^`]+)`/g)]
             .map((match) => match[1].trim())
             .filter((entry) => entry && !/\s/.test(entry)),
+          ...bulletPaths(heading.content.replace(/`[^`]*`/g, " ")),
         );
       }
       continue;
