@@ -151,30 +151,13 @@ export function translateFields(original, kind, path) {
       "evidenceLabel",
     ])
       delete result[name];
-    const conformance = conformanceVerdict(original);
-    if (
-      original.conformance &&
-      original.conformanceVerdict &&
-      original.conformance.toLowerCase() !== original.conformanceVerdict.toLowerCase()
-    )
-      throw new Error(`${path}/conformance: conflicting verdicts`);
-    // beb146d read conformance only from a PR's merged review state, never from requests or checks.
-    const gates = ["pr", "hosted", "evidence"].includes(kind);
-    if (
-      gates &&
-      conformance &&
-      conformance !== "fail" &&
-      (conformance !== "pass" || original.conformanceHeadSha != null)
-    )
-      throw new Error(
-        `${path}/conformance: beb146d held merge on this verdict when its conformanceHeadSha did not match the PR head, or when requireConformanceEvidence required PASS for high-risk work, and v3 has no conformance gate; delete the conformance fields if neither applies, otherwise delete this PR's review evidence so the current head gets a fresh review`,
-      );
-    if (gates && conformance === "fail") {
+    // beb146d read conformance only from a PR's merged review state, never from requests or
+    // checks; convertState decides each PR's gate from that merged view.
+    if (["pr", "hosted", "evidence"].includes(kind) && conformanceVerdict(original) === "fail") {
       const head = original.conformanceHeadSha ?? original.reviewedHeadSha;
-      if (!head) throw new Error(`${path}/conformance: blocking conformance has no reviewed head`);
       // The conformance verdict is tied to its head, not an older local review fingerprint.
       delete result.reviewedDiffFingerprint;
-      result.reviewedHeadSha = head;
+      if (head) result.reviewedHeadSha = head;
       result.reviewVerdict = "NEEDS REVISION";
       result.blockingFindings = true;
       result.reviewEvidenceCurrent = false;
@@ -194,24 +177,10 @@ export const conformanceVerdict = (record) => {
   return verdict === "failed" ? "fail" : verdict || null;
 };
 
-export function preserveConformanceFailures(state, failures, errors) {
-  const heads = new Map();
-  for (const { record, location } of failures) {
-    const number =
-      record.number ??
-      record.prNumber ??
-      ["reviewEvidenceByPr", "hostedReviewByPr", "reviewRequestsByPr"]
-        .flatMap((name) => Object.entries(state[name] ?? {}))
-        .find(([, value]) => value === record)?.[0];
-    if (!number) {
-      errors.push(`${location}/conformance: blocking conformance needs an explicit PR number`);
-      continue;
-    }
-    const head = record.reviewedHeadSha;
-    if (heads.has(String(number)) && heads.get(String(number)) !== head)
-      errors.push(`${location}/conformance: contradictory blocking heads for PR ${number}`);
-    heads.set(String(number), head);
-    // Put the verdict last in the planner's PR/hosted/local merge so a clean copy cannot erase it.
+// Put each blocking verdict last in the planner's PR/hosted/local merge so a clean copy cannot
+// erase it.
+export function preserveConformanceFailures(state, blockingHeads) {
+  for (const [number, head] of blockingHeads) {
     const evidence = (state.reviewEvidenceByPr ??= {})[number] ?? {};
     delete evidence.reviewedDiffFingerprint;
     state.reviewEvidenceByPr[number] = {

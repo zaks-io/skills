@@ -346,7 +346,7 @@ for (const [conformance, head] of [
     });
 
 test("conformance on requests and checks stays inert because beb146d never read it there", (t) => {
-  const failure = { conformance: "FAIL", conformanceHeadSha: "head" };
+  const failure = { conformance: "FAIL", conformanceVerdict: "PASS", conformanceHeadSha: "head" };
   const state = migrate(t, {
     reviewRequestsByPr: { 12: { sessionId: "R", status: "running", headSha: "head", ...failure } },
     reviewEvidenceChecks: [{ prNumber: 12, reviewVerdict: "APPROVE", ...failure }],
@@ -365,5 +365,5 @@ test("layers that disagree on conformance are refused", (t) => {
     pullRequests: [{ number: 12, conformance: "FAIL", conformanceHeadSha: "head" }],
     reviewEvidenceByPr: { 12: { conformance: "PASS" } },
   });
-  assert.match(message, /PR 12: .*disagree on conformance/);
+  assert.match(message, /a later record replaced this FAIL in beb146d/);
 });

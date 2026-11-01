@@ -40,13 +40,9 @@ export function convertState(state) {
   const result = {};
   let scopeAlias;
   const errors = [];
-  const conformanceFailures = [];
   const reviewLayers = [];
   const translate = (record, kind, location) => {
-    const next = translateFields(record, kind, location);
-    if (["pr", "hosted", "evidence"].includes(kind) && conformanceVerdict(record) === "fail")
-      conformanceFailures.push({ record: next, location });
-    return next;
+    return translateFields(record, kind, location);
   };
   const attempt = (path, record, operation) => {
     try {
@@ -254,7 +250,7 @@ export function convertState(state) {
   for (const [number, fallback] of fallbacks)
     if (fallback != null) result.reviewDiffByPr = { ...result.reviewDiffByPr, [number]: fallback };
   errors.push(...layeredAliasConflicts(reviewLayers));
-  preserveConformanceFailures(result, conformanceFailures, errors);
+  preserveConformanceFailures(result, conformanceGates(reviewLayers, errors));
   const dispatches = workers.flatMap((name) => result[name] ?? []);
   for (const name of workers) delete result[name];
   if (workers.some((name) => state[name])) result.dispatches = dispatches;
@@ -288,10 +284,7 @@ export function convertState(state) {
 // verdict would expose a lower layer's verdict that beb146d hid.
 function layeredAliasConflicts(layers) {
   const errors = [];
-  const byPr = new Map();
-  for (const layer of layers) byPr.set(layer.number, [...(byPr.get(layer.number) ?? []), layer]);
-  for (const [number, unranked] of byPr) {
-    const records = [...unranked].sort((left, right) => left.rank - right.rank);
+  for (const [number, records] of layersByPr(layers)) {
     for (const [canonical, aliases, convert = (value) => value] of LAYERED_ALIASES) {
       const names = [canonical, ...aliases];
       const setters = records.filter(({ record }) => names.some((name) => name in record));
@@ -315,18 +308,52 @@ function layeredAliasConflicts(layers) {
         `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on ${canonical}; beb146d ranked ${ranked}. Write the value beb146d used as ${canonical} in each record, or delete the stale one`,
       );
     }
-    // beb146d merged conformance field by field, which one migrated verdict cannot express.
-    const conformance = ({ record }) => [
-      conformanceVerdict(record),
-      record.conformanceHeadSha ?? null,
-    ];
-    const setters = records.filter(({ record }) =>
-      ["conformance", "conformanceVerdict", "conformanceHeadSha"].some((name) => name in record),
-    );
-    if (setters.some((setter) => !isDeepStrictEqual(conformance(setter), conformance(setters[0]))))
-      errors.push(
-        `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on conformance, which beb146d merged field by field; write the same conformance fields in each record, or delete the stale ones`,
-      );
   }
   return errors;
+}
+
+function layersByPr(layers) {
+  const byPr = new Map();
+  for (const layer of layers) byPr.set(layer.number, [...(byPr.get(layer.number) ?? []), layer]);
+  for (const records of byPr.values()) records.sort((left, right) => left.rank - right.rank);
+  return byPr;
+}
+
+const CONFORMANCE_FIELDS = ["conformance", "conformanceVerdict", "conformanceHeadSha"];
+const HELD_CONFORMANCE =
+  "beb146d held merge on this verdict when its conformanceHeadSha did not match the PR head, or when requireConformanceEvidence required PASS for high-risk work, and v3 has no conformance gate; delete the conformance fields if neither applies, otherwise delete this PR's review evidence so the current head gets a fresh review";
+
+// beb146d spread saved PR records (later duplicates winning), then hosted, then evidence
+// records field by field, so each PR's conformance gate comes from that merged view.
+function conformanceGates(layers, errors) {
+  const blockingHeads = new Map();
+  for (const [number, records] of layersByPr(layers)) {
+    const setters = records.filter(({ record }) =>
+      CONFORMANCE_FIELDS.some((name) => name in record),
+    );
+    if (!setters.length) continue;
+    const merged = Object.assign(
+      {},
+      ...records.map(({ record }) =>
+        Object.fromEntries(
+          [...CONFORMANCE_FIELDS, "reviewedHeadSha"]
+            .filter((name) => name in record)
+            .map((name) => [name, record[name]]),
+        ),
+      ),
+    );
+    const verdict = conformanceVerdict(merged);
+    const at = (entries) => entries.map(({ location }) => `${location}/conformance`).join(", ");
+    if (verdict === "fail") {
+      const head = merged.conformanceHeadSha ?? merged.reviewedHeadSha;
+      if (head) blockingHeads.set(number, head);
+      else errors.push(`${at(setters)}: blocking conformance has no reviewed head`);
+    } else if (records.some(({ record }) => conformanceVerdict(record) === "fail"))
+      errors.push(
+        `${at(setters)}: a later record replaced this FAIL in beb146d, so it never blocked; delete the stale conformance fields`,
+      );
+    else if (verdict && (verdict !== "pass" || merged.conformanceHeadSha != null))
+      errors.push(`${at(setters)}: ${HELD_CONFORMANCE}`);
+  }
+  return blockingHeads;
 }
