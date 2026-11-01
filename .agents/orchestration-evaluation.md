@@ -78,7 +78,7 @@ finding was already fixed during that review and was confirmed in the recheck.
 The recheck found no material issues and passed 253 focused tests, the structure
 check, and formatting. It reviewed all 38 changed files at content fingerprint
 `85c1fec73f135541c5539273fde59ba2584fc70af427d194e74e70630a30a7ef`, computed from
-sorted path and file SHA256 entries. This review note was added afterwards.
+sorted path and file SHA256 entries. This review note was added afterward.
 
 The full local gate passed 674 tests, skill discovery, generated-contract
 freshness, formatting, and the secrets scan. Claude plugin validation passed
@@ -155,8 +155,8 @@ freshness, skill discovery, and the secrets scan.
 Two nonblocking review suggestions are deferred deliberately. A retired PR that
 reopens and merges entirely between ticks requires explicit ticket selection
 to refresh it; default collection avoids repeatedly auditing settled history.
-Reopened PR observations remain global local bookkeeping, even under a named
-selection, so a later return to that ticket can collect its terminal result.
+Reopened PR observations stay in local bookkeeping for every ticket, even under a
+named selection, so a later return to that ticket can collect its terminal result.
 Neither choice authorizes tracker or code-host mutations outside selection.
 
 CodeRabbit reviewed `f12fdeabcdaabeec8929492a7fa896402f468687` and requested
