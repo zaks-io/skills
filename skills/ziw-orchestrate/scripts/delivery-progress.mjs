@@ -183,7 +183,9 @@ export function accountForScope({
     let item;
     let status;
     if (!issue || !issue.state) item = pushHold("TICKET_STATE_MISSING", "orchestrator");
-    else if (!scope.matchesReservation(issue)) item = pushHold("OUT_OF_SCOPE", "human");
+    // A finished ticket needs no scope decision, though its PRs and workers still report.
+    else if (!terminalIssue(issue, config) && !scope.matchesReservation(issue))
+      item = pushHold("OUT_OF_SCOPE", "human");
     else if (relevant(actions).length) {
       item = relevant(actions)[0];
       status = "actionable";

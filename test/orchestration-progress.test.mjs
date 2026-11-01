@@ -141,6 +141,94 @@ test("a saved candidate cannot dispatch a ticket the tracker reports done", () =
   }
 });
 
+test("a saved candidate cannot dispatch a ticket the tracker reports dependency-blocked", () => {
+  const issue = ticket("EXA-1", { blockedBy: [{ issueKey: "EXA-2" }] });
+  const result = plan([issue, ticket("EXA-2", { state: "In Progress", stateType: "started" })], {
+    state: { startableTickets: [{ issueKey: "EXA-1", footprint: issue.footprint }] },
+  });
+  assert.ok(!result.actions.some(({ target }) => target === "ticket:EXA-1"));
+});
+
+test("a saved route label cannot dispatch a ticket whose live route changed", () => {
+  const issue = ticket("EXA-1", { labels: ["kind-slice", "ready-for-agent", "route-b"] });
+  const result = plan([issue], {
+    linear: { candidateScope: { routeLabel: "route-a" } },
+    state: {
+      startableTickets: [
+        {
+          issueKey: "EXA-1",
+          labels: ["kind-slice", "ready-for-agent", "route-a"],
+          footprint: issue.footprint,
+        },
+      ],
+    },
+  });
+  assert.deepEqual(result.actions, []);
+  const holds = result.holds.filter(({ target }) => target === "ticket:EXA-1");
+  assert.deepEqual(
+    holds.map(({ reason, owner }) => ({ reason, owner })),
+    [{ reason: "OUT_OF_SCOPE", owner: "human" }],
+  );
+});
+
+test("a selected saved candidate the tracker did not return holds instead of dispatching", () => {
+  const result = plan([], {
+    state: {
+      scopeIssues: [{ issueKey: "EXA-1" }],
+      startableTickets: [{ issueKey: "EXA-1", footprint: ["src/EXA-1.ts"] }],
+    },
+  });
+  assert.deepEqual(result.actions, []);
+  assert.deepEqual(
+    result.holds.map(({ target, reason }) => ({ target, reason })),
+    [{ target: "ticket:EXA-1", reason: "TICKET_STATE_MISSING" }],
+  );
+});
+
+test("a finished saved candidate outside the route settles instead of blocking", () => {
+  const issue = ticket("EXA-1", {
+    state: "Done",
+    stateType: "completed",
+    labels: ["kind-slice"],
+    missingSections: ["checks"],
+  });
+  const result = plan([issue], {
+    linear: { candidateScope: { routeLabel: "route-a", states: ["Todo"] } },
+    state: {
+      startableTickets: [
+        { issueKey: "EXA-1", state: "Done", labels: ["route-a"], footprint: issue.footprint },
+      ],
+      preparations: [
+        {
+          issueKey: "EXA-1",
+          outcome: "needs-human",
+          reason: "Recorded before the ticket finished",
+          updatedAt: issue.updatedAt,
+        },
+      ],
+    },
+  });
+  assert.deepEqual(result.holds, []);
+  assert.deepEqual(
+    result.tickets.map(({ status }) => status),
+    ["finished"],
+  );
+  assert.notEqual(result.wake.state, "blocked");
+});
+
+test("stale saved state cannot exclude a live candidate from its state filter", () => {
+  const issue = ticket("EXA-1");
+  const result = plan([issue], {
+    linear: { candidateScope: { states: ["Todo"] } },
+    state: { startableTickets: [{ issueKey: "EXA-1", state: "Done", footprint: issue.footprint }] },
+  });
+  assert.deepEqual(result.holds, []);
+  assert.deepEqual(
+    result.actions.map(({ target, kind }) => ({ target, kind })),
+    [{ target: "ticket:EXA-1", kind: "dispatch" }],
+  );
+});
+
 test("a lone ticket without a footprint goes to preparation through either candidate path", () => {
   const issue = ticket("EXA-1", { footprint: [] });
   for (const explicit of [false, true]) {

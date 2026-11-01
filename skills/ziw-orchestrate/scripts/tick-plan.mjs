@@ -10,6 +10,7 @@ import {
   humanMergeAlreadyRouted,
   mergedPrDisposition,
   needsPreparation,
+  terminalIssue,
   terminalPr,
 } from "./delivery-progress.mjs";
 import { retiredPr, savedPrHistory } from "./pr-history.mjs";
@@ -678,20 +679,23 @@ export function planTick({
     const id = ticket.issueRef;
     if (!id) continue;
     if (hasUnresolvedPreparation(id) || hasTerminalPr(id)) continue;
-    if (!scope.matchesCandidate(ticket) || ticket.activeClaim || ticket.openPr) {
+    // Live tracker facts outrank the saved candidate, which may only supply a footprint the
+    // ticket lacks. Scope accounting settles finished tickets.
+    const live = issueById.get(id);
+    if (live && terminalIssue(live, config)) continue;
+    const inScope = scope.matchesCandidate({ ...ticket, ...live });
+    if (!inScope || ticket.activeClaim || ticket.openPr) {
       excludedCandidates.push({
         target: `ticket:${id}`,
-        reason: scope.matchesCandidate(ticket) ? "DELIVERY_ALREADY_ACTIVE" : "OUT_OF_SCOPE",
+        reason: inScope ? "DELIVERY_ALREADY_ACTIVE" : "OUT_OF_SCOPE",
+        ...(inScope ? {} : { owner: "human" }),
       });
       continue;
     }
-    // A saved candidate with a live ticket dispatches only through its DAG node, which
-    // must pass the same preparation checks, though a saved footprint may stand in for
-    // the tracker's. Done tickets have no node. Scope accounting reports the rest.
-    const node = linearNodesById.get(id);
-    if (issueById.has(id) && (!node || needsPreparation({ ...node, footprint: ticket.footprint })))
-      continue;
-    if (!ticket.footprint.length) {
+    // The collector blocks starts when a saved candidate's ticket is not found, so a ticket
+    // without live facts comes from a caller-supplied snapshot. A selection that names it
+    // reports its state missing, so it cannot start then, nor without a footprint.
+    if (!live && (state.scopeIssueRefs != null || !ticket.footprint.length)) {
       excludedCandidates.push({
         target: `ticket:${id}`,
         reason: "TICKET_STATE_MISSING",
@@ -699,6 +703,9 @@ export function planTick({
       });
       continue;
     }
+    const node = linearNodesById.get(id);
+    if (live && (!node?.startable || needsPreparation({ ...node, footprint: ticket.footprint })))
+      continue;
     startableTicketsById.set(id, {
       ...(startableTicketsById.get(id) ?? {}),
       ...ticket,
