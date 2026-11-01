@@ -197,7 +197,7 @@ test("provider review states survive local normalization and PASS conformance di
   const state = migrate(t, {
     pullRequests: [{ number: 12, headRefOid: "head", draft: true, latestReviews }],
     reviewEvidenceByPr: {
-      12: { conformanceVerdict: "PASS", conformanceHeadSha: "head", reviewVerdict: "UNKNOWN" },
+      12: { conformanceVerdict: "PASS", reviewVerdict: "UNKNOWN" },
     },
     worktrees: [{ worktree: "/work/app", branch: "codex/exa-1" }],
     previews: [{ id: "preview-1", prId: 12 }],
@@ -327,4 +327,43 @@ test("an unrecognized verdict that a higher layer replaces still migrates", (t) 
   });
   assert.equal(state.reviewEvidenceByPr[12].reviewVerdict, "APPROVE");
   assert.equal(state.pullRequests[0].reviewVerdict, undefined);
+});
+
+for (const [conformance, head] of [
+  ["PASS", "head-old"],
+  ["UNVERIFIABLE", "head-1"],
+  ["UNVERIFIABLE", undefined],
+])
+  for (const location of ["pullRequests", "hostedReviewByPr", "reviewEvidenceByPr"])
+    test(`${location} ${conformance} conformance ${head ? "with" : "without"} a head is refused`, (t) => {
+      const record = { conformance, ...(head ? { conformanceHeadSha: head } : {}) };
+      const message = refusal(t, {
+        ...(location === "pullRequests"
+          ? { pullRequests: [{ number: 12, ...record }] }
+          : { [location]: { 12: record } }),
+      });
+      assert.match(message, /\/conformance: beb146d held merge on this verdict/);
+    });
+
+test("conformance on requests and checks stays inert because beb146d never read it there", (t) => {
+  const failure = { conformance: "FAIL", conformanceHeadSha: "head" };
+  const state = migrate(t, {
+    reviewRequestsByPr: { 12: { sessionId: "R", status: "running", headSha: "head", ...failure } },
+    reviewEvidenceChecks: [{ prNumber: 12, reviewVerdict: "APPROVE", ...failure }],
+  });
+  assert.deepEqual(state.reviewRequestsByPr[12], {
+    sessionId: "R",
+    status: "running",
+    headSha: "head",
+  });
+  assert.deepEqual(state.reviewEvidenceChecks[0], { prNumber: 12, reviewVerdict: "APPROVE" });
+  assert.equal(state.reviewEvidenceByPr?.[12], undefined);
+});
+
+test("layers that disagree on conformance are refused", (t) => {
+  const message = refusal(t, {
+    pullRequests: [{ number: 12, conformance: "FAIL", conformanceHeadSha: "head" }],
+    reviewEvidenceByPr: { 12: { conformance: "PASS" } },
+  });
+  assert.match(message, /PR 12: .*disagree on conformance/);
 });

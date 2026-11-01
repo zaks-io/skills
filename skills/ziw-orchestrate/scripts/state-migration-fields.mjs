@@ -151,14 +151,25 @@ export function translateFields(original, kind, path) {
       "evidenceLabel",
     ])
       delete result[name];
-    const conformance = original.conformance ?? original.conformanceVerdict;
+    const conformance = conformanceVerdict(original);
     if (
       original.conformance &&
       original.conformanceVerdict &&
       original.conformance.toLowerCase() !== original.conformanceVerdict.toLowerCase()
     )
       throw new Error(`${path}/conformance: conflicting verdicts`);
-    if (["fail", "failed", "unverifiable"].includes(String(conformance).toLowerCase())) {
+    // beb146d read conformance only from a PR's merged review state, never from requests or checks.
+    const gates = ["pr", "hosted", "evidence"].includes(kind);
+    if (
+      gates &&
+      conformance &&
+      conformance !== "fail" &&
+      (conformance !== "pass" || original.conformanceHeadSha != null)
+    )
+      throw new Error(
+        `${path}/conformance: beb146d held merge on this verdict when its conformanceHeadSha did not match the PR head, or when requireConformanceEvidence required PASS for high-risk work, and v3 has no conformance gate; delete the conformance fields if neither applies, otherwise delete this PR's review evidence so the current head gets a fresh review`,
+      );
+    if (gates && conformance === "fail") {
       const head = original.conformanceHeadSha ?? original.reviewedHeadSha;
       if (!head) throw new Error(`${path}/conformance: blocking conformance has no reviewed head`);
       // The conformance verdict is tied to its head, not an older local review fingerprint.
@@ -175,6 +186,13 @@ export function translateFields(original, kind, path) {
   for (const name of ["workerSession", "agentSession", "assignedWorker"]) delete result[name];
   return result;
 }
+
+export const conformanceVerdict = (record) => {
+  const verdict = String(record.conformance ?? record.conformanceVerdict ?? "")
+    .trim()
+    .toLowerCase();
+  return verdict === "failed" ? "fail" : verdict || null;
+};
 
 export function preserveConformanceFailures(state, failures, errors) {
   const heads = new Map();

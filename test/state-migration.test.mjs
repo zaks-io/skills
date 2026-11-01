@@ -223,7 +223,7 @@ test("a legacy worktree that reserves a ticket by issue reference is refused, no
   assert.equal(fs.existsSync(backup), false);
 });
 
-for (const conformance of ["FAIL", "FAILED", "UNVERIFIABLE"])
+for (const conformance of ["FAIL", "FAILED"])
   test(`${conformance} migrates to a blocking review`, (t) => {
     const { migrate } = fixture(t, {
       repo,
