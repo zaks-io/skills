@@ -35,7 +35,13 @@ export const LAYERED_ALIASES = [
 ];
 // beb146d only ORed these aliases into their flag, so a false alias changed nothing;
 // promoting it would mask a true flag computed from live hosted reviews.
-const OR_FLAGS = new Set(["hostedReviewRequired", "hostedReviewComplete", "hostedReviewSkipped"]);
+export const OR_FLAGS = new Set([
+  "hostedReviewRequired",
+  "hostedReviewComplete",
+  "hostedReviewSkipped",
+]);
+export const inertOrAlias = (canonical, value) =>
+  OR_FLAGS.has(canonical) && (value == null || value === false);
 export function translateFields(original, kind, path) {
   const result = structuredClone(original);
   const rename = (canonical, aliases, convert = (value) => value) => {
@@ -121,14 +127,7 @@ export function translateFields(original, kind, path) {
         `${path}/hostedReviewedDiffFingerprint: beb146d ranked it below a live hosted bot review, which v3 cannot express; delete it if the PR shows that review, or write it as hostedReviewDiffFingerprint to keep it authoritative`,
       );
     for (const [canonical, aliases, convert] of LAYERED_ALIASES) {
-      if (
-        OR_FLAGS.has(canonical) &&
-        result[canonical] == null &&
-        aliases.every((name) => result[name] == null || result[name] === false)
-      ) {
-        for (const name of aliases) delete result[name];
-        continue;
-      }
+      for (const name of aliases) if (inertOrAlias(canonical, result[name])) delete result[name];
       rename(canonical, aliases, convert);
     }
     if (result.reviewVerdict === null) delete result.reviewVerdict;

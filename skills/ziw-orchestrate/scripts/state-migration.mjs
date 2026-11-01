@@ -1,7 +1,12 @@
 import { isDeepStrictEqual } from "node:util";
 import { validateLegacyState, validateOldCanonicalState } from "./state-migration-validator.mjs";
 import { convertLegacyRecord, legacyIssueReference } from "./state-migration-records.mjs";
-import { LAYERED_ALIASES, conformanceVerdict, translateFields } from "./state-migration-fields.mjs";
+import {
+  LAYERED_ALIASES,
+  conformanceVerdict,
+  inertOrAlias,
+  translateFields,
+} from "./state-migration-fields.mjs";
 import { validateState } from "./planner-input-validator.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
 
@@ -281,13 +286,16 @@ function layeredAliasConflicts(layers) {
   const errors = [];
   for (const [number, records] of layersByPr(layers)) {
     for (const [canonical, aliases, convert = (value) => value] of LAYERED_ALIASES) {
+      // beb146d ORed hosted flag aliases into the flag, so a false alias set nothing.
+      const sets = (record, name) =>
+        name in record && !(name !== canonical && inertOrAlias(canonical, record[name]));
       const names = [canonical, ...aliases];
-      const setters = records.filter(({ record }) => names.some((name) => name in record));
+      const setters = records.filter(({ record }) => names.some((name) => sets(record, name)));
       const values = setters.map(({ record }) => {
-        const name = names.find((field) => record[field] != null);
+        const name = names.find((field) => sets(record, field) && record[field] != null);
         return name == null ? null : convert(record[name]);
       });
-      const usesAlias = setters.some(({ record }) => aliases.some((name) => name in record));
+      const usesAlias = setters.some(({ record }) => aliases.some((name) => sets(record, name)));
       const exposesVerdict =
         canonical === "reviewVerdict" &&
         values.at(-1) === null &&

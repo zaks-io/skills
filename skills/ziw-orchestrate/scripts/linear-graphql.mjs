@@ -41,11 +41,6 @@ const usage = `Usage:
   node linear-graphql.mjs query < {"query":"query { viewer { id } }","variables":{}}
 `;
 
-const argValue = (args, flag) => {
-  const i = args.indexOf(flag);
-  return i >= 0 ? args[i + 1] : undefined;
-};
-
 const fail = (message) => {
   console.error(`linear-graphql: ${message}`);
   process.exit(1);
@@ -308,18 +303,13 @@ export async function linearGraphqlRequest(options = {}) {
   return body;
 }
 
-async function readGraphqlInput(args) {
+// Options come from parseArgs, so attached forms such as -qQUERY and --query=QUERY count.
+async function readGraphqlInput(values) {
   const query =
-    argValue(args, "--query") ??
-    argValue(args, "-q") ??
-    (argValue(args, "--query-file")
-      ? readFileSync(argValue(args, "--query-file"), "utf8")
-      : undefined);
+    values.query ?? (values["query-file"] ? readFileSync(values["query-file"], "utf8") : undefined);
   const variablesText =
-    argValue(args, "--variables") ??
-    (argValue(args, "--variables-file")
-      ? readFileSync(argValue(args, "--variables-file"), "utf8")
-      : undefined);
+    values.variables ??
+    (values["variables-file"] ? readFileSync(values["variables-file"], "utf8") : undefined);
 
   if (query) {
     return {
@@ -340,27 +330,27 @@ async function readGraphqlInput(args) {
   return { query: input, variables: variablesText ? parseJson(variablesText, "variables") : {} };
 }
 
-async function setup(args) {
+async function setup(values) {
   assertMacOS();
   const apiKey = await readApiKeyForSetup();
   if (!apiKey.trim()) throw new Error("empty Linear API key");
 
-  const storePath = argValue(args, "--store") ?? DEFAULT_STORE_PATH;
-  const service = argValue(args, "--service") ?? DEFAULT_KEYCHAIN_SERVICE;
-  const account = argValue(args, "--account") ?? DEFAULT_KEYCHAIN_ACCOUNT;
+  const storePath = values.store ?? DEFAULT_STORE_PATH;
+  const service = values.service ?? DEFAULT_KEYCHAIN_SERVICE;
+  const account = values.account ?? DEFAULT_KEYCHAIN_ACCOUNT;
   process.stderr.write("Encrypting Linear API key and storing decrypt key in macOS Keychain...\n");
   replaceLinearApiKeyStore(apiKey.trim(), { storePath, service, account });
 
   process.stderr.write(`Stored encrypted Linear API key at ${storePath}\n`);
 }
 
-async function query(args) {
-  const request = await readGraphqlInput(args);
+async function query(values) {
+  const request = await readGraphqlInput(values);
   const body = await linearGraphqlRequest({
     ...request,
-    storePath: argValue(args, "--store") ?? DEFAULT_STORE_PATH,
-    service: argValue(args, "--service") ?? DEFAULT_KEYCHAIN_SERVICE,
-    account: argValue(args, "--account") ?? DEFAULT_KEYCHAIN_ACCOUNT,
+    storePath: values.store ?? DEFAULT_STORE_PATH,
+    service: values.service ?? DEFAULT_KEYCHAIN_SERVICE,
+    account: values.account ?? DEFAULT_KEYCHAIN_ACCOUNT,
   });
   process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
 }
@@ -381,14 +371,13 @@ async function main() {
     },
   });
   if (!parsed) return;
-  const command = cliArgs[0] && !cliArgs[0].startsWith("-") ? cliArgs.shift() : "query";
-  const args = cliArgs;
+  const command = cliArgs[0] && !cliArgs[0].startsWith("-") ? cliArgs[0] : "query";
   if (command === "setup") {
-    await setup(args);
+    await setup(parsed.values);
     return;
   }
   if (command === "query") {
-    await query(args);
+    await query(parsed.values);
     return;
   }
   fail(`unknown command: ${command}\n${usage}`);
