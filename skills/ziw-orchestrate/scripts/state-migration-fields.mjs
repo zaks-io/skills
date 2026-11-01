@@ -112,6 +112,16 @@ export function translateFields(original, kind, path) {
       delete result.currentReviewDiffFingerprint;
       delete result.reviewHeadSha;
     }
+    // beb146d spread the fingerprint of a live hosted bot review before hosted records
+    // and evidence, so this alias applied only without one. v3 has no such slot.
+    if (
+      (kind === "hosted" || kind === "evidence") &&
+      result.hostedReviewDiffFingerprint == null &&
+      result.hostedReviewedDiffFingerprint != null
+    )
+      throw new Error(
+        `${path}/hostedReviewedDiffFingerprint: beb146d ranked it below a live hosted bot review, which v3 cannot express; delete it if the PR shows that review, or write it as hostedReviewDiffFingerprint to keep it authoritative`,
+      );
     for (const [canonical, aliases, convert] of LAYERED_ALIASES) {
       if (
         OR_FLAGS.has(canonical) &&
