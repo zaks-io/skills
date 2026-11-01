@@ -86,7 +86,7 @@ Measured after combining backlog delivery with the single-command planner on
 | Instructions                       | Words |
 | ---------------------------------- | ----: |
 | Orchestrate entrypoint             |   648 |
-| Triage entrypoint                  |   429 |
+| Triage entrypoint                  |   423 |
 | To Issues entrypoint               |   398 |
 | State recording and recovery guide |   495 |
 | Shared workflow contract           |   608 |

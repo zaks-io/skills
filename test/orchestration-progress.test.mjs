@@ -79,12 +79,21 @@ test("a finished ticket cannot hide missing or unfinished selected work", () => 
   assert.equal(finished.wake.state, "delivered");
 });
 
-test("incomplete bodies cannot dispatch even with readiness labels", () => {
-  const result = plan([ticket("EXA-1", { missingSections: ["checks"] })]);
-  assert.deepEqual(
-    result.actions.map((action) => action.kind),
-    ["prepare-ticket"],
-  );
+test("incomplete bodies cannot dispatch through either candidate path", () => {
+  const issue = ticket("EXA-1", { missingSections: ["acceptance-criteria", "checks"] });
+  for (const explicit of [false, true]) {
+    const result = plan([issue], {
+      // A saved start candidate from an earlier tick still carries its footprint.
+      state: explicit
+        ? { startableTickets: [{ issueKey: "EXA-1", footprint: issue.footprint }] }
+        : {},
+    });
+    assert.deepEqual(
+      result.actions.map((action) => action.kind),
+      ["prepare-ticket"],
+      `explicit candidate: ${explicit}`,
+    );
+  }
 });
 
 test("a lone ticket without a footprint goes to preparation through either candidate path", () => {

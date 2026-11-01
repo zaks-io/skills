@@ -45,23 +45,22 @@ for (const name of fs
     assert.equal(input.baseline, "beb146d2c69ad501e21d281a3dd99aba7a5a59b1");
     const { migrate } = fixture(t, input.state);
     const state = migrate().state;
-    const expected =
-      name === "pr-map-alias.json"
-        ? {
-            ...input.expected,
-            // A partial saved PR cannot make the live draft merge-ready. Keep the
-            // captured baseline fixture unchanged and correct only that decision.
-            actions: [
-              ...input.expected.actions.filter((action) => action.kind === "dispatch"),
-              {
-                target: "pr:12",
-                kind: "mark-ready",
-                owner: "orchestrator",
-                reason: "REVIEW_CLEAN",
-              },
-            ],
-          }
-        : input.expected;
+    const expected = ["pr-map-alias.json", "pr-fallback-fingerprint-only.json"].includes(name)
+      ? {
+          ...input.expected,
+          // A partial saved PR cannot make the live draft merge-ready. Keep the
+          // captured baseline fixtures unchanged and correct only that decision.
+          actions: [
+            ...input.expected.actions.filter((action) => action.kind === "dispatch"),
+            {
+              target: "pr:12",
+              kind: "mark-ready",
+              owner: "orchestrator",
+              reason: "REVIEW_CLEAN",
+            },
+          ],
+        }
+      : input.expected;
     assert.deepEqual(decisions(planTick({ ...input, state })), expected);
   });
 }

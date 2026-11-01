@@ -32,9 +32,9 @@ intake and ready states; include `Backlog` only when requested. Orchestrate's
 
 2. For a ticket with a clear outcome and acceptance criteria, inspect bounded,
    relevant repository code, tests, config, and existing commands to fill
-   technical gaps such as Checks and Likely files. Derive details from evidence;
-   never invent scope, acceptance criteria, or paths. A single-PR ticket needs no
-   approved spec merely because technical sections are missing.
+   technical gaps such as Checks and Likely files, as the contract allows without
+   spec approval. Derive details from evidence; never invent scope, acceptance
+   criteria, or paths.
 
 3. Give each prepared ticket one outcome:
    - `ready`: its body and labels are complete. Move it to the ready state with

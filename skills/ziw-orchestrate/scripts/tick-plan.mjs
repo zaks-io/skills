@@ -685,6 +685,11 @@ export function planTick({
       });
       continue;
     }
+    // Saved candidates face the same current tracker checks as DAG candidates, except
+    // that a saved footprint may stand in for the tracker's; scope accounting then
+    // requests preparation for the ones that fail.
+    const node = linearNodesById.get(id);
+    if (node && needsPreparation({ ...node, footprint: ticket.footprint })) continue;
     if (!ticket.footprint.length) {
       if (!issueById.has(id))
         excludedCandidates.push({
