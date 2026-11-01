@@ -3,12 +3,73 @@ import test from "node:test";
 
 import {
   extractLinearFootprint,
+  missingTicketSections,
   loadLinearSnapshot,
   linearIssueMatchesRoute,
   resolveLinearTeam,
   selectActiveLinearIssues,
   selectScopedLinearIssues,
 } from "../skills/ziw-orchestrate/scripts/linear-snapshot.mjs";
+import { planTick } from "../skills/ziw-orchestrate/scripts/tick-plan.mjs";
+
+test("ticket completeness accepts a title, nested detail and fenced checks without treating fenced headings as sections", () => {
+  const body = `# Ticket\n## Outcome\nFixed\n## In scope\nFix\n## Out of scope\nOther changes\n## Acceptance criteria\nWorks\n## Checks\n\`\`\`sh\npnpm test\n\`\`\`\n## Likely files\n### Backend\n- src/api.ts\n## Dependencies\nNone`;
+  assert.deepEqual(missingTicketSections(body), []);
+  assert.deepEqual(missingTicketSections(body.replace("## Outcome\nFixed", "## Outcome")), [
+    "outcome",
+  ]);
+  assert.deepEqual(
+    missingTicketSections(
+      body.replace("## Dependencies\nNone", "\`\`\`md\n## Dependencies\nNone\n\`\`\`"),
+    ),
+    ["dependencies"],
+  );
+});
+
+test("ticket completeness accepts bold section labels and ignores labels inside fences", () => {
+  const body = `**Outcome:** Fixed
+**In scope**
+Fix
+**Out of scope:** Other changes
+**Acceptance criteria:** Works
+**Checks:**
+\`\`\`sh
+pnpm test
+\`\`\`
+**Dependencies:** None
+**Likely files:**
+- src/api.ts`;
+  assert.deepEqual(missingTicketSections(body), []);
+  assert.deepEqual(extractLinearFootprint(body), ["src/api.ts"]);
+  assert.deepEqual(
+    missingTicketSections(
+      body.replace("**Dependencies:** None", "\`\`\`md\n**Dependencies:** None\n\`\`\`"),
+    ),
+    ["dependencies"],
+  );
+});
+
+test("bold content stays inside ticket sections and footprint bullets", () => {
+  for (const heading of ["##", "###"]) {
+    const body = `${heading} Outcome
+**Expected:** Search returns matching results.
+${heading} In scope
+Fix search
+${heading} Out of scope
+Other changes
+${heading} Acceptance criteria
+- **Given** an existing result, searching finds it.
+${heading} Checks
+**Run:** \`pnpm test\`
+${heading} Likely files
+- **Backend:** \`api/search.ts\`
+- \`api/search.test.ts\`
+**Dependencies:** None
+- \`not/a/footprint.ts\``;
+    assert.deepEqual(missingTicketSections(body), []);
+    assert.deepEqual(extractLinearFootprint(body), ["api/search.ts", "api/search.test.ts"]);
+  }
+});
 
 test("extractLinearFootprint accepts current and legacy footprint headings", () => {
   assert.deepEqual(
@@ -40,6 +101,16 @@ Publish the SDK.
 * Overlap note: serialized after another ticket.
 `),
     [".github/workflows/sdk-publish.yml"],
+  );
+});
+
+test("inline footprint labels retain plain paths alongside code spans and prose", () => {
+  assert.deepEqual(extractLinearFootprint("**Likely files:** src/api.ts"), ["src/api.ts"]);
+  assert.deepEqual(
+    extractLinearFootprint(
+      "**File footprint:** src/api.ts (new), `src/api.test.ts` and [docs/api.md](https://example.com/docs). Verify with `pnpm test`; N/A for deployment.",
+    ),
+    ["src/api.test.ts", "src/api.ts", "docs/api.md"],
   );
 });
 
@@ -368,14 +439,16 @@ test("loadLinearSnapshot restricts candidates by route and state while retaining
   assert.deepEqual(snapshot.candidateIssues, [{ issueKey: "SPL-1" }, { issueKey: "SPL-7" }]);
   assert.deepEqual(snapshot.candidateScope, { routeLabel: route, states: ["Todo"] });
   assert.deepEqual(snapshot.unroutedIssueIds, ["SPL-5"]);
+  // Metadata keeps every observed ticket's state so out-of-scope saved work can settle.
+  const todo = { state: "Todo", stateType: "unstarted" };
   assert.deepEqual(snapshot.issueMetadata, [
-    { issueKey: "SPL-1", labels: [route] },
-    { issueKey: "SPL-2", labels: ["zaks-io/other"] },
-    { issueKey: "SPL-3", labels: ["zaks-io/other"] },
-    { issueKey: "SPL-4", labels: [route] },
-    { issueKey: "SPL-5", labels: ["kind-slice", "ready-for-agent"] },
-    { issueKey: "SPL-6", labels: [route] },
-    { issueKey: "SPL-7", labels: [route] },
+    { issueKey: "SPL-1", labels: [route], ...todo },
+    { issueKey: "SPL-2", labels: ["zaks-io/other"], ...todo },
+    { issueKey: "SPL-3", labels: ["zaks-io/other"], ...todo },
+    { issueKey: "SPL-4", labels: [route], state: "Backlog", stateType: "backlog" },
+    { issueKey: "SPL-5", labels: ["kind-slice", "ready-for-agent"], ...todo },
+    { issueKey: "SPL-6", labels: [route], state: "In Progress", stateType: "started" },
+    { issueKey: "SPL-7", labels: [route], ...todo },
   ]);
   assert.deepEqual(
     snapshot.issues.map((item) => item.issueKey),
@@ -682,16 +755,51 @@ test("referenced UUID lookup preserves aliases and risk metadata without expandi
   assert.deepEqual(output.candidateIssues, [{ issueKey: "SPL-1" }]);
   assert.deepEqual(
     output.issues.map((item) => item.issueKey),
-    ["SPL-1"],
+    ["SPL-1", "SPL-9"],
   );
   assert.deepEqual(output.activeIssues, []);
   assert.deepEqual(output.issueMetadata.at(-1), {
     issueKey: "SPL-9",
     issueUuid: uuid,
     labels: ["risk-schema"],
+    state: "Todo",
+    stateType: "unstarted",
   });
   assert.equal(observed.filter(({ query }) => query.includes("issue(id:")).length, 1);
 });
+
+for (const blockerState of ["started", "canceled"]) {
+  test(`referenced tickets retain complete bodies and ${blockerState} blocker evidence`, async () => {
+    const description = `## Outcome\nFixed\n## In scope\nFix\n## Out of scope\nOthers\n## Acceptance criteria\nWorks\n## Checks\npnpm test\n## Likely files\n- api/search.ts\n## Dependencies\nOTHER-2`;
+    const raw = issue({ identifier: "OTHER-1", description, blockedBy: "OTHER-2", blockerState });
+    const request = async ({ query, variables }) => {
+      if (query.includes("teams(first"))
+        return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+      if (query.includes("issues(first"))
+        return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
+      if (variables.id === "OTHER-2")
+        return {
+          data: {
+            issue: relationsIssue("OTHER-2", "canceled", { id: "OTHER-3", type: "started" }),
+          },
+        };
+      assert.equal(variables.id, "OTHER-1");
+      assert.match(query, /\bdescription\b/);
+      assert.match(query, /inverseRelations\(first: 250\)/);
+      return { data: { issue: raw } };
+    };
+    const snapshot = await loadLinearSnapshot({
+      request,
+      selector: "SPL",
+      issueRefs: [{ issueKey: "OTHER-1" }],
+    });
+    assert.deepEqual(snapshot.issues[0].missingSections, []);
+    assert.deepEqual(snapshot.issues[0].footprint, ["api/search.ts"]);
+    assert.deepEqual(snapshot.issues[0].blockedBy, [
+      { issueKey: blockerState === "canceled" ? "OTHER-3" : "OTHER-2" },
+    ]);
+  });
+}
 
 test("typed tracker dependencies carry both identifiers from provider relations", async () => {
   const parentUuid = "11111111-2222-4333-8444-555555555555";
@@ -875,4 +983,41 @@ test("referenced request failures name their source path and redact provider tex
       return true;
     },
   );
+});
+
+test("a saved candidate finished outside the route settles through real collection", async () => {
+  const route = "example/app";
+  const done = {
+    ...issue({ identifier: "EXA-1", labels: ["kind-slice"] }),
+    state: { name: "Done", type: "completed" },
+  };
+  const request = async ({ query }) => {
+    if (query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team", key: "EXA", name: "Example" }] } } };
+    if (query.includes("issue(id:")) return { data: { issue: done } };
+    return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
+  };
+  const linear = await loadLinearSnapshot({
+    request,
+    selector: "EXA",
+    routeLabel: route,
+    issueRefs: [{ issueKey: "EXA-1" }],
+    issueRefPaths: ["--state/startableTickets/0"],
+  });
+  assert.deepEqual(linear.issues, []);
+  for (const scopeIssues of [undefined, [{ issueKey: "EXA-1" }]]) {
+    const plan = planTick({
+      snapshot: { v: 3, repo: route, prs: [], linear },
+      config: { readyState: "Todo", mergeAuthority: "human" },
+      state: {
+        v: 3,
+        repo: route,
+        ...(scopeIssues ? { scopeIssues } : {}),
+        startableTickets: [{ issueKey: "EXA-1", labels: [route], footprint: ["src/a.ts"] }],
+      },
+    });
+    assert.deepEqual(plan.actions, [], `explicit scope: ${Boolean(scopeIssues)}`);
+    assert.deepEqual(plan.holds, []);
+    assert.notEqual(plan.wake.state, "blocked");
+  }
 });

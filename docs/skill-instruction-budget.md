@@ -28,8 +28,8 @@ words from `wc -w`, including frontmatter and Markdown.
 
 ## Budget
 
-- A skill entrypoint stays under 500 words; Orchestrate, which carries the
-  planner action table, stays under 1,000.
+- A skill entrypoint stays under 500 words; Orchestrate stays under 1,000.
+  Its execution details now arrive with the planner's actions.
 - A normal run loads its skill and the workflow contract, plus at most one
   method reference (state recovery, the review checklist, or a Debug or Architecture guide).
 - Adding a rule means removing or replacing one. A rare case gets "stop and
@@ -77,3 +77,23 @@ Generated validators ship to every install and are unformatted Ajv output:
 `planner-input-validator.mjs` drops from 2,055,557 to 634,909 bytes, and the
 migration-only `state-migration-validator.mjs` adds 953,511 bytes until
 migration is retired.
+
+## Backlog delivery update
+
+Measured after combining backlog delivery with the single-command planner on
+2026-11-01. Counts use `wc -w`, including frontmatter and Markdown.
+
+| Instructions                       | Words |
+| ---------------------------------- | ----: |
+| Orchestrate entrypoint             |   648 |
+| Triage entrypoint                  |   423 |
+| To Issues entrypoint               |   398 |
+| State recording and recovery guide |   495 |
+| Shared workflow contract           |   608 |
+| Orchestrate plus contract          | 1,256 |
+| First use with recording guide     | 1,751 |
+
+The planner now supplies action instructions and briefs. Scope, concurrency,
+and launch context survive resume without copying config or rebuilding state
+maps. These word counts exclude per-action output and do not measure runtime
+token savings.

@@ -11,6 +11,7 @@ import { hasLinearCredential, linearGraphqlRequest } from "./linear-graphql.mjs"
 import { loadLinearSnapshot } from "./linear-snapshot.mjs";
 import { localWorktrees } from "./worktree-snapshot.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
+import { retiredPr, savedPrNumber } from "./pr-history.mjs";
 
 const usage =
   "Usage: node tick-snapshot.mjs [--config planner.json] [--repo owner/name] [--linear-team KEY] [--linear-route-label LABEL] [--state file] [--hosted-review-bot login] [--limit N] [--no-local-worktrees] [--pretty] [--help]";
@@ -53,6 +54,7 @@ export function stateIssueReferences(state = {}) {
     "reviewEvidenceChecks",
   ]) {
     for (const [index, record] of (state[name] ?? []).entries()) {
+      if (retiredPr(state, savedPrNumber(record, state.repo))) continue;
       if (name === "dispatches" && !isLiveWorker(record)) continue;
       const sourcePath = `--state/${name}/${index}`;
       if (record.issueKey || record.issueUuid) append(record, sourcePath);
@@ -78,7 +80,8 @@ export async function collectSnapshot(options = {}) {
   };
   const argValue = (flag) => values[flag.slice(2)];
   const argValues = (flag) => values[flag.slice(2)] ?? [];
-  const receiptReferences = stateIssueReferences(options.state);
+  const state = options.state ?? {};
+  const receiptReferences = stateIssueReferences(state);
 
   const gh = (ghArgs, input) => {
     try {
@@ -323,7 +326,89 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
       ),
     ].map((issueKey) => ({ issueKey }));
 
-  const prs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
+  const knownPullRequests = () => {
+    const known = new Map();
+    const remember = (number, record = {}) => {
+      if (number == null) {
+        const url = String(record.prUrl ?? record.url ?? "");
+        const prefix = `https://github.com/${repo}/pull/`;
+        if (url.startsWith(prefix))
+          number = url.slice(prefix.length).match(/^([1-9]\d*)(?:$|[/?#])/)?.[1];
+      }
+      if (number == null) return;
+      number = Number(number);
+      if (!Number.isSafeInteger(number) || number < 1) fail("--state: invalid saved PR number");
+      if (!prsByNumber.has(number) && retiredPr(state, number)) return;
+      if (!known.has(number)) known.set(number, []);
+      const references = known.get(number);
+      if (record.issueKey || record.issueUuid) {
+        references.push({
+          ...(record.issueKey ? { issueKey: record.issueKey } : {}),
+          ...(record.issueUuid ? { issueUuid: record.issueUuid } : {}),
+        });
+      }
+      references.push(...(record.linkedIssues ?? []));
+    };
+    for (const collection of ["dispatches"])
+      for (const record of state[collection] ?? []) remember(record.prNumber, record);
+    for (const record of state.pullRequests ?? []) remember(record.number, record);
+    for (const record of state.reviewEvidenceChecks ?? []) remember(record.prNumber, record);
+    for (const collection of [
+      "reviewEvidenceByPr",
+      "hostedReviewByPr",
+      "reviewRequestsByPr",
+      "reviewDiffByPr",
+      "continuationByPr",
+      "mergeResultsByPr",
+    ])
+      for (const [number, record] of Object.entries(state[collection] ?? {}))
+        remember(number, record);
+    return known;
+  };
+
+  const terminalPullRequest = (number, savedReferences) => {
+    let pr;
+    try {
+      pr = JSON.parse(gh(["api", `repos/${repo}/pulls/${number}`]));
+    } catch {
+      fail(`PR #${number} lookup returned invalid JSON; refresh the snapshot`);
+    }
+    const nonempty = (value) => typeof value === "string" && value.trim().length > 0;
+    if (
+      pr?.number !== number ||
+      pr.state !== "closed" ||
+      typeof pr.merged !== "boolean" ||
+      !nonempty(pr.head?.sha) ||
+      !nonempty(pr.head?.ref) ||
+      !nonempty(pr.base?.ref) ||
+      !nonempty(pr.html_url) ||
+      (pr.merge_commit_sha != null && !nonempty(pr.merge_commit_sha)) ||
+      (pr.merged_at != null && !nonempty(pr.merged_at)) ||
+      (!pr.merged && pr.merged_at != null)
+    )
+      fail(`PR #${number} lookup did not confirm valid terminal state; refresh the snapshot`);
+    const references = [...savedReferences, ...linkedLinearIssues(pr.body)];
+    return {
+      number,
+      title: pr.title,
+      url: pr.html_url,
+      state: pr.merged ? "merged" : "closed",
+      open: false,
+      closed: true,
+      merged: pr.merged,
+      headSha: pr.head.sha,
+      headRefName: pr.head.ref,
+      baseRefName: pr.base.ref,
+      ...(pr.merged && pr.merge_commit_sha ? { mergeCommitSha: pr.merge_commit_sha } : {}),
+      ...(pr.merged && pr.merged_at ? { mergedAt: pr.merged_at } : {}),
+      linkedIssues: [
+        ...new Map(references.map((reference) => [JSON.stringify(reference), reference])).values(),
+      ],
+    };
+  };
+
+  const knownPrs = knownPullRequests();
+  const openPrs = (repoData.pullRequests?.nodes ?? []).map((pr) => {
     const files = pullRequestFiles(pr.number, pr.changedFiles);
     // Pin the diff to the snapshot head; the PR diff endpoint follows later pushes.
     const fingerprint =
@@ -332,7 +417,14 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
     return {
       number: pr.number,
       title: pr.title,
-      linkedIssues: linkedLinearIssues(pr.body),
+      linkedIssues: [
+        ...new Map(
+          [...(knownPrs.get(pr.number) ?? []), ...linkedLinearIssues(pr.body)].map((reference) => [
+            JSON.stringify(reference),
+            reference,
+          ]),
+        ).values(),
+      ],
       url: pr.url,
       state: "open",
       open: true,
@@ -365,6 +457,12 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
     };
   });
 
+  const prs = [
+    ...openPrs,
+    ...[...knownPrs]
+      .filter(([number]) => !prsByNumber.has(number))
+      .map(([number, references]) => terminalPullRequest(number, references)),
+  ];
   const linearTeam = argValue("--linear-team");
   const linearRouteLabel = argValue("--linear-route-label") ?? repo;
   const linearStates = [
@@ -425,12 +523,12 @@ query($owner: String!, $name: String!, $limit: Int!, $after: String) {
     },
     baseline,
     footprint: {
-      openPrCount: repoData.pullRequests?.totalCount ?? prs.length,
-      productPrCount: prs.filter((pr) => !pr.isDependencyBot).length,
-      draftPrCount: prs.filter((pr) => pr.isDraft).length,
-      readyForReviewPrCount: prs.filter((pr) => !pr.isDraft).length,
-      botPrCount: prs.filter((pr) => pr.isBot).length,
-      dependencyBotPrCount: prs.filter((pr) => pr.isDependencyBot).length,
+      openPrCount: repoData.pullRequests?.totalCount ?? openPrs.length,
+      productPrCount: openPrs.filter((pr) => !pr.isDependencyBot).length,
+      draftPrCount: openPrs.filter((pr) => pr.isDraft).length,
+      readyForReviewPrCount: openPrs.filter((pr) => !pr.isDraft).length,
+      botPrCount: openPrs.filter((pr) => pr.isBot).length,
+      dependencyBotPrCount: openPrs.filter((pr) => pr.isDependencyBot).length,
     },
     prs,
     worktrees,

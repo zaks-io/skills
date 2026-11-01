@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { isMain, parseCli, runCli } from "./cli.mjs";
 import { readJson, validatePlannerConfig } from "./planner-input.mjs";
-import { loadPlannerState } from "./planner-state.mjs";
+import { loadPlannerState, recordPlannerState } from "./planner-state.mjs";
 import { collectSnapshot } from "./tick-snapshot.mjs";
 import { planTick } from "./tick-plan.mjs";
 import { enrichActions } from "./action-briefs.mjs";
@@ -40,7 +40,13 @@ export async function main(args) {
     config.workerConcurrencyCap = cap;
   }
   const stateFile = path.resolve(root, config.stateFile);
-  const state = loadPlannerState({ file: stateFile, repo: config.repo });
+  let state = loadPlannerState({ file: stateFile, repo: config.repo });
+  if (values["worker-cap"] != null)
+    state = recordPlannerState({
+      file: stateFile,
+      repo: config.repo,
+      observation: { workerLimit: config.workerConcurrencyCap },
+    });
   const snapshot = await collectSnapshot({
     repo: config.repo,
     linearTeam: config.linearTeam,

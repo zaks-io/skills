@@ -142,6 +142,12 @@ function offlineCollector(t) {
     `#!/usr/bin/env node
 import { appendFileSync } from "node:fs";
 appendFileSync(${JSON.stringify(ghLog)}, "called\\n");
+if (process.argv.includes("repos/zaks-io/skills/pulls/22")) {
+  process.stdout.write(JSON.stringify({ number:22, state:"closed", merged:false,
+    html_url:"https://github.com/zaks-io/skills/pull/22", title:"Historical PR", body:"",
+    head:{sha:"legacy-head",ref:"legacy-pr"}, base:{ref:"main"} }));
+  process.exit(0);
+}
 process.stdout.write(JSON.stringify({ data: { repository: {
   defaultBranchRef: { name: "main", target: { oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } } } },
   pullRequests: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] }
@@ -157,7 +163,7 @@ const issue = (identifier, id, route = "zaks-io/skills") => ({
   url: "https://linear.app/offline/issue/" + identifier,
   state: { name: "Todo", type: "unstarted" },
   labels: { nodes: ["kind-slice", "ready-for-agent", route].map(name => ({ name })) },
-  description: "## File footprint\\n\\n- src/candidate/" + identifier + ".ts",
+  description: "## Outcome\\nFix issue\\n## In scope\\nFix\\n## Out of scope\\nOther changes\\n## Acceptance criteria\\nWorks\\n## Checks\\npnpm test\\n## Dependencies\\nNone\\n## File footprint\\n\\n- src/candidate/" + identifier + ".ts",
   inverseRelations: { pageInfo: { hasNextPage: false }, nodes: [] }
 });
 globalThis.fetch = async (url, options) => {
@@ -397,6 +403,44 @@ test("tick-snapshot rejects --state without a file before gh", (t) => {
   assert.match(result.stderr, /--state/);
   assert.equal(existsSync(fixture.ghLog), false);
   assert.equal(existsSync(fixture.linearLog), false);
+});
+
+test("more than fifty settled merges do not consume referenced-issue lookups", (t) => {
+  const fixture = offlineCollector(t);
+  const state = {
+    v: 3,
+    repo: "zaks-io/skills",
+    scopeIssues: [{ issueKey: "SKI-12" }],
+    mergeResultsByPr: {},
+    dispatches: [],
+    pullRequests: [],
+    reviewEvidenceChecks: [],
+  };
+  for (let number = 100; number < 151; number++) {
+    const issueKey = `SKI-${number}`;
+    state.mergeResultsByPr[number] = {
+      issueKey,
+      headSha: "h1",
+      mergeCommitSha: "m1",
+      postMergeCheck: "passed",
+      trackerUpdatedAt: "2026-11-01T12:00:00Z",
+    };
+    state.dispatches.push({
+      issueKey,
+      prNumber: number,
+      sessionId: `worker-${number}`,
+      status: "returned",
+    });
+    state.pullRequests.push({ issueKey, number, state: "merged" });
+    state.reviewEvidenceChecks.push({ issueKey, prNumber: number });
+  }
+  const { snapshot } = collectState(fixture, state);
+  assert.deepEqual(snapshot.prs, []);
+  const calls = readFileSync(fixture.linearLog, "utf8").trim().split("\n").map(JSON.parse);
+  assert.deepEqual(
+    calls.filter((call) => call.type === "lookup"),
+    [],
+  );
 });
 
 function collectState(fixture, state, stateSyntax = "separate") {
@@ -882,8 +926,18 @@ syncBuiltinESMExports();`,
   const expected = JSON.parse(pipeline.stdout);
   const strip = (actions) =>
     actions.map(
-      ({ issueKey, ticketUrl, title, footprint, outOfScope, branch, brief, record, ...decision }) =>
-        decision,
+      ({
+        issueKey,
+        ticketUrl,
+        title,
+        footprint,
+        outOfScope,
+        branch,
+        brief,
+        instruction,
+        record,
+        ...decision
+      }) => decision,
     );
   assert.deepEqual(strip(plan.actions), strip(expected.actions));
   assert.deepEqual(plan.waits, expected.waits);

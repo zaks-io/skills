@@ -6,19 +6,24 @@ config says nothing.
 
 ## Roles
 
-| Skill       | Job                                                   |
-| ----------- | ----------------------------------------------------- |
-| Setup       | Writes the repo config.                               |
-| Grill       | Turns an idea into a spec marked `Ready for slicing`. |
-| To Issues   | Turns a ready spec into tickets.                      |
-| Triage      | Makes tickets ready, or names who has to fix them.    |
-| Orchestrate | Runs the loop: starts workers, gets reviews, merges.  |
-| Implement   | Delivers one ticket as a draft PR.                    |
-| Create PR   | Commits, pushes, and opens or updates the PR.         |
-| Code Review | Reviews a diff and reports. Changes nothing.          |
+| Skill       | Job                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------- |
+| Setup       | Writes the repo config.                                                             |
+| Grill       | Turns an idea into a spec marked `Ready for slicing`.                               |
+| To Issues   | Turns a ready spec into tickets.                                                    |
+| Triage      | Prepares clear tickets from repository evidence, or names their next owner.         |
+| Orchestrate | Runs selected work through preparation, workers, reviews, and merge reconciliation. |
+| Implement   | Delivers one ticket as a draft PR.                                                  |
+| Create PR   | Commits, pushes, and opens or updates the PR.                                       |
+| Code Review | Reviews a diff and reports. Changes nothing.                                        |
 
 Once a ticket is claimed, only Orchestrate moves it, labels it or its PR, marks
 the PR ready, requests bot reviews, or merges.
+
+An ordinary single-PR ticket with clear scope and acceptance criteria needs no
+spec approval just to identify checks or likely files. Triage derives those
+technical details. Product decisions require a human; decomposition follows To
+Issues. Orchestrate may request preparation only within the selected scope.
 
 ## Lifecycle
 
@@ -46,7 +51,8 @@ the PR ready, requests bot reviews, or merges.
 
 ## Ticket body
 
-A ready ticket has these sections:
+A ready ticket uses Markdown headings for these sections, such as `## Outcome`.
+Existing bold-label sections are also recognized by the parser:
 
 - **Outcome**: what is true when it ships.
 - **In scope** and **Out of scope**.

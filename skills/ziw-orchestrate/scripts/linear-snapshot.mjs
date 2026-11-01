@@ -7,6 +7,63 @@ const FOOTPRINT_HEADINGS = new Set([
   "likely files packages artifacts",
 ]);
 
+const REQUIRED_SECTIONS = [
+  "outcome",
+  "in scope",
+  "out of scope",
+  "acceptance criteria",
+  "checks",
+  "likely files",
+  "dependencies",
+];
+const KNOWN_SECTION_NAMES = new Set([...REQUIRED_SECTIONS, ...FOOTPRINT_HEADINGS]);
+
+function ticketHeading(line) {
+  const markdown = line.match(/^(#{1,6})\s+(.+?)\s*$/);
+  if (markdown) return { level: markdown[1].length, name: normalizeHeading(markdown[2]) };
+  const bold = line.match(/^\s*(?:[-*]\s+)?\*\*(.+?)\*\*\s*:?\s*(.*)$/);
+  const name = bold && normalizeHeading(bold[1]);
+  return KNOWN_SECTION_NAMES.has(name) ? { level: 2, name, content: bold[2] } : null;
+}
+
+export function missingTicketSections(description = "") {
+  const headings = new Map();
+  let current;
+  let level = 0;
+  let fence = null;
+  for (const line of String(description).split(/\r?\n/)) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+    if (marker) {
+      if (!fence) fence = marker;
+      else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+      continue;
+    }
+    if (fence) {
+      if (current && line.trim()) headings.set(current, true);
+      continue;
+    }
+    const heading = ticketHeading(line);
+    if (heading) {
+      const { name } = heading;
+      const section = FOOTPRINT_HEADINGS.has(name) ? "likely files" : name;
+      if (!REQUIRED_SECTIONS.includes(section)) {
+        if (heading.level <= level) current = undefined;
+        continue;
+      }
+      current = section;
+      level = heading.level;
+      if (!headings.has(current)) headings.set(current, false);
+      if (heading.content?.trim()) headings.set(current, true);
+    } else if (line.trim() && current) headings.set(current, true);
+  }
+  return REQUIRED_SECTIONS.filter((heading) => !headings.get(heading));
+}
+
+// Planner inputs may name an issue's workflow state through any of these fields.
+export const issueStateName = (issue) =>
+  issue?.state?.name ?? issue?.state ?? issue?.status ?? issue?.workflowState;
+export const issueStateType = (issue) => issue?.stateType ?? issue?.state?.type;
+
 const normalizeHeading = (value) =>
   String(value ?? "")
     .toLowerCase()
@@ -46,12 +103,20 @@ export function extractLinearFootprint(description = "") {
     }
     if (fence) continue;
 
-    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/);
+    const heading = ticketHeading(line);
     if (heading) {
-      const level = heading[1].length;
+      const { level } = heading;
       if (sectionLevel && level <= sectionLevel) sectionLevel = 0;
-      if (!sectionLevel && FOOTPRINT_HEADINGS.has(normalizeHeading(heading[2]))) {
+      if (!sectionLevel && FOOTPRINT_HEADINGS.has(heading.name)) {
         sectionLevel = level;
+      }
+      if (sectionLevel && heading.content) {
+        entries.push(
+          ...[...heading.content.matchAll(/`([^`]+)`/g)]
+            .map((match) => match[1].trim())
+            .filter((entry) => entry && !/\s/.test(entry)),
+          ...bulletPaths(heading.content.replace(/`[^`]*`/g, " ")),
+        );
       }
       continue;
     }
@@ -218,6 +283,7 @@ export function normalizeLinearIssue(issue, closedBlockers = new Map()) {
     labels: (issue.labels?.nodes ?? []).map((label) => label.name),
     assignee: issue.assignee?.displayName ?? null,
     footprint: extractLinearFootprint(issue.description),
+    missingSections: missingTicketSections(issue.description),
     blockedBy: [
       ...new Map(
         (issue.inverseRelations?.nodes ?? [])
@@ -348,6 +414,9 @@ export async function loadLinearSnapshot({
     issueRefPaths,
   );
   const metadata = [...issues, ...referencedIssues];
+  const observedIssues = [
+    ...new Map(metadata.map((issue) => [referenceId(issue), issue])).values(),
+  ];
 
   return {
     team: team.key,
@@ -357,16 +426,18 @@ export async function loadLinearSnapshot({
     candidateScope: { routeLabel: routeLabel ?? null, states },
     candidateIssues,
     identityDiagnostics: diagnostics,
-    issueMetadata: metadata.map(({ issueKey, issueUuid, labels }) => ({
+    issueMetadata: metadata.map(({ issueKey, issueUuid, labels, state, stateType }) => ({
       ...(issueKey ? { issueKey } : {}),
       ...(issueUuid ? { issueUuid } : {}),
       labels,
+      state,
+      stateType,
     })),
     unroutedIssueIds: selectUnroutedIssueIds(issues, states, routeLabel),
     includesDirectBlockers: true,
     activeScope: { routeLabel: routeLabel ?? null },
     activeIssues: selectActiveLinearIssues(issues, routeLabel),
-    issues: selectScopedLinearIssues(issues, states, routeLabel),
+    issues: selectScopedLinearIssues(observedIssues, states, routeLabel),
   };
 }
 
@@ -375,9 +446,13 @@ const ISSUE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const LINEAR_REFERENCED_ISSUE_QUERY = `
 query($id: String!) {
   issue(id: $id) {
-    id identifier title url priority estimate updatedAt
+    id identifier title description url priority estimate updatedAt
     state { name type }
     labels { nodes { name } }
+    inverseRelations(first: 250) {
+      pageInfo { hasNextPage }
+      nodes { type issue { id identifier state { type } } }
+    }
   }
 }`;
 
@@ -462,7 +537,7 @@ async function loadReferencedIssues(request, issueRefs, knownIssues, issueRefPat
       }
       if (!rawIssue || typeof rawIssue !== "object" || Array.isArray(rawIssue))
         throw new Error(`${path}: referenced Linear issue lookup returned malformed issue record`);
-      issue = normalizeLinearIssue(rawIssue);
+      issue = normalizeLinearIssue(rawIssue, await resolveClosedBlockers(request, [rawIssue]));
       results.push(issue);
     }
     if (

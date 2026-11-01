@@ -14,6 +14,39 @@ const prMap = (record = ref("evidence")) => ({
 const stateProperties = {
   repo,
   v: { const: 3 },
+  workerLimit: { type: "integer", minimum: 0 },
+  preparations: {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["updatedAt", "outcome", "reason"],
+      properties: {
+        ...definitions.issueReference.properties,
+        updatedAt: { type: "string", pattern: "\\S" },
+        outcome: { enum: ["ready", "needs-slicing", "needs-human"] },
+        reason: { type: "string", pattern: "\\S" },
+      },
+      anyOf: [{ required: ["issueKey"] }, { required: ["issueUuid"] }],
+    },
+  },
+  mergeResultsByPr: {
+    type: "object",
+    propertyNames: { pattern: "^[1-9][0-9]*$" },
+    additionalProperties: {
+      type: "object",
+      additionalProperties: false,
+      required: ["headSha", "mergeCommitSha", "postMergeCheck"],
+      properties: {
+        ...definitions.issueReference.properties,
+        headSha: { type: "string", pattern: "\\S" },
+        mergeCommitSha: { type: "string", pattern: "\\S" },
+        postMergeCheck: { enum: ["passed", "failed"] },
+        trackerUpdatedAt: { type: "string", pattern: "\\S" },
+      },
+    },
+  },
+
   pullRequests: array("pullRequest"),
   ...Object.fromEntries(
     ["tickets", "linearIssues", "activeLinearIssues"].map((name) => [name, array("issue")]),
@@ -61,6 +94,10 @@ const observation = {
       "hostedReviewByPr",
       "scopeIssues",
       "linearIssues",
+      "workerLimit",
+      "preparations",
+      "mergeResultsByPr",
+      "pullRequests",
     ].map((name) => [name, stateProperties[name]]),
   ),
 };

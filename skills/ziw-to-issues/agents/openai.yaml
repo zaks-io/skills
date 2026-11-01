@@ -1,6 +1,6 @@
 interface:
   display_name: "To Issues"
-  short_description: "Spec or PRD into ready slices"
-  default_prompt: "Use $ziw-to-issues to turn this ready spec into the fewest one-PR tickets, one per feature unless a split reason applies, with dependency order recorded."
+  short_description: "Decompose a ready spec into one-PR tickets"
+  default_prompt: "Use $ziw-to-issues to decompose this ready spec into the fewest one-PR tickets, one per feature unless a split reason applies, with dependency order recorded; send ordinary ticket preparation to Triage."
 policy:
   allow_implicit_invocation: true

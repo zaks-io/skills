@@ -5,8 +5,18 @@ import { normalizePlannerModel } from "./planner-model.mjs";
 
 import { loadPlannerInput, validatePlannerArguments } from "./planner-input.mjs";
 import { coversIssue } from "./delivery-identity.mjs";
+import {
+  accountForScope,
+  humanMergeAlreadyRouted,
+  mergedPrDisposition,
+  needsPreparation,
+  terminalIssue,
+  terminalPr,
+} from "./delivery-progress.mjs";
+import { retiredPr, savedPrHistory } from "./pr-history.mjs";
 import { issuesWithDeliveryEvidence, reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
+import { issueStateName, issueStateType } from "./linear-snapshot.mjs";
 import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
 import {
   activeDeliveryFootprint,
@@ -61,13 +71,22 @@ const checkState = (pr) => {
 
 export const mergePrLists = (snapshotPrs, statePrs) => {
   const byNumber = new Map();
-  for (const pr of [...toArray(snapshotPrs), ...toArray(statePrs)]) {
+  const live = new Set(toArray(snapshotPrs));
+  for (const pr of [...toArray(statePrs), ...toArray(snapshotPrs)]) {
     const prior = byNumber.get(pr.number);
     if (prior?.issueRef && pr.issueRef && prior.issueRef !== pr.issueRef)
       throw new Error("pullRequests: conflicting explicit issue associations for one PR");
     byNumber.set(pr.number, {
       ...prior,
       ...pr,
+      ...(live.has(pr)
+        ? {
+            merged: normalize(pr.state) === "merged" || pr.merged === true,
+            closed: ["merged", "closed"].includes(normalize(pr.state)),
+            mergedAt: pr.mergedAt,
+            mergeCommitSha: pr.mergeCommitSha,
+          }
+        : {}),
       issueRef: pr.issueRef ?? prior?.issueRef ?? null,
       footprint: [...new Set([...toArray(prior?.footprint), ...toArray(pr.footprint)])],
       issueRefs: [...new Set([...toArray(prior?.issueRefs), ...toArray(pr.issueRefs)])],
@@ -311,7 +330,9 @@ const previousReviewHeadForPr = (state, pr, config) => {
     .find(Boolean);
 };
 
-const prDisposition = (state, config, pr) => {
+const prDisposition = (state, config, pr, issues) => {
+  const terminal = mergedPrDisposition(pr, issues, state, config);
+  if (terminal !== undefined) return terminal;
   const target = targetForPr(pr);
   const owner = state.continuationByPr?.[pr.number] ?? "orchestrator";
   const status = checkState(pr);
@@ -404,6 +425,18 @@ const prDisposition = (state, config, pr) => {
       };
     }
     const deltaFrom = previousReviewHeadForPr(state, pr, config);
+    const attempt =
+      existingRequest &&
+      createHash("sha256")
+        .update(
+          JSON.stringify({
+            sessionId: existingRequest.sessionId,
+            receiptId: existingRequest.receiptId,
+            status: existingRequest.status,
+          }),
+        )
+        .digest("hex")
+        .slice(0, 16);
     return {
       bucket: "actions",
       value: {
@@ -413,7 +446,7 @@ const prDisposition = (state, config, pr) => {
         reason: "REVIEW_REQUIRED",
         ...(reviewDiffFingerprint ? { reviewDiffFingerprint } : {}),
         ...(deltaFrom ? { deltaFrom } : {}),
-        idempotencyKey: `review:${pr.number}:${reviewDiffFingerprint ?? pr.headSha}`,
+        idempotencyKey: `review:${pr.number}:${reviewDiffFingerprint ?? pr.headSha}${attempt ? `:after:${attempt}` : ""}`,
       },
     };
   }
@@ -470,6 +503,16 @@ const prDisposition = (state, config, pr) => {
     };
   }
   if (decision.action === "ROUTE_HUMAN_MERGE") {
+    if (humanMergeAlreadyRouted(pr, issues, config))
+      return {
+        bucket: "waits",
+        value: {
+          target,
+          signal: "human",
+          owner: "human",
+          reason: "AWAITING_HUMAN_MERGE",
+        },
+      };
     return {
       bucket: "actions",
       value: {
@@ -496,9 +539,29 @@ export function planTick({
   validatePlannerArguments({ snapshot: rawSnapshot, config, state: rawState, stateValidated });
   const { snapshot, state, diagnostics } = normalizePlannerModel({
     snapshot: rawSnapshot,
-    state: rawState,
+    state: { ...rawState, pullRequests: savedPrHistory(rawState) },
   });
-  const initialPullRequests = mergePrLists(snapshot.prs, state.pullRequests);
+  const observedIssues = [
+    ...toArray(snapshot.linear?.issues ?? state.tickets ?? state.linearIssues),
+    ...toArray(snapshot.linear?.activeIssues),
+    ...toArray(snapshot.linear?.issueMetadata),
+  ];
+  if (state.workerLimit != null)
+    config = {
+      ...config,
+      workerConcurrencyCap: Math.min(
+        state.workerLimit,
+        config.workerConcurrencyCap ?? config.cap ?? 3,
+      ),
+    };
+  const initialPullRequests = mergePrLists(
+    snapshot.prs,
+    toArray(state.pullRequests).filter(
+      (pr) =>
+        snapshot.prs.some((live) => live.number === pr.number) ||
+        !retiredPr(state, pr.number, observedIssues),
+    ),
+  );
   const scope = linearDispatchScope(snapshot, state);
   const delivery = reconcileActiveDelivery({
     snapshot: {
@@ -571,9 +634,24 @@ export function planTick({
     visit(rootId);
     return seen.size;
   };
+  const hasUnresolvedPreparation = (issueRef) =>
+    state.preparations?.some(
+      (record) =>
+        record.issueRef === issueRef &&
+        (record.outcome !== "ready" || needsPreparation(linearNodesById.get(issueRef))) &&
+        record.updatedAt === linearIssues.find((issue) => issue.issueRef === issueRef)?.updatedAt,
+    );
+  const hasTerminalPr = (issueRef) =>
+    pullRequests.some((pr) => terminalPr(pr) && coversIssue(pr, issueRef));
   const linearStartableTickets =
     linearDag?.nodes
-      .filter((node) => node.startable)
+      .filter(
+        (node) =>
+          node.startable &&
+          !needsPreparation(node) &&
+          !hasUnresolvedPreparation(node.issueRef) &&
+          !hasTerminalPr(node.issueRef),
+      )
       .map((node) => ({
         issueRef: node.issueRef,
         id: node.issueRef,
@@ -586,7 +664,17 @@ export function planTick({
         footprint: node.footprint,
         unlockCount: downstreamCount(node.issueRef),
       })) ?? [];
-  const issueById = new Map(linearIssues.map((issue) => [issue.issueRef, issue]));
+  // The collector keeps tickets outside the candidate route or states only as metadata; their
+  // recorded state still settles saved candidates and selections that name them.
+  const trackedIssues = [
+    ...linearIssues,
+    ...toArray(snapshot.linear?.issueMetadata).filter(
+      (issue) =>
+        (issueStateName(issue) || issueStateType(issue)) &&
+        !linearIssues.some((known) => known.issueRef === issue.issueRef),
+    ),
+  ];
+  const issueById = new Map(trackedIssues.map((issue) => [issue.issueRef, issue]));
   const explicitStartableTickets = issuesWithDeliveryEvidence(
     toArray(state.startableTickets).map((ticket) => ({
       ...issueById.get(ticket.issueRef),
@@ -601,13 +689,34 @@ export function planTick({
   for (const ticket of explicitStartableTickets) {
     const id = ticket.issueRef;
     if (!id) continue;
-    if (!scope.matchesCandidate(ticket) || ticket.activeClaim || ticket.openPr) {
+    if (hasUnresolvedPreparation(id) || hasTerminalPr(id)) continue;
+    // Live tracker facts outrank the saved candidate, which may only supply a footprint the
+    // ticket lacks. Scope accounting settles finished tickets.
+    const live = issueById.get(id);
+    if (live && terminalIssue(live, config)) continue;
+    const inScope = scope.matchesCandidate({ ...ticket, ...live });
+    if (!inScope || ticket.activeClaim || ticket.openPr) {
       excludedCandidates.push({
         target: `ticket:${id}`,
-        reason: scope.matchesCandidate(ticket) ? "DELIVERY_ALREADY_ACTIVE" : "OUT_OF_SCOPE",
+        reason: inScope ? "DELIVERY_ALREADY_ACTIVE" : "OUT_OF_SCOPE",
+        ...(inScope ? {} : { owner: "human" }),
       });
       continue;
     }
+    // The collector blocks starts when a saved candidate's ticket is not found, so a ticket
+    // without live facts comes from a caller-supplied snapshot. A selection that names it
+    // reports its state missing, so it cannot start then, nor without a footprint.
+    if (!live && (state.scopeIssueRefs != null || !ticket.footprint.length)) {
+      excludedCandidates.push({
+        target: `ticket:${id}`,
+        reason: "TICKET_STATE_MISSING",
+        owner: "orchestrator",
+      });
+      continue;
+    }
+    const node = linearNodesById.get(id);
+    if (live && (!node?.startable || needsPreparation({ ...node, footprint: ticket.footprint })))
+      continue;
     startableTicketsById.set(id, {
       ...(startableTicketsById.get(id) ?? {}),
       ...ticket,
@@ -624,6 +733,9 @@ export function planTick({
 
   const readyStatePromotions = toArray(state.tickets ?? snapshot.linear?.issues)
     .filter(scope.matchesCandidate)
+    .filter(
+      (ticket) => !hasUnresolvedPreparation(ticket.issueRef) && !hasTerminalPr(ticket.issueRef),
+    )
     .map((ticket) => ({
       ticket: ticket.issueRef,
       ...readyStatePromotionDecision(ticket, config, state.readyStatePromotionOptions ?? {}),
@@ -649,13 +761,14 @@ export function planTick({
     }));
 
   const hostedReviews = actionPullRequests
+    .filter((pr) => !terminalPr(pr))
     .map((pr) => hostedReviewDecisionForPr(state, config, pr))
     .filter(Boolean);
   const capacity = capacityDecision(planningState, config);
   const dispatch = dispatchSelectionDecision(planningState, config);
-  const humanMergeLabels = actionPullRequests.map((pr) =>
-    humanMergeDecisionForPr(state, config, pr),
-  );
+  const humanMergeLabels = actionPullRequests
+    .filter((pr) => !terminalPr(pr))
+    .map((pr) => humanMergeDecisionForPr(state, config, pr));
   const trackerStateUpdates = toArray(dispatch.selected).map((ticket) => ({
     ticket: ticket.issueRef,
     targetState: config.inProgressState ?? "In Progress",
@@ -706,7 +819,8 @@ export function planTick({
   }
 
   for (const pr of actionPullRequests) {
-    const disposition = prDisposition(state, config, pr);
+    const disposition = prDisposition(state, config, pr, linearIssues);
+    if (!disposition) continue;
     ({ actions: prActions, waits, holds })[disposition.bucket].push(disposition.value);
   }
   for (const worker of activeDispatches.filter((item) => item.occupiesWorkerSlot !== false)) {
@@ -737,9 +851,11 @@ export function planTick({
     if (ticket.reason === "missing predicted file footprint") {
       dispatchActions.push({
         target: `ticket:${ticket.issueRef}`,
-        kind: "derive-footprint",
-        owner: "orchestrator",
+        kind: "prepare-ticket",
+        owner: "ziw-triage",
         reason: "FOOTPRINT_MISSING",
+        missingSections: linearNodesById.get(ticket.issueRef)?.missingSections ?? [],
+        startableBlockers: ["missing predicted file footprint"],
       });
       continue;
     }
@@ -780,7 +896,34 @@ export function planTick({
       ...(decision.label ? { label: decision.label } : {}),
       ...(decision.headSha ? { headSha: decision.headSha } : {}),
     }));
-  const actions = [...dispatchActions, ...labelActions, ...prActions];
+  const reopenedPrs = snapshot.prs.filter(
+    (pr) =>
+      !terminalPr(pr) &&
+      state.pullRequests.some((saved) => saved.number === pr.number && saved.closedResult),
+  );
+  const actions = [
+    ...dispatchActions,
+    ...labelActions,
+    ...prActions,
+    ...reopenedPrs.map((pr) => ({
+      target: `pr:${pr.number}`,
+      kind: "record-pr-state",
+      owner: "orchestrator",
+      reason: "PR_REOPENED",
+    })),
+  ];
+  const tickets = accountForScope({
+    issues: trackedIssues,
+    dag: linearDag,
+    scope,
+    state,
+    config,
+    prs: actionPullRequests,
+    actions,
+    waits,
+    holds,
+    workers: activeDispatches,
+  });
 
   if (!linearQueried) warnings.push({ reason: "TRACKER_STATE_MISSING" });
   if (toArray(snapshot.linear?.unroutedIssueIds).length > 0) {
@@ -816,6 +959,7 @@ export function planTick({
     capacity: dispatch.capacity,
     execution: { completion: "attempt-all-actions", mode: "parallel", lanes: ["dispatch", "pr"] },
     actions,
+    tickets,
     waits,
     holds,
     warnings,

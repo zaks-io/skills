@@ -613,6 +613,32 @@
         },
         "number": { "type": "integer", "minimum": 1 },
         "linkedIssues": { "type": "array", "items": { "$ref": "#/definitions/issueReference" } },
+        "closedResult": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["headSha", "issues"],
+          "properties": {
+            "headSha": { "type": "string", "pattern": "\\S" },
+            "issues": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["updatedAt"],
+                "properties": {
+                  "issueKey": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+                  "issueUuid": {
+                    "type": "string",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                  },
+                  "updatedAt": { "type": "string", "pattern": "\\S" }
+                },
+                "anyOf": [{ "required": ["issueKey"] }, { "required": ["issueUuid"] }]
+              }
+            }
+          }
+        },
         "legacyPrAliases": false,
         "prNumber": false
       }
@@ -1253,6 +1279,9 @@
         "linearBacklogState": { "type": "string" },
         "intakeState": { "type": "string" },
         "inProgressState": { "type": "string" },
+        "inReviewState": { "type": "string" },
+        "changesRequestedState": { "type": "string" },
+        "readyToMergeState": { "type": "string" },
         "startableState": { "type": "string" },
         "startableStateType": { "type": "string" },
         "readyStateType": { "type": "string" },
@@ -1361,6 +1390,46 @@
       "properties": {
         "repo": { "type": "string", "pattern": "^[^\\s/]+/[^\\s/]+$" },
         "v": { "const": 3 },
+        "workerLimit": { "type": "integer", "minimum": 0 },
+        "preparations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["updatedAt", "outcome", "reason"],
+            "properties": {
+              "issueKey": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+              "issueUuid": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "updatedAt": { "type": "string", "pattern": "\\S" },
+              "outcome": { "enum": ["ready", "needs-slicing", "needs-human"] },
+              "reason": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["issueKey"] }, { "required": ["issueUuid"] }]
+          }
+        },
+        "mergeResultsByPr": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[1-9][0-9]*$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["headSha", "mergeCommitSha", "postMergeCheck"],
+            "properties": {
+              "issueKey": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+              "issueUuid": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "headSha": { "type": "string", "pattern": "\\S" },
+              "mergeCommitSha": { "type": "string", "pattern": "\\S" },
+              "postMergeCheck": { "enum": ["passed", "failed"] },
+              "trackerUpdatedAt": { "type": "string", "pattern": "\\S" }
+            }
+          }
+        },
         "pullRequests": { "type": "array", "items": { "$ref": "#/definitions/pullRequest" } },
         "tickets": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
         "linearIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
@@ -1437,7 +1506,48 @@
           "additionalProperties": { "$ref": "#/definitions/evidence" }
         },
         "scopeIssues": { "type": "array", "items": { "$ref": "#/definitions/issueReference" } },
-        "linearIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } }
+        "linearIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+        "workerLimit": { "type": "integer", "minimum": 0 },
+        "preparations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["updatedAt", "outcome", "reason"],
+            "properties": {
+              "issueKey": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+              "issueUuid": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "updatedAt": { "type": "string", "pattern": "\\S" },
+              "outcome": { "enum": ["ready", "needs-slicing", "needs-human"] },
+              "reason": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["issueKey"] }, { "required": ["issueUuid"] }]
+          }
+        },
+        "mergeResultsByPr": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[1-9][0-9]*$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["headSha", "mergeCommitSha", "postMergeCheck"],
+            "properties": {
+              "issueKey": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*-[0-9]+$" },
+              "issueUuid": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "headSha": { "type": "string", "pattern": "\\S" },
+              "mergeCommitSha": { "type": "string", "pattern": "\\S" },
+              "postMergeCheck": { "enum": ["passed", "failed"] },
+              "trackerUpdatedAt": { "type": "string", "pattern": "\\S" }
+            }
+          }
+        },
+        "pullRequests": { "type": "array", "items": { "$ref": "#/definitions/pullRequest" } }
       }
     },
     "snapshot": {

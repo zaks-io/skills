@@ -265,7 +265,8 @@ test("the published worked example records a complete delivery and review", (t) 
   const commands = [...guide.matchAll(/```sh\n([\s\S]*?)```/g)]
     .map((match) => match[1])
     .join("\n")
-    .replace("S=<skill-dir>/scripts", `S='${scripts}'`);
+    .replace("S=<skill-dir>/scripts", `S='${scripts}'`)
+    .replaceAll("<confirmed-tracker-revision>", "2026-11-01T12:00:00Z");
   const result = spawnSync("sh", ["-eu"], { cwd: directory, input: commands, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   const state = JSON.parse(readFileSync(path.join(directory, ".ziw/state.json")));
@@ -273,4 +274,6 @@ test("the published worked example records a complete delivery and review", (t) 
   assert.equal(state.dispatches[0].prNumber, 42);
   assert.equal(state.reviewRequestsByPr[42].status, "completed");
   assert.equal(state.reviewEvidenceByPr[42].reviewVerdict, "APPROVE");
+  assert.equal(state.preparations[0].outcome, "ready");
+  assert.equal(state.mergeResultsByPr[42].postMergeCheck, "passed");
 });

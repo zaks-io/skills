@@ -5,11 +5,14 @@ import { assertStateVersion, updateStateFile, validateBoundState } from "./state
 import { convertState } from "./state-migration.mjs";
 import { commandObservation } from "./state-commands.mjs";
 
-const usage = `Usage: node planner-state.mjs <init|record|worker|review-request|review-result|migrate> --repo <owner/repo> --state <file>
+const usage = `Usage: node planner-state.mjs <init|record|worker|review-request|review-result|preparation|merge-result|migrate> --repo <owner/repo> --state <file>
+  init [--scope K,K|default] [--worker-cap N|default]
   record <observations.json|->
   worker [--issue K] [--branch B] [--footprint F ...] [--session S] [--receipt R] [--run W] --status running|returned|failed|stopped [--pr N]
   review-request --pr N [--session S] [--receipt R] [--head H --fingerprint F] [--status running|failed|stopped]
   review-result --pr N [--session S] [--receipt R] --verdict APPROVE|"NEEDS REVISION" --count N
+  preparation --issue K --outcome ready|needs-slicing|needs-human --reason TEXT --updated-at TIME
+  merge-result --pr N --issue K --head H --merge-commit H --check passed|failed [--tracker-updated-at TIME]
   migrate [--dry-run]`;
 export function loadPlannerState({ file, repo }) {
   return updateStateFile({ file, repo, initializeOnly: true, transform: (state) => state }).state;
@@ -60,6 +63,16 @@ export function main(args) {
           "fingerprint",
           "verdict",
           "count",
+          "scope",
+          "worker-cap",
+          "outcome",
+          "reason",
+          "updated-at",
+          "merge-commit",
+          "check",
+          "tracker-updated-at",
+          "pr-url",
+          "worktree",
         ].map((name) => [name, { type: "string" }]),
       ),
       footprint: { type: "string", multiple: true },
@@ -87,7 +100,17 @@ export function main(args) {
     );
     return;
   }
-  if (!["init", "record", "worker", "review-request", "review-result"].includes(command))
+  if (
+    ![
+      "init",
+      "record",
+      "worker",
+      "review-request",
+      "review-result",
+      "preparation",
+      "merge-result",
+    ].includes(command)
+  )
     throw new Error(`unknown command: ${command ?? "(missing)"}\n${usage}`);
   if (values["dry-run"]) throw new Error("--dry-run is only supported by migrate");
   if (command !== "record" && positionals.length)

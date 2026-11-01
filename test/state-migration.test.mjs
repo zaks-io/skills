@@ -26,7 +26,8 @@ function fixture(t, state = { repo }) {
     migrate: (options = {}) => migratePlannerState({ file, repo, ...options }),
   };
 }
-// beb146d dispatch actions predate the selected footprint; every other field must match.
+// beb146d dispatch actions predate the selected footprint. The named correction below
+// also preserves live draft status instead of a legacy adapter's invented false default.
 const decisions = ({ actions, waits, holds }) => ({
   actions: actions.map(({ footprint, ...action }) =>
     action.kind === "dispatch" ? action : { ...action, ...(footprint ? { footprint } : {}) },
@@ -44,7 +45,23 @@ for (const name of fs
     assert.equal(input.baseline, "beb146d2c69ad501e21d281a3dd99aba7a5a59b1");
     const { migrate } = fixture(t, input.state);
     const state = migrate().state;
-    assert.deepEqual(decisions(planTick({ ...input, state })), input.expected);
+    const expected = ["pr-map-alias.json", "pr-fallback-fingerprint-only.json"].includes(name)
+      ? {
+          ...input.expected,
+          // A partial saved PR cannot make the live draft merge-ready. Keep the
+          // captured baseline fixtures unchanged and correct only that decision.
+          actions: [
+            ...input.expected.actions.filter((action) => action.kind === "dispatch"),
+            {
+              target: "pr:12",
+              kind: "mark-ready",
+              owner: "orchestrator",
+              reason: "REVIEW_CLEAN",
+            },
+          ],
+        }
+      : input.expected;
+    assert.deepEqual(decisions(planTick({ ...input, state })), expected);
   });
 }
 

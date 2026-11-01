@@ -22,13 +22,25 @@ try {
   );
   const actual = JSON.parse(run("tick.mjs", ["--config", configFile]));
   const enrichment = new Set(
-    "issueKey ticketUrl title footprint outOfScope branch brief record prNumber prUrl base headSha previousReviewSessionId previousReviewReceiptId".split(
+    "issueKey ticketUrl title footprint outOfScope branch brief record prNumber prUrl base headSha previousReviewSessionId previousReviewReceiptId instruction skill".split(
       " ",
     ),
   );
   const strip = (actions) =>
     actions.map((action) =>
-      Object.fromEntries(Object.entries(action).filter(([name]) => !enrichment.has(name))),
+      Object.fromEntries(
+        Object.entries(action).filter(
+          ([name]) =>
+            !enrichment.has(name) &&
+            (name !== "targetState" ||
+              expected.actions.some(
+                (decision) =>
+                  decision.kind === action.kind &&
+                  decision.target === action.target &&
+                  "targetState" in decision,
+              )),
+        ),
+      ),
     );
   assert.deepEqual(strip(actual.actions), strip(expected.actions));
   assert.deepEqual(actual.waits, expected.waits);
