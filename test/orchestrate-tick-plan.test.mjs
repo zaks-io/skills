@@ -766,7 +766,7 @@ test("tick-plan uses Linear DAG starts as fallback startable queue", () => {
   assert.equal(output.nextAction, "advance-actions");
   assert.ok(
     output.actions.some(
-      ({ target, kind }) => target === "ticket:LIN-1" && kind === "derive-footprint",
+      ({ target, kind }) => target === "ticket:LIN-1" && kind === "prepare-ticket",
     ),
   );
   assert.equal(output.counts.startableTickets, 1);

@@ -40,6 +40,7 @@ stable values: no secrets, status, or progress.
 - Follow-ups: <how to send a worker more instructions>
 - Observe: <authoritative status source and the session, receipt, and run IDs it returns>
 - Completion: <how results arrive; follow the runtime's wait or notification instructions>
+- Continuation: <worker completion and code-host notifications that resume a tick>
 - Recover: <how to retrieve status and results by saved ID after interruption>
 
 ## Review and merge
@@ -59,17 +60,18 @@ stable values: no secrets, status, or progress.
   "linearTeam": "EXA",
   "linearRouteLabel": "owner/repo",
   "stateFile": ".ziw/state.json",
-  "branchPrefix": "codex/",
   "readyState": "Todo",
+  "branchPrefix": "agent/",
   "mergeAuthority": "human",
   "hostedReviewBots": ["coderabbitai"],
   "workerConcurrencyCap": 2
 }
 ```
 
-`planner.json` holds the values the planner reads. Set `repo`, `linearTeam`, `linearRouteLabel`,
-`stateFile`, and `branchPrefix` for the single tick command. Relative config and
-state paths resolve against the current Git top-level. Always set `readyState`,
+`planner.json` holds the values the planner reads. Set `repo`, `linearTeam`,
+`linearRouteLabel`, `stateFile`, and `branchPrefix` for the single tick command.
+Relative config and state paths resolve against the current Git top-level.
+Always set `readyState`,
 `mergeAuthority`, and `hostedReviewBots` (or `"hostedReviewRiskTiers": []` with
 no hosted reviewer). The other defaults match the contract: cap 3, in progress
 `In Progress`, hosted review required at high risk; set a field only when it

@@ -1,6 +1,6 @@
 ---
 name: ziw-to-issues
-description: Use to turn a ready spec, PRD, or epic ticket into the fewest one-PR tickets, each with a complete body, labels, likely files, and dependency order.
+description: Use to decompose a ready spec, PRD, or epic ticket into the fewest one-PR tickets with complete bodies and dependency order. Use Triage to prepare an ordinary single ticket.
 argument-hint: "[spec-path|epic-ticket]"
 ---
 
@@ -8,6 +8,7 @@ argument-hint: "[spec-path|epic-ticket]"
 
 Turn a ready spec into the fewest tickets that can each ship as one PR. Tickets
 follow the [workflow contract](../ziw-setup/references/workflow.md#ticket-body).
+Missing technical sections on an ordinary single ticket belong to Triage.
 
 ## Inputs
 
@@ -15,8 +16,9 @@ A spec, PRD, or epic; the repo config; and any tickets that already exist for it
 
 ## Steps
 
-1. Check the spec says `Status: Ready for slicing`. If it says `Draft`, stop
-   and send its open questions back to Grill.
+1. Check the spec says `Status: Ready for slicing`. If it is missing or still
+   `Draft`, stop and return the exact product or approval decision needed to
+   Grill or the human owner. Never invent an approved spec.
 2. Start from one ticket per feature the spec asks for. Split a feature only
    when one of these holds, and write the reason down:
    - **Size**: it exceeds the largest estimate config allows, or is too large to

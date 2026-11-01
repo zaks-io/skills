@@ -41,6 +41,8 @@ read live. Planner values are in [planner.json](planner.json).
   the task ID as `receiptId`, child thread ID as `sessionId`, and run ID as `runId`.
 - Completion: follow `delegate_task`'s returned wait or completion instructions;
   do not poll a running delegate.
+- Continuation: worker completion resumes the parent through T3. Use T3's PR
+  watch for pending code-host checks or reviews; follow its returned instructions.
 - Recover: read the saved child thread with `t3_thread_read` to retrieve its
   current run and result. Missing or inaccessible evidence leaves its saved
   reservation intact. Start every independent review in a fresh delegated session.

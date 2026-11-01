@@ -109,6 +109,7 @@ const isDoneIssue = (issue, config = {}) => {
 const labelsOf = (issue) => toArray(issue?.labels).map((label) => normalize(labelName(label)));
 
 const readinessMatches = (issue, config = {}) => {
+  if (labelsOf(issue).some((label) => NON_IMPLEMENTATION_READY_LABELS.has(label))) return false;
   if (issue?.implementationReady || issue?.readyForImplementation) return true;
 
   const explicitLabels = [
@@ -215,6 +216,7 @@ const startableBlockers = (node) =>
     !node.ready && "missing readiness label",
     !node.startableKind && "not kind-slice",
     node.requiresEstimate && !node.hasEstimate && "missing required estimate",
+    node.missingSections.length > 0 && "incomplete ticket body",
     node.activeClaim && "active claim exists",
     node.openPr && "open PR exists",
   ].filter(Boolean);
@@ -277,6 +279,7 @@ export function linearDagStart(issuesInput = [], config = {}) {
       requiresEstimate: requiresEstimate(config) && startableKind,
       labels: toArray(issue.labels).map(labelName).filter(Boolean),
       footprint: footprintRefs(issue),
+      missingSections: toArray(issue.missingSections),
       blockedBy,
       inScopeBlockedBy: compact(inScopeBlockedBy),
       externalBlockedBy: compact(externalBlockedBy),

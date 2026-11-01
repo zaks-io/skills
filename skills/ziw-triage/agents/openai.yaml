@@ -1,6 +1,6 @@
 interface:
   display_name: "Triage"
-  short_description: "Shape tracker tickets"
-  default_prompt: "Use $ziw-triage to triage this project tracker queue: make complete issue tickets ready and give every other ticket one next owner."
+  short_description: "Prepare selected tickets or triage a queue"
+  default_prompt: "Use $ziw-triage to prepare this selected project issue from repository evidence or triage the requested tracker queue, returning each preparation outcome, reason, and confirmed ticket updatedAt."
 policy:
   allow_implicit_invocation: true

@@ -11,6 +11,10 @@ const observationFields = new Set([
   "hostedReviewByPr",
   "scopeIssues",
   "linearIssues",
+  "workerLimit",
+  "preparations",
+  "mergeResultsByPr",
+  "pullRequests",
 ]);
 const nonempty = (value) => typeof value === "string" && value.trim().length > 0;
 const same = (left, right) => nonempty(left) && left === right;
@@ -116,6 +120,7 @@ export function applyObservations(state, observation) {
     fail("unsupported observation field");
   const checked = { ...observation };
   if (checked.scopeIssues === null) delete checked.scopeIssues;
+  if (checked.workerLimit === null) delete checked.workerLimit;
   if (!validateObservation(checked)) fail("observation does not match the planner schema");
   const next = structuredClone(state);
   for (const record of observation.dispatches ?? []) recordWorker(next, record);
@@ -144,6 +149,24 @@ export function applyObservations(state, observation) {
     else next.scopeIssues = observation.scopeIssues;
   }
   if ("linearIssues" in observation) next.linearIssues = observation.linearIssues;
+  if ("workerLimit" in observation) {
+    if (observation.workerLimit === null) delete next.workerLimit;
+    else next.workerLimit = observation.workerLimit;
+  }
+  for (const record of observation.preparations ?? []) {
+    const index = (next.preparations ??= []).findIndex(
+      (prior) => same(prior.issueKey, record.issueKey) || same(prior.issueUuid, record.issueUuid),
+    );
+    if (index < 0) next.preparations.push(record);
+    else next.preparations[index] = record;
+  }
+  for (const [pr, record] of Object.entries(observation.mergeResultsByPr ?? {}))
+    (next.mergeResultsByPr ??= {})[pr] = record;
+  for (const record of observation.pullRequests ?? []) {
+    const index = (next.pullRequests ??= []).findIndex((prior) => prior.number === record.number);
+    if (index < 0) next.pullRequests.push(record);
+    else next.pullRequests[index] = { ...next.pullRequests[index], ...record };
+  }
   validatePlannerState(next);
   return next;
 }

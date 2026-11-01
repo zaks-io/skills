@@ -5,6 +5,51 @@ Maintainer notes for the published planner scripts. Agents follow
 the full input schema is `skills/ziw-orchestrate/references/planner-input.schema.json`.
 These implementation details add no caller obligations or authority.
 
+## Scope progress and action receipts
+
+`delivery-progress.mjs` accounts for each selected ticket, including nonstartable
+tickets. It emits preparation actions, dependency waits, and holds with owners.
+An empty startable queue alone cannot imply delivery. Default selection excludes
+parked backlog; explicit scope remains bounded even when blockers are observed.
+Preparation receipts bind an unresolved outcome to the tracker revision, so a
+later edit can reopen preparation without repeating it on every unchanged tick.
+
+`action-briefs.mjs` enriches decisions with execution instructions, briefs,
+tracker transitions, and typed recording commands. `planner-state.mjs` uses
+`worker`, `review-request`, `review-result`, `preparation`, and `merge-result`
+subcommands. Each action supplies the context needed to record its confirmed
+result. Receipt identity, review head, and diff checks still apply. The helper
+never performs or authorizes external actions. Preparation actions provide
+`missingSections` and `startableBlockers`, with no implementation branch.
+
+`init --scope` and `init --worker-cap` persist selection and capacity before
+collection. A saved cap can lower configured capacity but cannot raise it.
+Resume without either option preserves it; `default` explicitly restores it.
+`tick.mjs --worker-cap N` also saves the lower cap. `tick.mjs` collects, plans,
+and enriches actions in one command.
+
+An unresolved preparation result binds to the confirmed tracker revision. A
+`ready` result whose unchanged revision still lacks required metadata produces
+a named hold instead of repeating preparation. A later revision permits a fresh
+assessment.
+
+Known PRs absent from the open list receive an authoritative terminal-status
+lookup. Confirmed merges require post-merge verification and tracker
+reconciliation; missing, closed-unmerged, and malformed responses never count as
+merges. Human handoff becomes a wait once the live ticket state and PR label
+confirm it. Failed post-merge verification remains a human-owned hold. Its resolution is
+to rerun the configured post-merge check and record the same merge-result
+command with the new actual outcome. Closed-unmerged holds can resolve by
+reopening the original PR for the same work, canceling or completing the ticket
+only when warranted, or explicitly selecting a new ticket for a new attempt.
+Saved evidence is never deleted to make work startable.
+Terminal PRs exclude linked tickets from dispatch and ready-state promotion.
+Successful reconciliation requires the ticket identity and confirmed tracker
+update time. A new nonterminal tracker revision after completed reconciliation
+requires a human decision; it does not restart the merged work. Settled PRs outside explicit selection no longer trigger history
+lookups or reappear from saved PRs. Failed checks and incomplete receipts remain
+unsettled; open PR collection still includes every live PR.
+
 ## Saved observations
 
 `planner-state.mjs` initializes or updates local state through `state-observations.mjs`.
@@ -56,7 +101,10 @@ clean local review and incomplete required hosted review lets the hosted
 reviewer cover follow-up changes.
 
 Requests use the current fingerprint as their idempotency key, falling back to
-the head. `previousReviewHeadForPr` supplies `deltaFrom` when prior clean or
+the head. Failed reviews retry with a fresh session while previous request
+identities remain protected. Follow-up review briefs require recovery of the
+previous report and include its findings in the new review context.
+`previousReviewHeadForPr` supplies `deltaFrom` when prior clean or
 blocking evidence covers a different diff. `currentReviewStatus` and
 `mergeEligibilityDecision` apply local verdict blockers only when their evidence
 covers the current diff. Migrated conformance failures become blocking local review verdicts.
@@ -115,7 +163,7 @@ and risk without creating worker reservations.
 
 `loadLinearSnapshot({ issueRefs })` bounds unknown-reference reads to 50.
 `tick-snapshot.mjs` gathers receipt, scope, dependency, and PR references from
-the shared state; terminal receipt history does not trigger lookups. A confirmed
+the shared state; settled delivery history does not trigger lookups. A confirmed
 `issue: null` preserves the snapshot with `REFERENCED_ISSUE_NOT_FOUND`. Transport,
 GraphQL, or malformed-response failures abort with the referring source path.
 Provider error text is omitted to avoid sensitive values.

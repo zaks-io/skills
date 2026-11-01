@@ -135,7 +135,7 @@ export function hasReadinessLabel(ticket, config = {}) {
   return toArray(ticket?.labels).some((label) => readinessLabels.has(labelName(label)));
 }
 
-function implementationReadyLabels(config = {}) {
+export function implementationReadyLabels(config = {}) {
   const explicitLabels = [
     config.implementationReadyLabel,
     ...toArray(config.implementationReadyLabels),
@@ -399,8 +399,8 @@ export function mergeReadinessFacts(state = {}) {
   };
 }
 
-export function humanMergePrLabelDecision(state = {}, config = {}) {
-  const label =
+export function humanMergePrLabel(state = {}, config = {}) {
+  return (
     state.humanMergePrLabel ??
     config.humanMergePrLabel ??
     config.humanReviewPrLabel ??
@@ -409,7 +409,12 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     config.codeHostHumanReviewPrLabel ??
     config.codeHostHumanReviewLabel ??
     config.codeHostPrAttentionLabel ??
-    DEFAULT_HUMAN_MERGE_PR_LABEL;
+    DEFAULT_HUMAN_MERGE_PR_LABEL
+  );
+}
+
+export function humanMergePrLabelDecision(state = {}, config = {}) {
+  const label = humanMergePrLabel(state, config);
   const prLabels = [...toArray(state.prLabels), ...toArray(state.labels)];
   const labelApplied = Boolean(
     firstDefined(state.humanMergePrLabelApplied, hasNamedLabel(prLabels, label)),

@@ -7,6 +7,49 @@ const FOOTPRINT_HEADINGS = new Set([
   "likely files packages artifacts",
 ]);
 
+export function missingTicketSections(description = "") {
+  const required = [
+    "outcome",
+    "in scope",
+    "out of scope",
+    "acceptance criteria",
+    "checks",
+    "likely files",
+    "dependencies",
+  ];
+  const headings = new Map();
+  let current;
+  let level = 0;
+  let fence = null;
+  for (const line of String(description).split(/\r?\n/)) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+    if (marker) {
+      if (!fence) fence = marker;
+      else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+      continue;
+    }
+    if (fence) {
+      if (current && line.trim()) headings.set(current, true);
+      continue;
+    }
+    const bold = line.match(/^\s*(?:[-*]\s+)?\*\*(.+?)\*\*\s*:?\s*(.*)$/);
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/) ?? (bold ? [bold[0], "##", bold[1]] : null);
+    if (heading) {
+      const name = normalizeHeading(heading[2]);
+      const section = FOOTPRINT_HEADINGS.has(name) ? "likely files" : name;
+      if (!required.includes(section)) {
+        if (heading[1].length <= level) current = undefined;
+        continue;
+      }
+      current = section;
+      level = heading[1].length;
+      if (!headings.has(current)) headings.set(current, false);
+      if (bold?.[2]?.trim()) headings.set(current, true);
+    } else if (line.trim() && current) headings.set(current, true);
+  }
+  return required.filter((heading) => !headings.get(heading));
+}
+
 const normalizeHeading = (value) =>
   String(value ?? "")
     .toLowerCase()
@@ -46,12 +89,20 @@ export function extractLinearFootprint(description = "") {
     }
     if (fence) continue;
 
-    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/);
+    const bold = line.match(/^\s*(?:[-*]\s+)?\*\*(.+?)\*\*\s*:?\s*(.*)$/);
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/) ?? (bold ? [bold[0], "##", bold[1]] : null);
     if (heading) {
       const level = heading[1].length;
       if (sectionLevel && level <= sectionLevel) sectionLevel = 0;
       if (!sectionLevel && FOOTPRINT_HEADINGS.has(normalizeHeading(heading[2]))) {
         sectionLevel = level;
+      }
+      if (sectionLevel && bold?.[2]) {
+        entries.push(
+          ...[...bold[2].matchAll(/`([^`]+)`/g)]
+            .map((match) => match[1].trim())
+            .filter((entry) => entry && !/\s/.test(entry)),
+        );
       }
       continue;
     }
@@ -218,6 +269,7 @@ export function normalizeLinearIssue(issue, closedBlockers = new Map()) {
     labels: (issue.labels?.nodes ?? []).map((label) => label.name),
     assignee: issue.assignee?.displayName ?? null,
     footprint: extractLinearFootprint(issue.description),
+    missingSections: missingTicketSections(issue.description),
     blockedBy: [
       ...new Map(
         (issue.inverseRelations?.nodes ?? [])
@@ -348,6 +400,9 @@ export async function loadLinearSnapshot({
     issueRefPaths,
   );
   const metadata = [...issues, ...referencedIssues];
+  const observedIssues = [
+    ...new Map(metadata.map((issue) => [referenceId(issue), issue])).values(),
+  ];
 
   return {
     team: team.key,
@@ -366,7 +421,7 @@ export async function loadLinearSnapshot({
     includesDirectBlockers: true,
     activeScope: { routeLabel: routeLabel ?? null },
     activeIssues: selectActiveLinearIssues(issues, routeLabel),
-    issues: selectScopedLinearIssues(issues, states, routeLabel),
+    issues: selectScopedLinearIssues(observedIssues, states, routeLabel),
   };
 }
 

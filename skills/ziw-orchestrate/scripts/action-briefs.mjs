@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { mergePrLists } from "./tick-plan.mjs";
+import { actionInstructions } from "./action-instructions.mjs";
 
 const array = (value) => (value == null ? [] : [value].flat());
 const quote = (value) =>
@@ -30,7 +31,7 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
     ...array(state.tickets ?? state.linearIssues),
     ...array(state.startableTickets),
   ];
-  // Planning overlays saved PR fields on live ones; briefs must describe that same record.
+  // Briefs use the same live-first PR record as planning.
   const prs = mergePrLists(snapshot.prs, state.pullRequests);
   const issueFor = (ref) =>
     issues.find((issue) => issue.issueKey === ref || issue.issueUuid === ref);
@@ -40,9 +41,100 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
       ["issueKey", "issueUuid"].some((name) => issue[name] && reference[name] === issue[name]),
     );
   const options = { repo: plan.repo, stateFile };
+  const observationRecord = (observation) => ({
+    ...record("record", ["-"], options),
+    stdin: JSON.stringify(observation),
+  });
   return {
     ...plan,
     actions: plan.actions.map((action) => {
+      const instruction = actionInstructions[action.kind];
+      if (!instruction) throw new Error(`No execution instruction for ${action.kind}`);
+      action = { ...action, instruction };
+      if (["request-hosted-review", "resolve-hosted-review-mode"].includes(action.kind)) {
+        const pr = prs.find((entry) => `pr:${entry.number}` === action.target);
+        const evidence =
+          action.kind === "request-hosted-review"
+            ? {
+                hostedReviewPending: true,
+                hostedReviewDiffFingerprint:
+                  pr.reviewDiffFingerprint ??
+                  state.reviewDiffByPr?.[pr.number] ??
+                  `head:${pr.headSha}`,
+              }
+            : { autoReviewMode: "<enabled|disabled>" };
+        return {
+          ...action,
+          record: observationRecord({ hostedReviewByPr: { [pr.number]: evidence } }),
+        };
+      }
+      if (action.kind === "prepare-ticket") {
+        const issue = issueFor(action.target.slice("ticket:".length));
+        const key = required(issue?.issueKey ?? issue?.issueUuid, `${action.target} issue`);
+        const gaps = [...array(action.missingSections), ...array(action.startableBlockers)];
+        return {
+          ...action,
+          skill: "ziw-triage",
+          issueKey: issue.issueKey,
+          ticketUrl: issue.url,
+          brief: `Use ziw-triage on ${issue.url ?? key}. Scope is this ticket only. Planner gaps: ${gaps.join("; ") || "incomplete preparation evidence"}. Report outcome, reason and confirmed updatedAt.`,
+          record: record(
+            "preparation",
+            [
+              "--issue",
+              key,
+              "--outcome",
+              "<outcome>",
+              "--reason",
+              "<reason>",
+              "--updated-at",
+              "<updatedAt>",
+            ],
+            options,
+          ),
+        };
+      }
+      if (action.kind === "reconcile-merged-pr") {
+        const pr = prs.find((entry) => `pr:${entry.number}` === action.target);
+        const issue = issueFor(action.issueRef);
+        return {
+          ...action,
+          prNumber: pr.number,
+          prUrl: pr.url,
+          ticketUrl: issue?.url,
+          record: record(
+            "merge-result",
+            [
+              "--pr",
+              String(pr.number),
+              "--issue",
+              required(issue?.issueKey ?? issue?.issueUuid, "merge issue"),
+              "--head",
+              action.headSha,
+              "--merge-commit",
+              action.mergeCommitSha,
+              "--check",
+              "<passed|failed>",
+              "--tracker-updated-at",
+              "<updatedAt-on-success>",
+            ],
+            options,
+          ),
+        };
+      }
+      if (action.kind === "route-human-merge" || action.kind === "arm-auto-merge") {
+        const pr = prs.find((entry) => `pr:${entry.number}` === action.target);
+        const linkedIssues = issues
+          .filter((issue) => linked(pr, issue))
+          .map((issue) => ({
+            ...(issue.issueKey ? { issueKey: issue.issueKey } : {}),
+            ...(issue.issueUuid ? { issueUuid: issue.issueUuid } : {}),
+          }));
+        return {
+          ...action,
+          record: observationRecord({ pullRequests: [{ number: pr.number, linkedIssues }] }),
+        };
+      }
       if (action.kind === "dispatch") {
         const reference = action.target.slice("ticket:".length);
         const issue = issueFor(reference);

@@ -16,7 +16,7 @@ function issue(identifier, { route = routeLabel, state = "Todo", blockedBy } = {
   return {
     identifier,
     title: identifier,
-    description: `## Predicted file footprint\n\n- \`src/${identifier}.ts\``,
+    description: `## Outcome\nFix issue\n## In scope\nFix\n## Out of scope\nOther changes\n## Acceptance criteria\nWorks\n## Checks\npnpm test\n## Dependencies\nNone\n## Predicted file footprint\n\n- \`src/${identifier}.ts\``,
     state: { name: state, type: state === "In Progress" ? "started" : "unstarted" },
     labels: {
       nodes: ["kind-slice", "ready-for-agent", route].filter(Boolean).map((name) => ({ name })),

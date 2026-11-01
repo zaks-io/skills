@@ -1,6 +1,7 @@
 import { buildIssueCatalog } from "./issue-catalog.mjs";
 import { possibleIssueLinks } from "./delivery-identity.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
+import { retiredPr } from "./delivery-progress.mjs";
 
 const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
 const terminal = (record) => !isLiveWorker(record);
@@ -113,8 +114,10 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
       normalized.workerRef = record.sessionId
         ? `session:${record.sessionId}`
         : `receipt:${record.receiptId}`;
+    const relevantPr =
+      kind === "pr" && (!path.startsWith("state/") || !retiredPr(state, record.number));
     if (
-      ((kind === "worker" && !terminal(record)) || kind === "pr") &&
+      ((kind === "worker" && !terminal(record)) || relevantPr) &&
       resolved.unresolvedUuid &&
       catalog.hasPartialAliases
     )
@@ -124,7 +127,7 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
         issueUuid: resolved.issueUuid,
         blockingStarts: true,
       });
-    if (kind === "pr" && catalog.hasPartialAliases)
+    if (relevantPr && catalog.hasPartialAliases)
       for (const reference of linked.filter((reference) => reference.unresolvedUuid))
         diagnostics.push({
           code: "ISSUE_ALIAS_REQUIRED",
@@ -155,6 +158,8 @@ export function normalizePlannerModel({ snapshot = {}, state = {} } = {}) {
     );
   delete linear.candidateIssues;
   const normalizedState = { ...state };
+  if (state.preparations != null)
+    normalizedState.preparations = map(state.preparations, "preparation", "state/preparations");
   for (const name of ["tickets", "linearIssues", "activeLinearIssues", "startableTickets"])
     if (state[name] != null) normalizedState[name] = map(state[name], "issue", `state/${name}`);
   for (const name of ["dispatches"])

@@ -311,6 +311,38 @@ test("typed review result binds coverage atomically; failed request clears in-fl
   assert.ok(next.actions.some((action) => action.kind === "request-review"));
 });
 
+for (const status of ["failed", "stopped", "completed"]) {
+  test(`a ${status} review retry gets a fresh stable idempotency key`, () => {
+    const snapshot = {
+      v: 3,
+      repo,
+      prs: [
+        {
+          number: 12,
+          state: "open",
+          isDraft: true,
+          headSha: "h1",
+          reviewDiffFingerprint: "patch-id:fp1",
+          changedFiles: 1,
+          checks: { state: "SUCCESS" },
+        },
+      ],
+    };
+    const state = { v: 3, repo };
+    const reviewAction = () =>
+      planTick({ snapshot, state }).actions.find((action) => action.kind === "request-review");
+    const first = reviewAction();
+    state.reviewRequestsByPr = {
+      12: { sessionId: "R1", status, headSha: "h1", reviewDiffFingerprint: "patch-id:fp1" },
+    };
+    const retry = reviewAction();
+    assert.notEqual(retry.idempotencyKey, first.idempotencyKey);
+    assert.equal(reviewAction().idempotencyKey, retry.idempotencyKey);
+    state.reviewRequestsByPr[12].sessionId = "R2";
+    assert.notEqual(reviewAction().idempotencyKey, retry.idempotencyKey);
+  });
+}
+
 test("derived evidence uses the v3 contract; delta review brief points to previous report", () => {
   const pr = {
     number: 12,

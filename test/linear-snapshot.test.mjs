@@ -3,12 +3,50 @@ import test from "node:test";
 
 import {
   extractLinearFootprint,
+  missingTicketSections,
   loadLinearSnapshot,
   linearIssueMatchesRoute,
   resolveLinearTeam,
   selectActiveLinearIssues,
   selectScopedLinearIssues,
 } from "../skills/ziw-orchestrate/scripts/linear-snapshot.mjs";
+
+test("ticket completeness accepts a title, nested detail and fenced checks without treating fenced headings as sections", () => {
+  const body = `# Ticket\n## Outcome\nFixed\n## In scope\nFix\n## Out of scope\nOther changes\n## Acceptance criteria\nWorks\n## Checks\n\`\`\`sh\npnpm test\n\`\`\`\n## Likely files\n### Backend\n- src/api.ts\n## Dependencies\nNone`;
+  assert.deepEqual(missingTicketSections(body), []);
+  assert.deepEqual(missingTicketSections(body.replace("## Outcome\nFixed", "## Outcome")), [
+    "outcome",
+  ]);
+  assert.deepEqual(
+    missingTicketSections(
+      body.replace("## Dependencies\nNone", "\`\`\`md\n## Dependencies\nNone\n\`\`\`"),
+    ),
+    ["dependencies"],
+  );
+});
+
+test("ticket completeness accepts bold section labels and ignores labels inside fences", () => {
+  const body = `**Outcome:** Fixed
+**In scope**
+Fix
+**Out of scope:** Other changes
+**Acceptance criteria:** Works
+**Checks:**
+\`\`\`sh
+pnpm test
+\`\`\`
+**Dependencies:** None
+**Likely files:**
+- src/api.ts`;
+  assert.deepEqual(missingTicketSections(body), []);
+  assert.deepEqual(extractLinearFootprint(body), ["src/api.ts"]);
+  assert.deepEqual(
+    missingTicketSections(
+      body.replace("**Dependencies:** None", "\`\`\`md\n**Dependencies:** None\n\`\`\`"),
+    ),
+    ["dependencies"],
+  );
+});
 
 test("extractLinearFootprint accepts current and legacy footprint headings", () => {
   assert.deepEqual(
@@ -682,7 +720,7 @@ test("referenced UUID lookup preserves aliases and risk metadata without expandi
   assert.deepEqual(output.candidateIssues, [{ issueKey: "SPL-1" }]);
   assert.deepEqual(
     output.issues.map((item) => item.issueKey),
-    ["SPL-1"],
+    ["SPL-1", "SPL-9"],
   );
   assert.deepEqual(output.activeIssues, []);
   assert.deepEqual(output.issueMetadata.at(-1), {
