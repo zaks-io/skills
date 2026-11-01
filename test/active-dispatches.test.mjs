@@ -325,8 +325,10 @@ test("historical terminal receipts cannot retire or contradict a current live ob
 test("worker observations protect delivery and coalesce with an explicit session receipt", () => {
   const result = reconcileActiveDelivery({
     state: {
-      workers: [worker("one", "MAIN-1", { footprint: ["src/worker"] })],
-      dispatches: [worker("one", "MAIN-1", { footprint: ["src/receipt"] })],
+      dispatches: [
+        worker("one", "MAIN-1", { footprint: ["src/receipt"] }),
+        worker("one", "MAIN-1", { footprint: ["src/worker"] }),
+      ],
     },
   });
   assert.equal(result.dispatches.length, 1);

@@ -1,4 +1,9 @@
 {
+  "repo": "zaks-io/skills",
+  "linearTeam": "SKI",
+  "linearRouteLabel": "zaks-io/skills",
+  "stateFile": ".ziw/state.json",
+  "branchPrefix": "codex/",
   "readyState": "Todo",
   "mergeAuthority": "human",
   "hostedReviewBots": ["coderabbitai"]

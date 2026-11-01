@@ -1,3 +1,4 @@
+import { currentFixture, migrateFixtureState } from "./helpers/planner-fixtures.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -9,6 +10,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const script = path.join(root, "skills", "ziw-orchestrate", "scripts", "tick-plan.mjs");
 
 function runPlan(input) {
+  input = currentFixture(input);
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-plan-"));
   const file = path.join(dir, "input.json");
   writeFileSync(file, JSON.stringify(input), "utf8");
@@ -16,6 +18,7 @@ function runPlan(input) {
 }
 
 function runCompactPlan(input) {
+  input = currentFixture(input);
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-compact-plan-"));
   const file = path.join(dir, "input.json");
   writeFileSync(file, JSON.stringify(input), "utf8");
@@ -332,7 +335,7 @@ test("tick-plan does not repeat a review request for an equivalent diff", () => 
   ]);
 });
 
-test("tick-plan never routes a conformance gap into another code review", () => {
+test("tick-plan uses the independent verdict without a second conformance gate", () => {
   const output = runCompactPlan({
     snapshot: {
       repo: "zaks-io/mainstay",
@@ -360,9 +363,9 @@ test("tick-plan never routes a conformance gap into another code review", () => 
   assert.deepEqual(output.actions, [
     {
       target: "pr:243",
-      kind: "verify-conformance",
+      kind: "arm-auto-merge",
       owner: "orchestrator",
-      reason: "CONFORMANCE_REQUIRED",
+      reason: "MERGE_READY",
     },
   ]);
 });
@@ -448,7 +451,7 @@ test("published tick-plan is self-contained", () => {
     const publishedSkill = path.join(dir, "ziw-orchestrate");
     cpSync(path.join(root, "skills", "ziw-orchestrate"), publishedSkill, { recursive: true });
     const input = path.join(dir, "input.json");
-    writeFileSync(input, JSON.stringify({ snapshot: { repo: "zaks-io/example", prs: [] } }));
+    writeFileSync(input, JSON.stringify({ snapshot: { v: 3, repo: "zaks-io/example", prs: [] } }));
 
     const output = JSON.parse(
       execFileSync("node", [path.join(publishedSkill, "scripts", "tick-plan.mjs"), input], {
@@ -802,7 +805,7 @@ test("tick-plan dispatches Linear DAG starts with snapshot-derived footprints", 
 
 test("tick-plan uses the configured in-progress state before dispatch", () => {
   const output = runPlan({
-    snapshot: { repo: "zaks-io/example", prs: [] },
+    snapshot: { v: 3, repo: "zaks-io/example", prs: [] },
     config: { workerConcurrencyCap: 1, inProgressState: "Started" },
     state: {
       startableTickets: [{ id: "ZAK-1", footprint: ["src/a.ts"] }],
@@ -1243,15 +1246,16 @@ function reviewedPrInput(evidence, reviewRequest, config = { mergeAuthority: "ag
 test("tick-plan routes current review findings to the worker instead of re-reviewing", () => {
   const completed = { reviewDiffFingerprint: "fp1", status: "completed" };
   const cases = [
-    { reviewVerdict: "NEEDS REVISION", blockingFindings: true, conformance: "FAIL" },
     { reviewVerdict: "NEEDS REVISION", blockingFindings: true },
-    { hasReviewEvidence: true, reviewVerdict: "Ready to Merge", conformance: "FAIL" },
     { hasReviewEvidence: true, reviewVerdict: "NEEDS REVISION" },
     { reviewVerdict: "DO NOT MERGE" },
   ];
   for (const evidence of cases) {
     const output = runCompactPlan(
-      reviewedPrInput({ reviewedDiffFingerprint: "fp1", ...evidence }, completed),
+      reviewedPrInput(
+        { reviewedHeadSha: "h1", reviewedDiffFingerprint: "fp1", ...evidence },
+        completed,
+      ),
     );
     const kinds = output.actions.map((action) => action.kind);
     assert.ok(kinds.includes("route-fix"), JSON.stringify(output.actions));
@@ -1284,24 +1288,6 @@ test("tick-plan never arms auto-merge without configured merge authority", () =>
     const human = output.actions.find((action) => action.kind === "route-human-merge");
     assert.equal(human?.reason, "MERGE_AUTHORITY_MISSING");
   }
-});
-
-test("tick-plan verifies a conformance FAIL recorded for an older head", () => {
-  const output = runCompactPlan(
-    reviewedPrInput(
-      {
-        hasReviewEvidence: true,
-        reviewedDiffFingerprint: "fp1",
-        reviewVerdict: "Ready to Merge",
-        conformance: "FAIL",
-        conformanceHeadSha: "h0",
-      },
-      { reviewDiffFingerprint: "fp1", status: "completed" },
-    ),
-  );
-  const kinds = output.actions.map((action) => action.kind);
-  assert.ok(kinds.includes("verify-conformance"), JSON.stringify(output.actions));
-  assert.ok(!kinds.includes("route-fix"));
 });
 
 function reviewLifecycleInput(pr = {}, config = {}, state = {}) {

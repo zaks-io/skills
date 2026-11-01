@@ -53,3 +53,27 @@ original rewrite measurements.
 The entrypoint replaces manual receipt and review JSON instructions with a
 validated state recorder. The additional reference supplies the recording
 contract and one complete example; routine ticks do not reload it.
+
+## Single-command orchestration, 2026-10-31
+
+Measured against `beb146d`, including frontmatter and Markdown with `wc -w`.
+
+| Instructions                                 | Before | After |
+| -------------------------------------------- | -----: | ----: |
+| Orchestrate entrypoint                       |    988 |   944 |
+| State recording and recovery example         |    653 |   741 |
+| Setup entrypoint                             |    255 |   269 |
+| Config template                              |    312 |   361 |
+| Orchestrate plus workflow contract           |  1,533 | 1,489 |
+| First use or recovery, including the example |  2,186 | 2,230 |
+| All published Markdown                       |  7,781 | 7,883 |
+
+One tick command replaces the collection and planning pipeline. Actions carry
+worker and review briefs plus typed recording commands. The reference retains
+runtime identity and replay semantics; the entrypoint drops conformance handling
+because the independent review verdict now carries it.
+
+Generated validators ship to every install and are unformatted Ajv output:
+`planner-input-validator.mjs` drops from 2,055,557 to 634,909 bytes, and the
+migration-only `state-migration-validator.mjs` adds 953,511 bytes until
+migration is retired.

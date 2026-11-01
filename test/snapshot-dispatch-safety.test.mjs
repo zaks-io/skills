@@ -46,7 +46,7 @@ function plan(linear, state = {}, prs = []) {
       JSON.stringify({
         snapshot: { v: 3, repo: routeLabel, prs, linear },
         config: { workerConcurrencyCap: 3, mergeAuthority: "agent", hostedReviewRiskTiers: [] },
-        state,
+        state: { v: 3, repo: routeLabel, ...state },
       }),
     );
     return JSON.parse(execFileSync("node", [planner, file, "--debug"], { encoding: "utf8" }));
@@ -59,7 +59,13 @@ function frontier(linear, state = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-frontier-safety-"));
   try {
     const file = path.join(dir, "input.json");
-    writeFileSync(file, JSON.stringify({ snapshot: { v: 3, repo: routeLabel, linear }, state }));
+    writeFileSync(
+      file,
+      JSON.stringify({
+        snapshot: { v: 3, repo: routeLabel, linear },
+        state: { v: 3, repo: routeLabel, ...state },
+      }),
+    );
     return JSON.parse(
       execFileSync(
         process.execPath,

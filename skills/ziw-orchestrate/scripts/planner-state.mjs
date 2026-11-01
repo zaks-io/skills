@@ -1,114 +1,102 @@
 #!/usr/bin/env node
-import { randomUUID } from "node:crypto";
-import {
-  closeSync,
-  fsyncSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  realpathSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { parseArgs } from "node:util";
-import { validateState } from "./planner-input-validator.mjs";
-import { adaptExternalPlannerState } from "./legacy-planner-input.mjs";
-import { applyObservations, validatePlannerState } from "./state-observations.mjs";
+import { isMain, parseCli, runCli } from "./cli.mjs";
+import { applyObservations } from "./state-observations.mjs";
+import { assertStateVersion, updateStateFile, validateBoundState } from "./state-file.mjs";
+import { convertState } from "./state-migration.mjs";
+import { commandObservation } from "./state-commands.mjs";
 
-const usage =
-  "Usage: node planner-state.mjs --state <file> --repo <owner/repo> [--record <observations.json|->]";
-
-function readJson(file, label) {
-  let source;
-  try {
-    source = readFileSync(file === "-" ? 0 : file, "utf8");
-  } catch {
-    throw new Error(`${label}: cannot read input`);
-  }
-  try {
-    return JSON.parse(source);
-  } catch {
-    throw new Error(`${label}: invalid JSON`);
-  }
+const usage = `Usage: node planner-state.mjs <init|record|worker|review-request|review-result|migrate> --repo <owner/repo> --state <file>
+  record <observations.json|->
+  worker [--issue K] [--branch B] [--footprint F ...] [--session S] [--receipt R] [--run W] --status running|returned|failed|stopped [--pr N]
+  review-request --pr N [--session S] [--receipt R] [--head H --fingerprint F] [--status running|failed|stopped]
+  review-result --pr N [--session S] [--receipt R] --verdict APPROVE|"NEEDS REVISION" --count N
+  migrate [--dry-run]`;
+export function loadPlannerState({ file, repo }) {
+  return updateStateFile({ file, repo, initializeOnly: true, transform: (state) => state }).state;
 }
-
-export function recordPlannerState({ file, repo, observation = {} }) {
-  if (!file?.trim() || file === "-") throw new Error("state needs a file path");
-  if (!/^[^\s/]+\/[^\s/]+$/.test(repo ?? "")) throw new Error("repo must be owner/repo");
-  const directory = path.dirname(path.resolve(file));
-  mkdirSync(directory, { recursive: true });
-  const target = path.join(realpathSync(directory), path.basename(file));
-  const lock = `${target}.lock`;
-  let lockFd;
-  try {
-    lockFd = openSync(lock, "wx", 0o600);
-  } catch {
-    throw new Error("cannot lock state; check its writer before retrying");
-  }
-  const temporary = `${target}.${randomUUID()}.tmp`;
-  try {
-    let exists = true;
-    try {
-      if (!lstatSync(target).isFile()) throw new Error("state must be a regular file");
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-      exists = false;
-    }
-    let state = exists ? readJson(target, "state") : {};
-    try {
-      validatePlannerState(state);
-    } catch {
-      if (!validateState(state)) throw new Error("invalid saved state; no changes written");
-      state = adaptExternalPlannerState(state, { forPersistence: true }).state;
-      validatePlannerState(state);
-    }
-    if (state.repo != null && state.repo !== repo) throw new Error("state belongs to another repo");
-    const next = applyObservations({ ...state, repo }, observation);
-    const fd = openSync(temporary, "wx", 0o600);
-    try {
-      writeFileSync(fd, `${JSON.stringify(next, null, 2)}\n`);
-      fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
-    renameSync(temporary, target);
-    return next;
-  } finally {
-    rmSync(temporary, { force: true });
-    closeSync(lockFd);
-    rmSync(lock);
-  }
+export function recordPlannerState({ file, repo, observation = {}, buildObservation }) {
+  return updateStateFile({
+    file,
+    repo,
+    transform: (state) => {
+      validateBoundState(state, repo, file);
+      return applyObservations(state, buildObservation ? buildObservation(state) : observation);
+    },
+  }).state;
 }
-
-export function main(args) {
-  const { values } = parseArgs({
-    args,
-    options: {
-      state: { type: "string" },
-      repo: { type: "string" },
-      record: { type: "string" },
-      help: { type: "boolean" },
+export function migratePlannerState({ file, repo, dryRun = false }) {
+  return updateStateFile({
+    file,
+    repo,
+    dryRun,
+    backup: true,
+    requireExisting: true,
+    transform: (state) => {
+      if (state.v === 3) return validateBoundState(state, repo, file);
+      if (state.v > 3) assertStateVersion(state, file, repo);
+      if (state.v != null && ![1, 2].includes(state.v))
+        throw new Error("unsupported state version");
+      return convertState({ ...state, repo: state.repo ?? repo });
     },
   });
-  if (values.help) {
-    console.log(usage);
+}
+export function main(args) {
+  const parsed = parseCli(args, {
+    usage,
+    allowPositionals: true,
+    options: {
+      ...Object.fromEntries(
+        [
+          "state",
+          "repo",
+          "issue",
+          "branch",
+          "session",
+          "receipt",
+          "run",
+          "status",
+          "pr",
+          "head",
+          "fingerprint",
+          "verdict",
+          "count",
+        ].map((name) => [name, { type: "string" }]),
+      ),
+      footprint: { type: "string", multiple: true },
+      "dry-run": { type: "boolean" },
+    },
+  });
+  if (!parsed) return;
+  const {
+    values,
+    positionals: [command, ...positionals],
+  } = parsed;
+  if (!values.state || !values.repo) throw new Error(`--state and --repo are required\n${usage}`);
+  if (command === "migrate") {
+    const result = migratePlannerState({
+      file: values.state,
+      repo: values.repo,
+      dryRun: values["dry-run"],
+    });
+    console.log(
+      result.alreadyV3
+        ? "already v3"
+        : values["dry-run"]
+          ? JSON.stringify(result.state, null, 2)
+          : "Planner state migrated to v3.",
+    );
     return;
   }
-  if (!values.state || !values.repo) throw new Error(usage);
-  const observation = values.record === undefined ? {} : readJson(values.record, "observation");
-  recordPlannerState({ file: values.state, repo: values.repo, observation });
+  if (!["init", "record", "worker", "review-request", "review-result"].includes(command))
+    throw new Error(`unknown command: ${command ?? "(missing)"}\n${usage}`);
+  if (values["dry-run"]) throw new Error("--dry-run is only supported by migrate");
+  if (command !== "record" && positionals.length)
+    throw new Error(`unexpected positional: ${positionals[0]}\n${usage}`);
+  recordPlannerState({
+    file: values.state,
+    repo: values.repo,
+    buildObservation: (state) => commandObservation(command, values, positionals, state),
+  });
   console.log("Planner state saved.");
 }
-
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  try {
-    main(process.argv.slice(2));
-  } catch (error) {
-    console.error(`planner-state: ${error.message}`);
-    process.exitCode = 1;
-  }
-}
+if (isMain(import.meta.url)) await runCli("planner-state", () => main(process.argv.slice(2)));

@@ -8,18 +8,31 @@ import test from "node:test";
 const root = path.resolve(import.meta.dirname, "..");
 const skill = path.join(root, "skills/ziw-orchestrate");
 const script = path.join(skill, "scripts/tick-plan.mjs");
-const snapshot = { repo: "zaks-io/example", prs: [], linear: { issues: [] } };
+const snapshot = { v: 3, repo: "zaks-io/example", prs: [], linear: { issues: [] } };
 
 function run(t, input, { config, state, args = [], command = script, raw = false } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-input-contract-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "input.json");
+  if (!raw && input && !Array.isArray(input) && typeof input === "object") {
+    input = structuredClone(input);
+    for (const name of ["state", "queue"])
+      if (input[name] && !Array.isArray(input[name]) && typeof input[name] === "object")
+        input[name] = { v: 3, repo: snapshot.repo, ...input[name] };
+  }
   writeFileSync(file, raw ? input : JSON.stringify(input));
   const flags = [];
   for (const [name, value] of Object.entries({ config, state })) {
     if (value === undefined) continue;
     const override = path.join(dir, `${name}.json`);
-    writeFileSync(override, JSON.stringify(value));
+    writeFileSync(
+      override,
+      JSON.stringify(
+        name === "state" && value && typeof value === "object" && !Array.isArray(value)
+          ? { v: 3, repo: snapshot.repo, ...value }
+          : value,
+      ),
+    );
     flags.push(`--${name}`, override);
   }
   return spawnSync(process.execPath, [command, file, ...flags, ...args], { encoding: "utf8" });
@@ -34,10 +47,10 @@ function rejected(result, field) {
 for (const [name, input, field] of [
   ["null input", null, /input: must be object/],
   ["array input", [], /input: must be object/],
-  ["missing repository", {}, /missing repo identity/],
+  ["missing repository", { v: 3 }, /missing repo identity|repo/],
   ["unknown envelope field", { snapshot, configs: {} }, /input\/configs/],
   ["null config", { snapshot, config: null }, /input\/config/],
-  ["array state", { snapshot, state: [] }, /input\/state/],
+  ["array state", { snapshot, state: [] }, /input\/state|retired format/],
   ["policy typo", { snapshot, config: { workerConcurencyCap: 2 } }, /workerConcurencyCap/],
   [
     "string boolean",
@@ -128,7 +141,7 @@ for (const [name, input, field] of [
 
 test("planner validates each override and cannot hide invalid input behind precedence", (t) => {
   rejected(run(t, snapshot, { config: false }), /--config: must be object/);
-  rejected(run(t, snapshot, { state: "invalid" }), /--state: must be object/);
+  rejected(run(t, snapshot, { state: "invalid" }), /retired format|must be object/);
   rejected(
     run(
       t,
@@ -149,40 +162,6 @@ test("planner validates each override and cannot hide invalid input behind prece
   );
 });
 
-test("legacy PR metadata cannot replace an explicit or URL-derived PR number", (t) => {
-  const identities = {
-    url: "https://github.com/zaks-io/example/pull/1",
-    headSha: "current-head",
-    headRefName: "feature/example",
-    headRefOid: "current-head",
-    currentPrHeadSha: "current-head",
-  };
-  for (const [field, validValue] of Object.entries(identities)) {
-    const fixture = { [field]: validValue };
-    const valid = run(t, { ...snapshot, prs: [fixture] });
-    if (field === "url") assert.equal(valid.status, 0, `${field}: ${valid.stderr}`);
-    else rejected(valid, /prs\/0.*missing PR number/);
-    const numbered = run(t, { ...snapshot, prs: [{ number: 1, ...fixture }] });
-    assert.equal(numbered.status, 0, `${field}: ${numbered.stderr}`);
-    for (const value of [null, "", "   "]) {
-      rejected(run(t, { ...snapshot, prs: [{ ...fixture, [field]: value }] }), /prs\/0/);
-    }
-    const nullable = run(t, { ...snapshot, prs: [{ number: 1, [field]: null }] });
-    assert.equal(nullable.status, 0, `${field}: ${nullable.stderr}`);
-  }
-  const ticket = { url: "https://linear.app/example/issue/SKI-1" };
-  const validTicket = run(t, { snapshot, state: { tickets: [ticket] } });
-  assert.equal(validTicket.status, 0, validTicket.stderr);
-  for (const url of [null, "", "   "]) {
-    rejected(run(t, { snapshot, state: { tickets: [{ ...ticket, url }] } }), /tickets\/0/);
-  }
-  const nullableTicket = run(t, {
-    snapshot,
-    state: { tickets: [{ identifier: "SKI-1", url: null }] },
-  });
-  assert.equal(nullableTicket.status, 0, nullableTicket.stderr);
-});
-
 test("planner preserves documented override precedence and does not coerce values", (t) => {
   const input = {
     snapshot,
@@ -192,130 +171,13 @@ test("planner preserves documented override precedence and does not coerce value
   };
   const result = run(t, input, {
     config: { workerConcurrencyCap: 2 },
-    state: { startableTickets: [{ id: "SKI-1", footprint: ["src"] }] },
+    state: { startableTickets: [{ issueKey: "SKI-1", footprint: ["src"] }] },
   });
   assert.equal(result.status, 0, result.stderr);
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.capacity.cap, 2);
   assert.equal(plan.actions[0].kind, "dispatch");
   assert.equal(plan.actions[0].target, "ticket:SKI-1");
-});
-
-test("v3 snapshots accept external legacy PR evidence maps using URL, head, branch, and opaque PR aliases", (t) => {
-  const pr = {
-    number: 12,
-    riskTier: "low",
-    url: "https://github.com/zaks-io/example/pull/12",
-    headSha: "current-head",
-    headRefName: "feature/example",
-    reviewDiffFingerprint: "same-diff",
-    state: "open",
-    isDraft: false,
-    checks: { state: "SUCCESS" },
-  };
-  for (const alias of [pr.url, pr.headSha, pr.headRefName, "legacy-pr-node-12"]) {
-    const state = {
-      pullRequests: [{ ...pr, id: "legacy-pr-node-12" }],
-      reviewEvidenceByPr: {
-        [alias]: {
-          hasReviewEvidence: true,
-          reviewVerdict: "Approved",
-          independentReviewCount: 1,
-          reviewedHeadSha: pr.headSha,
-          reviewedDiffFingerprint: pr.reviewDiffFingerprint,
-        },
-      },
-    };
-    const observations = [2, 3].map((version) => {
-      const result = run(
-        t,
-        {
-          snapshot: { ...snapshot, v: version, prs: [pr] },
-          config: { mergeAuthority: "agent", requireConformanceEvidence: false },
-        },
-        { state },
-      );
-      assert.equal(result.status, 0, `${alias}, v${version}: ${result.stderr}`);
-      const plan = JSON.parse(result.stdout);
-      assert.ok(
-        plan.actions.some(
-          (action) => action.target === "pr:12" && action.kind === "arm-auto-merge",
-        ),
-      );
-      return {
-        actions: plan.actions,
-        waits: plan.waits,
-        holds: plan.holds,
-        capacity: plan.capacity,
-        wake: plan.wake,
-      };
-    });
-    assert.deepEqual(observations[0], observations[1], alias);
-  }
-});
-
-test("duplicate PR observations cannot resolve an ambiguous legacy branch alias by input order", (t) => {
-  const first = { number: 12, headRefName: "feature/shared", headSha: "first-head" };
-  const second = { number: 13, headRefName: "feature/shared", headSha: "second-head" };
-  for (const prs of [
-    [first, second, first],
-    [first, first, second],
-    [second, first, first],
-  ]) {
-    rejected(
-      run(
-        t,
-        { snapshot: { ...snapshot, v: 3, prs } },
-        {
-          state: { reviewEvidenceByPr: { "feature/shared": { reviewVerdict: "Approved" } } },
-        },
-      ),
-      /reviewEvidenceByPr.*ambiguous/,
-    );
-  }
-});
-
-test("legacy review-evidence PR targets parse numbers and URLs without emitting NaN", (t) => {
-  for (const target of [12, "12", "https://github.com/zaks-io/example/pull/12"]) {
-    const result = run(t, {
-      snapshot,
-      state: {
-        reviewEvidenceChecks: [{ pr: target, hasReviewEvidence: true, blockingFindings: true }],
-      },
-    });
-    assert.equal(result.status, 0, result.stderr);
-    const plan = JSON.parse(result.stdout);
-    assert.ok(
-      plan.actions.some(
-        (action) => action.target === "pr:12" && action.kind === "clear-review-evidence",
-      ),
-    );
-    assert.equal(result.stdout.includes("NaN"), false);
-  }
-  for (const target of ["PR_node_identifier", "https://github.com/zaks-io/example/issues/12"]) {
-    rejected(
-      run(t, {
-        snapshot,
-        state: {
-          reviewEvidenceChecks: [{ pr: target, hasReviewEvidence: true, blockingFindings: true }],
-        },
-      }),
-      /reviewEvidenceChecks\/0.*(?:PR|pr)/,
-    );
-  }
-});
-
-test("an unrelated legacy preview override cannot relax inline canonical worker lifecycle validation", (t) => {
-  const input = {
-    snapshot: { ...snapshot, v: 3 },
-    state: { dispatches: [{ sessionId: "inline-session", state: "running", returned: true }] },
-  };
-  const state = { previews: [{ id: "legacy-preview", state: "active" }] };
-  for (const args of [[], ["--debug"]])
-    rejected(
-      run(t, input, { state, args }),
-      /state\/dispatches\/0.*contradictory worker lifecycle/,
-    );
 });
 
 for (const field of ["reviewDiffByPr", "continuationByPr"]) {
@@ -342,7 +204,7 @@ for (const field of ["reviewDiffByPr", "continuationByPr"]) {
 
 test("planner rejects missing and unknown CLI options and empty input", (t) => {
   for (const args of [["--config"], ["--state"], ["--confg", "file.json"], ["--config="]]) {
-    rejected(run(t, snapshot, { args }), /invalid arguments|expected a file path/);
+    rejected(run(t, snapshot, { args }), /Unknown option|argument|nonempty|expected a file path/);
   }
   rejected(run(t, "", { raw: true }), /invalid JSON/);
 });
@@ -422,7 +284,11 @@ test("v3 input separates tracker, worker, PR, and worktree identities", async ()
       },
     },
     state: {
-      workers: [{ sessionId: uuid, receiptId: "receipt-1", issueKey: "SKI-1", state: "running" }],
+      v: 3,
+      repo: snapshot.repo,
+      dispatches: [
+        { sessionId: uuid, receiptId: "receipt-1", issueKey: "SKI-1", state: "running" },
+      ],
       previews: [{ previewId: "preview-1", prNumber: 1 }],
       startableTickets: [{ issueUuid: uuid, footprint: ["src"] }],
       scopeIssues: [{ issueKey: "SKI-1" }],
@@ -453,13 +319,13 @@ test("v3 input separates tracker, worker, PR, and worktree identities", async ()
     [
       "legacy worker ID",
       (input) => {
-        input.state.workers[0].id = "receipt-1";
+        input.state.dispatches[0].id = "receipt-1";
       },
     ],
     [
       "generic issue ID",
       (input) => {
-        input.state.workers[0].issueId = uuid;
+        input.state.dispatches[0].issueId = uuid;
       },
     ],
     [
@@ -495,8 +361,8 @@ test("v3 input separates tracker, worker, PR, and worktree identities", async ()
     [
       "worker lacks session or receipt",
       (input) => {
-        delete input.state.workers[0].sessionId;
-        delete input.state.workers[0].receiptId;
+        delete input.state.dispatches[0].sessionId;
+        delete input.state.dispatches[0].receiptId;
       },
     ],
     [

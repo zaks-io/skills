@@ -27,7 +27,8 @@ Repo path, any existing config, and what to set up or refresh.
      repo docs. Verify how saved session or receipt IDs retrieve current results.
    - Merge authority, deploys, and the complaint tool from repo docs or the user.
 3. Leave a field out when you can't verify it, and list it as a gap.
-4. Write both files. Keep `planner.json` consistent with the config.
+4. Write both files. Set the planner repo, Linear team and route, state path,
+   and branch prefix from the config. Keep the files consistent.
 5. Make sure `AGENTS.md`, or the repo's agent instructions file, points to
    the config.
 

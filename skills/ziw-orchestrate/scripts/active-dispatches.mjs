@@ -113,21 +113,10 @@ export function reconcileActiveDelivery({
     } while (found >= 0);
     workerGroups.push({ item: merged, sessions, receipts, observations });
   };
-  const records = [
-    ...toArray(state.dispatches).map((item) => ({ ...item, source: item.source ?? "ledger" })),
-    ...toArray(state.ledgerDispatches).map((item) => ({
-      ...item,
-      source: item.source ?? "ledger",
-    })),
-    ...toArray(state.workers).map((item) => ({
-      ...item,
-      source: item.source ?? "worker-observation",
-    })),
-    ...toArray(state.activeWork).map((item) => ({
-      ...item,
-      source: item.source ?? "local-active-work",
-    })),
-  ];
+  const records = toArray(state.dispatches).map((item) => ({
+    ...item,
+    source: item.source ?? "ledger",
+  }));
   for (const item of records) {
     transferPrFootprint(item);
     if (!isLiveDispatch(item)) continue;

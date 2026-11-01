@@ -1,2 +1,4 @@
 node_modules/
 pnpm-lock.yaml
+skills/ziw-orchestrate/scripts/planner-input-validator.mjs
+skills/ziw-orchestrate/scripts/state-migration-validator.mjs

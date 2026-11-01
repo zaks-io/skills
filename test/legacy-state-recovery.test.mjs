@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { validateCanonicalState } from "../skills/ziw-orchestrate/scripts/planner-input-validator.mjs";
+import { validateState } from "../skills/ziw-orchestrate/scripts/planner-input-validator.mjs";
 
 const scripts = path.resolve("skills/ziw-orchestrate/scripts");
 const repo = "example/app";
@@ -51,11 +51,11 @@ function fixture(t, state) {
       process.execPath,
       [
         path.join(scripts, "planner-state.mjs"),
+        ...(observation ? ["record", "-"] : ["migrate"]),
         "--repo",
         repo,
         "--state",
         file,
-        ...(observation ? ["--record", "-"] : []),
       ],
       { encoding: "utf8", input: observation ? JSON.stringify(observation) : undefined },
     );
@@ -76,9 +76,9 @@ test("the recorder accepts a PR identified only by a legacy ID", (t) => {
   const { record, read } = fixture(t, {
     pullRequests: [{ id: "PR-42", sessionId: null }],
   });
-  const result = record({ scopeIssues: null });
+  const result = record();
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(validateCanonicalState(read()), true);
+  assert.equal(validateState(read()), true);
   assert.equal(read().pullRequests[0].number, 42);
 });
 
@@ -101,11 +101,13 @@ for (const alias of [pr.id, pr.url, pr.headSha, pr.headRefName]) {
       reviewEvidence: { 99: otherEvidence },
       hostedReviewByPr: { [alias]: hosted },
     });
-    const before = plan();
     const initialized = record();
     assert.equal(initialized.status, 0, initialized.stderr);
+    const before = plan();
+    const second = record();
+    assert.equal(second.status, 0, second.stderr);
     const saved = read();
-    assert.equal(validateCanonicalState(saved), true);
+    assert.equal(validateState(saved), true);
     assert.deepEqual(
       saved.pullRequests.map((item) => item.number),
       [42, 99],
@@ -137,7 +139,7 @@ for (const [name, state, error] of [
       pullRequests: [{ ...pr, id: "123", prNumber: 42 }],
       reviewEvidenceByPr: { 123: evidence },
     },
-    /unknown or ambiguous/,
+    /state\/pullRequests\/0\/id: conflicting PR identity/,
   ],
   [
     "numeric alias colliding with a PR number",
@@ -145,7 +147,7 @@ for (const [name, state, error] of [
       pullRequests: [{ ...pr, id: "123", prNumber: 42 }, { number: 123 }],
       reviewEvidenceByPr: { 123: evidence },
     },
-    /unknown or ambiguous/,
+    /state\/pullRequests\/0\/id: conflicting PR identity/,
   ],
   ...["9007199254740993", "100000000000000000000000"].map((key) => [
     `unsafe numeric key ${key}`,

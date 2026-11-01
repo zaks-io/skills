@@ -1,6 +1,4 @@
-import { validateCanonicalState } from "./planner-input-validator.mjs";
-import { normalizePrMaps } from "./review-observations.mjs";
-
+// Historical conversion runs only after the frozen classifier selects legacy semantics.
 const array = (value) => (value == null ? [] : Array.isArray(value) ? value : [value]);
 const text = (value) => String(value ?? "").trim();
 const ticketKey = (value) => /^[A-Z][A-Z0-9]*-\d+$/i.test(text(value));
@@ -29,19 +27,6 @@ const linkedKey = (value) =>
   text(value).match(
     /^https:\/\/linear\.app\/[^/]+\/issue\/([A-Z][A-Z0-9]*-\d+)(?:[^a-z0-9]|$)/i,
   )?.[1];
-
-const legacyPrNumber = (value, path) => {
-  const match =
-    text(value).match(/^([1-9]\d*)$/) ??
-    text(value).match(/^PR-([1-9]\d*)$/i) ??
-    text(value).match(/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/([1-9]\d*)(?:$|[/?#])/);
-  const number = match ? Number(match[1]) : NaN;
-  if (!Number.isSafeInteger(number) || number < 1)
-    throw new Error(
-      `${path}: unresolved legacy PR target; supply PR number or exact GitHub PR URL`,
-    );
-  return number;
-};
 
 export function legacyIssueReference(record, path, { tracker = false } = {}) {
   if (typeof record === "string" || typeof record === "number") record = { identifier: record };
@@ -79,6 +64,17 @@ const footprint = (record) => [
 ];
 
 export function convertLegacyRecord(record, kind, path) {
+  const consistent = (names, normalize = text) => {
+    const supplied = names.filter((name) => record[name] != null);
+    const conflict = supplied.find(
+      (name) => normalize(record[name]) !== normalize(record[supplied[0]]),
+    );
+    if (conflict) throw new Error(`${path}/${conflict}: conflicting ${names[0]} aliases`);
+  };
+  if (["issue", "startable", "worker"].includes(kind))
+    consistent(["sessionId", "session", "workerSession", "agentSession"]);
+  if (["worker", "preview"].includes(kind)) consistent(["prNumber", "prId"], Number);
+  if (kind === "pr") consistent(["number", "prNumber", "prId"], Number);
   const output = { ...retain(record), footprint: footprint(record) };
   if (kind === "issue" || kind === "startable") {
     Object.assign(output, legacyIssueReference(record, path, { tracker: true }));
@@ -121,7 +117,11 @@ export function convertLegacyRecord(record, kind, path) {
         )
       )
         output.returned = true;
-      if (record.id != null) output.receiptId = text(record.id);
+      if (record.id != null) {
+        if (record.receiptId != null && text(record.id) !== record.receiptId)
+          throw new Error(`${path}/id: conflicts with receiptId`);
+        output.receiptId = text(record.id);
+      }
       const session =
         record.sessionId ?? record.session ?? record.workerSession ?? record.agentSession;
       if (session) output.sessionId = text(session);
@@ -162,97 +162,4 @@ export function convertLegacyRecord(record, kind, path) {
     }
   }
   return output;
-}
-
-export function adaptLegacyPlannerInput(snapshot = {}, state = {}) {
-  const convert = (records, kind, path) =>
-    array(records).map((record, index) => convertLegacyRecord(record, kind, `${path}/${index}`));
-  const linear = snapshot.linear ?? {};
-  const normalizedLinear = { ...linear };
-  for (const name of ["issues", "activeIssues", "issueMetadata"])
-    if (linear[name] != null)
-      normalizedLinear[name] = convert(linear[name], "issue", `snapshot/linear/${name}`);
-  if (linear.candidateIssueIds != null)
-    normalizedLinear.candidateIssues = linear.candidateIssueIds.map((id, index) =>
-      legacyIssueReference(id, `snapshot/linear/candidateIssueIds/${index}`),
-    );
-  delete normalizedLinear.candidateIssueIds;
-  const normalizedState = { ...state };
-  for (const name of ["tickets", "linearIssues", "activeLinearIssues"])
-    if (state[name] != null) normalizedState[name] = convert(state[name], "issue", `state/${name}`);
-  if (state.startableTickets != null)
-    normalizedState.startableTickets = convert(
-      state.startableTickets,
-      "startable",
-      "state/startableTickets",
-    );
-  for (const name of ["dispatches", "ledgerDispatches", "activeWork", "workers"])
-    if (state[name] != null)
-      normalizedState[name] = convert(state[name], "worker", `state/${name}`);
-  for (const [name, kind] of [
-    ["pullRequests", "pr"],
-    ["worktrees", "worktree"],
-    ["previews", "preview"],
-  ])
-    if (state[name] != null) normalizedState[name] = convert(state[name], kind, `state/${name}`);
-  if (state.scopeIssueIds != null)
-    normalizedState.scopeIssues = state.scopeIssueIds.map((id, index) =>
-      legacyIssueReference(id, `state/scopeIssueIds/${index}`),
-    );
-  delete normalizedState.scopeIssueIds;
-  if (state.reviewEvidenceChecks != null)
-    normalizedState.reviewEvidenceChecks = state.reviewEvidenceChecks.map((record, index) => {
-      const { pr: _pr, ...evidence } = retain(record);
-      return {
-        ...evidence,
-        ...(record.ticket != null
-          ? legacyIssueReference(record.ticket, `state/reviewEvidenceChecks/${index}/ticket`)
-          : {}),
-        ...(record.pr != null
-          ? { prNumber: legacyPrNumber(record.pr, `state/reviewEvidenceChecks/${index}/pr`) }
-          : {}),
-      };
-    });
-  return {
-    snapshot: {
-      ...snapshot,
-      linear: normalizedLinear,
-      prs: convert(snapshot.prs, "pr", "snapshot/prs"),
-      worktrees: convert(snapshot.worktrees, "worktree", "snapshot/worktrees"),
-    },
-    state: normalizedState,
-  };
-}
-
-export function adaptExternalPlannerState(state, { forPersistence = false } = {}) {
-  const canonical = {};
-  const legacy = {};
-  const legacyWorkerPaths = [];
-  for (const [name, original] of Object.entries(state)) {
-    const value =
-      name === "pullRequests"
-        ? original.map(({ sessionId, ...pr }) => (text(sessionId) ? { ...pr, sessionId } : pr))
-        : original;
-    if (validateCanonicalState({ [name]: value })) {
-      canonical[name] = value;
-    } else if (["dispatches", "ledgerDispatches", "activeWork", "workers"].includes(name)) {
-      canonical[name] = value.map((record, index) => {
-        if (validateCanonicalState({ [name]: [record] })) return record;
-        const path = `state/${name}/${index}`;
-        legacyWorkerPaths.push(path);
-        return convertLegacyRecord(record, "worker", path);
-      });
-    } else {
-      legacy[name] = value;
-    }
-  }
-  let adapted = { ...adaptLegacyPlannerInput({}, legacy).state, ...canonical };
-  if (forPersistence) {
-    adapted = normalizePrMaps(adapted, array(adapted.pullRequests), true, new Set());
-    if (adapted.pullRequests)
-      adapted.pullRequests = adapted.pullRequests.map(
-        ({ legacyPrAliases, sessionId, receiptId, prNumber, ...pr }) => pr,
-      );
-  }
-  return { state: adapted, legacyWorkerPaths };
 }

@@ -125,14 +125,14 @@ test("worker and PR associations cannot create tracker UUID aliases", () => {
       prs: [{ number: 22, issueKey: "ZAK-12", issueUuid: uuid }],
     },
     state: {
-      workers: [
+      dispatches: [
         { sessionId: "first", issueKey: "ZAK-12", issueUuid: uuid },
         { sessionId: "second", issueUuid: uuid },
       ],
     },
   });
-  assert.equal(model.state.workers[0].issueRef, "ZAK-12");
-  assert.equal(model.state.workers[1].issueRef, uuid);
+  assert.equal(model.state.dispatches[0].issueRef, "ZAK-12");
+  assert.equal(model.state.dispatches[1].issueRef, uuid);
   assert.equal(model.snapshot.prs[0].issueRef, "ZAK-12");
   assert.ok(model.diagnostics.some((entry) => entry.code === "ISSUE_ALIAS_REQUIRED"));
 });
@@ -140,8 +140,8 @@ test("worker and PR associations cannot create tracker UUID aliases", () => {
 test("opaque legacy receipt IDs remain distinct from the dedicated issue reference", () => {
   for (const id of ["ZAK-13", uuid, "dispatch-1"]) {
     const model = normalizePlannerModel({
-      snapshot: { v: 2, linear: { issues: [{ identifier: "ZAK-12" }] } },
-      state: { dispatches: [{ id, issueId: "ZAK-12", state: "running" }] },
+      snapshot: { v: 3, linear: { issues: [{ issueKey: "ZAK-12" }] } },
+      state: { dispatches: [{ receiptId: id, issueKey: "ZAK-12", state: "running" }] },
     });
     assert.equal(model.state.dispatches[0].issueRef, "ZAK-12");
     assert.equal(model.state.dispatches[0].workerRef, `receipt:${id}`);
@@ -151,8 +151,8 @@ test("opaque legacy receipt IDs remain distinct from the dedicated issue referen
 test("generic receipt IDs without dedicated issue fields never establish an association", () => {
   for (const id of ["ZAK-12", uuid, "dispatch-1"]) {
     const model = normalizePlannerModel({
-      snapshot: { v: 2, linear: { issues: [{ identifier: "ZAK-12", id: uuid }] } },
-      state: { dispatches: [{ id, state: "running" }] },
+      snapshot: { v: 3, linear: { issues: [{ issueKey: "ZAK-12", issueUuid: uuid }] } },
+      state: { dispatches: [{ receiptId: id, state: "running" }] },
     });
     assert.equal(model.state.dispatches[0].issueRef, null);
     assert.equal(model.state.dispatches[0].workerRef, `receipt:${id}`);

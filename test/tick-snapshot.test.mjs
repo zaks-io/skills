@@ -1,3 +1,4 @@
+import { migrateFixtureState, currentFixture } from "./helpers/planner-fixtures.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -98,6 +99,8 @@ process.stdout.write(JSON.stringify({ data: { repository } }));
       snapshot: output,
       config: { workerConcurrencyCap: 3 },
       state: {
+        v: 3,
+        repo: "zaks-io/skills",
         startableTickets: [
           { issueKey: "SKI-100", footprint: ["src/shared.js"] },
           { issueKey: "SKI-101", footprint: ["src/previous.js"] },
@@ -241,7 +244,7 @@ for (const { name, state } of collectorCases) {
   test(`tick-snapshot --state automatically hydrates ${name} before planner duplicate protection`, (t) => {
     const fixture = offlineCollector(t);
     const stateFile = path.join(fixture.dir, "state.json");
-    writeFileSync(stateFile, JSON.stringify(state));
+    writeFileSync(stateFile, JSON.stringify(migrateFixtureState(state, "zaks-io/skills")));
     const snapshot = JSON.parse(
       execFileSync(
         process.execPath,
@@ -398,7 +401,7 @@ test("tick-snapshot rejects --state without a file before gh", (t) => {
 
 function collectState(fixture, state, stateSyntax = "separate") {
   const file = path.join(fixture.dir, "state.json");
-  writeFileSync(file, JSON.stringify(state));
+  writeFileSync(file, JSON.stringify(migrateFixtureState(state, "zaks-io/skills")));
   const stateArgs = stateSyntax === "equals" ? [`--state=${file}`] : ["--state", file];
   const result = spawnSync(
     process.execPath,
@@ -539,7 +542,7 @@ for (const invalidArgs of [
       { cwd: root, encoding: "utf8", env: fixture.env },
     );
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /invalid arguments/);
+    assert.match(result.stderr, /requires a nonempty value|requires an argument|argument/);
     assert.equal(result.stdout, "");
     assert.equal(existsSync(fixture.ghLog), false);
     assert.equal(existsSync(fixture.linearLog), false);
@@ -828,4 +831,69 @@ test("collector retains bot comments and fingerprints only eligible historical r
     .flat()
     .find((arg) => arg.startsWith("query="));
   assert.match(query, /reviews\(last: 20\).*author \{ login __typename \}/);
+});
+
+test("single tick reads saved state once and matches the offline three-command pipeline", (t) => {
+  const fixture = offlineCollector(t);
+  const file = path.join(fixture.dir, "state.json");
+  const configFile = path.join(fixture.dir, "planner.json");
+  const reads = path.join(fixture.dir, "state-reads.log");
+  const countReads = path.join(fixture.dir, "count-state-reads.mjs");
+  const config = {
+    repo: "zaks-io/skills",
+    linearTeam: "SKI",
+    linearRouteLabel: "zaks-io/skills",
+    stateFile: file,
+    branchPrefix: "codex/",
+    workerConcurrencyCap: 2,
+  };
+  writeFileSync(configFile, JSON.stringify(config));
+  writeFileSync(file, JSON.stringify({ v: 3, repo: "zaks-io/skills" }));
+  writeFileSync(
+    countReads,
+    `import fs from "node:fs"; import {syncBuiltinESMExports} from "node:module";
+const read = fs.readFileSync;
+fs.readFileSync = (...args) => { if (args[0] === ${JSON.stringify(file)}) fs.appendFileSync(${JSON.stringify(reads)},"read\\n"); return read(...args); };
+syncBuiltinESMExports();`,
+  );
+  const tick = path.join(root, "skills/ziw-orchestrate/scripts/tick.mjs");
+  const result = spawnSync(
+    process.execPath,
+    ["--import", fixture.preload, "--import", countReads, tick, "--config", configFile],
+    { cwd: root, encoding: "utf8", env: fixture.env },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(readFileSync(reads, "utf8"), "read\n");
+  const snapshotResult = spawnSync(
+    process.execPath,
+    ["--import", fixture.preload, script, "--config", configFile],
+    { cwd: root, encoding: "utf8", env: fixture.env },
+  );
+  assert.equal(snapshotResult.status, 0, snapshotResult.stderr);
+  const snapshotFile = path.join(fixture.dir, "snapshot.json");
+  writeFileSync(snapshotFile, snapshotResult.stdout);
+  const pipeline = spawnSync(
+    process.execPath,
+    [tickPlan, snapshotFile, "--config", configFile, "--state", file],
+    { cwd: root, encoding: "utf8", env: fixture.env },
+  );
+  assert.equal(pipeline.status, 0, pipeline.stderr);
+  const expected = JSON.parse(pipeline.stdout);
+  const strip = (actions) =>
+    actions.map(
+      ({ issueKey, ticketUrl, title, footprint, outOfScope, branch, brief, record, ...decision }) =>
+        decision,
+    );
+  assert.deepEqual(strip(plan.actions), strip(expected.actions));
+  assert.deepEqual(plan.waits, expected.waits);
+  assert.deepEqual(plan.holds, expected.holds);
+  assert.ok(plan.actions.some((action) => action.record?.argv));
+  const aboveCap = spawnSync(
+    process.execPath,
+    [tick, "--config", configFile, "--worker-cap", "3"],
+    { cwd: root, encoding: "utf8", env: fixture.env },
+  );
+  assert.equal(aboveCap.status, 1);
+  assert.match(aboveCap.stderr, /no higher than the configured cap/);
 });
