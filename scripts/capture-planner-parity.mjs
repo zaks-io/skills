@@ -271,6 +271,24 @@ const cases = [
     },
   ],
   [
+    "pr-fallback-fingerprint-stale",
+    {
+      pullRequests: [{ number: 12, reviewRelevantDiffFingerprint: "patch-id:one" }],
+      reviewEvidenceByPr: { 12: evidence },
+    },
+    true,
+    { headSha: "head-2", reviewDiffFingerprint: "patch-id:two" },
+  ],
+  [
+    "pr-fallback-fingerprint-only",
+    {
+      pullRequests: [{ number: 12, reviewRelevantDiffFingerprint: "patch-id:one" }],
+      reviewEvidenceByPr: { 12: evidence },
+    },
+    true,
+    { reviewDiffFingerprint: undefined },
+  ],
+  [
     "conformance-pr-overlay",
     {
       pullRequests: [

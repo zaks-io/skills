@@ -67,9 +67,20 @@ export function translateFields(original, kind, path) {
       delete result.reviewHeadSha;
     } else {
       // Live PR facts override saved current fingerprints before any gate reads them.
-      if (kind === "pr") rename("reviewDiffFingerprint", ["reviewRelevantDiffFingerprint"]);
+      if (kind === "pr") {
+        // beb146d read this fallback only after the live fingerprint, so it must not
+        // become the saved PR's reviewDiffFingerprint; convertState moves it to reviewDiffByPr.
+        const fallback = result.reviewRelevantDiffFingerprint;
+        if (
+          fallback != null &&
+          result.reviewDiffFingerprint != null &&
+          fallback !== result.reviewDiffFingerprint
+        )
+          throw new Error(
+            `${path}/reviewRelevantDiffFingerprint: conflicts with reviewDiffFingerprint`,
+          );
+      } else delete result.reviewRelevantDiffFingerprint;
       delete result.currentReviewDiffFingerprint;
-      delete result.reviewRelevantDiffFingerprint;
       delete result.reviewHeadSha;
     }
     rename("reviewVerdict", ["codeReviewVerdict"], normalizedVerdict);
