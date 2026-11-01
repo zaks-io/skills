@@ -686,10 +686,14 @@ export function planTick({
       continue;
     }
     // Saved candidates face the same current tracker checks as DAG candidates, except
-    // that a saved footprint may stand in for the tracker's; scope accounting then
-    // requests preparation for the ones that fail.
+    // that a saved footprint may stand in for the tracker's. Scope accounting requests
+    // preparation for failures still in scope; the rest hold so none disappears.
     const node = linearNodesById.get(id);
-    if (node && needsPreparation({ ...node, footprint: ticket.footprint })) continue;
+    if (node && needsPreparation({ ...node, footprint: ticket.footprint })) {
+      if (!scope.matchesCandidate(issueById.get(id) ?? node))
+        excludedCandidates.push({ target: `ticket:${id}`, reason: "OUT_OF_SCOPE" });
+      continue;
+    }
     if (!ticket.footprint.length) {
       if (!issueById.has(id))
         excludedCandidates.push({

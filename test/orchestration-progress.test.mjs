@@ -16,14 +16,14 @@ const ticket = (key, extra = {}) => ({
   updatedAt: "2026-11-01T00:00:00Z",
   ...extra,
 });
-function plan(issues, { prs = [], state = {}, config = {} } = {}) {
+function plan(issues, { prs = [], state = {}, config = {}, linear = {} } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "ziw-progress-"));
   try {
     const file = path.join(dir, "input.json");
     writeFileSync(
       file,
       JSON.stringify({
-        snapshot: { v: 3, repo: "example/app", prs, linear: { issues } },
+        snapshot: { v: 3, repo: "example/app", prs, linear: { issues, ...linear } },
         config: {
           readyState: "Todo",
           mergeAuthority: "human",
@@ -94,6 +94,25 @@ test("incomplete bodies cannot dispatch through either candidate path", () => {
       `explicit candidate: ${explicit}`,
     );
   }
+});
+
+test("a saved candidate whose current facts leave scope holds instead of vanishing", () => {
+  const issue = ticket("EXA-1", {
+    state: "Backlog",
+    stateType: "backlog",
+    missingSections: ["checks"],
+  });
+  const result = plan([issue], {
+    linear: { candidateScope: { states: ["Todo"] } },
+    state: { startableTickets: [{ issueKey: "EXA-1", state: "Todo", footprint: issue.footprint }] },
+  });
+  assert.deepEqual(result.actions, []);
+  assert.ok(
+    result.holds.some(
+      ({ target, reason }) => target === "ticket:EXA-1" && reason === "OUT_OF_SCOPE",
+    ),
+  );
+  assert.notEqual(result.wake.state, "delivered");
 });
 
 test("a lone ticket without a footprint goes to preparation through either candidate path", () => {
