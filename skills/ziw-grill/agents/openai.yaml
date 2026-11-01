@@ -1,6 +1,6 @@
 interface:
   display_name: "Grill"
   short_description: "Resolve plans into ready specs"
-  default_prompt: "Use $ziw-grill to resolve material ambiguity from evidence and independent questions. Return a confirmed scoped clarification when ticket boundaries remain unchanged, without starting spec readiness. For planning, update only confirmed artifacts and require explicit approval before Ready for slicing. Preserve unanswered decisions; do not create tickets."
+  default_prompt: "Use $ziw-grill to grill this plan with focused question rounds until it is a spec ready for slicing."
 policy:
   allow_implicit_invocation: true

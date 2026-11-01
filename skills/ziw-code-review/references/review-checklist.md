@@ -1,6 +1,6 @@
-# Code Review Checklist
+# Code review checklist
 
-Use this as a bug taxonomy, not as a script to recite. State zero-finding categories only when useful for the final verdict.
+Use this bug taxonomy for review. Report zero-finding categories only when useful for the verdict.
 
 ## Severity
 
@@ -9,13 +9,13 @@ Use this as a bug taxonomy, not as a script to recite. State zero-finding catego
 - P2: important regression, missing edge-case handling, test gap around risky behavior, or maintainability issue with clear failure mode.
 - P3: style, naming, preference, or optional cleanup. Suppress by default.
 
-## Evidence Gate
+## Evidence gate
 
 Before reporting a finding:
 
 1. Quote or cite the exact source line that creates the risk.
 2. Explain the concrete failure path, not just the pattern name.
-3. Check for framework or repo conventions that intentionally handle it elsewhere.
+3. Check whether framework/repo conventions handle it elsewhere.
 4. Assign confidence from 1 to 10.
 5. Suppress findings below confidence 5 unless impact would be P0/P1.
 
@@ -27,7 +27,7 @@ Confidence guide:
 - 3-4: suspicious but too speculative for the main report.
 - 1-2: do not report unless catastrophic.
 
-## Critical Categories
+## Critical categories
 
 ### Scope and intent
 
@@ -45,7 +45,7 @@ Confidence guide:
 - Claim, bootstrap, invitation, or ownership flows trust a supplied `userId`,
   owner ID, or tenant ID instead of binding the operation to the authenticated
   actor and authorized tenant.
-- Tokens, session cookies, service credentials, or secrets are logged, returned to clients, written to artifacts, or committed.
+- Secrets, including tokens, session cookies, and service credentials, reach logs, clients, artifacts, or commits.
 - A "local only" or "admin only" path is reachable from production routing.
 
 ### Data safety and persistence
@@ -57,8 +57,8 @@ Confidence guide:
 - New persisted fields are not validated, normalized, or bounded.
 - Deletion, retention, revocation, or lockdown commits durable state without the
   required invalidation or cleanup path.
-- A new caller path reuses an existing destructive repository method but does not
-  return or resolve the metadata needed for invalidation, audit, or recovery.
+- A caller reuses a destructive repository method without resolving or returning
+  metadata required for invalidation, audit, or recovery.
 
 ### SQL and query construction
 
@@ -94,7 +94,7 @@ Confidence guide:
 ### LLM and untrusted output
 
 - Model output is trusted as code, SQL, shell input, HTML, file path, API operation, or DB row without schema validation and escaping.
-- Prompt assembly lets user text override system or developer instructions.
+- User text overrides system/developer instructions during prompt assembly.
 - Parser assumes the model always returns valid JSON, required fields, or bounded text.
 - Failure, refusal, rate-limit, or timeout path is missing.
 
@@ -117,9 +117,8 @@ Confidence guide:
 - Time comparisons mix local time and UTC, ignore DST, or use non-monotonic clocks for expiry.
 - Payment, quota, metering, billing, or rate-limit changes lack idempotency and retry handling.
 - External API calls ignore timeout, retry, partial failure, backoff, or duplicate delivery behavior.
-- External model, provider, or driver integration assumes a response or adapter
-  shape that was not verified against the real provider, driver, or generated
-  artifact.
+- Model, provider, or driver integration assumes response/adapter shapes without
+  verification against the real provider, driver, or generated artifact.
 
 ### Configuration and operational limits
 
@@ -138,12 +137,11 @@ Confidence guide:
 - Smoke or integration checks are skipped where the changed path is cross-package or runtime-dependent.
 - Mock-based tests fabricate driver, provider, auth, or request internals in a way
   that can mask the integration bug the change is meant to prevent.
-- CI env vars, feature flags, or test gates are set in workflow config but may be
-  stripped by the task runner, shell, or env filtering before reaching the test
-  process.
-- A changed behavior has no test or check anywhere, local or CI. Checks that
-  CI owns, such as coverage thresholds, smoke, and full-history secret scans,
-  are covered even when not run locally; pending CI is not missing coverage.
+- Workflow CI env vars, flags, or gates fail to reach the test process through
+  the task runner, shell, or env filtering.
+- Changed behavior lacks local/CI tests or checks. CI-owned coverage thresholds,
+  smoke, and full-history secret scans count without local execution; pending CI
+  is not missing coverage.
 - Idempotency tests only cover first success, not completed retry, in-flight retry, retry after optional side effects, and retry under rate-limit pressure.
 - Destructive or revocation tests assert database state but not the externally
   visible API behavior after invalidation, such as old URLs or handles failing.

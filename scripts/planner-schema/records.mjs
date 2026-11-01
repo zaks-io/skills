@@ -33,12 +33,22 @@ const labels = {
 const evidenceCount = { anyOf: [count, boolean, { type: "array" }] };
 
 export const evidenceProperties = {
+  ...fields("sessionId receiptId", { type: "string", pattern: "\\S" }),
+  previousRequests: {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      properties: fields("sessionId receiptId", { type: "string", pattern: "\\S" }),
+      anyOf: [{ required: ["sessionId"] }, { required: ["receiptId"] }],
+    },
+  },
   ...fields(
     `hasReviewEvidence reviewEvidenceCurrent blockingFindings changesRequested
     linkedPrChanged evidenceMissing requiredChecksPassed requiredChecksGreen checksPassing
     checksGreen ciGreen scopeMatches diffMatchesScope hostedReviewRequired codeRabbitRequired
     hostedReviewComplete codeRabbitComplete hostedReviewSkipped codeRabbitSkipped
-    hostedReviewPending hostedReviewCurrent recommended required highRisk prExists
+    hostedReviewPending hostedReviewCurrent recommended required skipped highRisk prExists
     explicitLocalCliRequest remoteWorker supportsLocalCli requiresAutoReviewResolution
     humanMergePrLabelApplied humanReviewPrLabelApplied hasHumanMergePrLabel
     hasHumanReviewPrLabel productionAction humanDecisionPending`,
@@ -49,7 +59,7 @@ export const evidenceProperties = {
     reviewDiffFingerprint currentReviewDiffFingerprint reviewRelevantDiffFingerprint
     reviewedDiffFingerprint reviewedReviewDiffFingerprint hostedReviewDiffFingerprint
     hostedReviewedDiffFingerprint hostedReviewHeadSha hostedReviewProvider reviewProvider
-    provider autoReviewMode autoReview prUrl reviewHeadSha status
+    provider autoReviewMode autoReview prUrl reviewHeadSha status deltaFrom
     conformanceHeadSha humanMergePrLabel humanReviewPrLabel reviewDecision`,
     nullableText,
   ),
@@ -107,6 +117,7 @@ export const legacyDefinitions = {
     properties: {
       ...identityProperties,
       ...evidenceProperties,
+      sessionId: identityProperties.sessionId,
       ...fields(
         `open closed merged isDraft draft isBot isDependencyBot dependencyBot
         autoMergeArmed reviewThreadsTruncated reviewsTruncated`,
@@ -121,7 +132,11 @@ export const legacyDefinitions = {
         additionalProperties: {
           type: "object",
           required: ["state"],
-          properties: { state: text, ...fields("headSha commitSha", nullableText) },
+          properties: {
+            state: text,
+            authorType: { type: "string", enum: ["User", "Bot"] },
+            ...fields("headSha commitSha reviewDiffFingerprint", nullableText),
+          },
         },
       },
     },
@@ -190,6 +205,8 @@ const workerProperties = {
   ...footprintFields,
   receiptId: opaqueId,
   sessionId: opaqueId,
+  runId: opaqueId,
+  previousRunIds: { type: "array", items: opaqueId, uniqueItems: true },
   prNumber: { type: "integer", minimum: 1 },
   ...fields("title url branch headSha path worktree state status source prUrl", nullableText),
   ...fields(
@@ -274,7 +291,11 @@ export const canonicalDefinitions = {
         additionalProperties: {
           type: "object",
           required: ["state"],
-          properties: { state: text, ...fields("headSha commitSha", nullableText) },
+          properties: {
+            state: text,
+            authorType: { type: "string", enum: ["User", "Bot"] },
+            ...fields("headSha commitSha reviewDiffFingerprint", nullableText),
+          },
         },
       },
       ...issueFields,

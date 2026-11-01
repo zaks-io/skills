@@ -380,7 +380,12 @@ for (const staleField of ["reviewedDiffFingerprint", "reviewedReviewDiffFingerpr
   test(`fresh current-head GitHub approval replaces stale ${staleField}`, () => {
     const output = plan({
       prs: [
-        { ...reviewedPr, latestReviews: { reviewer: { state: "APPROVED", headSha: "new-head" } } },
+        {
+          ...reviewedPr,
+          latestReviews: {
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "new-head" },
+          },
+        },
       ],
       config: { mergeAuthority: "agent" },
       state: {
@@ -397,7 +402,10 @@ for (const staleField of ["reviewedDiffFingerprint", "reviewedReviewDiffFingerpr
 test("a fresh GitHub approval preserves explicit blocking findings", () => {
   const output = plan({
     prs: [
-      { ...reviewedPr, latestReviews: { reviewer: { state: "APPROVED", headSha: "new-head" } } },
+      {
+        ...reviewedPr,
+        latestReviews: { reviewer: { authorType: "User", state: "APPROVED", headSha: "new-head" } },
+      },
     ],
     config: { mergeAuthority: "agent" },
     state: {
@@ -411,7 +419,12 @@ for (const reviewVerdict of ["NEEDS REVISION", "DO NOT MERGE"]) {
   test(`GitHub approval preserves a current internal ${reviewVerdict} verdict`, () => {
     const output = plan({
       prs: [
-        { ...reviewedPr, latestReviews: { reviewer: { state: "APPROVED", headSha: "new-head" } } },
+        {
+          ...reviewedPr,
+          latestReviews: {
+            reviewer: { authorType: "User", state: "APPROVED", headSha: "new-head" },
+          },
+        },
       ],
       config: { mergeAuthority: "agent" },
       state: {
@@ -554,7 +567,7 @@ for (const keyField of ["identifier", "ticket", "key"]) {
       assert.equal(output.capacity.used, source === "worker" ? 1 : 0);
       if (source === "pr")
         assert.ok(
-          output.actions.some(({ target, kind }) => target === "pr:22" && kind === "repair-draft"),
+          output.actions.some(({ target, kind }) => target === "pr:22" && kind === "verify-checks"),
         );
     });
   }
@@ -589,7 +602,7 @@ for (const source of ["worker", "pr"]) {
     assert.equal(output.capacity.used, source === "worker" ? 1 : 0);
     if (source === "pr")
       assert.ok(
-        output.actions.some(({ target, kind }) => target === "pr:22" && kind === "repair-draft"),
+        output.actions.some(({ target, kind }) => target === "pr:22" && kind === "verify-checks"),
       );
   });
 }

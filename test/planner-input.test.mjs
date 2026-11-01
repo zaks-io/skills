@@ -50,6 +50,31 @@ for (const [name, input, field] of [
     { snapshot, config: { workerConcurrencyCap: 1.5 } },
     /workerConcurrencyCap/,
   ],
+  [
+    "invalid hosted bot list",
+    { snapshot, config: { hostedReviewBots: "coderabbitai" } },
+    /hostedReviewBots/,
+  ],
+  [
+    "invalid hosted tier",
+    { snapshot, config: { hostedReviewRiskTiers: "critical" } },
+    /hostedReviewRiskTiers/,
+  ],
+  [
+    "invalid review author type",
+    {
+      snapshot: {
+        ...snapshot,
+        prs: [
+          {
+            number: 1,
+            latestReviews: { reviewer: { state: "APPROVED", authorType: "Organization" } },
+          },
+        ],
+      },
+    },
+    /authorType/,
+  ],
   ["unknown delivery mode", { snapshot, config: { deliveryMode: "velocty" } }, /deliveryMode/],
   [
     "invalid review depth",
@@ -358,7 +383,7 @@ test("a provider review without a commit remains valid but does not authorize me
         number: 1,
         headSha: "current-head",
         checks: { state: "SUCCESS" },
-        latestReviews: { reviewer: { state: "APPROVED", headSha: null } },
+        latestReviews: { reviewer: { authorType: "User", state: "APPROVED", headSha: null } },
       },
     ],
   });

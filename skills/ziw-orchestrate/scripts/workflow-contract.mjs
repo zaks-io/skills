@@ -72,11 +72,29 @@ const reviewedDiffFingerprint = (state = {}) =>
 const reviewCoversCurrentDiff = (state = {}) =>
   fingerprintEquals(reviewedDiffFingerprint(state), currentReviewDiffFingerprint(state));
 
+const fingerprintKind = (fingerprint) => normalize(fingerprint).split(":")[0];
+
+// Fingerprints compare only within one format; otherwise coverage falls back to
+// the exact reviewed head. Returns null when neither comparison is possible.
+export function diffCoverage(reviewedFingerprint, reviewedHead, currentFingerprint, currentHead) {
+  if (
+    reviewedFingerprint &&
+    currentFingerprint &&
+    fingerprintKind(reviewedFingerprint) === fingerprintKind(currentFingerprint)
+  ) {
+    return fingerprintEquals(reviewedFingerprint, currentFingerprint);
+  }
+  if (reviewedHead && currentHead) return shaEquals(reviewedHead, currentHead);
+  return null;
+}
+
 const hostedReviewCoversCurrentDiff = (state = {}) =>
-  fingerprintEquals(
+  diffCoverage(
     state.hostedReviewDiffFingerprint ?? state.hostedReviewedDiffFingerprint,
+    state.hostedReviewHeadSha,
     currentReviewDiffFingerprint(state),
-  );
+    state.currentPrHeadSha ?? state.headSha,
+  ) === true;
 
 const valueSet = (values) => new Set(toArray(values).map(normalize).filter(Boolean));
 
@@ -384,7 +402,7 @@ function grantedAutoMergeTiers(config = {}) {
   );
 }
 
-function mergeReadinessFacts(state = {}) {
+export function mergeReadinessFacts(state = {}) {
   const prState = normalize(state.prState ?? state.state ?? state.status);
   const terminal =
     state.merged === true || state.closed === true || TERMINAL_PR_STATES.includes(prState);
@@ -447,7 +465,7 @@ export function humanMergePrLabelDecision(state = {}, config = {}) {
     : !facts.open
       ? "PR is not open"
       : facts.draft
-        ? "draft PRs are pre-review and cannot be marked ready for human merge"
+        ? "draft PRs cannot be marked ready for human merge"
         : mergeDecision.action === workflowDecisionActions.holdMerge
           ? mergeDecision.reason
           : mergeDecision.action !== workflowDecisionActions.routeHumanMerge
@@ -524,13 +542,76 @@ export function reviewDepthRequirement(tier, config = {}) {
   };
 }
 
+export function reviewVerdictKind(evidence = {}) {
+  const verdict = normalize(evidence.reviewVerdict ?? evidence.codeReviewVerdict);
+  if (valueSet(CLEAN_REVIEW_VERDICTS).has(verdict)) return "clean";
+  if (REVISION_REVIEW_VERDICTS.has(verdict)) return "revision";
+  return null;
+}
+
+// The configured hosted reviewer is independent: a completed hosted review of
+// the current diff is review evidence without a second local pass.
+function hostedReviewCountsAsEvidence(state = {}) {
+  return Boolean(
+    (state.hostedReviewComplete || state.codeRabbitComplete) &&
+    !(state.hostedReviewSkipped || state.codeRabbitSkipped) &&
+    hostedReviewCoversCurrentDiff(state),
+  );
+}
+
 function independentReviewCount(state = {}) {
-  const explicit = state.independentReviewCount ?? state.independentReviews;
-  let count = countEvidence(explicit);
-  // Fail closed: a hosted review counts only when its recorded diff fingerprint
-  // provably matches the current review-relevant diff.
-  if (state.hostedReviewComplete && hostedReviewCoversCurrentDiff(state)) count += 1;
-  return count;
+  const local = currentReviewEvidence(state)
+    ? countEvidence(state.independentReviewCount ?? state.independentReviews)
+    : 0;
+  return local + (hostedReviewCountsAsEvidence(state) ? 1 : 0);
+}
+
+export function currentReviewStatus(state = {}, config = {}) {
+  const localCurrent = currentReviewEvidence(state);
+  const hostedCurrent = hostedReviewCountsAsEvidence(state);
+  const localCovers =
+    localCurrent ||
+    diffCoverage(
+      reviewedDiffFingerprint(state),
+      state.reviewedHeadSha,
+      currentReviewDiffFingerprint(state),
+      state.currentPrHeadSha ?? state.headSha,
+    ) === true;
+  // Local verdict fields describe the reviewed diff, so they block only when
+  // that review covers the current diff, including by exact head.
+  if (localCovers && (hasBlockingReview(state) || reviewVerdictKind(state) === "revision")) {
+    return { status: "blocking", reason: "blocking findings or changes requested remain" };
+  }
+  if (!localCovers && hostedCurrent && normalize(state.reviewDecision) === "changes_requested") {
+    return { status: "blocking", reason: "blocking findings or changes requested remain" };
+  }
+  const currentHead = state.currentPrHeadSha ?? state.headSha;
+  if (
+    (localCovers || hostedCurrent) &&
+    CONFORMANCE_FAIL.has(normalize(state.conformance ?? state.conformanceVerdict)) &&
+    (state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead))
+  ) {
+    return {
+      status: "blocking",
+      reason: "conformance table has FAIL rows; route findings back to the worker",
+    };
+  }
+  if (!localCurrent && !hostedCurrent) {
+    return {
+      status: "missing",
+      reason: "current review-relevant diff lacks clean code review evidence",
+    };
+  }
+  if (
+    independentReviewCount(state) <
+    reviewDepthRequirement(riskTier(state, config), config).independentReviews
+  ) {
+    return {
+      status: "missing",
+      reason: "review depth for this risk tier requires another independent review pass",
+    };
+  }
+  return { status: "clean", reason: "clean review covers the current review-relevant diff" };
 }
 
 export function mergeEligibilityDecision(state = {}, config = {}) {
@@ -553,20 +634,12 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
   const conformanceCoversHead =
     state.conformanceHeadSha == null || shaEquals(state.conformanceHeadSha, currentHead);
   if (!facts.open) return hold("PR is not open");
-  if (facts.draft) return hold("draft PRs are pre-review and cannot merge");
-  // Findings from a review of the current diff need a fix, not another review.
-  if (state.reviewEvidenceCurrent === true || reviewCoversCurrentDiff(state)) {
-    const verdict = normalize(state.reviewVerdict ?? state.codeReviewVerdict);
-    if (facts.blockingFindings || REVISION_REVIEW_VERDICTS.has(verdict)) {
-      return hold("blocking findings or changes requested remain");
-    }
-    if (CONFORMANCE_FAIL.has(conformance) && conformanceCoversHead) {
-      return hold("conformance table has FAIL rows; route findings back to the worker");
-    }
+  if (facts.draft) return hold("draft PRs cannot merge");
+  if (state.reviewThreadsTruncated === true) {
+    return hold("review thread evidence is truncated; inspect every thread first");
   }
-  if (!facts.reviewEvidenceCurrent) {
-    return hold("current review-relevant diff lacks clean code review evidence");
-  }
+  const review = currentReviewStatus(state, config);
+  if (review.status !== "clean") return hold(review.reason);
   if (!facts.checksPassed) return hold("required checks are not confirmed passing");
   if (facts.unresolvedReviewThreads > 0) return hold("unresolved review threads remain");
   if (facts.hostedReviewBlocked) return hold("required hosted review is pending or incomplete");
@@ -589,10 +662,6 @@ export function mergeEligibilityDecision(state = {}, config = {}) {
         "high-risk work requires exhibited PASS conformance; unverifiable rows are an intake gap",
       );
     }
-  }
-
-  if (independentReviewCount(state) < reviewDepth.independentReviews) {
-    return hold("review depth for this risk tier requires another independent review pass");
   }
 
   // The PR is merge-ready; from here only authority decides the route.

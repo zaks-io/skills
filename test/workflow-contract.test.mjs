@@ -5,6 +5,7 @@ import {
   activeDeliveryFootprint,
   codeRabbitEscalationDecision,
   capacityDecision as normalizedCapacityDecision,
+  currentReviewStatus,
   classifyInstructionSource,
   dispatchSelectionDecision as normalizedDispatchSelectionDecision,
   humanMergePrLabelDecision,
@@ -373,7 +374,7 @@ test("human merge PR label is cleared from draft PRs", () => {
     {
       action: workflowDecisionActions.clearHumanMergePrLabel,
       label: "needs-human-merge",
-      reason: "draft PRs are pre-review and cannot be marked ready for human merge",
+      reason: "draft PRs cannot be marked ready for human merge",
     },
   );
 });
@@ -384,6 +385,7 @@ test("human merge PR label waits for required hosted bot review", () => {
       {
         currentPrHeadSha: "abc123",
         hasReviewEvidence: true,
+        independentReviewCount: 1,
         hostedReviewProvider: "Cursor Bugbot",
         hostedReviewRequired: true,
         prState: "open",
@@ -1317,4 +1319,71 @@ test("preview absorption uses only canonical PR numbers", () => {
     ],
   });
   assert.equal(footprint.previews, 3);
+});
+
+test("current review status is independent of draft and hosted-review merge gates", () => {
+  assert.equal(
+    currentReviewStatus({ ...greenPr, isDraft: true, hostedReviewRequired: true }).status,
+    "clean",
+  );
+  assert.equal(currentReviewStatus({ ...greenPr, reviewEvidenceCurrent: false }).status, "missing");
+  assert.equal(currentReviewStatus({ ...greenPr, blockingFindings: true }).status, "blocking");
+  assert.equal(
+    currentReviewStatus({ ...greenPr, reviewVerdict: "NEEDS REVISION" }).status,
+    "blocking",
+  );
+  assert.equal(
+    currentReviewStatus({
+      ...greenPr,
+      reviewEvidenceCurrent: false,
+      reviewDiffFingerprint: "new",
+      reviewedDiffFingerprint: "old",
+      blockingFindings: true,
+    }).status,
+    "missing",
+  );
+  assert.equal(
+    currentReviewStatus(
+      {
+        ...greenPr,
+        hostedReviewComplete: true,
+        reviewDiffFingerprint: "same",
+        hostedReviewDiffFingerprint: "same",
+      },
+      { requiredIndependentReviews: 2 },
+    ).status,
+    "clean",
+  );
+});
+
+test("a hosted review of the current diff is independent evidence that stale local verdicts cannot block", () => {
+  const hostedOnly = {
+    ...greenPr,
+    reviewEvidenceCurrent: false,
+    independentReviewCount: 1,
+    reviewVerdict: "NEEDS REVISION",
+    reviewedDiffFingerprint: "old",
+    reviewDiffFingerprint: "new",
+    hostedReviewComplete: true,
+    hostedReviewDiffFingerprint: "new",
+  };
+  assert.equal(currentReviewStatus(hostedOnly).status, "clean");
+  assert.equal(
+    currentReviewStatus(hostedOnly, { requiredIndependentReviews: 2 }).status,
+    "missing",
+  );
+  assert.equal(
+    currentReviewStatus({ ...hostedOnly, reviewDecision: "CHANGES_REQUESTED" }).status,
+    "blocking",
+  );
+  assert.equal(currentReviewStatus({ ...hostedOnly, hostedReviewSkipped: true }).status, "missing");
+  assert.equal(
+    currentReviewStatus({ ...hostedOnly, conformance: "FAIL", conformanceHeadSha: "abc123" })
+      .status,
+    "blocking",
+  );
+  assert.equal(
+    currentReviewStatus({ ...hostedOnly, hostedReviewDiffFingerprint: "old" }).status,
+    "missing",
+  );
 });

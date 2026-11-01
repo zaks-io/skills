@@ -678,3 +678,154 @@ for (const mixedWorkers of [false, true]) {
       assert.deepEqual(plans[0][field], plans[1][field]);
   });
 }
+
+const prDiff = (line = "new") => `diff --git a/src/a.js b/src/a.js
+index 7898192..3e75765 100644
+--- a/src/a.js
++++ b/src/a.js
+@@ -1 +1 @@
+-old
++${line}
+`;
+
+function reviewCollector(t, reviews = [], flags = []) {
+  const dir = mkdtempSync(path.join(tmpdir(), "ziw-review-collector-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const fixtureFile = path.join(dir, "fixture.json");
+  const log = path.join(dir, "requests.jsonl");
+  const gh = path.join(dir, "gh");
+  writeFileSync(
+    gh,
+    `#!/usr/bin/env node
+const { readFileSync, appendFileSync } = require("node:fs");
+const fixture = JSON.parse(readFileSync(${JSON.stringify(fixtureFile)}, "utf8"));
+const args = process.argv.slice(2);
+appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
+const endpoint = args.find(arg => arg.startsWith("repos/"));
+if (endpoint?.includes("/files")) {
+  process.stdout.write(JSON.stringify([[{ filename: "src/a.js", sha: fixture.blob ?? fixture.head,
+    status: "modified", additions: 1, deletions: 1, changes: 2 }]]));
+} else if (endpoint) {
+  if (fixture.failDiff || endpoint.endsWith("...unavailable")) process.exit(1);
+  process.stdout.write(fixture.diff);
+} else {
+  process.stdout.write(JSON.stringify({ data: { repository: { pullRequests: {
+    totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{
+      number: 7, headRefOid: fixture.head, baseRefName: "main", changedFiles: 1,
+      reviews: { nodes: fixture.reviews }, commits: { nodes: [] }
+    }]
+  } } } }));
+}
+`,
+  );
+  chmodSync(gh, 0o755);
+  const collect = (overrides = {}) => {
+    writeFileSync(
+      fixtureFile,
+      JSON.stringify({ head: "head", diff: prDiff(), reviews, ...overrides }),
+    );
+    return JSON.parse(
+      execFileSync(
+        process.execPath,
+        [script, "--repo", "example/repo", "--no-local-worktrees", ...flags],
+        {
+          cwd: dir,
+          encoding: "utf8",
+          env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH}` },
+        },
+      ),
+    ).prs[0];
+  };
+  return { collect, calls: () => readFileSync(log, "utf8").trim().split("\n").map(JSON.parse) };
+}
+
+test("patch-id survives a base merge outside a repository and changes with PR hunks", (t) => {
+  const { collect } = reviewCollector(t);
+  const original = collect();
+  const baseMerged = collect({
+    head: "base-merged-head",
+    diff: prDiff()
+      .replace("7898192..3e75765", "fffffff..eeeeeee")
+      .replace("@@ -1 +1 @@", "@@ -4 +4 @@"),
+  });
+  const changed = collect({ head: "followup-head", diff: prDiff("followup") });
+  assert.match(original.reviewDiffFingerprint, /^patch-id:[a-f0-9]{40}$/);
+  assert.equal(original.reviewDiffFingerprint, baseMerged.reviewDiffFingerprint);
+  assert.notEqual(original.reviewDiffFingerprint, changed.reviewDiffFingerprint);
+});
+
+test("the current fingerprint reads the diff pinned to the snapshot head", (t) => {
+  const { collect, calls } = reviewCollector(t);
+  collect({ head: "snapshot-head" });
+  const diffRequests = calls()
+    .filter((args) => args.includes("Accept: application/vnd.github.diff"))
+    .map((args) => args.find((arg) => arg.startsWith("repos/")));
+  assert.deepEqual(diffRequests, ["repos/example/repo/compare/main...snapshot-head"]);
+});
+
+test("unavailable GitHub diff falls back to the file-record fingerprint", (t) => {
+  const { collect } = reviewCollector(t);
+  const original = collect({ failDiff: true });
+  assert.match(original.reviewDiffFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(original.reviewDiffFingerprint, collect({ failDiff: true }).reviewDiffFingerprint);
+  assert.notEqual(
+    original.reviewDiffFingerprint,
+    collect({ failDiff: true, head: "other-blob" }).reviewDiffFingerprint,
+  );
+  // File records omit removed content, so the fallback never outlives its head.
+  assert.notEqual(
+    collect({ failDiff: true, blob: "same-blob" }).reviewDiffFingerprint,
+    collect({ failDiff: true, blob: "same-blob", head: "rebased-head" }).reviewDiffFingerprint,
+  );
+});
+
+test("collector retains bot comments and fingerprints only eligible historical reviews", (t) => {
+  const review = (login, authorType, state, head) => ({
+    author: { login, __typename: authorType },
+    state,
+    commit: { oid: head },
+  });
+  const { collect, calls } = reviewCollector(
+    t,
+    [
+      review("human", "User", "APPROVED", "prior-head"),
+      review("human", "User", "COMMENTED", "head"),
+      review("failed-lookup", "User", "APPROVED", "unavailable"),
+      review("at-head", "User", "APPROVED", "head"),
+      review("changes", "User", "CHANGES_REQUESTED", "changes-head"),
+      review("CodeRabbitAI[bot]", "Bot", "APPROVED", "prior-bot-head"),
+      review("CodeRabbitAI[bot]", "Bot", "COMMENTED", "bot-head"),
+      review("other-bot", "Bot", "APPROVED", "ignored-head"),
+      review("second-bot", "Bot", "COMMENTED", "second-head"),
+      review("imported", "Mannequin", "APPROVED", "head"),
+    ],
+    ["--hosted-review-bot", "coderabbitai", "--hosted-review-bot", "second-bot[bot]"],
+  );
+  const pr = collect();
+  const latest = pr.latestReviews;
+  assert.equal(latest.human.state, "APPROVED");
+  assert.equal(latest.human.authorType, "User");
+  assert.equal(latest.human.reviewDiffFingerprint, pr.reviewDiffFingerprint);
+  assert.equal(latest["at-head"].reviewDiffFingerprint, pr.reviewDiffFingerprint);
+  assert.equal(latest["CodeRabbitAI[bot]"].authorType, "Bot");
+  assert.equal(latest["CodeRabbitAI[bot]"].state, "COMMENTED");
+  assert.equal(latest["CodeRabbitAI[bot]"].reviewDiffFingerprint, pr.reviewDiffFingerprint);
+  assert.equal(latest["second-bot"].reviewDiffFingerprint, pr.reviewDiffFingerprint);
+  assert.equal("reviewDiffFingerprint" in latest["failed-lookup"], false);
+  assert.equal("reviewDiffFingerprint" in latest["other-bot"], false);
+  assert.equal(latest.imported.state, "APPROVED");
+  assert.equal("authorType" in latest.imported, false);
+  const endpoints = calls()
+    .flat()
+    .filter((arg) => arg.includes("/compare/"));
+  assert.deepEqual(
+    endpoints.sort(),
+    ["head", "prior-head", "unavailable", "bot-head", "second-head"]
+      .map((head) => `repos/example/repo/compare/main...${head}`)
+      .sort(),
+  );
+  const query = calls()
+    .flat()
+    .find((arg) => arg.startsWith("query="));
+  assert.match(query, /reviews\(last: 20\).*author \{ login __typename \}/);
+});

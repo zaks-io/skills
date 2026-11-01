@@ -167,6 +167,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -190,6 +204,7 @@
         "hostedReviewCurrent": { "type": "boolean" },
         "recommended": { "type": "boolean" },
         "required": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
         "highRisk": { "type": "boolean" },
         "prExists": { "type": "boolean" },
         "explicitLocalCliRequest": { "type": "boolean" },
@@ -223,6 +238,7 @@
         "prUrl": { "type": ["string", "null"] },
         "reviewHeadSha": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
+        "deltaFrom": { "type": ["string", "null"] },
         "conformanceHeadSha": { "type": ["string", "null"] },
         "humanMergePrLabel": { "type": ["string", "null"] },
         "humanReviewPrLabel": { "type": ["string", "null"] },
@@ -352,6 +368,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -375,6 +405,7 @@
         "hostedReviewCurrent": { "type": "boolean" },
         "recommended": { "type": "boolean" },
         "required": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
         "highRisk": { "type": "boolean" },
         "prExists": { "type": "boolean" },
         "explicitLocalCliRequest": { "type": "boolean" },
@@ -408,6 +439,7 @@
         "prUrl": { "type": ["string", "null"] },
         "reviewHeadSha": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
+        "deltaFrom": { "type": ["string", "null"] },
         "conformanceHeadSha": { "type": ["string", "null"] },
         "humanMergePrLabel": { "type": ["string", "null"] },
         "humanReviewPrLabel": { "type": ["string", "null"] },
@@ -759,6 +791,19 @@
             { "type": "null" }
           ]
         },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -782,6 +827,7 @@
         "hostedReviewCurrent": { "type": "boolean" },
         "recommended": { "type": "boolean" },
         "required": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
         "highRisk": { "type": "boolean" },
         "prExists": { "type": "boolean" },
         "explicitLocalCliRequest": { "type": "boolean" },
@@ -812,6 +858,7 @@
         "autoReviewMode": { "type": ["string", "null"] },
         "autoReview": { "type": ["string", "null"] },
         "reviewHeadSha": { "type": ["string", "null"] },
+        "deltaFrom": { "type": ["string", "null"] },
         "conformanceHeadSha": { "type": ["string", "null"] },
         "humanMergePrLabel": { "type": ["string", "null"] },
         "humanReviewPrLabel": { "type": ["string", "null"] },
@@ -961,8 +1008,10 @@
             "required": ["state"],
             "properties": {
               "state": { "type": "string" },
+              "authorType": { "type": "string", "enum": ["User", "Bot"] },
               "headSha": { "type": ["string", "null"] },
-              "commitSha": { "type": ["string", "null"] }
+              "commitSha": { "type": ["string", "null"] },
+              "reviewDiffFingerprint": { "type": ["string", "null"] }
             }
           }
         }
@@ -1510,6 +1559,13 @@
             { "type": "array", "items": { "type": "string", "enum": ["low", "medium", "high"] } }
           ]
         },
+        "hostedReviewRiskTiers": {
+          "anyOf": [
+            { "type": "string", "enum": ["low", "medium", "high"] },
+            { "type": "array", "items": { "type": "string", "enum": ["low", "medium", "high"] } }
+          ]
+        },
+        "hostedReviewBots": { "type": "array", "items": { "type": "string" } },
         "requiredIndependentReviews": {
           "oneOf": [
             { "type": "integer", "minimum": 1 },
@@ -1706,6 +1762,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -1729,6 +1799,7 @@
         "hostedReviewCurrent": { "type": "boolean" },
         "recommended": { "type": "boolean" },
         "required": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
         "highRisk": { "type": "boolean" },
         "prExists": { "type": "boolean" },
         "explicitLocalCliRequest": { "type": "boolean" },
@@ -1762,6 +1833,7 @@
         "prUrl": { "type": ["string", "null"] },
         "reviewHeadSha": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
+        "deltaFrom": { "type": ["string", "null"] },
         "conformanceHeadSha": { "type": ["string", "null"] },
         "humanMergePrLabel": { "type": ["string", "null"] },
         "humanReviewPrLabel": { "type": ["string", "null"] },
@@ -2046,6 +2118,20 @@
         "prId": false,
         "session": false,
         "issueRef": false,
+        "sessionId": false,
+        "receiptId": false,
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -2069,6 +2155,7 @@
         "hostedReviewCurrent": { "type": "boolean" },
         "recommended": { "type": "boolean" },
         "required": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
         "highRisk": { "type": "boolean" },
         "prExists": { "type": "boolean" },
         "explicitLocalCliRequest": { "type": "boolean" },
@@ -2102,6 +2189,7 @@
         "prUrl": { "type": ["string", "null"] },
         "reviewHeadSha": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
+        "deltaFrom": { "type": ["string", "null"] },
         "conformanceHeadSha": { "type": ["string", "null"] },
         "humanMergePrLabel": { "type": ["string", "null"] },
         "humanReviewPrLabel": { "type": ["string", "null"] },
@@ -2293,8 +2381,10 @@
             "required": ["state"],
             "properties": {
               "state": { "type": "string" },
+              "authorType": { "type": "string", "enum": ["User", "Bot"] },
               "headSha": { "type": ["string", "null"] },
-              "commitSha": { "type": ["string", "null"] }
+              "commitSha": { "type": ["string", "null"] },
+              "reviewDiffFingerprint": { "type": ["string", "null"] }
             }
           }
         },
@@ -2309,9 +2399,7 @@
           "items": { "$ref": "#/definitions/canonical_issueReference" }
         },
         "legacyPrAliases": false,
-        "prNumber": false,
-        "receiptId": false,
-        "sessionId": false
+        "prNumber": false
       }
     },
     "canonical_worker": {
@@ -2367,6 +2455,12 @@
         },
         "receiptId": { "type": "string", "pattern": "\\S" },
         "sessionId": { "type": "string", "pattern": "\\S" },
+        "runId": { "type": "string", "pattern": "\\S" },
+        "previousRunIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\S" },
+          "uniqueItems": true
+        },
         "prNumber": { "type": "integer", "minimum": 1 },
         "title": { "type": ["string", "null"] },
         "url": { "type": ["string", "null"] },
@@ -2659,6 +2753,12 @@
         },
         "receiptId": false,
         "sessionId": false,
+        "runId": { "type": "string", "pattern": "\\S" },
+        "previousRunIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\S" },
+          "uniqueItems": true
+        },
         "prNumber": { "type": "integer", "minimum": 1 },
         "title": { "type": ["string", "null"] },
         "url": { "type": ["string", "null"] },
@@ -2761,6 +2861,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "sessionId": { "type": "string", "pattern": "\\S" },
+        "receiptId": { "type": "string", "pattern": "\\S" },
+        "previousRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": { "type": "string", "pattern": "\\S" },
+              "receiptId": { "type": "string", "pattern": "\\S" }
+            },
+            "anyOf": [{ "required": ["sessionId"] }, { "required": ["receiptId"] }]
+          }
+        },
         "hasReviewEvidence": { "type": "boolean" },
         "reviewEvidenceCurrent": { "type": "boolean" },
         "blockingFindings": { "type": "boolean" },
@@ -2784,6 +2898,7 @@
         "hostedReviewCurrent": { "type": "boolean" },
         "recommended": { "type": "boolean" },
         "required": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
         "highRisk": { "type": "boolean" },
         "prExists": { "type": "boolean" },
         "explicitLocalCliRequest": { "type": "boolean" },
@@ -2817,6 +2932,7 @@
         "prUrl": { "type": ["string", "null"] },
         "reviewHeadSha": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
+        "deltaFrom": { "type": ["string", "null"] },
         "conformanceHeadSha": { "type": ["string", "null"] },
         "humanMergePrLabel": { "type": ["string", "null"] },
         "humanReviewPrLabel": { "type": ["string", "null"] },
@@ -3036,6 +3152,13 @@
             { "type": "array", "items": { "type": "string", "enum": ["low", "medium", "high"] } }
           ]
         },
+        "hostedReviewRiskTiers": {
+          "anyOf": [
+            { "type": "string", "enum": ["low", "medium", "high"] },
+            { "type": "array", "items": { "type": "string", "enum": ["low", "medium", "high"] } }
+          ]
+        },
+        "hostedReviewBots": { "type": "array", "items": { "type": "string" } },
         "requiredIndependentReviews": {
           "oneOf": [
             { "type": "integer", "minimum": 1 },
