@@ -367,3 +367,13 @@ test("layers that disagree on conformance are refused", (t) => {
   });
   assert.match(message, /\/conformance: beb146d gated merge/);
 });
+
+test("a false hosted alias beside a true canonical flag migrates, as beb146d ORed them", (t) => {
+  const state = migrate(t, {
+    pullRequests: [{ number: 12, hostedReviewRequired: true }],
+    hostedReviewByPr: { 12: { hostedReviewRequired: true, codeRabbitRequired: false } },
+    reviewEvidenceByPr: { 12: { codeRabbitRequired: false } },
+  });
+  assert.deepEqual(state.hostedReviewByPr[12], { hostedReviewRequired: true });
+  assert.deepEqual(state.reviewEvidenceByPr[12], {});
+});

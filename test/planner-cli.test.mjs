@@ -96,6 +96,22 @@ test("linear-graphql still accepts -q as the --query alias", (t) => {
   assert.doesNotMatch(result.stderr, /Unknown option/);
 });
 
+for (const form of [["-qquery { viewer { id } }"], ["--query=query { viewer { id } }"]])
+  test(`linear-graphql uses an attached query value: ${form[0].slice(0, 8)}`, (t) => {
+    const { directory } = fixture(t);
+    // Empty stdin proves the query came from the option, not a fallback stdin read.
+    const result = run("linear-graphql.mjs", ["query", ...form], {
+      input: "",
+      env: {
+        ...process.env,
+        PATH: directory,
+        LINEAR_API_URL: "http://127.0.0.1:1",
+        LINEAR_API_KEY: "",
+      },
+    });
+    assert.doesNotMatch(result.stderr, /Unknown option|expected GraphQL query input/);
+  });
+
 test("all state consumers reject retired files before provider calls and print migration command", (t) => {
   const { directory, file } = fixture(t);
   writeFileSync(file, JSON.stringify({ repo }));
