@@ -10,6 +10,32 @@ const normalizedVerdict = (value) => {
   if (["needs revision", "do not merge"].includes(verdict)) return "NEEDS REVISION";
   return null;
 };
+const reviewCount = (value) =>
+  Array.isArray(value) ? value.length : typeof value === "number" ? value : value ? 1 : 0;
+// beb146d spread saved PRs, hosted records, and evidence into one review state and
+// read each alias only after its canonical field, from whichever layer set it.
+export const LAYERED_ALIASES = [
+  ["reviewedDiffFingerprint", ["reviewedReviewDiffFingerprint"]],
+  ["reviewVerdict", ["codeReviewVerdict"], normalizedVerdict],
+  ["hostedReviewDiffFingerprint", ["hostedReviewedDiffFingerprint"]],
+  ["independentReviewCount", ["independentReviews"], reviewCount],
+  ["hostedReviewRequired", ["codeRabbitRequired"]],
+  ["hostedReviewComplete", ["codeRabbitComplete"]],
+  ["hostedReviewSkipped", ["codeRabbitSkipped"]],
+  ["autoReviewMode", ["autoReview"]],
+  ["hostedReviewProvider", ["reviewProvider", "provider"]],
+  ["riskTier", ["tier"]],
+  ["scopeMatches", ["diffMatchesScope"]],
+  ["humanMergePrLabel", ["humanReviewPrLabel"]],
+  [
+    "humanMergePrLabelApplied",
+    ["humanReviewPrLabelApplied", "hasHumanMergePrLabel", "hasHumanReviewPrLabel"],
+  ],
+  ["prLabels", ["pullRequestLabels"]],
+];
+// beb146d only ORed these aliases into their flag, so a false alias changed nothing;
+// promoting it would mask a true flag computed from live hosted reviews.
+const OR_FLAGS = new Set(["hostedReviewRequired", "hostedReviewComplete", "hostedReviewSkipped"]);
 export function translateFields(original, kind, path) {
   const result = structuredClone(original);
   const rename = (canonical, aliases, convert = (value) => value) => {
@@ -53,9 +79,12 @@ export function translateFields(original, kind, path) {
   if (kind === "worktree") rename("path", ["worktree"]);
   const evidence = ["pr", "evidence", "request", "hosted", "check"].includes(kind);
   if (evidence) {
-    rename("reviewedDiffFingerprint", ["reviewedReviewDiffFingerprint"]);
     if (kind === "request") {
-      rename("reviewDiffFingerprint", ["reviewRelevantDiffFingerprint", "reviewedDiffFingerprint"]);
+      rename("reviewDiffFingerprint", [
+        "reviewRelevantDiffFingerprint",
+        "reviewedDiffFingerprint",
+        "reviewedReviewDiffFingerprint",
+      ]);
       rename("headSha", ["reviewHeadSha"]);
       delete result.currentReviewDiffFingerprint;
     } else if (kind === "check") {
@@ -83,28 +112,18 @@ export function translateFields(original, kind, path) {
       delete result.currentReviewDiffFingerprint;
       delete result.reviewHeadSha;
     }
-    rename("reviewVerdict", ["codeReviewVerdict"], normalizedVerdict);
+    for (const [canonical, aliases, convert] of LAYERED_ALIASES) {
+      if (
+        OR_FLAGS.has(canonical) &&
+        result[canonical] == null &&
+        aliases.every((name) => result[name] == null || result[name] === false)
+      ) {
+        for (const name of aliases) delete result[name];
+        continue;
+      }
+      rename(canonical, aliases, convert);
+    }
     if (result.reviewVerdict === null) delete result.reviewVerdict;
-    rename("hostedReviewDiffFingerprint", ["hostedReviewedDiffFingerprint"]);
-    rename("independentReviewCount", ["independentReviews"], (value) =>
-      Array.isArray(value) ? value.length : typeof value === "number" ? value : value ? 1 : 0,
-    );
-    for (const [canonical, aliases] of [
-      ["hostedReviewRequired", ["codeRabbitRequired"]],
-      ["hostedReviewComplete", ["codeRabbitComplete"]],
-      ["hostedReviewSkipped", ["codeRabbitSkipped"]],
-      ["autoReviewMode", ["autoReview"]],
-      ["hostedReviewProvider", ["reviewProvider", "provider"]],
-      ["riskTier", ["tier"]],
-      ["scopeMatches", ["diffMatchesScope"]],
-      ["humanMergePrLabel", ["humanReviewPrLabel"]],
-      [
-        "humanMergePrLabelApplied",
-        ["humanReviewPrLabelApplied", "hasHumanMergePrLabel", "hasHumanReviewPrLabel"],
-      ],
-      ["prLabels", ["pullRequestLabels"]],
-    ])
-      rename(canonical, aliases);
     if (kind === "check") {
       rename("requiredChecksPassed", [
         "requiredChecksGreen",

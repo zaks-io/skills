@@ -1,7 +1,11 @@
 import { isDeepStrictEqual } from "node:util";
 import { validateLegacyState, validateOldCanonicalState } from "./state-migration-validator.mjs";
 import { convertLegacyRecord, legacyIssueReference } from "./state-migration-records.mjs";
-import { preserveConformanceFailures, translateFields } from "./state-migration-fields.mjs";
+import {
+  LAYERED_ALIASES,
+  preserveConformanceFailures,
+  translateFields,
+} from "./state-migration-fields.mjs";
 import { validateState } from "./planner-input-validator.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
 
@@ -36,6 +40,7 @@ export function convertState(state) {
   let scopeAlias;
   const errors = [];
   const conformanceFailures = [];
+  const reviewLayers = [];
   const translate = (record, kind, location) => {
     const next = translateFields(record, kind, location);
     if (
@@ -93,6 +98,7 @@ export function convertState(state) {
         throw new Error(`${location}: anonymous live worker has no faithful v3 identity`);
       if (kind === "pr") {
         for (const name of ["sessionId", "receiptId", "prNumber"]) delete next[name];
+        reviewLayers.push({ number: next.number, location, record });
       }
       if (kind === "worktree") {
         // beb146d reserved the named ticket through this reference; v3 worktrees
@@ -213,6 +219,12 @@ export function convertState(state) {
         if (mapped[number] && !isDeepStrictEqual(mapped[number], record))
           throw new Error(`state/${name}/${key}: contradictory evidence for PR ${number}`);
         mapped[number] = record;
+        // beb146d read reviewEvidence only when reviewEvidenceByPr was absent.
+        if (
+          name === "hostedReviewByPr" ||
+          name === (state.reviewEvidenceByPr ? "reviewEvidenceByPr" : "reviewEvidence")
+        )
+          reviewLayers.push({ number, location: `state/${name}/${key}`, record: state[name][key] });
       });
     result[name] = mapped;
   }
@@ -227,22 +239,19 @@ export function convertState(state) {
     if (result[alias]) result[canonical] ??= result[alias];
     delete result[alias];
   }
-  // beb146d ranked a saved PR's reviewRelevantDiffFingerprint after the live and
-  // saved reviewDiffFingerprint but before reviewDiffByPr, the slot v3 still reads.
-  const fallbacks = {};
+  // beb146d ranked a saved PR's reviewRelevantDiffFingerprint after the merged
+  // reviewDiffFingerprint but before reviewDiffByPr, the slot v3 still reads. Later
+  // duplicate PR records overwrite earlier ones, null included, as its merge did.
+  const fallbacks = new Map();
   for (const pr of prs) {
     delete pr.legacyPrAliases;
-    const fallback = pr.reviewRelevantDiffFingerprint;
+    if ("reviewRelevantDiffFingerprint" in pr)
+      fallbacks.set(pr.number, pr.reviewRelevantDiffFingerprint);
     delete pr.reviewRelevantDiffFingerprint;
-    if (fallback == null || pr.reviewDiffFingerprint != null) continue;
-    if (fallbacks[pr.number] != null && fallbacks[pr.number] !== fallback)
-      errors.push(
-        `state/pullRequests: conflicting reviewRelevantDiffFingerprint for PR ${pr.number}`,
-      );
-    fallbacks[pr.number] = fallback;
   }
-  if (Object.keys(fallbacks).length)
-    result.reviewDiffByPr = { ...result.reviewDiffByPr, ...fallbacks };
+  for (const [number, fallback] of fallbacks)
+    if (fallback != null) result.reviewDiffByPr = { ...result.reviewDiffByPr, [number]: fallback };
+  errors.push(...layeredAliasConflicts(reviewLayers));
   preserveConformanceFailures(result, conformanceFailures, errors);
   const dispatches = workers.flatMap((name) => result[name] ?? []);
   for (const name of workers) delete result[name];
@@ -270,4 +279,27 @@ export function convertState(state) {
       `migration refused:\n${errors.join("\n")}\nFor each entry: recover its runtime identity (session or receipt ID) and add it to the record, or confirm the worker or review has ended and delete that entry. No state or backup was written.`,
     );
   return converted;
+}
+
+// A promoted alias outranks canonical values from other layers, which beb146d did
+// not allow, so layers for one PR must agree wherever any of them uses an alias.
+function layeredAliasConflicts(layers) {
+  const errors = [];
+  const byPr = new Map();
+  for (const layer of layers) byPr.set(layer.number, [...(byPr.get(layer.number) ?? []), layer]);
+  for (const [number, records] of byPr)
+    for (const [canonical, aliases, convert = (value) => value] of LAYERED_ALIASES) {
+      const names = [canonical, ...aliases];
+      const setters = records.filter(({ record }) => names.some((name) => name in record));
+      if (!setters.some(({ record }) => aliases.some((name) => name in record))) continue;
+      const values = setters.map(({ record }) => {
+        const name = names.find((field) => record[field] != null);
+        return name == null ? null : convert(record[name]);
+      });
+      if (values.every((value) => isDeepStrictEqual(value, values[0]))) continue;
+      errors.push(
+        `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on ${canonical} and use the alias ${aliases.join(" or ")}, which beb146d ranked below the canonical field; write the value beb146d used as ${canonical} in each record, or delete the stale one`,
+      );
+    }
+  return errors;
 }
