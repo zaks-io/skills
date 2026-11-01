@@ -209,15 +209,6 @@ const cases = [
     },
   ],
   [
-    "conformance-fail",
-    {
-      reviewEvidenceByPr: {
-        12: { ...evidence, conformance: "FAIL", conformanceHeadSha: "head-1" },
-      },
-    },
-    true,
-  ],
-  [
     "hosted-aliases",
     {
       reviewEvidenceByPr: { 12: evidence },
@@ -301,56 +292,6 @@ const cases = [
     },
     true,
     { reviewDiffFingerprint: undefined },
-  ],
-  [
-    "conformance-pr-overlay",
-    {
-      pullRequests: [
-        { number: 12, headSha: "head-1", conformance: "FAIL", conformanceHeadSha: "head-1" },
-      ],
-      reviewEvidenceByPr: { 12: { ...evidence, blockingFindings: false } },
-    },
-    true,
-  ],
-  [
-    "conformance-duplicate-pass-then-fail",
-    {
-      pullRequests: [
-        { number: 12, headSha: "head-1", conformance: "PASS" },
-        { number: 12, headSha: "head-1", conformance: "FAIL", conformanceHeadSha: "head-1" },
-      ],
-      reviewEvidenceByPr: { 12: evidence },
-    },
-    true,
-  ],
-  [
-    "conformance-duplicate-heads",
-    {
-      pullRequests: [
-        { number: 12, headSha: "head-1", conformance: "FAIL", reviewedHeadSha: "head-0" },
-        { number: 12, headSha: "head-1", conformance: "FAIL", reviewedHeadSha: "head-1" },
-      ],
-      reviewEvidenceByPr: { 12: evidence },
-    },
-    true,
-  ],
-  [
-    "conformance-pr-and-evidence",
-    {
-      pullRequests: [
-        {
-          number: 12,
-          headSha: "head-1",
-          ...evidence,
-          conformance: "FAIL",
-          conformanceHeadSha: "head-1",
-        },
-      ],
-      reviewEvidenceByPr: {
-        12: { ...evidence, conformance: "FAIL", conformanceHeadSha: "head-1" },
-      },
-    },
-    true,
   ],
 ];
 const directory = path.resolve("test/fixtures/planner-parity");

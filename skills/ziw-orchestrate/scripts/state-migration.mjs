@@ -1,12 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { validateLegacyState, validateOldCanonicalState } from "./state-migration-validator.mjs";
 import { convertLegacyRecord, legacyIssueReference } from "./state-migration-records.mjs";
-import {
-  LAYERED_ALIASES,
-  conformanceVerdict,
-  preserveConformanceFailures,
-  translateFields,
-} from "./state-migration-fields.mjs";
+import { LAYERED_ALIASES, conformanceVerdict, translateFields } from "./state-migration-fields.mjs";
 import { validateState } from "./planner-input-validator.mjs";
 import { isLiveWorker } from "./worker-lifecycle.mjs";
 
@@ -250,7 +245,7 @@ export function convertState(state) {
   for (const [number, fallback] of fallbacks)
     if (fallback != null) result.reviewDiffByPr = { ...result.reviewDiffByPr, [number]: fallback };
   errors.push(...layeredAliasConflicts(reviewLayers));
-  preserveConformanceFailures(result, conformanceGates(reviewLayers, errors));
+  errors.push(...conformanceRefusals(reviewLayers));
   const dispatches = workers.flatMap((name) => result[name] ?? []);
   for (const name of workers) delete result[name];
   if (workers.some((name) => state[name])) result.dispatches = dispatches;
@@ -320,40 +315,30 @@ function layersByPr(layers) {
 }
 
 const CONFORMANCE_FIELDS = ["conformance", "conformanceVerdict", "conformanceHeadSha"];
-const HELD_CONFORMANCE =
-  "beb146d held merge on this verdict when its conformanceHeadSha did not match the PR head, or when requireConformanceEvidence required PASS for high-risk work, and v3 has no conformance gate; delete the conformance fields if neither applies, otherwise delete this PR's review evidence so the current head gets a fresh review";
 
 // beb146d spread saved PR records (later duplicates winning), then hosted, then evidence
-// records field by field, so each PR's conformance gate comes from that merged view.
-function conformanceGates(layers, errors) {
-  const blockingHeads = new Map();
-  for (const [number, records] of layersByPr(layers)) {
+// records field by field, and gated merge on the result by PR head, live review coverage and
+// requireConformanceEvidence. v3 has no conformance gate, so only a merged PASS without a
+// head, which never gated anything, drops; every other merged verdict refuses.
+function conformanceRefusals(layers) {
+  const errors = [];
+  for (const records of layersByPr(layers).values()) {
     const setters = records.filter(({ record }) =>
       CONFORMANCE_FIELDS.some((name) => name in record),
     );
-    if (!setters.length) continue;
     const merged = Object.assign(
       {},
-      ...records.map(({ record }) =>
+      ...setters.map(({ record }) =>
         Object.fromEntries(
-          [...CONFORMANCE_FIELDS, "reviewedHeadSha"]
-            .filter((name) => name in record)
-            .map((name) => [name, record[name]]),
+          CONFORMANCE_FIELDS.filter((name) => name in record).map((name) => [name, record[name]]),
         ),
       ),
     );
     const verdict = conformanceVerdict(merged);
-    const at = (entries) => entries.map(({ location }) => `${location}/conformance`).join(", ");
-    if (verdict === "fail") {
-      const head = merged.conformanceHeadSha ?? merged.reviewedHeadSha;
-      if (head) blockingHeads.set(number, head);
-      else errors.push(`${at(setters)}: blocking conformance has no reviewed head`);
-    } else if (records.some(({ record }) => conformanceVerdict(record) === "fail"))
-      errors.push(
-        `${at(setters)}: a later record replaced this FAIL in beb146d, so it never blocked; delete the stale conformance fields`,
-      );
-    else if (verdict && (verdict !== "pass" || merged.conformanceHeadSha != null))
-      errors.push(`${at(setters)}: ${HELD_CONFORMANCE}`);
+    if (!verdict || (verdict === "pass" && merged.conformanceHeadSha == null)) continue;
+    errors.push(
+      `${setters.map(({ location }) => `${location}/conformance`).join(", ")}: beb146d gated merge on this conformance by PR head, live review coverage and requireConformanceEvidence, which v3 cannot express. Delete the conformance fields if it no longer gates this PR; otherwise record its outcome as review evidence for the current head, or delete this PR's review evidence so the current head gets a fresh review`,
+    );
   }
-  return blockingHeads;
+  return errors;
 }

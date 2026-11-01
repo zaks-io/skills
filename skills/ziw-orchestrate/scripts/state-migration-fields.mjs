@@ -151,17 +151,7 @@ export function translateFields(original, kind, path) {
       "evidenceLabel",
     ])
       delete result[name];
-    // beb146d read conformance only from a PR's merged review state, never from requests or
-    // checks; convertState decides each PR's gate from that merged view.
-    if (["pr", "hosted", "evidence"].includes(kind) && conformanceVerdict(original) === "fail") {
-      const head = original.conformanceHeadSha ?? original.reviewedHeadSha;
-      // The conformance verdict is tied to its head, not an older local review fingerprint.
-      delete result.reviewedDiffFingerprint;
-      if (head) result.reviewedHeadSha = head;
-      result.reviewVerdict = "NEEDS REVISION";
-      result.blockingFindings = true;
-      result.reviewEvidenceCurrent = false;
-    }
+    // convertState refuses conformance that gated a PR; requests and checks never read it.
     for (const name of ["conformance", "conformanceVerdict", "conformanceHeadSha"])
       delete result[name];
   }
@@ -176,19 +166,3 @@ export const conformanceVerdict = (record) => {
     .toLowerCase();
   return verdict === "failed" ? "fail" : verdict || null;
 };
-
-// Put each blocking verdict last in the planner's PR/hosted/local merge so a clean copy cannot
-// erase it.
-export function preserveConformanceFailures(state, blockingHeads) {
-  for (const [number, head] of blockingHeads) {
-    const evidence = (state.reviewEvidenceByPr ??= {})[number] ?? {};
-    delete evidence.reviewedDiffFingerprint;
-    state.reviewEvidenceByPr[number] = {
-      ...evidence,
-      reviewedHeadSha: head,
-      reviewVerdict: "NEEDS REVISION",
-      blockingFindings: true,
-      reviewEvidenceCurrent: false,
-    };
-  }
-}

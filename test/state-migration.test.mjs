@@ -147,7 +147,7 @@ for (const [name, state, pattern] of [
     /caller-dependent/,
   ],
   [
-    "missing conformance head",
+    "conformance FAIL",
     { reviewEvidenceByPr: { 12: { conformance: "FAIL" } } },
     /state\/reviewEvidenceByPr\/12\/conformance/,
   ],
@@ -206,136 +206,56 @@ test("a legacy worktree that reserves a ticket by issue reference is refused, no
   assert.equal(fs.existsSync(backup), false);
 });
 
-for (const conformance of ["FAIL", "FAILED"])
-  test(`${conformance} migrates to a blocking review`, (t) => {
-    const { migrate } = fixture(t, {
-      repo,
-      reviewEvidenceByPr: {
-        12: {
-          conformance,
-          conformanceHeadSha: "head",
-          reviewVerdict: "APPROVE",
-          independentReviewCount: 1,
-        },
-      },
-    });
-    const state = migrate().state;
-    const plan = planTick({
-      snapshot: {
-        v: 3,
-        repo,
-        linear: { issues: [] },
-        prs: [{ number: 12, headSha: "head", changedFiles: 1, checks: { state: "SUCCESS" } }],
-      },
-      config: { hostedReviewRiskTiers: [] },
-      state,
-    });
-    assert.ok(plan.actions.some((action) => action.kind === "route-fix"));
-  });
-
-test("a conformance failure on a PR survives a clean review map overlay", (t) => {
-  const { migrate } = fixture(t, {
-    repo,
-    pullRequests: [
-      { number: 12, headSha: "head", conformance: "FAIL", conformanceHeadSha: "head" },
-    ],
-    reviewEvidenceByPr: {
-      12: {
-        sessionId: "R",
-        reviewedHeadSha: "head",
-        reviewVerdict: "APPROVE",
-        blockingFindings: false,
-        independentReviewCount: 1,
-      },
+// beb146d gated merge on FAIL by live review coverage and the PR head, which v3 cannot express.
+for (const [name, state] of [
+  [
+    "FAIL evidence at a head",
+    { reviewEvidenceByPr: { 12: { conformance: "FAIL", conformanceHeadSha: "head-1" } } },
+  ],
+  [
+    "FAILED evidence without a head",
+    { reviewEvidenceByPr: { 12: { conformanceVerdict: "FAILED" } } },
+  ],
+  [
+    "a FAIL on a PR record under a clean review",
+    {
+      pullRequests: [{ number: 12, headSha: "head-1", conformance: "FAIL" }],
+      reviewEvidenceByPr: { 12: { reviewedHeadSha: "head-1", reviewVerdict: "APPROVE" } },
     },
-  });
-  const state = migrate().state;
-  assert.equal(state.reviewEvidenceByPr[12].sessionId, "R");
-  const plan = planTick({
-    snapshot: {
-      v: 3,
-      repo,
-      linear: { issues: [] },
-      prs: [
-        {
-          number: 12,
-          headSha: "head",
-          changedFiles: 1,
-          checks: { state: "SUCCESS" },
-        },
+  ],
+  [
+    "a later duplicate FAIL",
+    {
+      pullRequests: [
+        { number: 12, headSha: "head-1", conformance: "PASS" },
+        { number: 12, headSha: "head-1", conformance: "FAIL" },
       ],
     },
-    config: { hostedReviewRiskTiers: [] },
-    state,
-  });
-  assert.ok(plan.actions.some((action) => action.kind === "route-fix"));
-});
-
-const conformancePlan = (state) =>
-  planTick({
-    snapshot: {
-      v: 3,
-      repo,
-      linear: { issues: [] },
-      prs: [{ number: 12, headSha: "head-1", changedFiles: 1, checks: { state: "SUCCESS" } }],
-    },
-    config: { hostedReviewRiskTiers: [] },
-    state,
-  });
-const cleanReview = {
-  sessionId: "R",
-  reviewedHeadSha: "head-1",
-  reviewVerdict: "APPROVE",
-  independentReviewCount: 1,
-};
-
-for (const [name, pullRequests] of [
-  [
-    "a later duplicate FAIL replaces an earlier PASS",
-    [
-      { number: 12, headSha: "head-1", conformance: "PASS" },
-      { number: 12, headSha: "head-1", conformance: "FAIL", conformanceHeadSha: "head-1" },
-    ],
   ],
   [
-    "duplicate FAIL records use the later reviewed head",
-    [
-      { number: 12, headSha: "head-1", conformance: "FAIL", reviewedHeadSha: "head-0" },
-      { number: 12, headSha: "head-1", conformance: "FAIL", reviewedHeadSha: "head-1" },
-    ],
+    "a FAIL head a later PASS leaves behind",
+    {
+      pullRequests: [
+        { number: 12, headSha: "head-1", conformance: "FAIL", conformanceHeadSha: "head-1" },
+        { number: 12, headSha: "head-1", conformance: "PASS" },
+      ],
+    },
   ],
 ])
-  test(`${name}, as beb146d merged them`, (t) => {
-    const state = fixture(t, {
-      repo,
-      pullRequests,
-      reviewEvidenceByPr: { 12: cleanReview },
-    }).migrate().state;
-    assert.equal(state.reviewEvidenceByPr[12].reviewedHeadSha, "head-1");
-    assert.equal(state.reviewEvidenceByPr[12].blockingFindings, true);
-    assert.ok(conformancePlan(state).actions.some((action) => action.kind === "route-fix"));
+  test(`conformance that gated merge is refused: ${name}`, (t) => {
+    assert.throws(fixture(t, { repo, ...state }).migrate, /\/conformance: beb146d gated merge/);
   });
 
-test("identical FAIL evidence on a PR record and its evidence map migrates", (t) => {
-  const failure = { ...cleanReview, conformance: "FAIL", conformanceHeadSha: "head-1" };
+test("a headless FAIL that a later headless PASS replaced drops, as beb146d ignored it", (t) => {
   const state = fixture(t, {
     repo,
-    pullRequests: [{ number: 12, headSha: "head-1", ...failure }],
-    reviewEvidenceByPr: { 12: failure },
-  }).migrate().state;
-  assert.equal(state.reviewEvidenceByPr[12].reviewVerdict, "NEEDS REVISION");
-  assert.ok(conformancePlan(state).actions.some((action) => action.kind === "route-fix"));
-});
-
-test("a FAIL that a later duplicate replaced is refused", (t) => {
-  const { migrate } = fixture(t, {
-    repo,
     pullRequests: [
-      { number: 12, conformance: "FAIL", conformanceHeadSha: "head-1" },
-      { number: 12, conformance: "PASS" },
+      { number: 12, headSha: "head-1", conformance: "FAIL" },
+      { number: 12, headSha: "head-1", conformance: "PASS" },
     ],
-  });
-  assert.throws(migrate, /state\/pullRequests\/0\/conformance.*a later record replaced this FAIL/);
+  }).migrate().state;
+  assert.ok(state.pullRequests.every((pr) => !("conformance" in pr)));
+  assert.equal(state.reviewEvidenceByPr?.[12], undefined);
 });
 
 for (const backupKind of ["identical", "conflicting", "symlink", "directory"])
