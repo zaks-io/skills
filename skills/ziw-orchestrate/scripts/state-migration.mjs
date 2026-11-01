@@ -98,7 +98,7 @@ export function convertState(state) {
         throw new Error(`${location}: anonymous live worker has no faithful v3 identity`);
       if (kind === "pr") {
         for (const name of ["sessionId", "receiptId", "prNumber"]) delete next[name];
-        reviewLayers.push({ number: next.number, location, record });
+        reviewLayers.push({ number: next.number, rank: 0, location, record });
       }
       if (kind === "worktree") {
         // beb146d reserved the named ticket through this reference; v3 worktrees
@@ -224,7 +224,12 @@ export function convertState(state) {
           name === "hostedReviewByPr" ||
           name === (state.reviewEvidenceByPr ? "reviewEvidenceByPr" : "reviewEvidence")
         )
-          reviewLayers.push({ number, location: `state/${name}/${key}`, record: state[name][key] });
+          reviewLayers.push({
+            number,
+            rank: name === "hostedReviewByPr" ? 1 : 2,
+            location: `state/${name}/${key}`,
+            record: state[name][key],
+          });
       });
     result[name] = mapped;
   }
@@ -281,25 +286,38 @@ export function convertState(state) {
   return converted;
 }
 
-// A promoted alias outranks canonical values from other layers, which beb146d did
-// not allow, so layers for one PR must agree wherever any of them uses an alias.
+// beb146d layered saved PR, hosted and evidence records in that rank order. A promoted
+// alias would outrank canonical values from other layers, and dropping an unrecognized
+// verdict would expose a lower layer's verdict that beb146d hid.
 function layeredAliasConflicts(layers) {
   const errors = [];
   const byPr = new Map();
   for (const layer of layers) byPr.set(layer.number, [...(byPr.get(layer.number) ?? []), layer]);
-  for (const [number, records] of byPr)
+  for (const [number, unranked] of byPr) {
+    const records = [...unranked].sort((left, right) => left.rank - right.rank);
     for (const [canonical, aliases, convert = (value) => value] of LAYERED_ALIASES) {
       const names = [canonical, ...aliases];
       const setters = records.filter(({ record }) => names.some((name) => name in record));
-      if (!setters.some(({ record }) => aliases.some((name) => name in record))) continue;
       const values = setters.map(({ record }) => {
         const name = names.find((field) => record[field] != null);
         return name == null ? null : convert(record[name]);
       });
-      if (values.every((value) => isDeepStrictEqual(value, values[0]))) continue;
+      const usesAlias = setters.some(({ record }) => aliases.some((name) => name in record));
+      const exposesVerdict =
+        canonical === "reviewVerdict" &&
+        values.at(-1) === null &&
+        values.some((value) => value !== null);
+      if (
+        usesAlias ? values.every((value) => isDeepStrictEqual(value, values[0])) : !exposesVerdict
+      )
+        continue;
+      const ranked = usesAlias
+        ? `the alias ${aliases.join(" or ")} below the canonical field`
+        : `the unrecognized verdict in ${setters.at(-1).location} above the others, and v3 drops it`;
       errors.push(
-        `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on ${canonical} and use the alias ${aliases.join(" or ")}, which beb146d ranked below the canonical field; write the value beb146d used as ${canonical} in each record, or delete the stale one`,
+        `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on ${canonical}; beb146d ranked ${ranked}. Write the value beb146d used as ${canonical} in each record, or delete the stale one`,
       );
     }
+  }
   return errors;
 }

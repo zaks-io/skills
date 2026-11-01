@@ -281,3 +281,50 @@ test("a hostedReviewedDiffFingerprint on a saved PR record still migrates", (t) 
   });
   assert.equal(state.pullRequests[0].hostedReviewDiffFingerprint, "patch-id:old");
 });
+
+test("a request reviewedReviewDiffFingerprint stays inert because beb146d never read it", (t) => {
+  const state = migrate(t, {
+    reviewRequestByPr: {
+      12: {
+        sessionId: "R",
+        headSha: "head-old",
+        reviewedReviewDiffFingerprint: "patch-id:one",
+        status: "running",
+      },
+    },
+  });
+  assert.deepEqual(state.reviewRequestsByPr[12], {
+    sessionId: "R",
+    headSha: "head-old",
+    status: "running",
+  });
+});
+
+for (const [map, hidden] of [
+  ["hostedReviewByPr", "unknown"],
+  ["reviewEvidenceByPr", null],
+])
+  test(`a ${map} verdict of ${hidden} that hid a saved PR verdict is refused`, (t) => {
+    const message = refusal(t, {
+      pullRequests: [{ number: 12, reviewVerdict: "NEEDS REVISION" }],
+      [map]: { 12: { reviewVerdict: hidden } },
+    });
+    assert.match(message, new RegExp(`PR 12: .*unrecognized verdict in state/${map}/12`));
+  });
+
+test("evidence outranks hosted when checking for a hidden verdict", (t) => {
+  const message = refusal(t, {
+    hostedReviewByPr: { 12: { reviewVerdict: "APPROVE" } },
+    reviewEvidenceByPr: { 12: { reviewVerdict: "unknown" } },
+  });
+  assert.match(message, /unrecognized verdict in state\/reviewEvidenceByPr\/12/);
+});
+
+test("an unrecognized verdict that a higher layer replaces still migrates", (t) => {
+  const state = migrate(t, {
+    pullRequests: [{ number: 12, reviewVerdict: "unknown" }],
+    reviewEvidenceByPr: { 12: { reviewVerdict: "APPROVE" } },
+  });
+  assert.equal(state.reviewEvidenceByPr[12].reviewVerdict, "APPROVE");
+  assert.equal(state.pullRequests[0].reviewVerdict, undefined);
+});
