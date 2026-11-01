@@ -152,10 +152,12 @@ export function accountForScope({
     issues
       .filter((issue) => {
         const node = nodes.get(issue.issueRef);
+        // Saved start candidates stay accounted for even after their tickets leave scope.
+        if (state.startableTickets?.some((ticket) => ticket.issueRef === issue.issueRef))
+          return true;
         return (
           scope.matchesCandidate(issue) &&
           (node?.startableState ||
-            state.startableTickets?.some((ticket) => ticket.issueRef === issue.issueRef) ||
             node?.activeClaim ||
             node?.openPr ||
             actions.some((action) => action.target === `ticket:${issue.issueRef}`) ||

@@ -685,22 +685,18 @@ export function planTick({
       });
       continue;
     }
-    // Saved candidates face the same current tracker checks as DAG candidates, except
-    // that a saved footprint may stand in for the tracker's. Scope accounting requests
-    // preparation for failures still in scope; the rest hold so none disappears.
+    // A saved candidate with a live ticket dispatches only through its DAG node, which
+    // must pass the same preparation checks, though a saved footprint may stand in for
+    // the tracker's. Done tickets have no node. Scope accounting reports the rest.
     const node = linearNodesById.get(id);
-    if (node && needsPreparation({ ...node, footprint: ticket.footprint })) {
-      if (!scope.matchesCandidate(issueById.get(id) ?? node))
-        excludedCandidates.push({ target: `ticket:${id}`, reason: "OUT_OF_SCOPE" });
+    if (issueById.has(id) && (!node || needsPreparation({ ...node, footprint: ticket.footprint })))
       continue;
-    }
     if (!ticket.footprint.length) {
-      if (!issueById.has(id))
-        excludedCandidates.push({
-          target: `ticket:${id}`,
-          reason: "TICKET_STATE_MISSING",
-          owner: "orchestrator",
-        });
+      excludedCandidates.push({
+        target: `ticket:${id}`,
+        reason: "TICKET_STATE_MISSING",
+        owner: "orchestrator",
+      });
       continue;
     }
     startableTicketsById.set(id, {

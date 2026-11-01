@@ -96,23 +96,49 @@ test("incomplete bodies cannot dispatch through either candidate path", () => {
   }
 });
 
-test("a saved candidate whose current facts leave scope holds instead of vanishing", () => {
-  const issue = ticket("EXA-1", {
-    state: "Backlog",
-    stateType: "backlog",
-    missingSections: ["checks"],
+for (const preparation of [null, "needs-human", "needs-slicing", "ready"])
+  test(`a saved candidate whose ticket leaves scope holds, with preparation ${preparation}`, () => {
+    const issue = ticket("EXA-1", {
+      state: "Backlog",
+      stateType: "backlog",
+      missingSections: ["checks"],
+    });
+    const result = plan([issue], {
+      linear: { candidateScope: { states: ["Todo"] } },
+      state: {
+        startableTickets: [{ issueKey: "EXA-1", state: "Todo", footprint: issue.footprint }],
+        ...(preparation
+          ? {
+              preparations: [
+                {
+                  issueKey: "EXA-1",
+                  outcome: preparation,
+                  reason: "Recorded before the ticket left scope",
+                  updatedAt: issue.updatedAt,
+                },
+              ],
+            }
+          : {}),
+      },
+    });
+    assert.deepEqual(result.actions, []);
+    assert.ok(result.holds.some(({ target, owner }) => target === "ticket:EXA-1" && owner));
+    assert.equal(result.tickets[0].status, "blocked");
+    assert.notEqual(result.wake.state, "delivered");
   });
-  const result = plan([issue], {
-    linear: { candidateScope: { states: ["Todo"] } },
-    state: { startableTickets: [{ issueKey: "EXA-1", state: "Todo", footprint: issue.footprint }] },
-  });
-  assert.deepEqual(result.actions, []);
-  assert.ok(
-    result.holds.some(
-      ({ target, reason }) => target === "ticket:EXA-1" && reason === "OUT_OF_SCOPE",
-    ),
-  );
-  assert.notEqual(result.wake.state, "delivered");
+
+test("a saved candidate cannot dispatch a ticket the tracker reports done", () => {
+  const issue = ticket("EXA-1", { state: "Done", stateType: "completed" });
+  for (const scopeIssues of [undefined, [{ issueKey: "EXA-1" }]]) {
+    const result = plan([issue], {
+      state: {
+        ...(scopeIssues ? { scopeIssues } : {}),
+        startableTickets: [{ issueKey: "EXA-1", state: "Todo", footprint: issue.footprint }],
+      },
+    });
+    assert.deepEqual(result.actions, [], `explicit scope: ${Boolean(scopeIssues)}`);
+    assert.equal(result.tickets[0].status, "finished");
+  }
 });
 
 test("a lone ticket without a footprint goes to preparation through either candidate path", () => {
