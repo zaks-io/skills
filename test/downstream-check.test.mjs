@@ -43,6 +43,8 @@ test("extractFullLocalGate ignores fenced examples and rows split across lines",
   for (const [open, inner] of [
     ["```", "~~~"],
     ["````", "```"],
+    ["```", "    ```"],
+    ["```", "\t```"],
   ]) {
     writeFileSync(
       config,

@@ -31,9 +31,10 @@ export function extractFullLocalGate(configPath) {
 
   let fence = null;
   for (const line of readFileSync(configPath, "utf8").split("\n")) {
-    // Fenced examples document config formats; they are not this repo's gate. A
-    // fence closes only on its own character, at least as long, with nothing after.
-    const marker = line.match(/^[ \t]*(`{3,}|~{3,})(.*)$/);
+    // Fenced examples document config formats; they are not this repo's gate. As in
+    // CommonMark, a fence marker is indented at most three spaces, and a fence closes
+    // only on its own character, at least as long, with nothing after.
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
     if (fence) {
       if (
         marker &&
