@@ -48,6 +48,28 @@ pnpm test
   );
 });
 
+test("bold content stays inside ticket sections and footprint bullets", () => {
+  for (const heading of ["##", "###"]) {
+    const body = `${heading} Outcome
+**Expected:** Search returns matching results.
+${heading} In scope
+Fix search
+${heading} Out of scope
+Other changes
+${heading} Acceptance criteria
+- **Given** an existing result, searching finds it.
+${heading} Checks
+**Run:** \`pnpm test\`
+${heading} Likely files
+- **Backend:** \`api/search.ts\`
+- \`api/search.test.ts\`
+**Dependencies:** None
+- \`not/a/footprint.ts\``;
+    assert.deepEqual(missingTicketSections(body), []);
+    assert.deepEqual(extractLinearFootprint(body), ["api/search.ts", "api/search.test.ts"]);
+  }
+});
+
 test("extractLinearFootprint accepts current and legacy footprint headings", () => {
   assert.deepEqual(
     extractLinearFootprint(`
@@ -730,6 +752,39 @@ test("referenced UUID lookup preserves aliases and risk metadata without expandi
   });
   assert.equal(observed.filter(({ query }) => query.includes("issue(id:")).length, 1);
 });
+
+for (const blockerState of ["started", "canceled"]) {
+  test(`referenced tickets retain complete bodies and ${blockerState} blocker evidence`, async () => {
+    const description = `## Outcome\nFixed\n## In scope\nFix\n## Out of scope\nOthers\n## Acceptance criteria\nWorks\n## Checks\npnpm test\n## Likely files\n- api/search.ts\n## Dependencies\nOTHER-2`;
+    const raw = issue({ identifier: "OTHER-1", description, blockedBy: "OTHER-2", blockerState });
+    const request = async ({ query, variables }) => {
+      if (query.includes("teams(first"))
+        return { data: { teams: { nodes: [{ id: "team", key: "SPL", name: "Splitch" }] } } };
+      if (query.includes("issues(first"))
+        return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
+      if (variables.id === "OTHER-2")
+        return {
+          data: {
+            issue: relationsIssue("OTHER-2", "canceled", { id: "OTHER-3", type: "started" }),
+          },
+        };
+      assert.equal(variables.id, "OTHER-1");
+      assert.match(query, /\bdescription\b/);
+      assert.match(query, /inverseRelations\(first: 250\)/);
+      return { data: { issue: raw } };
+    };
+    const snapshot = await loadLinearSnapshot({
+      request,
+      selector: "SPL",
+      issueRefs: [{ issueKey: "OTHER-1" }],
+    });
+    assert.deepEqual(snapshot.issues[0].missingSections, []);
+    assert.deepEqual(snapshot.issues[0].footprint, ["api/search.ts"]);
+    assert.deepEqual(snapshot.issues[0].blockedBy, [
+      { issueKey: blockerState === "canceled" ? "OTHER-3" : "OTHER-2" },
+    ]);
+  });
+}
 
 test("typed tracker dependencies carry both identifiers from provider relations", async () => {
   const parentUuid = "11111111-2222-4333-8444-555555555555";

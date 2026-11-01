@@ -158,3 +158,12 @@ to refresh it; default collection avoids repeatedly auditing settled history.
 Reopened PR observations remain global local bookkeeping, even under a named
 selection, so a later return to that ticket can collect its terminal result.
 Neither choice authorizes tracker or code-host mutations outside selection.
+
+CodeRabbit reviewed `f12fdeabcdaabeec8929492a7fa896402f468687` and requested
+three corrections. Bold content inside ticket sections now remains content;
+only known bold section names act as headings. Referenced-issue queries now
+fetch descriptions and dependency relations, including canonical replacement
+resolution for canceled blockers. The Codex prompt now names each action's
+record command instead of the removed action-ID interface. All three findings
+were accepted. After fixes, the full gate passed 788 tests and the read-only
+live single-tick comparison passed again.

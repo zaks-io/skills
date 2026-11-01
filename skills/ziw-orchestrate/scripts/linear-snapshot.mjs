@@ -7,16 +7,26 @@ const FOOTPRINT_HEADINGS = new Set([
   "likely files packages artifacts",
 ]);
 
+const REQUIRED_SECTIONS = [
+  "outcome",
+  "in scope",
+  "out of scope",
+  "acceptance criteria",
+  "checks",
+  "likely files",
+  "dependencies",
+];
+const KNOWN_SECTION_NAMES = new Set([...REQUIRED_SECTIONS, ...FOOTPRINT_HEADINGS]);
+
+function ticketHeading(line) {
+  const markdown = line.match(/^(#{1,6})\s+(.+?)\s*$/);
+  if (markdown) return { level: markdown[1].length, name: normalizeHeading(markdown[2]) };
+  const bold = line.match(/^\s*(?:[-*]\s+)?\*\*(.+?)\*\*\s*:?\s*(.*)$/);
+  const name = bold && normalizeHeading(bold[1]);
+  return KNOWN_SECTION_NAMES.has(name) ? { level: 2, name, content: bold[2] } : null;
+}
+
 export function missingTicketSections(description = "") {
-  const required = [
-    "outcome",
-    "in scope",
-    "out of scope",
-    "acceptance criteria",
-    "checks",
-    "likely files",
-    "dependencies",
-  ];
   const headings = new Map();
   let current;
   let level = 0;
@@ -32,22 +42,21 @@ export function missingTicketSections(description = "") {
       if (current && line.trim()) headings.set(current, true);
       continue;
     }
-    const bold = line.match(/^\s*(?:[-*]\s+)?\*\*(.+?)\*\*\s*:?\s*(.*)$/);
-    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/) ?? (bold ? [bold[0], "##", bold[1]] : null);
+    const heading = ticketHeading(line);
     if (heading) {
-      const name = normalizeHeading(heading[2]);
+      const { name } = heading;
       const section = FOOTPRINT_HEADINGS.has(name) ? "likely files" : name;
-      if (!required.includes(section)) {
-        if (heading[1].length <= level) current = undefined;
+      if (!REQUIRED_SECTIONS.includes(section)) {
+        if (heading.level <= level) current = undefined;
         continue;
       }
       current = section;
-      level = heading[1].length;
+      level = heading.level;
       if (!headings.has(current)) headings.set(current, false);
-      if (bold?.[2]?.trim()) headings.set(current, true);
+      if (heading.content?.trim()) headings.set(current, true);
     } else if (line.trim() && current) headings.set(current, true);
   }
-  return required.filter((heading) => !headings.get(heading));
+  return REQUIRED_SECTIONS.filter((heading) => !headings.get(heading));
 }
 
 const normalizeHeading = (value) =>
@@ -89,17 +98,16 @@ export function extractLinearFootprint(description = "") {
     }
     if (fence) continue;
 
-    const bold = line.match(/^\s*(?:[-*]\s+)?\*\*(.+?)\*\*\s*:?\s*(.*)$/);
-    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/) ?? (bold ? [bold[0], "##", bold[1]] : null);
+    const heading = ticketHeading(line);
     if (heading) {
-      const level = heading[1].length;
+      const { level } = heading;
       if (sectionLevel && level <= sectionLevel) sectionLevel = 0;
-      if (!sectionLevel && FOOTPRINT_HEADINGS.has(normalizeHeading(heading[2]))) {
+      if (!sectionLevel && FOOTPRINT_HEADINGS.has(heading.name)) {
         sectionLevel = level;
       }
-      if (sectionLevel && bold?.[2]) {
+      if (sectionLevel && heading.content) {
         entries.push(
-          ...[...bold[2].matchAll(/`([^`]+)`/g)]
+          ...[...heading.content.matchAll(/`([^`]+)`/g)]
             .map((match) => match[1].trim())
             .filter((entry) => entry && !/\s/.test(entry)),
         );
@@ -430,9 +438,13 @@ const ISSUE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const LINEAR_REFERENCED_ISSUE_QUERY = `
 query($id: String!) {
   issue(id: $id) {
-    id identifier title url priority estimate updatedAt
+    id identifier title description url priority estimate updatedAt
     state { name type }
     labels { nodes { name } }
+    inverseRelations(first: 250) {
+      pageInfo { hasNextPage }
+      nodes { type issue { id identifier state { type } } }
+    }
   }
 }`;
 
@@ -517,7 +529,7 @@ async function loadReferencedIssues(request, issueRefs, knownIssues, issueRefPat
       }
       if (!rawIssue || typeof rawIssue !== "object" || Array.isArray(rawIssue))
         throw new Error(`${path}: referenced Linear issue lookup returned malformed issue record`);
-      issue = normalizeLinearIssue(rawIssue);
+      issue = normalizeLinearIssue(rawIssue, await resolveClosedBlockers(request, [rawIssue]));
       results.push(issue);
     }
     if (

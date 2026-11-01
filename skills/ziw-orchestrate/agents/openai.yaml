@@ -1,6 +1,6 @@
 interface:
   display_name: "Orchestrate"
   short_description: "Orchestrate tracked work"
-  default_prompt: "Use $ziw-orchestrate to deliver this issue tracker scope: preserve its selection, prepare tickets, execute the planner's action instructions, record receipts by action ID, and reconcile reviews and merges."
+  default_prompt: "Use $ziw-orchestrate to deliver this issue tracker scope: preserve its selection, prepare tickets, execute the planner's action instructions, save confirmed results with each action's record command and supplied stdin, and reconcile reviews and merges."
 policy:
   allow_implicit_invocation: true
