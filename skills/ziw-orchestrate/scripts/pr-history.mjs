@@ -29,7 +29,7 @@ export function savedPrNumber(record, repo) {
 }
 
 // Open PRs are always collected separately. Only saved history can be retired here.
-export function retiredPr(state, number) {
+export function retiredPr(state, number, observedIssues = []) {
   if (number == null) return false;
   const workers = (state.dispatches ?? []).filter(
     (worker) => savedPrNumber(worker, state.repo) === Number(number),
@@ -49,6 +49,21 @@ export function retiredPr(state, number) {
   );
   if (possiblySelected) return false;
   if (scope != null) return refs.length > 0;
+  const revisions = [
+    ...(pr?.closedResult?.issues ?? []),
+    ...(result?.trackerUpdatedAt ? [{ ...result, updatedAt: result.trackerUpdatedAt }] : []),
+  ];
+  if (
+    observedIssues.some((issue) =>
+      revisions.some(
+        (prior) =>
+          ["issueKey", "issueUuid"].some(
+            (key) => issue[key] && prior[key] && normalized(issue[key]) === normalized(prior[key]),
+          ) && issue.updatedAt !== prior.updatedAt,
+      ),
+    )
+  )
+    return false;
   const merged =
     result?.postMergeCheck === "passed" && result.trackerUpdatedAt && references(result).length;
   const closed =
@@ -58,4 +73,30 @@ export function retiredPr(state, number) {
     pr.closedResult?.headSha === pr.headSha &&
     pr.closedResult.issues?.length;
   return Boolean(merged || closed);
+}
+
+// A merge receipt remains planning evidence even when its PR no longer needs a lookup.
+export function savedPrHistory(state) {
+  const prs = new Map((state.pullRequests ?? []).map((pr) => [pr.number, pr]));
+  for (const [number, result] of Object.entries(state.mergeResultsByPr ?? {})) {
+    if (
+      result.postMergeCheck !== "passed" ||
+      !result.trackerUpdatedAt ||
+      !references(result).length
+    )
+      continue;
+    prs.set(Number(number), {
+      ...prs.get(Number(number)),
+      number: Number(number),
+      state: "merged",
+      open: false,
+      closed: true,
+      merged: true,
+      headSha: result.headSha,
+      mergeCommitSha: result.mergeCommitSha,
+      ...(result.issueKey ? { issueKey: result.issueKey } : {}),
+      ...(result.issueUuid ? { issueUuid: result.issueUuid } : {}),
+    });
+  }
+  return [...prs.values()];
 }

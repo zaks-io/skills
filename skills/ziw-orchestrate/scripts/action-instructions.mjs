@@ -38,4 +38,6 @@ export const actionInstructions = {
     "Determine why the PR has no diff. Close it only if its work already merged; otherwise ask its worker.",
   "record-closed-pr":
     "Record the confirmed closed PR and terminal ticket revisions using record.stdin. This settles local history without changing the tracker or claiming a merge.",
+  "record-pr-state":
+    "Record this observed reopened PR using record.stdin. This clears its old closed settlement so future ticks collect its terminal result.",
 };

@@ -166,6 +166,8 @@ export function applyObservations(state, observation) {
     const index = (next.pullRequests ??= []).findIndex((prior) => prior.number === record.number);
     if (index < 0) next.pullRequests.push(record);
     else next.pullRequests[index] = { ...next.pullRequests[index], ...record };
+    if (record.state === "open")
+      delete next.pullRequests.find((prior) => prior.number === record.number).closedResult;
   }
   validatePlannerState(next);
   return next;

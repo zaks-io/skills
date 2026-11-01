@@ -155,6 +155,7 @@ export function accountForScope({
         return (
           scope.matchesCandidate(issue) &&
           (node?.startableState ||
+            state.startableTickets?.some((ticket) => ticket.issueRef === issue.issueRef) ||
             node?.activeClaim ||
             node?.openPr ||
             actions.some((action) => action.target === `ticket:${issue.issueRef}`) ||

@@ -12,7 +12,7 @@ import {
   needsPreparation,
   terminalPr,
 } from "./delivery-progress.mjs";
-import { retiredPr } from "./pr-history.mjs";
+import { retiredPr, savedPrHistory } from "./pr-history.mjs";
 import { issuesWithDeliveryEvidence, reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
 import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
@@ -537,8 +537,13 @@ export function planTick({
   validatePlannerArguments({ snapshot: rawSnapshot, config, state: rawState, stateValidated });
   const { snapshot, state, diagnostics } = normalizePlannerModel({
     snapshot: rawSnapshot,
-    state: rawState,
+    state: { ...rawState, pullRequests: savedPrHistory(rawState) },
   });
+  const observedIssues = [
+    ...toArray(snapshot.linear?.issues ?? state.tickets ?? state.linearIssues),
+    ...toArray(snapshot.linear?.activeIssues),
+    ...toArray(snapshot.linear?.issueMetadata),
+  ];
   if (state.workerLimit != null)
     config = {
       ...config,
@@ -551,7 +556,8 @@ export function planTick({
     snapshot.prs,
     toArray(state.pullRequests).filter(
       (pr) =>
-        snapshot.prs.some((live) => live.number === pr.number) || !retiredPr(state, pr.number),
+        snapshot.prs.some((live) => live.number === pr.number) ||
+        !retiredPr(state, pr.number, observedIssues),
     ),
   );
   const scope = linearDispatchScope(snapshot, state);
@@ -867,7 +873,22 @@ export function planTick({
       ...(decision.label ? { label: decision.label } : {}),
       ...(decision.headSha ? { headSha: decision.headSha } : {}),
     }));
-  const actions = [...dispatchActions, ...labelActions, ...prActions];
+  const reopenedPrs = snapshot.prs.filter(
+    (pr) =>
+      !terminalPr(pr) &&
+      state.pullRequests.some((saved) => saved.number === pr.number && saved.closedResult),
+  );
+  const actions = [
+    ...dispatchActions,
+    ...labelActions,
+    ...prActions,
+    ...reopenedPrs.map((pr) => ({
+      target: `pr:${pr.number}`,
+      kind: "record-pr-state",
+      owner: "orchestrator",
+      reason: "PR_REOPENED",
+    })),
+  ];
   const tickets = accountForScope({
     issues: linearIssues,
     dag: linearDag,

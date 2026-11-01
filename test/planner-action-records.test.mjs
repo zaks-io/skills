@@ -38,7 +38,7 @@ function fixture(t, ticket = issue, prs = []) {
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(readFileSync(stateFile, "utf8"));
   };
-  return { plan, record };
+  return { plan, record, config };
 }
 
 test("a preparation action exposes its gaps and supplies a usable typed record command", (t) => {
@@ -140,6 +140,120 @@ test("a closed PR with terminal tickets records settlement and resumes without a
     state: saved,
   });
   assert.equal(reopened.tickets[0].reason, "PR_CLOSED_UNMERGED");
+  delete saved.scopeIssues;
+  const defaultReopen = planTick({
+    snapshot: {
+      ...snapshot,
+      prs: [],
+      linear: {
+        issues: [
+          { ...issue, state: "Todo", stateType: "unstarted", updatedAt: "2026-11-02T00:00:00Z" },
+        ],
+      },
+    },
+    state: saved,
+  });
+  assert.deepEqual(defaultReopen.actions, []);
+  assert.equal(defaultReopen.tickets[0].reason, "PR_CLOSED_UNMERGED");
+});
+
+test("recording a reopened PR invalidates closed settlement and allows later merge reconciliation", (t) => {
+  const pr = {
+    number: 42,
+    url: "https://github.com/example/app/pull/42",
+    headRefName: "codex/exa-1",
+    baseRefName: "main",
+    issueKey: "EXA-1",
+    state: "closed",
+    open: false,
+    merged: false,
+    headSha: "h1",
+  };
+  const f = fixture(t, { ...issue, state: "Canceled", stateType: "canceled" }, [pr]);
+  let state = f.record(f.plan.actions.find((action) => action.kind === "record-closed-pr"));
+  const snapshot = {
+    v: 3,
+    repo,
+    prs: [
+      {
+        ...pr,
+        state: "open",
+        open: true,
+        headSha: "h2",
+        reviewDiffFingerprint: "patch-id:fp2",
+        changedFiles: 1,
+        checks: { state: "SUCCESS" },
+      },
+    ],
+    linear: { issues: [{ ...issue, updatedAt: "2026-11-02T00:00:00Z" }], issueMetadata: [issue] },
+  };
+  const config = f.config;
+  const reopened = enrichActions(planTick({ snapshot, state, config }), {
+    snapshot,
+    state,
+    config,
+  });
+  const observation = reopened.actions.find((action) => action.kind === "record-pr-state");
+  assert.ok(observation);
+  state = f.record(observation);
+  assert.equal(state.pullRequests[0].closedResult, undefined);
+  assert.equal(state.pullRequests[0].state, "open");
+  assert.deepEqual(state.pullRequests[0].linkedIssues, [{ issueKey: "EXA-1" }]);
+  assert.equal(retiredPr(state, 42), false, "collector must fetch a later terminal result");
+  assert.ok(
+    !planTick({ snapshot, state, config }).actions.some(
+      (action) => action.kind === "record-pr-state",
+    ),
+  );
+  const merged = planTick({
+    snapshot: {
+      ...snapshot,
+      prs: [{ ...pr, headSha: "h2", state: "merged", merged: true, mergeCommitSha: "m2" }],
+    },
+    state,
+    config,
+  });
+  assert.ok(
+    merged.actions.some(
+      (action) => action.kind === "reconcile-merged-pr" && action.headSha === "h2",
+    ),
+  );
+});
+
+test("a merge receipt protects reopened default-scope tickets even without a saved PR", (t) => {
+  const f = fixture(t, issue, [
+    {
+      number: 42,
+      issueKey: "EXA-1",
+      state: "merged",
+      open: false,
+      merged: true,
+      headSha: "h1",
+      mergeCommitSha: "m1",
+    },
+  ]);
+  const state = f.record(
+    f.plan.actions.find((action) => action.kind === "reconcile-merged-pr"),
+    {
+      "<passed|failed>": "passed",
+      "<updatedAt-on-success>": "2026-11-01T12:00:00Z",
+    },
+  );
+  assert.equal(state.pullRequests, undefined);
+  assert.equal(retiredPr(state, 42), true);
+  const snapshot = {
+    v: 3,
+    repo,
+    prs: [],
+    linear: {
+      issues: [
+        { ...issue, state: "Todo", stateType: "unstarted", updatedAt: "2026-11-02T00:00:00Z" },
+      ],
+    },
+  };
+  const plan = planTick({ snapshot, state, config: f.config });
+  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.tickets[0].reason, "MERGED_TICKET_CHANGED");
 });
 
 test("missing footprint preparation enriches successfully alongside unrelated PR actions", () => {

@@ -113,7 +113,8 @@ states, with regression coverage. Captured `beb146d` parity fixtures remain
 unchanged. One test documents a deliberate correction: live draft status wins
 over stale saved status, so the PR is marked ready before human handoff.
 
-The integrated full gate passed 781 tests, formatting, structure, generated
+The integrated full gate passed 781 tests before the final retirement fixes,
+along with formatting, structure, generated
 contract freshness, skill discovery, and the secrets scan. A read-only live
 `tick.mjs` invocation used isolated temporary state, collected GitHub and Linear
 facts, and returned a valid plan with no missing-evidence warnings. It performed
@@ -133,3 +134,14 @@ specific PR failure owners and recovery instructions. CLI regressions cover
 recording, resume, collection, and preparation alongside unrelated PR actions.
 The read-only live single tick still matches the separate collection and
 planning pipeline.
+
+The next Opus recheck reviewed `b7c145b` and reproduced reopened PRs remaining
+retired, reopened tickets dispatching after settlement, and explicit backlog
+candidates without footprints disappearing on default ticks. The fixes now
+record reopened PR state, retain terminal planning evidence for changed tracker
+revisions, and account for explicit backlog candidates. Regression scenarios
+run the actual recording commands before planning the next tick. Recorded PR
+links are also deduplicated when tracker metadata repeats an issue.
+
+After those fixes, the full gate passed all 784 tests and the read-only live
+single-tick comparison passed again.

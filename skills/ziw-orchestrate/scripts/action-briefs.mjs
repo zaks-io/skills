@@ -130,14 +130,25 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
           ),
         };
       }
-      if (["route-human-merge", "arm-auto-merge", "record-closed-pr"].includes(action.kind)) {
+      if (
+        ["route-human-merge", "arm-auto-merge", "record-closed-pr", "record-pr-state"].includes(
+          action.kind,
+        )
+      ) {
         const pr = prs.find((entry) => `pr:${entry.number}` === action.target);
-        const linkedIssues = issues
-          .filter((issue) => linked(pr, issue))
-          .map((issue) => ({
-            ...(issue.issueKey ? { issueKey: issue.issueKey } : {}),
-            ...(issue.issueUuid ? { issueUuid: issue.issueUuid } : {}),
-          }));
+        const linkedIssues = [
+          ...new Map(
+            issues
+              .filter((issue) => linked(pr, issue))
+              .map((issue) => [
+                issueRef(issue),
+                {
+                  ...(issue.issueKey ? { issueKey: issue.issueKey } : {}),
+                  ...(issue.issueUuid ? { issueUuid: issue.issueUuid } : {}),
+                },
+              ]),
+          ).values(),
+        ];
         return {
           ...action,
           record: observationRecord({
@@ -145,6 +156,9 @@ export function enrichActions(plan, { snapshot, state, config, stateFile = confi
               {
                 number: pr.number,
                 linkedIssues,
+                ...(action.kind === "record-pr-state"
+                  ? { state: "open", open: true, closed: false, merged: false, headSha: pr.headSha }
+                  : {}),
                 ...(action.kind === "record-closed-pr"
                   ? {
                       state: "closed",

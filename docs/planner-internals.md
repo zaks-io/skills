@@ -57,6 +57,12 @@ Its ordinary `record` command saves the confirmed head and ticket revisions in
 `pullRequests[].closedResult`. Later default ticks retire that history. Explicitly
 selecting its ticket recollects it. Open PR collection always includes every live
 PR and restores saved ticket links, including when a settled PR is reopened.
+`record-pr-state` clears the old closed settlement after observing a reopened PR,
+so a later merge is collected. Retiring lookups does not discard delivery
+evidence: changed tracker revisions restore saved terminal facts for planning.
+A reopened ticket therefore keeps its human hold even on a default tick with
+no terminal PR in the fresh snapshot. Successful merge receipts supply those
+facts even when there is no separate saved PR record.
 
 ## Saved observations
 

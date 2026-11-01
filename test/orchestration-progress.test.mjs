@@ -110,6 +110,19 @@ test("an explicit candidate without tracker facts or footprint holds instead of 
   assert.ok(result.holds.some((hold) => hold.reason === "TICKET_STATE_MISSING"));
 });
 
+test("an explicit backlog candidate without a footprint stays accounted for on default ticks", () => {
+  const issue = ticket("EXA-1", { state: "Backlog", stateType: "backlog", footprint: [] });
+  const result = plan([issue], {
+    state: { startableTickets: [{ issueKey: "EXA-1", footprint: [] }] },
+  });
+  assert.deepEqual(
+    result.actions.map((action) => action.kind),
+    ["prepare-ticket"],
+  );
+  assert.equal(result.tickets[0].status, "actionable");
+  assert.notEqual(result.wake.state, "delivered");
+});
+
 test("unsettled PR history outside explicit selection cannot reserve or block selected work", () => {
   const result = plan([ticket("EXA-2")], {
     state: {
