@@ -229,6 +229,25 @@ test("stale saved state cannot exclude a live candidate from its state filter", 
   );
 });
 
+for (const [field, value] of [
+  ["workflowState", "Todo"],
+  ["stateType", "unstarted"],
+])
+  test(`a selected ticket whose state arrives as ${field} dispatches without a missing-state hold`, () => {
+    const issue = { ...ticket("EXA-1"), state: undefined, stateType: undefined, [field]: value };
+    // Without a configured ready state, the default startable state types apply.
+    const result = plan([issue], {
+      state: { scopeIssues: [{ issueKey: "EXA-1" }] },
+      config: field === "stateType" ? { readyState: undefined } : {},
+    });
+    assert.deepEqual(
+      result.actions.map(({ target, kind }) => ({ target, kind })),
+      [{ target: "ticket:EXA-1", kind: "dispatch" }],
+    );
+    assert.deepEqual(result.holds, []);
+    assert.equal(result.tickets[0].status, "actionable");
+  });
+
 test("a lone ticket without a footprint goes to preparation through either candidate path", () => {
   const issue = ticket("EXA-1", { footprint: [] });
   for (const explicit of [false, true]) {

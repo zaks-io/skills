@@ -59,6 +59,11 @@ export function missingTicketSections(description = "") {
   return REQUIRED_SECTIONS.filter((heading) => !headings.get(heading));
 }
 
+// Planner inputs may name an issue's workflow state through any of these fields.
+export const issueStateName = (issue) =>
+  issue?.state?.name ?? issue?.state ?? issue?.status ?? issue?.workflowState;
+export const issueStateType = (issue) => issue?.stateType ?? issue?.state?.type;
+
 const normalizeHeading = (value) =>
   String(value ?? "")
     .toLowerCase()
@@ -421,10 +426,12 @@ export async function loadLinearSnapshot({
     candidateScope: { routeLabel: routeLabel ?? null, states },
     candidateIssues,
     identityDiagnostics: diagnostics,
-    issueMetadata: metadata.map(({ issueKey, issueUuid, labels }) => ({
+    issueMetadata: metadata.map(({ issueKey, issueUuid, labels, state, stateType }) => ({
       ...(issueKey ? { issueKey } : {}),
       ...(issueUuid ? { issueUuid } : {}),
       labels,
+      state,
+      stateType,
     })),
     unroutedIssueIds: selectUnroutedIssueIds(issues, states, routeLabel),
     includesDirectBlockers: true,

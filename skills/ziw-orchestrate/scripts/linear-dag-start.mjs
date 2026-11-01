@@ -10,6 +10,7 @@
 import { readFileSync } from "node:fs";
 import { isMain, parseCli, runCli } from "./cli.mjs";
 import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
+import { issueStateName, issueStateType } from "./linear-snapshot.mjs";
 
 const DEFAULT_DONE_STATES = ["done", "closed", "complete", "completed"];
 const DEFAULT_STARTABLE_STATES = ["todo"];
@@ -46,9 +47,6 @@ const compact = (values) => [
 ];
 
 const labelName = (label) => (typeof label === "string" ? label : label?.name);
-const issueStateName = (issue) =>
-  issue?.state?.name ?? issue?.state ?? issue?.status ?? issue?.workflowState;
-const issueStateType = (issue) => issue?.stateType ?? issue?.state?.type;
 const issueEstimate = (issue) =>
   issue?.estimate ??
   issue?.estimatePoints ??

@@ -16,6 +16,7 @@ import {
 import { retiredPr, savedPrHistory } from "./pr-history.mjs";
 import { issuesWithDeliveryEvidence, reconcileActiveDelivery } from "./active-dispatches.mjs";
 import { extractLinearIssues, linearDagStart } from "./linear-dag-start.mjs";
+import { issueStateName, issueStateType } from "./linear-snapshot.mjs";
 import { linearDispatchScope, restrictLinearDag } from "./dispatch-scope.mjs";
 import {
   activeDeliveryFootprint,
@@ -663,7 +664,17 @@ export function planTick({
         footprint: node.footprint,
         unlockCount: downstreamCount(node.issueRef),
       })) ?? [];
-  const issueById = new Map(linearIssues.map((issue) => [issue.issueRef, issue]));
+  // The collector keeps tickets outside the candidate route or states only as metadata; their
+  // recorded state still settles saved candidates and selections that name them.
+  const trackedIssues = [
+    ...linearIssues,
+    ...toArray(snapshot.linear?.issueMetadata).filter(
+      (issue) =>
+        (issueStateName(issue) || issueStateType(issue)) &&
+        !linearIssues.some((known) => known.issueRef === issue.issueRef),
+    ),
+  ];
+  const issueById = new Map(trackedIssues.map((issue) => [issue.issueRef, issue]));
   const explicitStartableTickets = issuesWithDeliveryEvidence(
     toArray(state.startableTickets).map((ticket) => ({
       ...issueById.get(ticket.issueRef),
@@ -902,7 +913,7 @@ export function planTick({
     })),
   ];
   const tickets = accountForScope({
-    issues: linearIssues,
+    issues: trackedIssues,
     dag: linearDag,
     scope,
     state,

@@ -1,4 +1,4 @@
-import { linearIssueMatchesRoute } from "./linear-snapshot.mjs";
+import { issueStateName, linearIssueMatchesRoute } from "./linear-snapshot.mjs";
 
 const normalize = (value) =>
   String(value ?? "")
@@ -19,7 +19,7 @@ export function linearDispatchScope(snapshot = {}, state = {}) {
     matchesReservation(issue) &&
     (candidateIds == null || candidateIds.has(identifier(issue))) &&
     (requestedIds == null || requestedIds.has(identifier(issue))) &&
-    (states.size === 0 || states.has(normalize(issue.state?.name ?? issue.state ?? issue.status)));
+    (states.size === 0 || states.has(normalize(issueStateName(issue))));
 
   return { matchesCandidate, matchesReservation };
 }

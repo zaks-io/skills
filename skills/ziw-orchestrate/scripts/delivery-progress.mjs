@@ -1,4 +1,5 @@
 import { coversIssue } from "./delivery-identity.mjs";
+import { issueStateName, issueStateType } from "./linear-snapshot.mjs";
 import { humanMergePrLabel, implementationReadyLabels } from "./workflow-contract.mjs";
 
 const normalized = (value) =>
@@ -6,13 +7,11 @@ const normalized = (value) =>
     .trim()
     .toLowerCase();
 const list = (value) => (value == null ? [] : [value].flat());
-const stateName = (issue) => normalized(issue?.state?.name ?? issue?.state);
+const stateName = (issue) => normalized(issueStateName(issue));
 const labels = (issue) => list(issue?.labels).map((label) => normalized(label?.name ?? label));
 
 export const terminalIssue = (issue, config = {}) =>
-  ["completed", "canceled", "duplicate"].includes(
-    normalized(issue.stateType ?? issue.state?.type),
-  ) ||
+  ["completed", "canceled", "duplicate"].includes(normalized(issueStateType(issue))) ||
   ["done", "closed", "complete", "completed", ...list(config.doneStates), config.doneState]
     .map(normalized)
     .filter(Boolean)
@@ -161,7 +160,7 @@ export function accountForScope({
             node?.activeClaim ||
             node?.openPr ||
             actions.some((action) => action.target === `ticket:${issue.issueRef}`) ||
-            normalized(issue.stateType) === "started")
+            normalized(issueStateType(issue)) === "started")
         );
       })
       .map((issue) => issue.issueRef);
@@ -182,7 +181,8 @@ export function accountForScope({
     };
     let item;
     let status;
-    if (!issue || !issue.state) item = pushHold("TICKET_STATE_MISSING", "orchestrator");
+    if (!issueStateName(issue) && !issueStateType(issue))
+      item = pushHold("TICKET_STATE_MISSING", "orchestrator");
     // A finished ticket needs no scope decision, though its PRs and workers still report.
     else if (!terminalIssue(issue, config) && !scope.matchesReservation(issue))
       item = pushHold("OUT_OF_SCOPE", "human");

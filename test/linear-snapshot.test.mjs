@@ -10,6 +10,7 @@ import {
   selectActiveLinearIssues,
   selectScopedLinearIssues,
 } from "../skills/ziw-orchestrate/scripts/linear-snapshot.mjs";
+import { planTick } from "../skills/ziw-orchestrate/scripts/tick-plan.mjs";
 
 test("ticket completeness accepts a title, nested detail and fenced checks without treating fenced headings as sections", () => {
   const body = `# Ticket\n## Outcome\nFixed\n## In scope\nFix\n## Out of scope\nOther changes\n## Acceptance criteria\nWorks\n## Checks\n\`\`\`sh\npnpm test\n\`\`\`\n## Likely files\n### Backend\n- src/api.ts\n## Dependencies\nNone`;
@@ -438,14 +439,16 @@ test("loadLinearSnapshot restricts candidates by route and state while retaining
   assert.deepEqual(snapshot.candidateIssues, [{ issueKey: "SPL-1" }, { issueKey: "SPL-7" }]);
   assert.deepEqual(snapshot.candidateScope, { routeLabel: route, states: ["Todo"] });
   assert.deepEqual(snapshot.unroutedIssueIds, ["SPL-5"]);
+  // Metadata keeps every observed ticket's state so out-of-scope saved work can settle.
+  const todo = { state: "Todo", stateType: "unstarted" };
   assert.deepEqual(snapshot.issueMetadata, [
-    { issueKey: "SPL-1", labels: [route] },
-    { issueKey: "SPL-2", labels: ["zaks-io/other"] },
-    { issueKey: "SPL-3", labels: ["zaks-io/other"] },
-    { issueKey: "SPL-4", labels: [route] },
-    { issueKey: "SPL-5", labels: ["kind-slice", "ready-for-agent"] },
-    { issueKey: "SPL-6", labels: [route] },
-    { issueKey: "SPL-7", labels: [route] },
+    { issueKey: "SPL-1", labels: [route], ...todo },
+    { issueKey: "SPL-2", labels: ["zaks-io/other"], ...todo },
+    { issueKey: "SPL-3", labels: ["zaks-io/other"], ...todo },
+    { issueKey: "SPL-4", labels: [route], state: "Backlog", stateType: "backlog" },
+    { issueKey: "SPL-5", labels: ["kind-slice", "ready-for-agent"], ...todo },
+    { issueKey: "SPL-6", labels: [route], state: "In Progress", stateType: "started" },
+    { issueKey: "SPL-7", labels: [route], ...todo },
   ]);
   assert.deepEqual(
     snapshot.issues.map((item) => item.issueKey),
@@ -759,6 +762,8 @@ test("referenced UUID lookup preserves aliases and risk metadata without expandi
     issueKey: "SPL-9",
     issueUuid: uuid,
     labels: ["risk-schema"],
+    state: "Todo",
+    stateType: "unstarted",
   });
   assert.equal(observed.filter(({ query }) => query.includes("issue(id:")).length, 1);
 });
@@ -978,4 +983,41 @@ test("referenced request failures name their source path and redact provider tex
       return true;
     },
   );
+});
+
+test("a saved candidate finished outside the route settles through real collection", async () => {
+  const route = "example/app";
+  const done = {
+    ...issue({ identifier: "EXA-1", labels: ["kind-slice"] }),
+    state: { name: "Done", type: "completed" },
+  };
+  const request = async ({ query }) => {
+    if (query.includes("teams(first"))
+      return { data: { teams: { nodes: [{ id: "team", key: "EXA", name: "Example" }] } } };
+    if (query.includes("issue(id:")) return { data: { issue: done } };
+    return { data: { issues: { pageInfo: { hasNextPage: false }, nodes: [] } } };
+  };
+  const linear = await loadLinearSnapshot({
+    request,
+    selector: "EXA",
+    routeLabel: route,
+    issueRefs: [{ issueKey: "EXA-1" }],
+    issueRefPaths: ["--state/startableTickets/0"],
+  });
+  assert.deepEqual(linear.issues, []);
+  for (const scopeIssues of [undefined, [{ issueKey: "EXA-1" }]]) {
+    const plan = planTick({
+      snapshot: { v: 3, repo: route, prs: [], linear },
+      config: { readyState: "Todo", mergeAuthority: "human" },
+      state: {
+        v: 3,
+        repo: route,
+        ...(scopeIssues ? { scopeIssues } : {}),
+        startableTickets: [{ issueKey: "EXA-1", labels: [route], footprint: ["src/a.ts"] }],
+      },
+    });
+    assert.deepEqual(plan.actions, [], `explicit scope: ${Boolean(scopeIssues)}`);
+    assert.deepEqual(plan.holds, []);
+    assert.notEqual(plan.wake.state, "blocked");
+  }
 });
