@@ -1,8 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { extractFullLocalGate } from "./discovery.mjs";
-import { gitStatus, outputTail, run } from "./process.mjs";
+import { outputTail, run } from "./process.mjs";
 
 // Fresh worktrees have no dependencies. Frozen installs keep the lockfile out
 // of the generated diff, which the coordinator commits with `git add -A`.
@@ -49,7 +50,7 @@ export function runConfiguredCheck(result, repoRoot) {
     return { ...result, checkStatus: "missing-full-local-gate" };
   }
 
-  const before = gitStatus(repoRoot);
+  const before = stagedTree(repoRoot);
   const install = frozenInstall(repoRoot);
   if (install.error) {
     return { ...result, checkStatus: "install-unresolved", checkOutput: install.error };
@@ -65,30 +66,48 @@ export function runConfiguredCheck(result, repoRoot) {
   // whose workflow config you are willing to execute with full shell behavior.
   const checked = checkResult(result, gate, run(gate, [], repoRoot, { shell: true }));
   if (checked.checkStatus !== "passed") return checked;
-  return unchangedByCheck(checked, before, gitStatus(repoRoot));
+  return unchangedByCheck(checked, repoRoot, before, stagedTree(repoRoot));
 }
 
-// The refresh commit stages everything, so the install and gate must leave the
-// tracked and unignored files exactly as the skill refresh left them.
-function unchangedByCheck(checked, before, after) {
+// The tree `git add -A` would commit, built in a copy of the index so the real
+// one is untouched. It covers content, modes, and files in untracked directories.
+function stagedTree(repoRoot) {
+  const index = run(
+    "git",
+    ["rev-parse", "--path-format=absolute", "--git-path", "index"],
+    repoRoot,
+  );
+  if (index.status !== 0) return null;
+  const directory = mkdtempSync(path.join(tmpdir(), "ziw-check-index-"));
+  try {
+    const env = { ...process.env, GIT_INDEX_FILE: path.join(directory, "index") };
+    if (existsSync(index.stdout.trim())) copyFileSync(index.stdout.trim(), env.GIT_INDEX_FILE);
+    if (run("git", ["add", "-A"], repoRoot, { env }).status !== 0) return null;
+    const tree = run("git", ["write-tree"], repoRoot, { env });
+    return tree.status === 0 ? tree.stdout.trim() : null;
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+// The refresh commit stages everything, so the install and gate must leave it
+// exactly as the skill refresh did.
+function unchangedByCheck(checked, repoRoot, before, after) {
   if (before === null || after === null) {
     return {
       ...checked,
       checkStatus: "failed",
-      checkOutput: "git status failed, so the check's file changes cannot be verified",
+      checkOutput:
+        "git could not snapshot the worktree, so the check's file changes are unverified",
     };
   }
-  const changed = [
-    ...after.filter((line) => !before.includes(line)),
-    ...before.filter((line) => !after.includes(line)),
-  ];
-  return changed.length
-    ? {
-        ...checked,
-        checkStatus: "changed-files",
-        checkOutput: `The install or gate changed files the refresh commit would include:\n${changed.join("\n")}`,
-      }
-    : checked;
+  if (before === after) return checked;
+  const changed = run("git", ["diff", "--name-status", before, after], repoRoot).stdout.trim();
+  return {
+    ...checked,
+    checkStatus: "changed-files",
+    checkOutput: `The install or gate changed files the refresh commit would include:\n${changed}`,
+  };
 }
 
 function checkResult(result, command, check) {

@@ -29,11 +29,25 @@ export function extractFullLocalGate(configPath) {
     return null;
   }
 
-  let fenced = false;
+  let fence = null;
   for (const line of readFileSync(configPath, "utf8").split("\n")) {
-    // Fenced examples document config formats; they are not this repo's gate.
-    if (/^[ \t]*(?:```|~~~)/.test(line)) fenced = !fenced;
-    if (fenced) continue;
+    // Fenced examples document config formats; they are not this repo's gate. A
+    // fence closes only on its own character, at least as long, with nothing after.
+    const marker = line.match(/^[ \t]*(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      if (
+        marker &&
+        marker[1][0] === fence[0] &&
+        marker[1].length >= fence.length &&
+        !marker[2].trim()
+      )
+        fence = null;
+      continue;
+    }
+    if (marker) {
+      fence = marker[1];
+      continue;
+    }
     const match = line.match(
       /^[ \t]*(?:- Full local(?:\/CI| pre-push)? gate:[ \t]*|\|[ \t]*Full(?: local)? gate[ \t]*\|[ \t]*)`([^`]+)`/,
     );

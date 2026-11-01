@@ -39,6 +39,17 @@ test("extractFullLocalGate ignores fenced examples and rows split across lines",
   assert.equal(extractFullLocalGate(config), "pnpm ci:check");
   writeFileSync(config, "|\nFull gate |\n`true` |\n");
   assert.equal(extractFullLocalGate(config), null);
+  // A fence closes only on its own character and at least its length.
+  for (const [open, inner] of [
+    ["```", "~~~"],
+    ["````", "```"],
+  ]) {
+    writeFileSync(
+      config,
+      `${open}md\n${inner}\n| Full gate | \`true\` |\n${open}\n\n- Full local gate: \`pnpm ci:check\`\n`,
+    );
+    assert.equal(extractFullLocalGate(config), "pnpm ci:check", `${open} fence with ${inner}`);
+  }
 });
 
 test("frozenInstall follows the repo lockfile", (t) => {
@@ -89,6 +100,36 @@ test("runConfiguredCheck refuses files the install or gate adds to the refresh c
   const checked = runConfiguredCheck({ status: "updated" }, root);
   assert.equal(checked.checkStatus, "changed-files");
   assert.match(checked.checkOutput, /generated\.txt/);
+});
+
+test("runConfiguredCheck refuses content changes that keep the same git status", (t) => {
+  const root = tempRepo(t);
+  writeFileSync(path.join(root, "skills-lock.json"), "{}\n");
+  execFileSync("git", ["add", "skills-lock.json"], { cwd: root });
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "user.name=test",
+      "-c",
+      "user.email=test@example.com",
+      "-c",
+      "commit.gpgsign=false",
+    ].concat(["commit", "-qm", "base"]),
+    { cwd: root },
+  );
+  // The refresh has already modified the lockfile and added an untracked directory.
+  writeFileSync(path.join(root, "skills-lock.json"), '{"refreshed":true}\n');
+  mkdirSync(path.join(root, "generated"));
+  writeFileSync(path.join(root, "generated/a.txt"), "refresh\n");
+  writeConfig(
+    root,
+    "- Full local gate: `echo '{}' > skills-lock.json && echo extra > generated/b.txt`",
+  );
+  const checked = runConfiguredCheck({ status: "updated" }, root);
+  assert.equal(checked.checkStatus, "changed-files");
+  assert.match(checked.checkOutput, /skills-lock\.json/);
+  assert.match(checked.checkOutput, /generated\/b\.txt/);
 });
 
 test("runConfiguredCheck stops before the gate when the install fails", (t) => {
