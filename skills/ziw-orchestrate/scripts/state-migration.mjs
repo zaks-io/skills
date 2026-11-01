@@ -3,6 +3,7 @@ import { validateLegacyState, validateOldCanonicalState } from "./state-migratio
 import { convertLegacyRecord, legacyIssueReference } from "./state-migration-records.mjs";
 import {
   LAYERED_ALIASES,
+  conformanceVerdict,
   preserveConformanceFailures,
   translateFields,
 } from "./state-migration-fields.mjs";
@@ -43,11 +44,7 @@ export function convertState(state) {
   const reviewLayers = [];
   const translate = (record, kind, location) => {
     const next = translateFields(record, kind, location);
-    if (
-      ["fail", "failed", "unverifiable"].includes(
-        String(record.conformance ?? record.conformanceVerdict).toLowerCase(),
-      )
-    )
+    if (["pr", "hosted", "evidence"].includes(kind) && conformanceVerdict(record) === "fail")
       conformanceFailures.push({ record: next, location });
     return next;
   };
@@ -318,6 +315,18 @@ function layeredAliasConflicts(layers) {
         `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on ${canonical}; beb146d ranked ${ranked}. Write the value beb146d used as ${canonical} in each record, or delete the stale one`,
       );
     }
+    // beb146d merged conformance field by field, which one migrated verdict cannot express.
+    const conformance = ({ record }) => [
+      conformanceVerdict(record),
+      record.conformanceHeadSha ?? null,
+    ];
+    const setters = records.filter(({ record }) =>
+      ["conformance", "conformanceVerdict", "conformanceHeadSha"].some((name) => name in record),
+    );
+    if (setters.some((setter) => !isDeepStrictEqual(conformance(setter), conformance(setters[0]))))
+      errors.push(
+        `PR ${number}: ${setters.map(({ location }) => location).join(", ")} disagree on conformance, which beb146d merged field by field; write the same conformance fields in each record, or delete the stale ones`,
+      );
   }
   return errors;
 }
