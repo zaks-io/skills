@@ -212,7 +212,7 @@ const cases = [
           codeRabbitRequired: true,
           codeRabbitComplete: true,
           hostedReviewHeadSha: "head-1",
-          hostedReviewedDiffFingerprint: "patch-id:one",
+          hostedReviewDiffFingerprint: "patch-id:one",
           autoReview: "enabled",
           provider: "CodeRabbit",
         },

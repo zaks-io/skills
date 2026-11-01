@@ -143,7 +143,6 @@ test("hosted policy aliases preserve gates, counts and provider output", (t) => 
         codeRabbitRequired: true,
         codeRabbitComplete: true,
         codeRabbitSkipped: false,
-        hostedReviewedDiffFingerprint: "patch-id:x",
         autoReview: "enabled",
         provider: "CodeRabbit",
         tier: "high",
@@ -159,7 +158,6 @@ test("hosted policy aliases preserve gates, counts and provider output", (t) => 
   assert.deepEqual(state.hostedReviewByPr[12], {
     hostedReviewRequired: true,
     hostedReviewComplete: true,
-    hostedReviewDiffFingerprint: "patch-id:x",
     autoReviewMode: "enabled",
     hostedReviewProvider: "CodeRabbit",
     riskTier: "high",
@@ -267,4 +265,19 @@ test("a later duplicate PR record clears an earlier fingerprint fallback", (t) =
   });
   assert.equal(state.reviewDiffByPr[12], "patch-id:two");
   assert.ok(state.pullRequests.every((pr) => !("reviewRelevantDiffFingerprint" in pr)));
+});
+
+for (const map of ["hostedReviewByPr", "reviewEvidenceByPr"])
+  test(`a ${map} hostedReviewedDiffFingerprint that a live bot review outranked is refused`, (t) => {
+    const message = refusal(t, {
+      [map]: { 12: { hostedReviewedDiffFingerprint: "patch-id:old" } },
+    });
+    assert.match(message, new RegExp(`state/${map}/12/hostedReviewedDiffFingerprint`));
+  });
+
+test("a hostedReviewedDiffFingerprint on a saved PR record still migrates", (t) => {
+  const state = migrate(t, {
+    pullRequests: [{ number: 12, hostedReviewedDiffFingerprint: "patch-id:old" }],
+  });
+  assert.equal(state.pullRequests[0].hostedReviewDiffFingerprint, "patch-id:old");
 });
