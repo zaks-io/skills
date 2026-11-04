@@ -106,7 +106,7 @@ and tick sizes come from the CLI test fixture: one judged criterion, ten pairs.
 | Instructions                     |    Words |
 | -------------------------------- | -------: |
 | Ratchet entrypoint               |      382 |
-| Setup guide, loaded at setup     |      543 |
+| Setup guide, loaded at setup     |      548 |
 | Shared workflow contract         |      625 |
 | One round: entrypoint + contract |    1,007 |
 | Tick output per call             | 11 to 69 |

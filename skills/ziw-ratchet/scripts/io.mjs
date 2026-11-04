@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  linkSync,
   lstatSync,
   readdirSync,
   readFileSync,
@@ -102,24 +103,66 @@ function running(pid) {
     return error.code === "EPERM";
   }
 }
+function readOwner(file) {
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+  const owner = Number(text);
+  assert(
+    Number.isSafeInteger(owner) && owner > 0,
+    `${file} is corrupt; remove it once no ratchet command is running`,
+  );
+  return owner;
+}
+// link() publishes a lock whose owner is already written, so no reader ever
+// sees an empty claim.
+function claim(file) {
+  const draft = `${file}.${process.pid}`;
+  writeFileSync(draft, String(process.pid));
+  try {
+    linkSync(draft, file);
+    return true;
+  } catch (error) {
+    if (error.code === "EEXIST") return false;
+    throw error;
+  } finally {
+    rmSync(draft, { force: true });
+  }
+}
+const busy = (file, owner) =>
+  `another ratchet command${owner ? ` (pid ${owner})` : ""} holds ${file}; rerun after it exits`;
+function acquire(file) {
+  if (claim(file)) return;
+  const owner = readOwner(file);
+  if (owner) assert(!running(owner), busy(file, owner));
+  // Only the guard holder may replace a dead owner's lock, so two reclaimers
+  // cannot remove each other's fresh claims.
+  const guard = `${file}.reclaim`;
+  assert(
+    claim(guard),
+    `another ratchet command is recovering ${file}; rerun after it exits, or remove ${guard} if none is running`,
+  );
+  try {
+    const current = readOwner(file);
+    if (current) {
+      assert(!running(current), busy(file, current));
+      rmSync(file);
+    }
+    assert(claim(file), busy(file, readOwner(file)));
+  } finally {
+    rmSync(guard, { force: true });
+  }
+}
 // Scheduled wakes and completion callbacks can overlap, so each command holds
 // the run for its whole load, transition, Git, and journal transaction.
 export function withRunLock(directory, operation) {
   if (!existsSync(directory)) return operation();
   const file = path.join(directory, ".lock");
-  const claim = () => writeFileSync(file, String(process.pid), { flag: "wx" });
-  try {
-    claim();
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    const owner = Number(readFileSync(file, "utf8"));
-    assert(
-      !(Number.isSafeInteger(owner) && owner > 0 && running(owner)),
-      `another ratchet command (pid ${owner}) holds ${file}; rerun after it exits`,
-    );
-    rmSync(file);
-    claim();
-  }
+  acquire(file);
   try {
     return operation();
   } finally {

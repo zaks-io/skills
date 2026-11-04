@@ -10,6 +10,7 @@ import {
   readJson,
   writeJson,
   prefixMatches,
+  withRunLock,
 } from "./io.mjs";
 import { minimumUnits } from "./stats.mjs";
 import { append } from "./run-records.mjs";
@@ -165,13 +166,17 @@ export function validateSetSizes(setup, references) {
   return minimum;
 }
 export function initialize(root, directory, setupFile) {
-  assert(!existsSync(path.join(directory, "journal.jsonl")), "run already has a journal");
-  clean(root);
   try {
     git(root, "check-ignore", "--", path.relative(root, directory));
   } catch {
     throw new Error("run directory must be git-ignored");
   }
+  mkdirSync(directory, { recursive: true });
+  return withRunLock(directory, () => createRun(root, directory, setupFile));
+}
+function createRun(root, directory, setupFile) {
+  assert(!existsSync(path.join(directory, "journal.jsonl")), "run already has a journal");
+  clean(root);
   const setup = validateSetup(readJson(setupFile));
   for (const prefix of [...setup.boundary.target, ...setup.boundary.protected])
     inside(root, prefix);
@@ -184,7 +189,6 @@ export function initialize(root, directory, setupFile) {
   const minimum = validateSetSizes(setup, references);
   const baseline = git(root, "rev-parse", "HEAD");
   const branch = git(root, "symbolic-ref", "--short", "HEAD");
-  mkdirSync(directory, { recursive: true });
   writeJson(path.join(directory, "setup.json"), setup);
   const event = {
     type: "initialized",

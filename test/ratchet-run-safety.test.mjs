@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fixture } from "./ratchet-cli-harness.test.mjs";
@@ -15,25 +16,52 @@ function startRound(f) {
   return launch;
 }
 
+const command = (f, ...args) =>
+  new Promise((resolve) => {
+    const child = spawn(process.execPath, [cli, ...args, "--run", ".run"], { cwd: f.root });
+    child.on("close", resolve);
+  });
+
 test("ratchet serializes overlapping ticks and recovers a stale lock", async (t) => {
   const f = fixture(t);
   f.tick();
   f.run("capture");
-  const tick = () =>
-    new Promise((resolve) => {
-      const child = spawn(process.execPath, [cli, "tick", "--run", ".run"], { cwd: f.root });
-      child.on("close", resolve);
-    });
-  await Promise.all([tick(), tick()]);
+  await Promise.all([command(f, "tick"), command(f, "tick")]);
   assert.equal(f.tick().status, "setup");
   assert.equal(new Set(f.journal().map((e) => e.sequence)).size, f.journal().length);
 
   f.write(".run/.lock", String(process.pid));
-  f.fail(/another ratchet command/, "tick");
+  f.fail(/another ratchet command \(pid/, "tick");
   const exited = spawnSync(process.execPath, ["-e", ""]).pid;
   f.write(".run/.lock", String(exited));
   assert.equal(f.tick().status, "setup");
   assert.equal(f.raw(["report"]).status, 0);
+  assert.equal(existsSync(f.file(".run/.lock")), false);
+});
+
+test("ratchet never removes an unreadable lock or races another recovery", (t) => {
+  const f = fixture(t);
+  f.write(".run/.lock", "");
+  f.fail(/\.lock is corrupt/, "tick");
+  assert.equal(f.read(".run/.lock"), "");
+
+  const exited = spawnSync(process.execPath, ["-e", ""]).pid;
+  f.write(".run/.lock", String(exited));
+  f.write(".run/.lock.reclaim", String(process.pid));
+  f.fail(/another ratchet command is recovering/, "tick");
+  assert.equal(f.read(".run/.lock"), String(exited));
+  rmSync(f.file(".run/.lock.reclaim"));
+  assert.equal(f.tick().status, "setup");
+});
+
+test("ratchet concurrent inits write one journal", async (t) => {
+  const f = fixture(t, false);
+  const codes = await Promise.all(
+    [1, 2, 3].map(() => command(f, "init", "--setup", ".run/input.json")),
+  );
+  assert.equal(codes.filter((code) => code === 0).length, 1);
+  assert.equal(f.journal().filter((e) => e.type === "initialized").length, 1);
+  assert.equal(f.tick().status, "setup");
 });
 
 test("ratchet hides held-out revert reasons from the next implementer", (t) => {

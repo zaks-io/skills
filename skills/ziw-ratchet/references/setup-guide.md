@@ -1,6 +1,6 @@
 # Ratchet setup guide
 
-Draft `setup.json` with the user. Everything in it is locked at approval.
+Draft `setup.json` with the user. `init` locks everything in it; to change it, start a new run.
 
 ```json
 {
