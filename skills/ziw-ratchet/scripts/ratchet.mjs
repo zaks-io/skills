@@ -3,7 +3,7 @@ import { realpathSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { assert, fileHash, filesUnder, git, inside, readJson } from "./io.mjs";
+import { assert, fileHash, filesUnder, git, inside, readJson, withRunLock } from "./io.mjs";
 import { initialize } from "./setup.mjs";
 import { append, fold, loadEvents } from "./run-records.mjs";
 import { capture } from "./evidence.mjs";
@@ -79,51 +79,67 @@ export function main(args) {
     assert(parsed.values.setup, "init requires --setup");
     return initialize(root, directory, path.resolve(process.cwd(), parsed.values.setup));
   }
-  const events = loadEvents(directory);
-  let state = fold(events);
-  let manifest;
-  try {
-    manifest = verifyRecords(root, directory, state);
-    assert(
-      git(root, "symbolic-ref", "--short", "HEAD") === state.branch,
-      "current branch differs from the run branch",
-    );
-    if (command === "tick") {
-      const expected = state.active?.candidate ?? state.lastKept;
+  return withRunLock(directory, () => {
+    const events = loadEvents(directory);
+    let state = fold(events);
+    let manifest;
+    // A failed run must still report itself, even when its branch or evidence is
+    // what failed; the journal itself was validated by loadEvents.
+    const acknowledging =
+      state.status === "failed" &&
+      (command === "report" || (command === "record" && event === "reported"));
+    if (!acknowledging)
+      try {
+        manifest = verifyRecords(root, directory, state);
+        assert(
+          git(root, "symbolic-ref", "--short", "HEAD") === state.branch,
+          "current branch differs from the run branch",
+        );
+        if (command === "tick") {
+          const expected = state.active?.candidate ?? state.lastKept;
+          assert(
+            git(root, "rev-parse", "HEAD") === expected,
+            "HEAD differs from the recorded candidate or last kept commit",
+          );
+        }
+      } catch (error) {
+        if (command !== "tick" || state.status === "done") throw error;
+        if (state.status !== "failed")
+          append(directory, events, { type: "failed", reason: error.message });
+      }
+    state = fold(events);
+    if (command === "report") return report(state);
+    if (command === "record") return record(root, directory, events, event, parsed.values);
+    if (command === "capture") {
       assert(
-        git(root, "rev-parse", "HEAD") === expected,
-        "HEAD differs from the recorded candidate or last kept commit",
+        (state.status === "setup" && !state.captures[state.baseline]) ||
+          (state.status === "running" &&
+            state.active?.candidate &&
+            !state.captures[state.active.candidate] &&
+            !state.active.rejection),
+        "capture is outside the current phase",
       );
+      try {
+        return capture(root, directory, events, manifest);
+      } catch (error) {
+        // A candidate that cannot be captured is reverted like any failed round.
+        // During setup, fail loudly so the recipe can be fixed and rerun.
+        if (state.status !== "running") throw error;
+        append(directory, events, { type: "capture-failed", reason: error.message });
+        return { captured: false, reverted: true, reason: error.message };
+      }
     }
-  } catch (error) {
-    if (command !== "tick" || state.status === "done") throw error;
-    if (state.status !== "failed")
+    if (state.pause) append(directory, events, { type: "resumed" });
+    let actions;
+    try {
+      actions = nextActions(root, directory, events);
+    } catch (error) {
       append(directory, events, { type: "failed", reason: error.message });
-  }
-  state = fold(events);
-  if (command === "report") return report(state);
-  if (command === "record") return record(root, directory, events, event, parsed.values);
-  if (command === "capture") {
-    assert(
-      (state.status === "setup" && !state.captures[state.baseline]) ||
-        (state.status === "running" &&
-          state.active?.candidate &&
-          !state.captures[state.active.candidate] &&
-          !state.active.rejection),
-      "capture is outside the current phase",
-    );
-    return capture(root, directory, events, manifest);
-  }
-  if (state.pause) append(directory, events, { type: "resumed" });
-  let actions;
-  try {
-    actions = nextActions(root, directory, events);
-  } catch (error) {
-    append(directory, events, { type: "failed", reason: error.message });
-    actions = nextActions(root, directory, events);
-  }
-  state = fold(events);
-  return { status: state.status, round: state.active?.number ?? state.rounds.length, actions };
+      actions = nextActions(root, directory, events);
+    }
+    state = fold(events);
+    return { status: state.status, round: state.active?.number ?? state.rounds.length, actions };
+  });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {

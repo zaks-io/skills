@@ -130,8 +130,13 @@ export function fold(events) {
         break;
       case "implement-failed":
       case "boundary-violation":
+      case "capture-failed":
         assert(round, `${event.type} outside round`);
-        round.rejection = event.type === "implement-failed" ? "implement-failed" : "boundary";
+        round.rejection = {
+          "implement-failed": "implement-failed",
+          "boundary-violation": "boundary",
+          "capture-failed": "capture-failed",
+        }[event.type];
         round.detail = event.reason;
         break;
       case "compared":

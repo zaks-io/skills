@@ -7,6 +7,7 @@ import {
   readFileSync,
   realpathSync,
   mkdirSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -91,4 +92,37 @@ export function quote(value) {
 export function prefixMatches(file, prefix) {
   const normalized = prefix.replace(/\/+$/, "");
   return file === normalized || file.startsWith(normalized + "/");
+}
+
+function running(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+// Scheduled wakes and completion callbacks can overlap, so each command holds
+// the run for its whole load, transition, Git, and journal transaction.
+export function withRunLock(directory, operation) {
+  if (!existsSync(directory)) return operation();
+  const file = path.join(directory, ".lock");
+  const claim = () => writeFileSync(file, String(process.pid), { flag: "wx" });
+  try {
+    claim();
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    const owner = Number(readFileSync(file, "utf8"));
+    assert(
+      !(Number.isSafeInteger(owner) && owner > 0 && running(owner)),
+      `another ratchet command (pid ${owner}) holds ${file}; rerun after it exits`,
+    );
+    rmSync(file);
+    claim();
+  }
+  try {
+    return operation();
+  } finally {
+    rmSync(file, { force: true });
+  }
 }

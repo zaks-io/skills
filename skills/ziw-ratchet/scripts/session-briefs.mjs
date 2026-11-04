@@ -71,6 +71,18 @@ ${listing.join("\n")}
   return brief;
 }
 
+// Only reasons about evidence the implementer can see pass through; anything
+// else, including unknown reasons, would leak held-out results.
+const visibleReasons =
+  /^(no-improvement|full-gate|boundary|implement-failed|capture-failed|stopped|gate:[^:]+|regression:[^:]+:(working|measured)|anchor:[^:]+:working)$/;
+function visibleReason(state, reason) {
+  if (visibleReasons.test(reason)) return reason;
+  const critical = /^critical:(.+):[^:]+$/.exec(reason);
+  const item = critical && state.captures[state.baseline].items.find((i) => i.id === critical[1]);
+  return item && state.setup.sets.working.includes(item.unit)
+    ? reason
+    : "a check on evidence you cannot see failed";
+}
 export function previousAttempts(state) {
   const lastKeep = state.rounds.findLastIndex((r) => r.outcome === "kept");
   const attempts = state.rounds.slice(lastKeep + 1).filter((r) => r.outcome === "reverted");
@@ -96,7 +108,7 @@ export function previousAttempts(state) {
               return `${judge}, ${pair.item}/${v.criterion}, candidate ${pair.currentSide}: ${compact(v.observations)}`;
             });
         });
-        return `- Round ${r.number}: ${r.changes ? compact(r.changes) + "; " : ""}${changes.map(compact).join("; ")}. Reverted: ${r.reason}. ${observations.join("; ")}`;
+        return `- Round ${r.number}: ${r.changes ? compact(r.changes) + "; " : ""}${changes.map(compact).join("; ")}. Reverted: ${visibleReason(state, r.reason)}. ${observations.join("; ")}`;
       })
       .join("\n")
   );
