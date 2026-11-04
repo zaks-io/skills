@@ -20,11 +20,12 @@ stale, not invoked in real runs, or duplicating another role's authority.
 
 ## Current Decision
 
-Keep ten publishable skills. Debug and Architecture have distinct direct
+Keep eleven publishable skills. Debug and Architecture have distinct direct
 callers and outcomes: investigate an unexplained failure, or assess structure
 before a design decision exists. Grill owns clarification and ready specs;
-Implement owns tracked delivery. Codebase design remains an Architecture
-reference rather than an eleventh skill. Measure real use before further splits.
+Implement owns tracked delivery; Ratchet owns rubric-driven improvement of one
+target over many rounds. Codebase design remains an Architecture reference.
+Measure real use before further splits.
 
 | Skill              | Decision              | Why                                                                                                                                                                                      |
 | ------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -36,6 +37,7 @@ reference rather than an eleventh skill. Measure real use before further splits.
 | `ziw-triage`       | Keep, watch size      | Makes tickets ready or routes each to one next owner before Orchestrate runs. Merging it into Orchestrate would make the loop heavier.                                                   |
 | `ziw-orchestrate`  | Keep, script hot path | Owns the work loop. The planner scripts decide; the skill maps each planner action to what the agent does.                                                                               |
 | `ziw-implement`    | Keep                  | Delivers one ticket as a draft PR, using Create PR.                                                                                                                                      |
+| `ziw-ratchet`      | Keep, measure use     | Improves one ticket's target against a locked rubric until a goal or plateau, then delivers one draft PR. Its script decides keeps; Implement has no scoring or revert loop.             |
 | `ziw-code-review`  | Keep                  | Shared review gate: optional author QA, and the fresh-context independent review a merge needs.                                                                                          |
 | `ziw-pr`           | Keep, measure overlap | Shared shipping step for branch-to-PR work, with bounded fix rounds. Merge into Implement later only if standalone PR use is rare and Orchestrator does not need a separate gate.        |
 

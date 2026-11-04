@@ -53,10 +53,16 @@ a coding agent.
 
 ### One Work Loop
 
-Agent Orchestrator is the only active loop. It should keep a small context,
-refresh Linear, GitHub, checks, and PR state, then delegate implementation or
-review. Grill resolves material planning ambiguity; To Issues and Triage
-prepare current work. Agent Review and integrate are called steps.
+Agent Orchestrator is the only active backlog loop. It should keep a small
+context, refresh Linear, GitHub, checks, and PR state, then delegate
+implementation or review. Grill resolves material planning ambiguity; To Issues
+and Triage prepare current work. Agent Review and integrate are called steps.
+
+Ratchet (user-directed, 2026-11-04) is a bounded worker loop inside one ticket,
+not a second backlog loop. It holds the Implement role for that ticket, so the
+planner sees an active claim, and it hands back one draft PR. Its rounds use
+pairwise judging against references because LLM judges compare more reliably
+than they score, and its script keeps a round only on a tested gain.
 
 There is no separate coverage-audit loop in this repo. Coverage checking lives
 inside the existing roles instead: To Issues reports which spec requirements
@@ -76,6 +82,7 @@ Core user-facing roles:
 - `ziw-triage`
 - `ziw-orchestrate`
 - `ziw-implement`
+- `ziw-ratchet`
 
 Helper gates:
 

@@ -14,6 +14,7 @@ config says nothing.
 | Triage      | Prepares clear tickets from repository evidence, or names their next owner.         |
 | Orchestrate | Runs selected work through preparation, workers, reviews, and merge reconciliation. |
 | Implement   | Delivers one ticket as a draft PR.                                                  |
+| Ratchet     | Improves one ticket's target against a locked rubric, then opens one draft PR.      |
 | Create PR   | Commits, pushes, and opens or updates the PR.                                       |
 | Code Review | Reviews a diff and reports. Changes nothing.                                        |
 

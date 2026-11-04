@@ -8,7 +8,7 @@ const skillsDir = path.join(root, "skills");
 const errors = [];
 const cleanContextSkills = new Set(["ziw-code-review"]);
 const bannedFrontmatterFields = ["allowed-tools", "model", "effort", "shell"];
-const scriptAllowedSkills = new Set(["ziw-orchestrate"]);
+const scriptAllowedSkills = new Set(["ziw-orchestrate", "ziw-ratchet"]);
 const triggerTerms = {
   "ziw-debug": ["debug", "failure"],
   "ziw-architecture": ["architecture", "module"],
@@ -17,6 +17,7 @@ const triggerTerms = {
   "ziw-code-review": ["review", "code"],
   "ziw-grill": ["grill", "spec", "question"],
   "ziw-pr": ["pr", "pull request"],
+  "ziw-ratchet": ["rubric", "improve"],
   "ziw-to-issues": ["spec", "ticket", "dependency"],
   "ziw-triage": ["tracker", "triage", "project", "issue"],
   "ziw-setup": ["setup", "config"],

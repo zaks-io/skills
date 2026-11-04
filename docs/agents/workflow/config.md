@@ -47,6 +47,12 @@ read live. Planner values are in [planner.json](planner.json).
   current run and result. Missing or inaccessible evidence leaves its saved
   reservation intact. Start every independent review in a fresh delegated session.
 
+## Ratchet
+
+- Judges: GPT-6.1 Sol high and Opus 5.5 high, each through `delegate_task`
+- Implementer: GPT-6.1 Sol high, through `delegate_task` with worktree isolation
+- Scheduled resume: T3 `schedule_task` for this thread
+
 ## Review and merge
 
 - Merge method: the repository-allowed GitHub method
