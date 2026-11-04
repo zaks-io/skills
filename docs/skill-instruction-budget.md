@@ -97,3 +97,23 @@ The planner now supplies action instructions and briefs. Scope, concurrency,
 and launch context survive resume without copying config or rebuilding state
 maps. These word counts exclude per-action output and do not measure runtime
 token savings.
+
+## Ratchet
+
+Measured on 2026-11-04 with `wc -w`, including frontmatter and Markdown. Brief
+and tick sizes come from the CLI test fixture: one judged criterion, ten pairs.
+
+| Instructions                     |    Words |
+| -------------------------------- | -------: |
+| Ratchet entrypoint               |      382 |
+| Setup guide, loaded at setup     |      543 |
+| Shared workflow contract         |      625 |
+| One round: entrypoint + contract |    1,007 |
+| Tick output per call             | 11 to 69 |
+| Judge brief                      |      133 |
+| Critique brief                   |      167 |
+| Implementer brief                |      180 |
+
+Each judge brief grows by one line per pair and three to seven lines per judged
+criterion. Evidence files dominate judge tokens, so setup sizes each evidence
+set near the minimum `init` reports.

@@ -17,6 +17,8 @@ Use them to:
 - Review a branch or PR in a fresh agent context.
 - Coordinate several agents across a set of issues, track checks and review
   feedback, and advance work until it is done or blocked on human input.
+- Improve one target, such as a UI or a prompt, against a scored rubric in a
+  long-running loop that keeps only measured gains.
 
 You can run one skill for a specific task or use the full delivery workflow.
 Each repo gets a small config at `docs/agents/workflow/config.md` that records
@@ -147,6 +149,7 @@ $ziw-code-review <branch|pr|range> [--submit]
 $ziw-pr
 $ziw-debug <symptom>
 $ziw-architecture <area|module>
+$ziw-ratchet <goal>
 ```
 
 ## How It Works

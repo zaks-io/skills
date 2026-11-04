@@ -43,6 +43,12 @@ stable values: no secrets, status, or progress.
 - Continuation: <worker completion and code-host notifications that resume a tick>
 - Recover: <how to retrieve status and results by saved ID after interruption>
 
+## Ratchet
+
+- Judges: <two or more models; default GPT-6.1 Sol high and Opus 5.5 high>
+- Implementer: <model; default GPT-6.1 Sol high>
+- Scheduled resume: <how a paused run wakes itself, or none>
+
 ## Review and merge
 
 - Merge method: squash | merge | rebase

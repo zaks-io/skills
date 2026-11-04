@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ratchet"
+  short_description: "Improve against a rubric until done"
+  default_prompt: "Use $ziw-ratchet to improve this target against a locked rubric: set up the run, then execute each tick's actions and record confirmed results until it reaches its goal or stops improving."
+policy:
+  allow_implicit_invocation: true

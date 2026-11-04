@@ -22,6 +22,9 @@ The published skill surface and trim criteria are in
 6. `ziw-implement` delivers a ticket and opens the PR with `ziw-pr`.
 
 `ziw-debug` and `ziw-architecture` are standalone methods any role can use.
+`ziw-ratchet` takes the Implement role for one ticket and improves its target
+over many rounds against a locked rubric; its script decides every keep and
+revert, and the run ends in one draft PR.
 
 ## Design rules
 
